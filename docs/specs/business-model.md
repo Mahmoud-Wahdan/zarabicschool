@@ -17,43 +17,44 @@
 | **Teacher** | Own schedule, assigned students, session join, past-session log, attendance view, financial/payroll info, writes per-student progress reports, writes mandatory post-session reports, receives student evaluations. |
 | **Admin** | Full control: applications/leads, all user accounts, subjects/relationships, schedules, live sessions, attendance, recordings, finances, announcements, reports, replacement sessions, and payroll payouts. Admin provisions all accounts. |
 
-### Relationship rules (Confirmed — owner 2026-09-28)
+### Relationship rules (Confirmed — owner 2026-09-29)
 
 - One guardian can have **multiple students** (children).
-- One student has **exactly one guardian** (father or mother).
+- A student can be an **Adult** (studies independently without a guardian) or a **Minor** (has exactly one guardian: father or mother).
 - Teachers ↔ Subjects: **many-to-many**. A teacher can teach multiple subjects; a subject can have multiple teachers.
 - Admin and student have freedom to choose subjects and teachers, but **admin confirms** the final assignment.
-- Forms: Role-specific tabs and sections expose only the fields relevant to each role.
+- Forms: Public landing page has role-specific tabs (Guardian, Student, Teacher). In Teacher application, teacher states expected hourly rate.
+- Complaints & Outages: In-app session outage button ("أبلغ عن عطل") next to each session + general complaints button in dashboards.
 
 ---
 
-## 2. Onboarding, Authentication & Security
+### 2. Onboarding, Authentication & Security
 
-*Source: CONTEXT.md §5 + Confirmed Decisions 2026-09-28. Status: **Confirmed**.*
+*Source: CONTEXT.md §5 + Confirmed Decisions 2026-09-29. Status: **Confirmed**.*
 
 ```
 Landing page (public)
-  └─→ Guardian fills contact/application form
-        └─→ Admin reviews application
-              └─→ Admin approves
-                    └─→ Admin provisions email + temporary password
-                          └─→ Delivered to user (WhatsApp/fallback)
+  └─→ Applicant (Guardian, Student, or Teacher) fills role-specific application form
+        └─→ Admin reviews & validates application
+              └─→ Admin approves application
+                    └─→ System provisions account (Email + temporary password)
+                          └─→ Delivered to user via WhatsApp (OpenWA)
                                 └─→ User logs in (rate-limited)
                                       └─→ must_change_password = true forces new password
                                             └─→ Access granted to role-based dashboard
 ```
 
-- **Admin-Gated Provisioning:** No public self-registration. Admin creates initial accounts and sets an initial password.
+- **Admin-Gated Provisioning for 3 Roles:** No public self-registration. Admin reviews applications submitted by Guardians, Students, or Teachers, validates them, and approves account creation.
 - **Forced Password Change (`must_change_password`):** On first login, the user is required to set a new password before accessing any platform feature.
 - **No Self-Service Password Reset in MVP:** If a user forgets their password, they contact Admin. Admin assigns a new temporary password and sets `must_change_password = true` again.
 - **Login Rate Limiting:** Rate limiting on login attempts is required from Phase 1. Local implementation in dev, migrating to Redis when worker infrastructure is introduced.
-- **Credential Delivery & Privacy:** WhatsApp (OpenWA) is the primary delivery channel, with **SMS** as the confirmed fallback channel if WhatsApp is unavailable or restricted. In `NotificationLog`, password values are **never stored** (record notification type, recipient, delivery status, and metadata only).
+- **Credential Delivery & Privacy:** WhatsApp (OpenWA) is the primary delivery channel. SMS fallback is deferred to post-MVP (may never be built). In `NotificationLog`, password values are **never stored** (record notification type, recipient, delivery status, and metadata only).
 
 ---
 
 ## 3. Sessions & Scheduling
 
-*Source: CONTEXT.md §6 + Confirmed Decisions 2026-09-28.*
+*Source: CONTEXT.md §6 + Confirmed Decisions 2026-09-29.*
 
 - **Session Types:** Both **private (1:1)** and **group (1:N)**. Admin configures the session type.
 - **Recurring Schedules:** Admin can configure **weekly recurring session patterns** rather than creating every single session manually.
@@ -68,7 +69,7 @@ Landing page (public)
 
 ## 4. Attendance Rules & Absence Thresholds
 
-*Source: Confirmed Decisions 2026-09-28. Status: **Confirmed**.*
+*Source: Confirmed Decisions 2026-09-29. Status: **Confirmed**.*
 
 ### Private Sessions (1:1)
 1. Notification sent to student and teacher.
@@ -77,55 +78,66 @@ Landing page (public)
    - Student marked **Absent**.
    - Session marked **Cancelled/Missed**.
    - **Zero financial effect:** Teacher is not paid for a session that did not occur; student subscription quota is not deducted.
+4. **Attended Session Consumption:** If the student joins and attends for **at least 25% of scheduled duration**, 1 session is consumed from their package.
 
 ### Group Sessions (1:N)
 - Attendance tracked individually per student.
-- Only attending students are marked present and processed for quota deduction.
+- Only attending students (attending >= 25% of duration) consume 1 session from their package quota.
 - Absent students are not deducted.
+- Teacher is paid for the billable time spent with **at least one student**.
 - Teacher submits one comprehensive session report.
 
 ### Teacher Attendance
 - Teacher attendance is tracked via Zoom participant events.
 - Actual duration is calculated after meeting ends.
-- Informational late arrival alert sent if teacher joins >3 minutes late (no payroll penalty).
+- Informational late arrival alert sent if teacher joins >3 minutes late (**no payroll penalty and no red mark**).
 - **If teacher does not join: No payroll is generated.**
 
-### Technical / Internet Outages & Replacement Sessions
-- If a student or teacher suffers an outage preventing attendance, they report the reason to the Admin.
-- Admin reviews the request.
+### Technical / Internet Outages & Replacement Sessions ("أبلغ عن عطل")
+- Included in **MVP**: An in-app outage report form allows students or teachers to report technical failures (internet cutoff, power outage, Zoom/device issue).
+- Admin reviews the report.
 - Upon approval, Admin schedules a **replacement session** linked to the original missed session (`replacement_for_session_id`).
-- The original missed session has **0 effect** on student balance and teacher pay. The replacement session will handle balance deduction and payroll accrual when successfully completed and reported.
+- The original missed session has **0 effect** on student balance and teacher pay. The replacement session settles balance deduction and payroll accrual when successfully completed.
 
 ---
 
 ## 5. Automatic Payroll & Subscription Financial Model
 
-*Source: CONTEXT.md §7 + Confirmed Decisions 2026-09-28. Status: **Confirmed** (HIGH RISK).*
+*Source: CONTEXT.md §7 + Confirmed Decisions 2026-09-29. Status: **Confirmed** (HIGH RISK).*
 
 ### The Core Financial Invariant
-> **Zoom attendance alone is NOT sufficient to generate teacher payroll or deduct student balance.**
+> **Settlement is automatic and driven by Zoom-verified attendance in ONE atomic database transaction.**
 
-For financial movement to execute:
-1. Teacher attended the session via Zoom (duration calculated).
-2. Teacher **submits the required post-session report**.
-3. **Atomic Execution:** In a single database transaction:
-   - Deduct per-session price from student via `SubscriptionLedger` (`SESSION_DEDUCTION`).
-   - Credit teacher in `PayrollLedger` (`SESSION_CREDIT`).
-   - If Admin forces resolution in dispute/exception, the same atomic movement applies.
+1. **Teacher Side (Hourly):**
+   - Billable time = overlap period where teacher AND at least one student were present in the Zoom meeting.
+   - Default cap = scheduled session duration. If a session runs over, the teacher notes overtime in the post-session report, and Admin approves/credits overtime via `ADMIN_ADJUSTMENT`.
+   - Hourly rate is configured per teacher on the teacher profile; every `SESSION_CREDIT` records an immutable `hourly_rate_snapshot_minor` at settlement time.
+2. **Student Side (Prepaid Session Packages):**
+   - Prepaid packages (e.g., 8 sessions), with **no expiration date**.
+   - Each completed session attended by the student consumes **1 session** (`SESSION_DEDUCTION`).
+   - If a student's package is exhausted (0 balance), the teacher is **still paid** for work performed; the deduction records negative balance with an Admin alert for quota replenishment.
+3. **Teacher Post-Session Report:**
+   - Mandatory for quality review and educational notes; it does **NOT** gate payroll settlement.
+   - Escalation: T+0 reminder, T+15m reminder, T+30m **red mark** recorded on teacher profile.
+4. **Atomic Settlement Execution:** In a single database transaction upon `meeting.ended` (or reconciliation):
+   - Deduct 1 session from each attending student in `SubscriptionLedger`.
+   - Credit teacher in `PayrollLedger` based on billable time × hourly rate.
+   - Set `financially_settled_at` on the `Sessions` record.
 
 ```
 Zoom meeting.ended
   │
-  ├─► Teacher attended & duration calculated
+  ├─► Overlap duration calculated (Teacher + >=1 Student)
   │
-  └─► Teacher submits session report
-        │
-        ▼ (Single DB Transaction)
-  ┌───────────────────────────────┐
-  │ 1. SubscriptionLedger Debit   │
-  │ 2. PayrollLedger Credit       │
-  │ 3. Mark Session COMPLETED     │
-  └───────────────────────────────┘
+  ▼ (Single Atomic DB Transaction)
+┌─────────────────────────────────────────┐
+│ 1. SubscriptionLedger: -1 session/attendee│
+│ 2. PayrollLedger: Credit (hours × rate) │
+│ 3. Sessions.financially_settled_at = now()│
+└─────────────────────────────────────────┘
+  │
+  ├─► Trigger WhatsApp prompt to Teacher for Session Report
+  └─► Trigger WhatsApp prompt to Student for Optional Evaluation
 ```
 
 ### Dual Ledger Architecture

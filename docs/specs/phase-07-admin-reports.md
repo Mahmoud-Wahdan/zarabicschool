@@ -8,7 +8,7 @@ Build the central analytics and administration dashboard, the announcements broa
 
 ## Proposed approach
 
-1. **Database migrations:** Add `Reports`, `Evaluations`, and `Announcements` tables to Prisma schema.
+1. **Database migrations:** Add `Reports`, `Evaluations`, `Announcements`, and `Complaints` tables to Prisma schema.
 2. **Admin central dashboard:**
    - Operational metrics: active students, teachers, scheduled/completed sessions, pending applications, pending invoices.
    - Financial overview: total subscription collections vs. accrued teacher payroll liabilities.
@@ -16,26 +16,30 @@ Build the central analytics and administration dashboard, the announcements broa
    - Teacher interface to write progress reports on assigned students.
    - Student/Guardian interface to submit feedback/reports on teachers.
    - Role-scoped visibility for viewing submitted reports.
-4. **Post-session evaluations:**
+4. **General Complaints & Feedback System:**
+   - In-app button on student, guardian, and teacher dashboards to submit general complaints or suggestions.
+   - Admin inbox to review, respond, and resolve complaints.
+5. **Post-session evaluations:**
    - Automated trigger upon session completion presenting evaluation form to student.
    - Aggregated teacher evaluation ratings visible to Admin.
-5. **Announcements management:**
+6. **Announcements management:**
    - Admin UI to compose announcements with target audience filters (`ALL`, `STUDENTS`, `TEACHERS`, `GUARDIANS`).
    - Feed component displayed on user dashboards according to role.
 
 ## Tasks
 
-- [ ] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`
+- [ ] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`, `Complaints`
 - [ ] Run migration
 - [ ] Build admin overview dashboard with operational and financial metrics
 - [ ] Build teacher-to-student progress report form and listing
 - [ ] Build guardian/student view of student progress reports
 - [ ] Build student/guardian teacher evaluation submission interface
+- [ ] Build general complaints submission form on user dashboards and Admin resolution view
 - [ ] Implement automated post-session evaluation prompt for students
 - [ ] Build admin evaluation review and rating summaries
 - [ ] Build admin announcements composer (target audience selection)
 - [ ] Build dashboard announcements widget for Student, Guardian, and Teacher
-- [ ] Write tests: reporting authorization, evaluation submission, announcement scoping
+- [ ] Write tests: reporting authorization, evaluation submission, announcement scoping, complaints flow
 
 ## Execution log (updated as soon as real work happens)
 

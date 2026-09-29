@@ -23,10 +23,10 @@ Build the attendance evaluation engine that consumes Zoom events, calculates tea
    - Evaluate attendance individually per student. Only attending students are marked present and billed.
 5. **Teacher Mandatory Session Report (`SESSION_COMPLETION_REPORT`):**
    - Provide Teacher UI to submit the required session report upon meeting completion.
-   - **Enforce Business Invariant:** Teacher Zoom attendance alone does NOT trigger payroll. Submitting this report is the trigger that unlocks the Phase 6 financial transaction.
-6. **Technical Outage / Replacement Request Flow:**
-   - Student or Teacher interface to report an outage that prevented attendance.
-   - Admin review queue to inspect outage claims and schedule linked replacement sessions.
+   - **Business Rule:** The post-session report is mandatory for educational quality and admin review, but does **NOT** gate payroll (payroll settles automatically from Zoom attendance). Overdue reports trigger WhatsApp reminders (T+0, T+15m) and record a red mark on the teacher at T+30m.
+6. **Technical Outage / Replacement Request Flow ("أبلغ عن عطل"):**
+   - In-app form for Student or Teacher to report an outage (internet cutoff, electricity, Zoom crash) that prevented or disrupted attendance.
+   - Admin review queue to inspect outage claims and schedule linked replacement sessions (`replacement_for_session_id`).
 7. **WhatsApp Notifications (OpenWA):**
    - Teacher joined $\rightarrow$ notify students.
    - Teacher >3 min late $\rightarrow$ send teacher reminder.

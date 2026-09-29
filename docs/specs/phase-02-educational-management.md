@@ -9,7 +9,7 @@ Build the CRUD operations and admin views for managing the core educational enti
 ## Proposed approach
 
 1. **Database migrations:** Add `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects`, and `Applications` tables to Prisma schema.
-2. **Application/Contact form:** Public landing page form (filled by the guardian). Admin reviews, approves/rejects. On approval, admin creates accounts (User + role-specific profile).
+2. **Application/Contact forms:** Public landing page multi-tab form for 3 distinct user roles (**Guardian**, **Student**, **Teacher**). Admin reviews, validates, and approves/rejects. On approval, admin accepts and system provisions account (User + role-specific profile), delivering temporary credentials via WhatsApp.
 3. **Admin CRUD views:** Admin can create, view, edit, deactivate students, guardians, teachers, and subjects. Admin assigns teachers to subjects (many-to-many).
 4. **Student–Guardian linking:** When creating a student, admin assigns exactly one guardian (father or mother). One guardian can have multiple students.
 5. **Subject–Teacher assignment:** Admin assigns teachers to subjects (and vice versa). Students and admin can choose subject–teacher pairings, with admin confirmation.
@@ -19,11 +19,11 @@ Build the CRUD operations and admin views for managing the core educational enti
 ## Tasks
 
 - [ ] Add Prisma schema: `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects`
-- [ ] Add Prisma schema: `Applications` (leads from contact form)
+- [ ] Add Prisma schema: `Applications` (supporting Guardian, Student, Teacher applicant types)
 - [ ] Run migrations
-- [ ] Build public application/contact form (guardian-facing)
-- [ ] Build admin application review UI (approve/reject)
-- [ ] Build admin account creation flow (on approval → create User + profile)
+- [ ] Build public landing page application forms (3 tabs: Guardian, Student, Teacher)
+- [ ] Build admin application inbox & review UI (validate, accept, reject)
+- [ ] Build automated account provisioning flow on admin acceptance (User + profile + OpenWA WhatsApp credential dispatch)
 - [ ] Build admin CRUD: Students
 - [ ] Build admin CRUD: Guardians
 - [ ] Build admin CRUD: Teachers

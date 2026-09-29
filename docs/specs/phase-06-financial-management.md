@@ -13,24 +13,25 @@ Implement student billing with Supabase Storage proof uploads, the dual-ledger a
    - Enforce database-level uniqueness on payroll session credits:
      ```sql
      CREATE UNIQUE INDEX idx_payroll_ledger_unique_session_credit
-     ON payroll_ledger (session_id, student_id)
+     ON payroll_ledger (session_id)
      WHERE entry_type = 'SESSION_CREDIT';
      ```
 2. **Student Manual Billing & Supabase Storage:**
-   - Invoices generated with integer minor units and ISO currency codes.
+   - Invoices generated with integer minor units and ISO currency codes for prepaid packages (no expiry date).
    - Students/guardians upload receipt files directly to private **Supabase Storage** bucket.
    - Database stores `file_path`. Admin accesses proofs via short-lived signed URLs.
-   - When Admin marks invoice `PAID`, system inserts `INITIAL_PURCHASE` row into `SubscriptionLedger`.
+   - When Admin marks invoice `PAID`, system inserts `INITIAL_PURCHASE` row (+N sessions) into `SubscriptionLedger`.
 3. **Dual-Ledger Financial Engine:**
    - **`SubscriptionLedger`:** Remaining student balance is calculated from append-only rows (`INITIAL_PURCHASE`, `SESSION_DEDUCTION`, `ADMIN_ADJUSTMENT`, `REFUND`).
-   - **`PayrollLedger`:** Append-only teacher compensation ledger. `created_by = NULL` for system events, `NOT NULL` for Admin manual adjustments.
-4. **Atomic Financial Transaction (Post-Report Trigger):**
-   - Condition: Teacher Zoom attendance confirmed AND teacher submits valid session report.
+   - **`PayrollLedger`:** Append-only teacher compensation ledger. Stores `hourly_rate_snapshot_minor` and `billable_seconds`. `created_by = NULL` for system events, `NOT NULL` for Admin manual adjustments.
+4. **Atomic Financial Transaction (Automatic Zoom-Attendance Trigger):**
+   - Condition: Zoom `meeting.ended` received (or REST reconciliation) $\rightarrow$ Teacher was present with $\ge 1$ student.
+   - Billable time is calculated (overlap between teacher & student), rounded to the minute, and capped at scheduled session duration.
    - In a single database transaction:
-     1. Deduct session price/quota from `SubscriptionLedger` (`SESSION_DEDUCTION`).
-     2. Credit teacher in `PayrollLedger` (`SESSION_CREDIT`).
-     3. Mark session `COMPLETED` and update `ZoomEvents.processed_at`.
-   - Missed sessions have **0 financial effect**. Replacement sessions trigger this transaction when completed and reported.
+     1. Deduct 1 session from `SubscriptionLedger` (`SESSION_DEDUCTION`) for each attending student (attended $\ge 25\%$ duration).
+     2. Credit teacher in `PayrollLedger` (`SESSION_CREDIT`) = billable hours $\times$ `hourly_rate_minor`.
+     3. Set `Sessions.financially_settled_at = now()`.
+   - Missed sessions have **0 financial effect**. Replacement sessions trigger this transaction when completed. Overtime beyond scheduled duration is noted in teacher's report and credited by Admin via `ADMIN_ADJUSTMENT`.
 5. **Multi-Currency & Teacher Balance Tracking:**
    - No automatic currency conversion in MVP.
    - Teacher dashboards show accrued earnings categorized by currency (e.g. USD balance, EGP balance).
