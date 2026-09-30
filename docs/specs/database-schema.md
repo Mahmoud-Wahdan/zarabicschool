@@ -1,6 +1,6 @@
 # Zarabicschool — Database Schema
 
-> **Status: Architecture Aligned — Updated with Confirmed Decisions (2026-09-28).**
+> **Status: Architecture Aligned — Updated with confirmed 2026-09-29 business rules.**
 >
 > **Conventions:**
 > - All IDs are `UUID` (generated via `gen_random_uuid()`).
@@ -8,42 +8,9 @@
 > - Money is stored as **integer minor units** (cents, piasters, etc.) — never floats.
 > - Currency is stored as **ISO 4217 code** (`VARCHAR(3)`) — multi-currency supported, balances tracked per currency.
 > - Timestamps are `TIMESTAMPTZ` (timezone-aware).
-> - Dual-ledger financial design: `SubscriptionLedger` for student balance, `PayrollLedger` for teacher compensation.
+> - Dual-ledger financial design: `SubscriptionLedger` counts sessions and `PayrollLedger` stores teacher compensation.
 >
 > Last updated: 2026-09-28
-
----
-
-## Table of Contents
-
-1. [Academies](#1-academies)
-2. [Users](#2-users)
-3. [Guardians](#3-guardians)
-4. [Students](#4-students)
-5. [Teachers](#5-teachers)
-6. [Subjects](#6-subjects)
-7. [TeacherSubjects](#7-teachersubjects)
-8. [Enrollments](#8-enrollments)
-9. [Applications](#9-applications)
-10. [Sessions](#10-sessions)
-11. [SessionStudents](#11-sessionstudents)
-12. [Attendance](#12-attendance)
-13. [AttendanceSegments](#13-attendancesegments)
-14. [Subscriptions](#14-subscriptions)
-15. [SubscriptionLedger](#15-subscriptionledger)
-16. [Invoices](#16-invoices)
-17. [PaymentProofs](#17-paymentproofs)
-18. [PayrollLedger](#18-payrolledger)
-19. [ZoomEvents](#19-zoomevents)
-20. [Reports](#20-reports)
-21. [TeacherFlags](#21-teacherflags-النقطة-الحمراء)
-22. [OutageReports](#22-outagereports-أبلغ-عن-عطل)
-23. [Evaluations](#23-evaluations)
-24. [Complaints](#24-complaints-شكاوى-واقتراحات)
-25. [Announcements](#25-announcements)
-26. [NotificationLog](#26-notificationlog)
-27. [Recordings](#27-recordings)
-28. [Prisma Raw SQL Notes & Delete Policy](#28-prisma-raw-sql-notes--delete-policy)
 
 ---
 
@@ -59,6 +26,7 @@ Single row for v1. Provides an anchor for future SaaS tenancy without rewriting 
 | `updated_at` | TIMESTAMPTZ | | |
 
 ---
+
 
 ## 2. Users
 
@@ -116,8 +84,7 @@ Unified authentication table. Role-specific details live in profile tables.
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `user_id` | UUID | FK → Users, UNIQUE, NOT NULL | 1:1 with Users |
-| `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `hourly_rate_minor` | INTEGER | NOT NULL, DEFAULT 0 | Hourly rate agreed with academy (e.g. in piasters/cents) |
+| `academy_id` | UUID | FK → Academies, NOT NULL | || `hourly_rate_minor` | INTEGER | NOT NULL, DEFAULT 0 | Hourly rate agreed with academy (e.g. in piasters/cents) |
 | `hourly_rate_currency` | VARCHAR(3) | NOT NULL, DEFAULT 'EGP' | ISO 4217 code (`EGP`, `USD`) |
 | `late_reports_count` | INTEGER | DEFAULT 0 | Count of red marks for overdue session reports |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
@@ -173,7 +140,7 @@ Maps confirmed student–teacher–subject educational relationships.
 
 ---
 
-## 9. Applications
+### 9. Applications
 
 Inbound registration leads from public landing page application forms across 3 distinct applicant roles (**Guardian**, **Student**, **Teacher**).
 
@@ -216,27 +183,27 @@ Represents scheduled live learning meetings.
 | `scheduled_start` | TIMESTAMPTZ | NOT NULL | |
 | `scheduled_end` | TIMESTAMPTZ | NOT NULL | CHECK (scheduled_end > scheduled_start) |
 | `duration_minutes` | INTEGER | NOT NULL | Calculated duration |
-| `zoom_meeting_id` | VARCHAR | UNIQUE, nullable | Created via Zoom REST API |
-| `zoom_meeting_uuid` | VARCHAR | UNIQUE, nullable | Unique Zoom instance identifier |
-| `zoom_start_url` | TEXT | nullable | Teacher host launch URL (Security: never logged, teacher/admin only) |
-| `status` | ENUM | DEFAULT 'SCHEDULED' | `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `MISSED`, `CANCELLED` |
+| `zoom_join_url` | TEXT | NOT NULL | Admin-pasted participant link; required before the session starts |
+| `zoom_host_url` | TEXT | nullable | Optional host link if the teacher needs one; OPEN whether this is stored |
+| `status` | ENUM | DEFAULT 'SCHEDULED' | `SCHEDULED`, `COMPLETED`, `MISSED`, `CANCELLED` |
 | `is_recurring` | BOOLEAN | DEFAULT false | Part of weekly recurring schedule |
 | `recurrence_rule` | VARCHAR | nullable | e.g. "WEEKLY:MON,THU:18:00" |
 | `recurrence_group_id` | UUID | nullable | Links weekly recurring session series |
 | `replacement_for_session_id` | UUID | FK → Sessions, nullable | Links replacement session to missed original |
 | `cancellation_reason` | TEXT | nullable | Technical outage, absence notes, etc. |
-| `financially_settled_at` | TIMESTAMPTZ | nullable | Settlement marker: set atomically with ledgers; never cleared; never editable |
 | `created_by` | UUID | FK → Users, NOT NULL | Admin |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
-> **Security Note:** `zoom_start_url` contains host privileges. Must be accessed ONLY by Admin and the assigned teacher at meeting time. Never exposed to students or logged.
+> **Security Note:** Zoom URLs are secrets. Never log them. They are readable only by Admin, the assigned teacher, and the session's students; guardian visibility is OPEN. The same link is copied to generated sessions in a recurrence group as a PROPOSAL, and remains editable per session.
+
+> **Status transitions:** `SCHEDULED → COMPLETED` after the session and reports are handled; `SCHEDULED → MISSED` when the session did not take place; `SCHEDULED → CANCELLED` by Admin with a reason. Completed, missed, and cancelled sessions are terminal except for an audited Admin correction or a linked replacement session. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
 
 ---
 
 ## 11. SessionStudents
 
-Junction mapping participants to sessions with their unique Zoom registration details.
+Junction mapping students to sessions. Attendance is a report result, not a Zoom event result.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
@@ -244,61 +211,22 @@ Junction mapping participants to sessions with their unique Zoom registration de
 | `session_id` | UUID | FK → Sessions, NOT NULL | |
 | `student_id` | UUID | FK → Students, NOT NULL | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `zoom_join_url` | TEXT | NOT NULL | Participant-specific join URL from Zoom REST API |
-| `zoom_registrant_id` | VARCHAR | | Unique Zoom registrant ID |
+| `attendance_status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `ATTENDED`, `ABSENT`, `NOT_HELD`; set only by report submission or audited Admin override |
+| `overridden_by` | UUID | FK → Users, nullable | Admin who overrode the report result |
+| `override_reason` | TEXT | nullable | Required for an Admin override |
 | | | UNIQUE(session_id, student_id) | |
 
-> **Security Note:** `zoom_join_url` is private to the registered student and guardian. Never exposed in unauthenticated responses.
+> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. A student absence does not create a deduction or credit; an attended report triggers settlement in Phase 6.
+
+### Optional SessionJoinClicks (PROPOSAL / OPTIONAL)
+
+If retained, the redirect behind the Zoom button writes `(session_id, user_id, clicked_at)`. It is soft evidence for Admin, never proof of attendance, and must not store or log the URL.
 
 ---
 
-## 12. Attendance
-
-Granular session participation log per user. Driven by Zoom events (primary) or manual admin override.
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
-| `session_id` | UUID | FK → Sessions, NOT NULL | |
-| `user_id` | UUID | FK → Users, NOT NULL | Teacher or Student |
-| `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `role_in_session` | ENUM | NOT NULL | `TEACHER`, `STUDENT` |
-| `joined_at` | TIMESTAMPTZ | | First join timestamp |
-| `left_at` | TIMESTAMPTZ | nullable | Final leave timestamp |
-| `total_duration_seconds` | INTEGER | DEFAULT 0 | Cumulative attended duration |
-| `is_late` | BOOLEAN | DEFAULT false | >3 min late for teacher (informational only) |
-| `is_absent` | BOOLEAN | DEFAULT false | True if student exceeds 25% absence threshold |
-| `source` | ENUM | NOT NULL | `ZOOM_EVENT`, `MANUAL` |
-| `overridden_by` | UUID | FK → Users, nullable | Required when source = 'MANUAL' |
-| `override_reason` | TEXT | nullable | Mandatory audit explanation when source = 'MANUAL' |
-| `zoom_event_id` | UUID | FK → ZoomEvents, nullable | Source event for audit |
-| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
-| | | UNIQUE(session_id, user_id) | Exactly one attendance row per user per session |
-
 ---
 
-## 13. AttendanceSegments
-
-Tracks granular join/leave intervals to accurately compute teacher–student overlap for billable time.
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
-| `attendance_id` | UUID | FK → Attendance, NOT NULL | Linked participant attendance record |
-| `joined_at` | TIMESTAMPTZ | NOT NULL | Timestamp when participant joined/rejoined |
-| `left_at` | TIMESTAMPTZ | nullable | Timestamp when participant left (closed at meeting end if missing) |
-| `zoom_event_id` | UUID | FK → ZoomEvents, nullable | Zoom event source |
-| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
-
-> **Computation Invariant:** To calculate billable time:
-> 1. Compute the time intersection between the teacher's segments and each attending student's segments.
-> 2. Take the **UNION** across all students so overlapping students in group sessions are not counted twice.
-> 3. Cap billable duration at the scheduled session duration (unless Admin manually approves overtime).
-> 4. Round to the nearest minute.
-
----
-
-## 14. Subscriptions
+## 12. Subscriptions
 
 Stores core configuration for student prepaid session packages. Remaining session balance is derived exclusively from `SubscriptionLedger`.
 
@@ -314,11 +242,11 @@ Stores core configuration for student prepaid session packages. Remaining sessio
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
-> **Business Rule (Confirmed):** Packages have no time-based expiration date. `per_session_price_minor` was removed because student package consumption is 1 session per attended class, and teacher pay is hourly and completely independent.
+> **Business Rule (Confirmed):** Packages have no time-based expiration date. The former per-session price field is intentionally absent because package consumption is one session per attended class, and teacher pay is hourly and independent.
 
 ---
 
-## 15. SubscriptionLedger
+## 13. SubscriptionLedger
 
 Append-only ledger tracking all quota mutations to a student's subscription. Balance is computed from `SUM(sessions_delta)`.
 
@@ -329,9 +257,10 @@ Append-only ledger tracking all quota mutations to a student's subscription. Bal
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `entry_type` | ENUM | NOT NULL | `INITIAL_PURCHASE`, `SESSION_DEDUCTION`, `ADMIN_ADJUSTMENT`, `REFUND` |
 | `sessions_delta` | INTEGER | NOT NULL | (+N for purchase, -1 for session deduction) |
-| `amount_minor` | INTEGER | DEFAULT 0 | Informational minor units (true financial truth is on Invoices) |
+| `amount_minor` | INTEGER | nullable | DECISION REQUIRED: remove it or retain as informational; recommend removing it because invoices are the money source of truth |
 | `currency` | VARCHAR(3) | NOT NULL | Must match subscription currency |
 | `session_id` | UUID | FK → Sessions, nullable | Linked session for deductions |
+| `report_id` | UUID | FK → Reports, nullable | Required on `SESSION_DEDUCTION`; identifies the report that triggered the deduction |
 | `description` | TEXT | nullable | Audit explanation |
 | `created_by` | UUID | FK → Users, nullable | NULL = system-generated; NOT NULL = Admin |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
@@ -345,7 +274,7 @@ WHERE entry_type = 'SESSION_DEDUCTION';
 
 ---
 
-## 16. Invoices
+## 14. Invoices
 
 Manual billing records generated for student subscription packages.
 
@@ -365,7 +294,7 @@ Manual billing records generated for student subscription packages.
 
 ---
 
-## 17. PaymentProofs
+## 15. PaymentProofs
 
 Stores references to payment receipts uploaded to private Supabase Storage.
 
@@ -381,7 +310,7 @@ Stores references to payment receipts uploaded to private Supabase Storage.
 
 ---
 
-## 18. PayrollLedger
+## 16. PayrollLedger
 
 **Append-only teacher financial ledger.** Tracks all earnings and manual adjustments per currency.
 
@@ -391,13 +320,14 @@ Stores references to payment receipts uploaded to private Supabase Storage.
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `teacher_id` | UUID | FK → Teachers, NOT NULL | |
 | `session_id` | UUID | FK → Sessions, nullable | Session that generated payment |
-| `zoom_event_id` | UUID | FK → ZoomEvents, nullable | Auditing link |
+| `report_id` | UUID | FK → Reports, nullable | Report that triggered a session credit |
+| `student_id` | UUID | FK → Students, nullable | Needed for adjustments only; not needed on `SESSION_CREDIT` |
 | `amount_minor` | INTEGER | NOT NULL | Minor units (+ credit, - debit/disbursement) |
 | `currency` | VARCHAR(3) | NOT NULL | ISO 4217 code |
-| `hourly_rate_snapshot_minor` | INTEGER | NOT NULL | Snapshot of teacher hourly rate at calculation time |
-| `billable_seconds` | INTEGER | NOT NULL | Overlap duration (teacher + >=1 student) capped at scheduled duration |
+| `minutes_credited` | INTEGER | nullable | Scheduled duration snapshot; not observed Zoom time |
+| `hourly_rate_snapshot_minor` | INTEGER | nullable | Rate used for a session credit; preserves history after a rate change |
 | `entry_type` | ENUM | NOT NULL | `SESSION_CREDIT`, `ADMIN_ADJUSTMENT`, `DISBURSEMENT` |
-| `source` | ENUM | NOT NULL | `LIVE_WEBSOCKET`, `RECONCILIATION`, `ADMIN` |
+| `source` | ENUM | NOT NULL | `REPORT`, `ADMIN` |
 | `description` | TEXT | nullable | Mandatory for admin adjustments (e.g., approved overtime) |
 | `created_by` | UUID | FK → Users, nullable | NULL = system-generated; NOT NULL = Admin |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
@@ -411,53 +341,63 @@ WHERE entry_type = 'SESSION_CREDIT';
 
 ---
 
-## 19. ZoomEvents
-
-Raw Zoom event ingress buffer. Guarantees deduplication, idempotent consumption, and auditability.
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
-| `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `event_key` | VARCHAR | UNIQUE, NOT NULL | Unique deduplication key generated by shared helper |
-| `zoom_meeting_id` | VARCHAR | NOT NULL | |
-| `event_type` | VARCHAR | NOT NULL | Standardized Zoom event name (e.g. `meeting.started`, `meeting.ended`) |
-| `participant_zoom_id` | VARCHAR | nullable | |
-| `payload` | JSONB | NOT NULL | Untampered event payload |
-| `source` | ENUM | NOT NULL | `LIVE_WEBSOCKET`, `RECONCILIATION` |
-| `processing_attempts` | INTEGER | DEFAULT 0 | Number of worker processing attempts |
-| `received_at` | TIMESTAMPTZ | DEFAULT NOW() | |
-| `processed_at` | TIMESTAMPTZ | nullable | Ingested and attendance evaluated |
-| `processing_error` | TEXT | nullable | Error trace if processing failed |
-
 ---
 
-## 20. Reports
+## 17. Reports
 
-Progress reports and post-session logs.
+Per-student teacher reports. In a group session there is one report for each student.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `session_id` | UUID | FK → Sessions, nullable | Linked session |
-| `author_id` | UUID | FK → Users, NOT NULL | |
-| `target_id` | UUID | FK → Users, NOT NULL | Target user (e.g. Student) |
-| `content` | TEXT | NOT NULL | Qualitative notes (e.g., Quran surah covered, homework, overtime request) |
-| `report_type` | ENUM | NOT NULL | `SESSION_COMPLETION_REPORT`, `TEACHER_PROGRESS_REPORT`, `FEEDBACK_REPORT` |
+| `session_id` | UUID | FK → Sessions, NOT NULL | Linked session |
+| `student_id` | UUID | FK → Students, NOT NULL | Student covered by this report |
+| `author_id` | UUID | FK → Users, NOT NULL | Assigned teacher who submits it |
+| `report_type` | ENUM | NOT NULL | `SESSION_COMPLETION_REPORT` |
+| `attendance_outcome` | ENUM | NOT NULL | `ATTENDED`, `STUDENT_ABSENT`, plus OPEN outcomes |
+| `class_remark` | ENUM | NOT NULL | Dropdown values OPEN |
+| `summary` | TEXT | NOT NULL | Required lesson summary |
+| `homework` | TEXT | NOT NULL | Required homework value; student visibility is OPEN |
+| `notes` | TEXT | nullable | Optional notes |
+| `extra_time_minutes` | INTEGER | DEFAULT 0 | Frozen after submission |
+| `extra_time_status` | ENUM | DEFAULT 'NONE' | `NONE`, `PENDING`, `APPROVED`, `REJECTED` |
+| `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer |
+| `extra_time_reviewed_at` | TIMESTAMPTZ | nullable | Review timestamp |
+| `submitted_at` | TIMESTAMPTZ | NOT NULL | Submission timestamp |
+| `settled_at` | TIMESTAMPTZ | nullable | Set in the same transaction as settlement ledger rows; never cleared to retry |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
 ### Report Uniqueness Guard
 ```sql
 CREATE UNIQUE INDEX idx_reports_unique_session_completion
-ON reports (session_id, author_id)
+ON reports (session_id, student_id)
 WHERE report_type = 'SESSION_COMPLETION_REPORT';
 ```
 
+`attendance_outcome` and `extra_time_minutes` are frozen after submission. Text fields remain editable under server-side authorization and audit rules. A settled report is a claim: corrections use `ADMIN_ADJUSTMENT` or refund entries, never clearing `settled_at`.
+
+Teacher reports are visible to the guardian and Admin, not the student; whether the student sees homework is OPEN. Student evaluations are Admin-only.
+
+## 18. ReportAttachments
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
+| `report_id` | UUID | FK → Reports, NOT NULL | |
+| `file_path` | VARCHAR | NOT NULL | Private Supabase Storage path; DB stores no file content |
+| `mime_type` | VARCHAR | NOT NULL | Allowlist images and PDF is recommended; exact list OPEN |
+| `size_bytes` | BIGINT | NOT NULL | Size cap is OPEN; recommend a small documented cap |
+| `original_name` | VARCHAR | NOT NULL | Display name, never used as a storage path |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+
+Access uses short-lived signed URLs. Executables are prohibited.
+
 ---
 
-## 21. TeacherFlags ("النقطة الحمراء")
+## 19. TeacherFlags ("النقطة الحمراء")
 
 Informational tracking of teacher compliance violations (e.g., overdue session completion reports).
 
@@ -473,19 +413,18 @@ Informational tracking of teacher compliance violations (e.g., overdue session c
 
 ---
 
-## 22. OutageReports ("أبلغ عن عطل")
+## 20. SessionRequests
 
-In-app technical outage reports submitted by students or teachers for missed or disrupted sessions.
+MVP outage or absence request routing. The reason is handled between Admin and the teacher humanly; the system stores and routes the request only.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `session_id` | UUID | FK → Sessions, NOT NULL | Affected session (bound automatically from session button) |
-| `reporter_id` | UUID | FK → Users, NOT NULL | User reporting the outage (Student/Teacher) |
-| `issue_category` | ENUM | NOT NULL | `INTERNET_OUTAGE`, `ELECTRICITY_CUT`, `ZOOM_ISSUE`, `DEVICE_FAILURE`, `OTHER` |
-| `description` | TEXT | NOT NULL | Details of the technical failure |
-| `status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `APPROVED_REPLACEMENT_SCHEDULED`, `REJECTED` |
+| `requested_by` | UUID | FK → Users, NOT NULL | Student, teacher, or other permitted requester |
+| `reason` | TEXT | NOT NULL | Human-readable request reason |
+| `status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `APPROVED`, `REJECTED` |
 | `reviewed_by` | UUID | FK → Users, nullable | Admin who reviewed |
 | `reviewed_at` | TIMESTAMPTZ | nullable | |
 | `replacement_session_id` | UUID | FK → Sessions, nullable | Linked replacement session if approved |
@@ -493,7 +432,7 @@ In-app technical outage reports submitted by students or teachers for missed or 
 
 ---
 
-## 23. Evaluations
+## 21. Evaluations
 
 Post-session structured rating forms filled by students about teachers (**Optional** for students).
 
@@ -510,7 +449,7 @@ Post-session structured rating forms filled by students about teachers (**Option
 
 ---
 
-## 24. Complaints ("شكاوى واقتراحات")
+## 22. Complaints ("شكاوى واقتراحات")
 
 General complaints or feedback submitted by users (students, guardians, teachers) via the dashboard button.
 
@@ -530,7 +469,7 @@ General complaints or feedback submitted by users (students, guardians, teachers
 
 ---
 
-## 25. Announcements
+## 23. Announcements
 
 Broadcast notices issued by Admin.
 
@@ -548,7 +487,7 @@ Broadcast notices issued by Admin.
 
 ---
 
-## 26. NotificationLog
+## 24. NotificationLog
 
 Auditing log for WhatsApp and SMS communications.
 
@@ -561,7 +500,7 @@ Auditing log for WhatsApp and SMS communications.
 | `channel` | ENUM | DEFAULT 'WHATSAPP' | `WHATSAPP`, `SMS` (SMS post-MVP) |
 | `notification_type` | VARCHAR | NOT NULL | `SESSION_REMINDER`, `LATE_ARRIVAL`, `CREDENTIALS`, etc. |
 | `idempotency_key` | VARCHAR | UNIQUE, NOT NULL | Deduplication key preventing duplicate sends |
-| `content` | TEXT | NOT NULL | Template key / metadata; **never plaintext passwords** |
+| `content` | TEXT | NOT NULL | Template key plus redacted content/metadata; credentials store no password |
 | `status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `SENT`, `FAILED` |
 | `sent_at` | TIMESTAMPTZ | nullable | |
 | `error` | TEXT | nullable | Provider error details |
@@ -569,24 +508,22 @@ Auditing log for WhatsApp and SMS communications.
 
 ---
 
-## 27. Recordings
+## 25. TeacherRates
 
-*Deferred capability.* Video storage references.
+**DECISION REQUIRED:** use an effective-dated table or a single field on `Teachers`. Recommend this table because every credit must preserve the rate used at settlement.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `session_id` | UUID | FK → Sessions, NOT NULL | |
-| `storage_url` | VARCHAR | NOT NULL | Cloud storage URL |
-| `duration_seconds` | INTEGER | nullable | |
-| `uploaded_by` | UUID | FK → Users, NOT NULL | Admin |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL | |
+| `hourly_rate_minor` | INTEGER | NOT NULL | Agreed hourly rate |
+| `currency` | VARCHAR(3) | NOT NULL | One currency per teacher is OPEN |
+| `effective_from` | TIMESTAMPTZ | NOT NULL | Rate start |
+| `created_by` | UUID | FK → Users, NOT NULL | Admin who entered the rate |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
-| `updated_at` | TIMESTAMPTZ | | |
 
----
-
-## 28. Prisma Raw SQL Notes & Delete Policy
+## 26. Prisma Notes
 
 ### Raw SQL Steps in Migrations
 The following constraints cannot be fully expressed in Prisma schema syntax and MUST be added via raw SQL in migration files:
@@ -601,8 +538,55 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `CHECK (sessions_delta = -1)` on `subscription_ledger` for `SESSION_DEDUCTION`.
    - `CHECK (length(currency) = 3)` across financial tables.
    - `CHECK (scheduled_end > scheduled_start)` on `sessions`.
-   - `CHECK (left_at >= joined_at)` on `attendance_segments`.
+   - `CHECK (scheduled_end > scheduled_start)` and a duration consistency check on `sessions`.
+   - `CHECK (length(currency) = 3)` on financial tables.
 
-### Delete Policy
+The duration expression, partial indexes, append-only triggers, and conditional checks are raw SQL because Prisma cannot express them completely.
+
+## 27. Delete Policy
 - **NO hard deletes (`ON DELETE RESTRICT`)** on any entity referenced by ledgers (`Users`, `Students`, `Teachers`, `Subscriptions`, `Sessions`).
 - Soft deactivation via `is_active = false` or `status = 'CANCELLED'` / `'ENDED'`.
+
+Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed for anything referenced by a ledger.
+
+## 28. Open Decisions
+
+- **S2:** Remove `Reports` as a separate history table or retain derived history? Recommend removal of a duplicate attendance table; reports remain the source evidence.
+- **S5:** Store `zoom_host_url`? Options: store it encrypted for teacher/Admin convenience, or require the teacher to use the join link. Recommend optional storage, pending owner confirmation.
+- **S9:** Attachment allowlist and size cap. Options: images plus PDF with a small cap, images only with a smaller cap, or broader documents with scanning. Recommend images plus PDF, no executables.
+- **S14:** Keep `SubscriptionLedger.amount_minor` informational or remove it. Recommend remove; invoices are the money source of truth.
+- **S20:** Effective-dated `TeacherRates` versus fields on `Teachers`. Recommend `TeacherRates`.
+- **S21:** INTEGER versus BIGINT for money and hourly rounding. Recommend BIGINT if high-volume SaaS growth is expected; rounding remains OPEN.
+- **S22:** Zero-session scheduling mechanism. Options: reserve pending sessions, block generation at balance, or allow audited Admin override. Confirm the mechanism; teacher credit must never be blocked.
+- Report attendance outcomes, class remarks, homework visibility, notification recipients/timing, guardian visibility of links, evaluation fields, reversal UX, payout cycle, and tenant-scoped uniqueness remain OPEN where noted above.
+
+## Change Summary Labels
+
+- **S1:** Removed Zoom event ingress and event processing fields.
+- **S2:** Removed duplicate Attendance/AttendanceSegments history; SessionStudents owns status.
+- **S3:** Removed recording and Zoom identifier fields.
+- **S4:** Replaced payroll sources with REPORT/ADMIN.
+- **S5:** Added required manual join URL and optional host URL decision.
+- **S6:** Added session checks and documented status transitions.
+- **S7:** Documented optional SessionJoinClicks.
+- **S8:** Added one per-student completion report and frozen fields.
+- **S9:** Added private report attachments and upload decisions.
+- **S10:** Added report/evaluation permission matrix.
+- **S11:** Added informational TeacherFlags.
+- **S12:** Added MVP SessionRequests.
+- **S13:** Kept evaluations optional.
+- **S14:** Reworked packages and amount decision.
+- **S15:** Added deduction report linkage and partial unique index.
+- **S16:** Added one credit per session and rate/minute snapshots.
+- **S17:** Added append-only triggers and restricted deletes.
+- **S18:** Added financial/session CHECK constraints.
+- **S19:** Moved settlement marker to Reports and added consistency checks.
+- **S20:** Recommended effective-dated TeacherRates.
+- **S21:** Added balance indexes and integer/rounding decisions.
+- **S22:** Documented zero-balance options and never-block-pay rule.
+- **S23:** Documented enrollment constraints.
+- **S24:** Documented three application types and JSONB recommendation.
+- **S25:** Added timezone/password fields and username decision.
+- **S26:** Added redacted notification content and idempotency.
+- **S27:** Added corrected contents, Prisma notes, and delete policy.
+- **S28:** Added SaaS hygiene and the open-decisions list.

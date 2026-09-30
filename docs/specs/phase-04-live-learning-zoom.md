@@ -4,48 +4,78 @@
 
 Zoom integration for live sessions. (CONTEXT.md §13, Phase 4; §6 for full details.)
 
-Implement the primary Zoom REST API session creation and participant registration flow, the Zoom Server-to-Server OAuth service, the embedded web Zoom interface with mobile native app fallback, and the persistent WebSocket event consumer with compound event key deduplication.
+Implement the small manual-link experience: Admin edits the pasted Zoom link, and authorized teachers/students open it through a safe redirect.
 
 ## Proposed approach
 
-1. **Pre-Phase Technical Spike:**
-   - Verify the academy's Zoom plan supports Server-to-Server OAuth, REST meeting registration, and WebSocket event subscriptions.
-   - Inspect live Zoom event payloads to confirm exact event fields for compound `event_key` deduplication and client type detection (web vs. native app).
-2. **Zoom REST API Integration (Primary Session Creation Flow):**
-   - When Admin schedules a session, the system calls the Zoom REST API to create the meeting.
-   - Automatically register the teacher and assigned students.
-   - Store the generated participant-specific join URLs and registrant IDs in `Sessions` and `SessionStudents`.
-3. **Session Experience (Embedded Web + Native Mobile Fallback):**
-   - Provide an embedded Zoom interface on the website where supported (via Zoom Meeting SDK Web).
-   - Display a responsive "Launch in Zoom App" button on mobile devices and as a fallback to open the native Zoom client.
-4. **Server-to-Server OAuth Token Manager:**
-   - Acquire tokens via `account_credentials` grant.
-   - Automatically refresh tokens prior to hourly expiration.
-5. **Persistent WebSocket Event Consumer:**
-   - Long-running worker process connected to `ZOOM_WEBSOCKET_URL`.
-   - Maintain 30-second heartbeat ping/pong.
-   - Automatic reconnect with exponential backoff on network interruption.
-6. **Compound Event Key Deduplication & Persistence:**
-   - Ingest events into `ZoomEvents` table.
-   - Enforce database uniqueness on `event_key`:
-     - Meeting-level: `${meeting_uuid}:${event_type}`
-     - Participant-level: `${meeting_uuid}:${event_type}:${participant_uuid}:${event_time}`
-   - Store with `processed_at = NULL` to enable atomic retry processing in downstream phases.
+1. **Manual link management:** Admin edits the session link or recurrence copy.
+2. **Session Experience (External Zoom Link):**
+   - Display a private "Join Zoom" button/link for the assigned participant.
+   - Open the Zoom desktop app, native mobile app, or Zoom browser experience externally.
+   - Return the participant to the platform after the meeting for the teacher report flow.
+3. **Optional click evidence:** A redirect logs session/user/time only, never the URL.
+
+Delivery stage: Stage 2.
+
+## Acceptance criteria
+
+- Authorized users can open the correct link on desktop and mobile; Admin can edit it per session.
+
+## Frontend
+
+Routes: `/admin/sessions/:id/link`, role session lists, and a `Join Zoom` icon button. Loading, empty, error, mobile, and RTL states are required.
+
+## Backend
+
+PATCH `/api/sessions/:id/link`; GET `/api/sessions/:id/join` performs authorization then redirects. Validate URLs with Zod and return 400/401/403/404. Click logging is optional.
+
+## Database
+
+Touches `Sessions.zoom_join_url` and optional `zoom_host_url`; optional `SessionJoinClicks`. No Zoom API tables, tokens, events, registrations, recordings, or participant IDs.
+
+## Auth & Authorization
+
+| Role | Edit link | Open assigned link | View unrelated link |
+|---|---:|---:|---:|
+| Admin | Yes | Yes | Yes |
+| Teacher | No | Assigned only | No |
+| Student/Guardian | No | Authorized only | No |
+
+## Security
+
+Do not log URLs or query parameters; authorize before redirect; validate external URL scheme/host policy; rate-limit redirects; never expose host links to students.
+
+## Transactions & failure handling
+
+Link edits are atomic. A failed optional click insert must not prevent a valid redirect, and must not disclose the link in an error.
+
+## Tests
+
+Unit: URL validation. Integration: unauthorized redirect, missing link, Admin edit, optional click row, and no URL logging. Playwright: mobile/desktop authorized join flow.
+
+## Learning checkpoint
+
+- Why must authorization happen before issuing a redirect?
+
+## Open decisions
+
+- Merge this small phase into Phase 3 or Phase 5.
+- Store host link and retain optional click logging.
+
+## Deferred / Post-MVP
+
+- [DEFERRED] Future Zoom API verification layer.
+
+## Definition of Done
+
+Requirements, authorization, validation, failure paths, tests, lint, typecheck, build, reviewed diff, and this phase's execution log are complete.
 
 ## Tasks
 
-- [ ] Execute Zoom technical spike (verify API plan capabilities & payload schemas)
-- [ ] Add Prisma schema: `ZoomEvents` table with unique `event_key` constraint
-- [ ] Run migration
-- [ ] Implement Zoom Server-to-Server OAuth token service with proactive auto-refresh
-- [ ] Implement Zoom REST API client: create meeting + register participants + fetch join links
-- [ ] Integrate session creation UI with Zoom REST API provisioning
-- [ ] Implement embedded web Zoom client view for desktop browsers
-- [ ] Implement "Launch in Zoom App" responsive button for mobile participants
-- [ ] Implement WebSocket client: connect, 30s heartbeat, automatic reconnect
-- [ ] Implement compound `event_key` generation and Zod validation for Zoom payloads
-- [ ] Build Admin view for raw `ZoomEvents` inspection and debugging
-- [ ] Write tests: token auto-refresh, event key uniqueness, duplicate rejection, reconnect handling
+- [ ] Implement private "Join Zoom" button/link for assigned participants on all devices
+- [ ] [MVP] Add Admin per-session link editing and authorized redirect
+- [ ] [PROPOSAL/OPTIONAL] Log redirect clicks without storing the link
+- [ ] REMOVED — Zoom technical spike, OAuth, REST creation, registrants, WebSocket, event keys, embedded SDK, Redis/BullMQ Zoom bootstrap, and reconciliation.
 
 ## Execution log (updated as soon as real work happens)
 

@@ -26,6 +26,57 @@ Execute comprehensive end-to-end testing across critical business paths (especia
    - Verify Supabase production connection pooling (`DATABASE_URL` with transaction mode, `DIRECT_URL` for migrations).
    - Execute dry-run migration and seed in staging/production.
 
+Delivery stage: Spans Stages 1–3.
+
+## Acceptance criteria
+
+- Each stage has a documented handoff gate; auth, reports, ledgers, uploads, backups, and authorization tests pass.
+
+## Frontend
+
+Run Playwright across login, applications, sessions, reports, invoices, payroll, and Admin queues at mobile/desktop Arabic RTL and English states, including loading/empty/error paths.
+
+## Backend
+
+Run authorization, Zod validation, rate-limit, idempotency, health-check, notification-after-commit, and error-shape checks. Hosting is decided at deployment.
+
+## Database
+
+Use real Postgres; verify raw SQL indexes/triggers/checks, backup/restore, `DIRECT_URL` migrations, and ledger consistency queries.
+
+## Auth & Authorization
+
+Audit every route by Role × Action, including deactivated sessions, minor data, signed uploads, Zoom redirects, reports, and financial mutations.
+
+## Security
+
+Verify no passwords, Zoom links, secrets, or student-identifying data in logs; rotate secrets; review uploads, rate limits, dependencies, authorization, and backups.
+
+## Transactions & failure handling
+
+Run concurrent report submits, unique-violation behavior, rollback injection, post-commit notifications, and restore verification.
+
+## Tests
+
+Unit, real-Postgres integration, RTL/component, and Playwright E2E suites include the named failures from Phases 1, 5, and 6. No Zoom API/event lifecycle tests.
+
+## Learning checkpoint
+
+- Which checks must pass before handing Stage 2 to the client?
+- Why is restore verification different from checking that backups exist?
+
+## Open decisions
+
+Hosting, stage dates, scheduler, and unresolved domain choices from earlier phases.
+
+## Deferred / Post-MVP
+
+- [DEFERRED] SaaS roadmap, Zoom verification, SMS, recordings, and payment gateway.
+
+## Definition of Done
+
+Requirements, authorization, validation, failure paths, tests, lint, typecheck, build, deployment runbook, backup/restore evidence, and execution log are complete.
+
 ## Tasks
 
 - [ ] Write Playwright E2E tests for student onboarding flow
@@ -41,4 +92,7 @@ Execute comprehensive end-to-end testing across critical business paths (especia
 
 ## Execution log (updated as soon as real work happens)
 
-(empty for now)
+### Scope corrections
+
+- REMOVED — Zoom WebSocket lifecycle, event replay, and reconciliation tests.
+- [MVP] Launch verification centers on report-triggered settlement, manual links, authorization, uploads, backups, and staged handoffs.

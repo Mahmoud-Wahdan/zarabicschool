@@ -12,10 +12,10 @@
 
 | Role | Summary |
 |------|---------|
-| **Student** | Views own schedule, upcoming/past sessions, join links, recordings (when available), attendance history, announcements. |
-| **Guardian** | Centralized view across all linked children: schedules, attendance, recordings, financial status, teacher-written progress reports, updates. One guardian per student (father or mother). The guardian fills the contact/application form on the landing page. |
+| **Student** | Views own schedule, upcoming/past sessions, join links, attendance history, announcements. |
+| **Guardian** | Centralized view across linked children: schedules, attendance, financial status, teacher reports, and updates. Adult-student handling is OPEN. |
 | **Teacher** | Own schedule, assigned students, session join, past-session log, attendance view, financial/payroll info, writes per-student progress reports, writes mandatory post-session reports, receives student evaluations. |
-| **Admin** | Full control: applications/leads, all user accounts, subjects/relationships, schedules, live sessions, attendance, recordings, finances, announcements, reports, replacement sessions, and payroll payouts. Admin provisions all accounts. |
+| **Admin** | Full control: applications, accounts, subjects/relationships, schedules and pasted Zoom links, reports, outage requests, finances, payroll adjustments, payouts, and announcements. |
 
 ### Relationship rules (Confirmed — owner 2026-09-29)
 
@@ -53,45 +53,44 @@ Landing page (public)
 ---
 
 ## 3. Sessions & Scheduling
-
-*Source: CONTEXT.md §6 + Confirmed Decisions 2026-09-29.*
-
+**Platform Experience:**
+  - The platform provides a private Zoom join button/link for each participant.
+  - Clicking the button opens Zoom externally in the desktop app, native mobile app, or Zoom browser experience.
+  - The platform does not host a Zoom interface and does not provide video recording playback in the MVP.
 - **Session Types:** Both **private (1:1)** and **group (1:N)**. Admin configures the session type.
 - **Recurring Schedules:** Admin can configure **weekly recurring session patterns** rather than creating every single session manually.
-- **Mandatory Zoom REST API Registration:**
-  - Creating sessions via Zoom REST API is the primary flow.
-  - The system creates the Zoom meeting, registers the teacher and assigned student(s), and generates unique participant-specific join links linked to platform entities.
-- **Platform Experience & Mobile Fallback:**
-  - The platform provides an embedded Zoom experience via web interface where supported.
-  - On mobile devices (or as a fallback), a "Launch in Zoom App" button allows launching the native Zoom client.
+- **Manual Zoom links (confirmed):** Admin creates the meeting in Zoom and pastes the required link into the session. There is no Zoom API, registration, event consumer, recording, reconciliation, or embedded interface.
+- **Platform Experience:**
+  - The platform provides a private Zoom join button/link for each participant.
+  - Clicking the button opens Zoom externally in the desktop app, native mobile app, or Zoom browser experience.
+  - The platform does not host a Zoom interface and does not provide video recording playback in the MVP.
 
 ---
 
-## 4. Attendance Rules & Absence Thresholds
+## 4. Attendance Rules & Teacher Reports
 
-*Source: Confirmed Decisions 2026-09-29. Status: **Confirmed**.*
+*Source: CONTEXT.md §6-7. Status: **Confirmed**.*
+
+The platform cannot verify attendance. The teacher's per-student report is the evidence and the pay trigger. `SessionStudents.attendance_status` is `PENDING`, `ATTENDED`, `ABSENT`, or `NOT_HELD`; Admin overrides require an actor and reason. The old 25% timer, Zoom join/leave events, attendance segments, and reconciliation are removed.
 
 ### Private Sessions (1:1)
 1. Notification sent to student and teacher.
-2. System enforces an **absence threshold = 25% of scheduled session duration** (e.g., 15 mins for 60-min session, 30 mins for 120-min session).
-3. If student has not joined after 25% duration:
+2. The teacher records the outcome in a report after the scheduled end.
+3. If the teacher reports the student absent:
    - Student marked **Absent**.
    - Session marked **Cancelled/Missed**.
    - **Zero financial effect:** Teacher is not paid for a session that did not occur; student subscription quota is not deducted.
-4. **Attended Session Consumption:** If the student joins and attends for **at least 25% of scheduled duration**, 1 session is consumed from their package.
+4. An attended report consumes one prepaid session and settles teacher pay atomically.
 
 ### Group Sessions (1:N)
 - Attendance tracked individually per student.
-- Only attending students (attending >= 25% of duration) consume 1 session from their package quota.
+- Each student outcome is recorded independently in that student's report.
 - Absent students are not deducted.
-- Teacher is paid for the billable time spent with **at least one student**.
-- Teacher submits one comprehensive session report.
+- Teacher pay uses scheduled duration and is created once per session by the first attended report.
+- Teacher submits one report per student.
 
 ### Teacher Attendance
-- Teacher attendance is tracked via Zoom participant events.
-- Actual duration is calculated after meeting ends.
-- Informational late arrival alert sent if teacher joins >3 minutes late (**no payroll penalty and no red mark**).
-- **If teacher does not join: No payroll is generated.**
+- Teacher attendance is not machine-verified. A missed or not-held outcome produces no settlement.
 
 ### Technical / Internet Outages & Replacement Sessions ("أبلغ عن عطل")
 - Included in **MVP**: An in-app outage report form allows students or teachers to report technical failures (internet cutoff, power outage, Zoom/device issue).
@@ -106,34 +105,31 @@ Landing page (public)
 *Source: CONTEXT.md §7 + Confirmed Decisions 2026-09-29. Status: **Confirmed** (HIGH RISK).*
 
 ### The Core Financial Invariant
-> **Settlement is automatic and driven by Zoom-verified attendance in ONE atomic database transaction.**
+> **Settlement is triggered by the teacher's report in ONE atomic database transaction.**
 
 1. **Teacher Side (Hourly):**
-   - Billable time = overlap period where teacher AND at least one student were present in the Zoom meeting.
-   - Default cap = scheduled session duration. If a session runs over, the teacher notes overtime in the post-session report, and Admin approves/credits overtime via `ADMIN_ADJUSTMENT`.
-   - Hourly rate is configured per teacher on the teacher profile; every `SESSION_CREDIT` records an immutable `hourly_rate_snapshot_minor` at settlement time.
+  - Pay basis is scheduled duration, not observed Zoom time. If the teacher stayed longer, she claims overtime in the report and Admin approves it via `ADMIN_ADJUSTMENT`.
+  - Every `SESSION_CREDIT` records an immutable `hourly_rate_snapshot_minor` at settlement time.
 2. **Student Side (Prepaid Session Packages):**
    - Prepaid packages (e.g., 8 sessions), with **no expiration date**.
    - Each completed session attended by the student consumes **1 session** (`SESSION_DEDUCTION`).
    - If a student's package is exhausted (0 balance), the teacher is **still paid** for work performed; the deduction records negative balance with an Admin alert for quota replenishment.
 3. **Teacher Post-Session Report:**
-   - Mandatory for quality review and educational notes; it does **NOT** gate payroll settlement.
+  - Mandatory for quality review and educational notes; it **gates teacher payroll settlement**.
+  - In group sessions, the teacher submits one report per student, while the teacher credit is created once per session by the first attended report.
    - Escalation: T+0 reminder, T+15m reminder, T+30m **red mark** recorded on teacher profile.
-4. **Atomic Settlement Execution:** In a single database transaction upon `meeting.ended` (or reconciliation):
-   - Deduct 1 session from each attending student in `SubscriptionLedger`.
-   - Credit teacher in `PayrollLedger` based on billable time × hourly rate.
-   - Set `financially_settled_at` on the `Sessions` record.
+4. **Financial Execution:**
+  - When an attended report is submitted, deduct one session for that student, create the first session credit, and set `Reports.settled_at` together.
 
 ```
-Zoom meeting.ended
+Teacher submits attended report
   │
-  ├─► Overlap duration calculated (Teacher + >=1 Student)
   │
   ▼ (Single Atomic DB Transaction)
 ┌─────────────────────────────────────────┐
 │ 1. SubscriptionLedger: -1 session/attendee│
 │ 2. PayrollLedger: Credit (hours × rate) │
-│ 3. Sessions.financially_settled_at = now()│
+│ 3. Reports.settled_at = now()              │
 └─────────────────────────────────────────┘
   │
   ├─► Trigger WhatsApp prompt to Teacher for Session Report
@@ -143,7 +139,7 @@ Zoom meeting.ended
 ### Dual Ledger Architecture
 1. **`SubscriptionLedger` (Student balance):**
    - No mutable independent counters.
-   - Core subscription holds configuration (total sessions, per-session price, currency).
+  - Core subscription holds configuration (total sessions, package price, currency).
    - Balance changes are append-only rows: `INITIAL_PURCHASE`, `SESSION_DEDUCTION`, `ADMIN_ADJUSTMENT`, `REFUND`.
    - Remaining balance is computed from ledger entries.
 2. **`PayrollLedger` (Teacher balance):**
@@ -161,11 +157,10 @@ Zoom meeting.ended
 - Teacher earnings are tracked per currency (e.g., USD balance: $120; EGP balance: 4,500 EGP).
 - Admin manually reviews accrued balances, performs conversions if necessary, and approves payouts/disbursements.
 
-### Idempotency & Provider Event Safety
-- Zoom events use compound unique keys (`event_key`):
-  - Meeting-level: `meeting_uuid + ':' + event_type`
-  - Participant-level: `meeting_uuid + ':' + event_type + ':' + participant_uuid + ':' + event_time` (handles leave/rejoin safely)
-- Combined with a `processed_at` timestamp and retry queue.
+### Idempotency & consistency
+- One report per `(session_id, student_id)` prevents double submission.
+- One `SESSION_DEDUCTION` per `(session, subscription)` and one `SESSION_CREDIT` per session prevent double settlement.
+- A periodic consistency query finds settled reports without ledger rows and ledger rows without a settled report.
 
 ---
 
@@ -193,7 +188,7 @@ Zoom meeting.ended
   - Teacher >3 min late $\rightarrow$ Teacher informational alert.
   - Teacher joins meeting $\rightarrow$ Students receive notification.
   - Student joins meeting $\rightarrow$ Guardian receives alert (open to finalize).
-- **Low-Balance Warning:** Optional alert triggered when approximately **75% of purchased sessions are used** (25% balance remaining).
+- **Low-Balance Warning:** Optional post-MVP alert; no threshold is confirmed.
 
 ---
 
@@ -201,8 +196,12 @@ Zoom meeting.ended
 
 | Topic | Decision | Status |
 |-------|----------|--------|
-| **Hosting & Worker Model** | **VPS** (e.g. Hetzner / DigitalOcean) hosting the long-running Node processes (persistent Zoom WebSocket consumer, OpenWA WhatsApp worker, BullMQ queue workers) alongside the Next.js app / reverse proxy. | **Confirmed** (owner 2026-09-28) |
+| **Hosting & Worker Model** | Hosting is decided at deployment; OpenWA and timed notifications need a continuously running process. | **Open** |
 | **Credential Delivery Fallback** | **SMS** is the confirmed fallback channel if WhatsApp (OpenWA) is down, disconnected, or blocked. | **Confirmed** (owner 2026-09-28) |
 | **Project Target Timeline** | **1 month to maximum 1.5 months (4–6 weeks)** total delivery target. | **Confirmed** (owner 2026-09-28) |
-| **Zoom Plan & Cost** | Verify plan supports Server-to-Server OAuth, REST registration endpoints, and WebSocket events. Inform Alaa regarding Zoom costs. | **Open Action Item** |
+| **Zoom Plan & Cost** | Confirm the academy's normal Zoom plan and cost for externally created meetings; no platform API capability is required. | **Open Action Item** |
 | **Postgres Database Host** | Supabase (transaction-mode pooler for `DATABASE_URL`, direct connection for `DIRECT_URL` migrations). | **Confirmed** |
+
+## 9. Post-delivery SaaS roadmap
+
+Documented only for later delivery: multi-academy onboarding and billing, tenant administration, RLS and tenant switching, tenant-scoped uniqueness, provider configuration, audit/observability improvements, and an optional future Zoom verification layer. No current phase creates tasks for this roadmap.

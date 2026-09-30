@@ -2,32 +2,42 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-09-28
+> Last updated: 2026-09-30
 
 ## Phase Status
 
 | # | Phase | Status | Last Updated | Note |
 |---|-------|--------|--------------|------|
-| 1 | Foundation | In Progress | 2026-09-29 | Schema aligned, setting up Prisma, seed, and frontend |
+| 1 | Foundation | In Progress | 2026-09-30 | Documentation aligned; implementation target is `webapp/` |
 | 2 | Educational Management | Not Started | 2026-09-28 | — |
 | 3 | Schedules & Sessions | Not Started | 2026-09-28 | — |
-| 4 | Live Learning (Zoom) | Not Started | 2026-09-28 | — |
-| 5 | Attendance & Recordings | Not Started | 2026-09-28 | — |
+| 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
+| 5 | Session Reports & Attendance | Not Started | 2026-09-30 | Reports are attendance evidence and pay trigger |
 | 6 | Financial Management | Not Started | 2026-09-28 | — |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | Not Started | 2026-09-28 | — |
 
 ## Current Active Task
 
-Phase 1 Foundation: Database setup (Prisma models `Academies`, `Users`), Supabase connection test, initial migration, database seed, followed by frontend brand layout and dashboard shells.
+Current task: documentation migration from the 2026-09-29 context revision. Implementation target is `webapp/`; root `docs/` contains project documentation.
 
 ## Action Items
 
-- [ ] Rotate all secrets that were exposed during setup (database password, Zoom client secret, JWT/NextAuth secrets) before any real data is stored.
-- [ ] Give `JWT_SECRET` and `NEXTAUTH_SECRET` different values.
-- [ ] Verify the academy's Zoom plan (Server-to-Server OAuth, WebSocket event subscription, REST endpoints needed for reconciliation).
-- [ ] Confirm which Zoom account owns the Server-to-Server OAuth app (events only arrive from that account).
-- [ ] Inform Alaa about Zoom cost.
-- [x] Process model direction: Long-running worker process (VPS/container for Zoom WebSocket, OpenWA, BullMQ); final host choice at deployment time.
+- [ ] Rotate any exposed secrets before real data is stored; no Zoom API secrets are required.
+- [ ] Confirm `NEXTAUTH_SECRET` is configured; `JWT_SECRET` is not used because authentication is Auth.js only.
+- [ ] Decide the timed-notification scheduler: BullMQ + Redis versus database polling.
 - [x] Confirm Supabase as the final Postgres host: Confirmed.
 - [x] Ensure `.env` is in `.gitignore` and create `.env.example` with variable names only.
+- [x] Align context/spec documentation with external Zoom links, no video recordings, and teacher mobile dashboard requirements.
+- [x] Update payroll rule: teacher report triggers scheduled-duration hourly credit and student deduction in one transaction.
+- [x] Remove Zoom event, attendance threshold, overlap-billing, recording, and reconciliation requirements from the documentation.
+- [ ] Confirm login identifier, application fields, TeacherRates design, report values, attachment cap, rounding, and zero-session mechanism.
+
+## 2026-09-30 Documentation Update
+
+- Prompt A: corrected the schema, business model, and progress index for manual Zoom links, report-based attendance, prepaid sessions, hourly pay, append-only ledgers, and raw SQL constraints.
+- Prompt B: phase-spec upgrade is next and must consume the corrected schema without editing it.
+
+## Post-delivery SaaS roadmap
+
+Documented only for now: multi-academy onboarding and billing, tenant administration, RLS and tenant switching, tenant-scoped uniqueness, provider configuration, and an optional future Zoom verification layer. No current phase creates tasks for this roadmap.
