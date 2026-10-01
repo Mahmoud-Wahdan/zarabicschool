@@ -71,7 +71,7 @@ Landing page (public)
 
 *Source: CONTEXT.md §6-7. Status: **Confirmed**.*
 
-The platform cannot verify attendance. The teacher's per-student report is the evidence and the pay trigger. `SessionStudents.attendance_status` is `PENDING`, `ATTENDED`, `ABSENT`, or `NOT_HELD`; Admin overrides require an actor and reason. The old 25% timer, Zoom join/leave events, attendance segments, and reconciliation are removed.
+The platform cannot verify attendance. The teacher's per-student report is evidence for an explicit attendance write and a financial review request. `SessionStudents.attendance_status` is persisted as `PENDING`, `ATTENDED`, or `STUDENT_ABSENT`; Admin overrides require an actor and reason. Evaluation is separate and missing evaluation never means absence.
 
 ### Private Sessions (1:1)
 1. Notification sent to student and teacher.
@@ -105,7 +105,7 @@ The platform cannot verify attendance. The teacher's per-student report is the e
 *Source: CONTEXT.md §7 + Confirmed Decisions 2026-09-29. Status: **Confirmed** (HIGH RISK).*
 
 ### The Core Financial Invariant
-> **Settlement is triggered by the teacher's report in ONE atomic database transaction.**
+> **Settlement is triggered only after Admin approves the teacher's report, in ONE atomic database transaction.**
 
 1. **Teacher Side (Hourly):**
   - Pay basis is scheduled duration, not observed Zoom time. If the teacher stayed longer, she claims overtime in the report and Admin approves it via `ADMIN_ADJUSTMENT`.
@@ -119,7 +119,7 @@ The platform cannot verify attendance. The teacher's per-student report is the e
   - In group sessions, the teacher submits one report per student, while the teacher credit is created once per session by the first attended report.
    - Escalation: T+0 reminder, T+15m reminder, T+30m **red mark** recorded on teacher profile.
 4. **Financial Execution:**
-  - When an attended report is submitted, deduct one session for that student, create the first session credit, and set `Reports.settled_at` together.
+  - When an attended report is approved, deduct one session for that student, create the first session credit, set `Reports.settled_at`, and archive the report together.
 
 ```
 Teacher submits attended report
@@ -129,7 +129,7 @@ Teacher submits attended report
 ┌─────────────────────────────────────────┐
 │ 1. SubscriptionLedger: -1 session/attendee│
 │ 2. PayrollLedger: Credit (hours × rate) │
-│ 3. Reports.settled_at = now()              │
+│ 3. Reports.settled_at + archived_at = now()│
 └─────────────────────────────────────────┘
   │
   ├─► Trigger WhatsApp prompt to Teacher for Session Report

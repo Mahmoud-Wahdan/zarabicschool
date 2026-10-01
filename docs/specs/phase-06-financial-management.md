@@ -4,7 +4,7 @@
 
 Manual payment confirmation (Section 12) + automatic teacher payroll accrual (Section 7). (CONTEXT.md §13, Phase 6.)
 
-Implement student billing with Supabase Storage proof uploads, the dual-ledger accounting architecture (`SubscriptionLedger` + `PayrollLedger`), multi-currency balance tracking, payroll execution gated by the teacher's required student report, and BullMQ reconciliation.
+Implement student billing with Supabase Storage proof uploads, the dual-ledger accounting architecture (`SubscriptionLedger` + `PayrollLedger`), multi-currency balance tracking, and approval-gated report settlement. BullMQ/Zoom reconciliation is not part of this phase.
 
 ## Proposed approach
 
@@ -24,26 +24,23 @@ Implement student billing with Supabase Storage proof uploads, the dual-ledger a
 3. **Dual-Ledger Financial Engine:**
    - **`SubscriptionLedger`:** Remaining student balance is calculated from append-only rows (`INITIAL_PURCHASE`, `SESSION_DEDUCTION`, `ADMIN_ADJUSTMENT`, `REFUND`).
    - **`PayrollLedger`:** Append-only teacher compensation ledger. Stores scheduled `minutes_credited` and `hourly_rate_snapshot_minor`. `created_by = NULL` for system entries, `NOT NULL` for Admin manual adjustments.
-4. **Two Financial Operations with Different Gates:**
-   - Student operation: when attendance is confirmed at or above the threshold, record one `SESSION_DEDUCTION` per attending student in a transaction. This happens immediately and does not wait for the teacher report.
-   - Teacher operation: when an attended report is submitted, credit the teacher from scheduled duration and the rate snapshot; later reports cannot create another session credit.
-   - Billable time is calculated (overlap between teacher & student), rounded to the minute, and capped at scheduled session duration.
-    - The attendance transaction contains the student deduction(s).
-   - The same report transaction contains the single teacher credit and sets `Reports.settled_at = now()`.
+4. **Approval-gated atomic settlement:**
+   - After Admin approves an attended report, record one `SESSION_DEDUCTION` for that student and one `SESSION_CREDIT` for the session.
+   - Use scheduled duration and the rate snapshot; later reports cannot create another session credit.
+   - The same transaction sets `Reports.settled_at` and `Reports.archived_at`.
+   - Any failure rolls back both ledger effects and report markers; retry is safe through idempotency constraints.
    - Missed sessions have **0 financial effect**. Replacement sessions trigger this transaction when completed. Overtime beyond scheduled duration is noted in teacher's report and credited by Admin via `ADMIN_ADJUSTMENT`.
 5. **Multi-Currency & Teacher Balance Tracking:**
    - No automatic currency conversion in MVP.
    - Teacher dashboards show accrued earnings categorized by currency (e.g. USD balance, EGP balance).
    - Admin manages manual currency conversion and logs payout disbursements (`DISBURSEMENT`).
-6. **Reconciliation & Low-Balance Automation:**
-   - BullMQ worker polls Zoom REST API to reconcile missed events during WebSocket outages.
-   - Low-balance trigger fires warning notification when approximately 75% of purchased sessions are used (25% balance remaining).
+6. **Consistency:** Query for approved/archived reports without ledger rows and ledger rows without a settled report. Low-balance alerts are deferred.
 
 Delivery stage: Stage 3.
 
 ## Acceptance criteria
 
-- Report settlement atomically writes one deduction, one first-session credit, and `Reports.settled_at`; duplicate/concurrent submits are safe.
+- Approved-report settlement atomically writes one deduction, one first-session credit, `Reports.settled_at`, and `Reports.archived_at`; duplicate/concurrent requests are safe.
 - Teacher credit never fails because a package is empty; Admin is flagged for negative balance.
 
 ## Frontend
@@ -72,7 +69,7 @@ Use integer minor units, currency validation, private uploads, signed URLs, appe
 
 ## Transactions & failure handling
 
-Invoice confirmation, report settlement, and overtime approval are transactions. Unique violations return `already_submitted` or `already_settled`; any second-write failure rolls back all writes.
+Invoice confirmation, approved-report settlement, and overtime approval are transactions. Unique violations return `already_submitted` or `already_settled`; any second-write failure rolls back all writes. `PayrollLedger` is the authoritative teacher balance source and `SubscriptionLedger` is the authoritative session-consumption source.
 
 ## Tests
 
@@ -98,16 +95,15 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ## Tasks
 
 - [ ] Add Prisma schema: `Subscriptions`, `SubscriptionLedger`, `Invoices`, `PaymentProofs`, `PayrollLedger`
-- [ ] Configure PostgreSQL unique partial index on `PayrollLedger (session_id, student_id)`
+- [ ] Configure PostgreSQL unique partial index on `PayrollLedger (session_id)` for `SESSION_CREDIT`
 - [ ] Run migrations
 - [ ] Set up private Supabase Storage bucket for payment proofs & signed URL generator
 - [ ] Build student/guardian invoice payment proof upload form
 - [ ] Build Admin invoice verification and confirmation workflow (`INITIAL_PURCHASE` credit)
-- [ ] Implement attendance deduction processor (deduct `SubscriptionLedger` immediately after confirmed attendance)
-- [ ] Implement report-gated payroll processor (credit `PayrollLedger` + set payroll settlement marker in one transaction)
+- [ ] Implement Admin approval-gated settlement processor (deduction + first credit + report markers in one transaction)
 - [ ] Build multi-currency teacher earnings breakdown UI (per-currency balances)
 - [ ] Build Admin payroll review, manual adjustment, and disbursement approval views
-- [ ] Implement BullMQ scheduled reconciliation worker using Zoom REST API
+- [ ] REMOVED — BullMQ scheduled Zoom reconciliation worker.
 - [ ] Implement 75% usage low-balance alert trigger via WhatsApp (OpenWA)
 - [ ] Write tests: transaction atomicity, double-spend prevention, dual-ledger balance calculations, idempotent replay rejection
 
@@ -116,5 +112,5 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ### Scope corrections
 
 - REMOVED — Zoom reconciliation, event processing, overlap-based billing, and `Sessions.financially_settled_at`.
-- [MVP] `Reports.settled_at` is written with the deduction and first session credit in one transaction.
+- [MVP] Only an approved report can settle; successful settlement archives the original immutable report.
 - BLOCKED — TeacherRates storage, rounding, and the zero-session scheduling mechanism remain owner decisions.

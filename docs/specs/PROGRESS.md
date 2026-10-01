@@ -32,11 +32,19 @@ Current task: documentation migration from the 2026-09-29 context revision. Impl
 - [x] Update payroll rule: teacher report triggers scheduled-duration hourly credit and student deduction in one transaction.
 - [x] Remove Zoom event, attendance threshold, overlap-billing, recording, and reconciliation requirements from the documentation.
 - [ ] Confirm login identifier, application fields, TeacherRates design, report values, attachment cap, rounding, and zero-session mechanism.
+- [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin approval gates settlement; no revision/version table.
+- [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
+- [ ] Decide whether student evaluation is mandatory after every completed session.
 
 ## 2026-09-30 Documentation Update
 
 - Prompt A: corrected the schema, business model, and progress index for manual Zoom links, report-based attendance, prepaid sessions, hourly pay, append-only ledgers, and raw SQL constraints.
 - Prompt B: phase-spec upgrade is next and must consume the corrected schema without editing it.
+
+## 2026-09-30 Report Architecture Update
+
+- Reports are one immutable historical entity linked to Session, Teacher, and Student. Rejected reports return to the teacher for correction; approved reports settle atomically and become archived.
+- Settlement requires Admin approval, is idempotent, and rolls back both ledger effects on failure. Completed sessions may have missing reports.
 
 ## Post-delivery SaaS roadmap
 

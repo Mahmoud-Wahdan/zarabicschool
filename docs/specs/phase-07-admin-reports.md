@@ -4,7 +4,7 @@
 
 Full admin dashboard, reporting, the evaluation/report feature (Section 9). (CONTEXT.md §13, Phase 7.)
 
-Build the central analytics and administration dashboard, the announcements broadcast system, and the qualitative feedback loop: teacher reports on student progress, student/guardian evaluations of teachers, and automated post-session rating forms.
+Build the central analytics and administration dashboard, the report approval queue, announcements, and the separate qualitative feedback loop. Reports, attendance, approval, settlement, and evaluations remain distinct concepts.
 
 ## Proposed approach
 
@@ -12,15 +12,16 @@ Build the central analytics and administration dashboard, the announcements broa
 2. **Admin central dashboard:**
    - Operational metrics: active students, teachers, scheduled/completed sessions, pending applications, pending invoices.
    - Financial overview: total subscription collections vs. accrued teacher payroll liabilities.
-3. **Qualitative reports system:**
-   - Teacher interface to write progress reports on assigned students.
-   - Student/Guardian interface to submit feedback/reports on teachers.
-   - Role-scoped visibility for viewing submitted reports.
+3. **Report review system:**
+   - Admin reviews every unified teacher `Reports` row and approves or rejects it.
+   - Rejected reports return to the teacher for correction and resubmission; approved reports settle in Phase 6 and then become immutable `ARCHIVED` records.
+   - A completed session may have a missing report without changing session status.
+   - Student/Guardian evaluations remain a separate entity and flow.
 4. **General Complaints & Feedback System:**
    - In-app button on student, guardian, and teacher dashboards to submit general complaints or suggestions.
    - Admin inbox to review, respond, and resolve complaints.
 5. **Post-session evaluations:**
-   - Automated trigger upon session completion presenting evaluation form to student.
+   - Automated trigger is optional pending the owner decision on whether evaluation is mandatory after every completed session.
    - Aggregated teacher evaluation ratings visible to Admin.
 6. **Announcements management:**
    - Admin UI to compose announcements with target audience filters (`ALL`, `STUDENTS`, `TEACHERS`, `GUARDIANS`).
@@ -30,7 +31,7 @@ Delivery stage: Stage 3.
 
 ## Acceptance criteria
 
-- Admin can review reports, outage requests, overtime claims, TeacherFlags, evaluations, and announcements with server-side visibility rules.
+- Admin can review and approve reports, outage requests, overtime claims, TeacherFlags, separate evaluations, and announcements with server-side visibility rules.
 
 ## Frontend
 
@@ -52,7 +53,7 @@ Touches `Reports`, `SessionRequests`, `TeacherFlags`, optional `Evaluations`, `A
 | Teacher | No | Own | No | No |
 | Student/Guardian | No | Confirmed visibility | Optional student evaluation | No |
 
-Teacher reports are visible to guardian and Admin; student evaluations are Admin-only.
+Archived teacher reports are visible to Admin, the teacher, the linked guardian when present, or the student directly when no guardian exists. Student evaluations remain separate and Admin-only.
 
 ## Security
 
@@ -72,7 +73,7 @@ Unit audience filters; real-Postgres report visibility, Admin-only evaluation, q
 
 ## Open decisions
 
-Evaluation fields and whether evaluations/announcements remain MVP.
+Evaluation fields, whether evaluation is mandatory after every completed session, and whether evaluations/announcements remain MVP.
 
 ## Deferred / Post-MVP
 

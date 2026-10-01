@@ -3,7 +3,7 @@
 > Purpose: stable project facts and decisions. This file is CONTEXT, not behavioral rules (those live in INSTRUCTIONS.md).
 > Owner: Mahmoud Wahdan. Client: Zarabicschool Academy (owned/managed by a woman referred to as "the ZarabicSchool owner" — get her exact name/title before writing it into user-facing docs).
 > Adopted source-of-truth scope document: the official "ZarabicSchool" project overview (24 sections, Arabic) — supersedes earlier informal notes where they conflict.
-> Last revised: 2026-09-29 — **5th revision**: NO Zoom API (Admin creates meetings in Zoom and pastes the link), teacher pay is triggered by the teacher's REPORT, no recordings, no embedded Zoom, prepaid session packages, hourly teacher pay, staged delivery; plus per-student reports, report visibility, no trial sessions, and the post-delivery SaaS roadmap (Section 19).
+> Last revised: 2026-09-30 — **6th revision**: NO Zoom API (Admin creates meetings in Zoom and pastes the link), Admin-approved teacher reports drive settlement, no recordings, no embedded Zoom, prepaid session packages, hourly teacher pay, staged delivery; plus per-student unified reports, explicit attendance, report approval/archive, no trial sessions, and the post-delivery SaaS roadmap (Section 19).
 >
 > **Labels:** CONFIRMED (owner decided) / PROPOSAL (suggested, not yet accepted) / OPEN (undecided, do not invent) / ASSUMPTION (must be verified).
 > Section numbers are stable — INSTRUCTIONS.md references them. Do not renumber.
@@ -86,9 +86,9 @@ The platform cannot know who actually joined. **"The session happened and the st
 
 ### Trust model — safeguards (PROPOSAL, owner to confirm)
 Pay depends on the teacher's word, so the design adds cheap controls instead of Zoom verification:
-1. A report can be submitted only by the assigned teacher, only for a session in her schedule, only **after the scheduled end time** (server-side check), and only once per (session, student).
-2. Money is written only inside the report-submission transaction (Section 7); fields that affect money cannot be edited afterwards.
-3. Admin review queue of submitted reports/settlements; anything wrong is reversed with adjustment/refund ledger entries (never by editing history).
+1. A report can be submitted only by the assigned teacher, only for a session in her schedule, only **after the scheduled end time** (server-side check), and only once per (session, student). A rejected report returns to that teacher for editing and resubmission.
+2. Every report follows `SUBMITTED → APPROVED → ARCHIVED`; Admin approval is required before settlement. After archival, neither Teacher nor Admin may edit the original report record.
+3. Settlement runs only after approval in one idempotent transaction; anything wrong after archival is corrected with adjustment/refund ledger entries, never by editing history.
 4. Students/guardians see attendance per session on their dashboards (natural cross-check). A "dispute" button is a Post-MVP candidate.
 5. The Zoom button goes through a small platform redirect that logs "user X opened the link for session Y at time T" — soft evidence for Admin, not proof (PROPOSAL, tiny).
 6. Later option (Post-MVP, only if the client wants proof): add a Zoom API verification layer on top; the ledger design does not change.
@@ -107,7 +107,7 @@ Pay depends on the teacher's word, so the design adds cheap controls instead of 
 ### Notification chain (WhatsApp via OpenWA)
 1. Session created → teacher notified.
 2. About 2 hours before → reminder to the teacher (student too? confirm).
-3. Scheduled end passed → teacher asked to write the report (mandatory, and it triggers her pay); student asked to write an evaluation (**optional**).
+3. Scheduled end passed → teacher asked to write the report (mandatory); Admin approval later permits settlement. Student evaluation is separate and its mandatory status is OPEN.
 4. Report still missing ~15 minutes later → second notification.
 5. Still missing after that → **red mark** on the teacher, visible to Admin — for a late **report** only. PROPOSAL: T+0 notify, T+15 reminder, T+30 red mark. Timing measured from the scheduled end.
 6. Optional low-balance warning when ~75% of the package is used (Post-MVP candidate).
@@ -124,7 +124,7 @@ Two units, on purpose:
 **The teacher's salary rises only when she submits her report on the student** (owner, 2026-09-29). Submitting the report is the trigger. In ONE database transaction, when the report says the student **attended**:
 1. one `SESSION_DEDUCTION` (−1 session) for that student's subscription;
 2. one `SESSION_CREDIT` to the teacher = **scheduled duration × her hourly rate** (created once per session by the first "attended" report, no matter how many students report; **reports are per student, also in group sessions — CONFIRMED**);
-3. the report row is marked settled.
+3. the approved report is settled and then archived.
 If the report says the student did not attend (or the session did not take place) → no money moves and the session becomes MISSED.
 
 **Pay basis = the scheduled duration** (time is not measured any more). **Overtime:** if she stayed longer she says so in the report and **Admin decides**; approved extra time is paid as an `ADMIN_ADJUSTMENT` (never by re-settling). Rounding to integer minor units: rule OPEN.
@@ -132,10 +132,10 @@ If the report says the student did not attend (or the session did not take place
 **Prepaid rules:** scheduling beyond the student's remaining sessions is blocked (audited Admin override); scheduled-but-unsettled sessions count against the remaining balance. If a balance still goes negative at settlement, settle anyway and flag Admin — the teacher's pay must never be blocked by the student's package.
 
 ### Double-payment protection — CONFIRMED design (built in Phase 6)
-1. One transaction: ledger rows + report settled-mark commit or roll back together.
-2. **One report per (session, student)** — a unique constraint; a second submit (double click, retry, replay) fails and is answered as "already submitted".
+1. One transaction after Admin approval: ledger rows + report settled/archived markers commit or roll back together.
+2. **One report per (session, student)** — a unique constraint; a duplicate submit/replay is answered as "already submitted". A rejected report reuses that row for correction and resubmission.
 3. Unique constraints on the ledgers: one `SESSION_CREDIT` per session; one `SESSION_DEDUCTION` per (session, subscription). A duplicate insert = "already settled", not an error.
-4. Money-affecting fields (attendance outcome, claimed extra time) are frozen after submission; only text fields may be edited.
+4. Before archival, a rejected report may be edited and resubmitted by its teacher. After archival, money-affecting and text fields are all frozen.
 5. Server-side eligibility checks (assigned teacher, after scheduled end, session not cancelled).
 6. Corrections only by `ADMIN_ADJUSTMENT` / `REFUND` entries — never by editing or deleting history.
 
@@ -160,7 +160,7 @@ ISO codes (`USD`, `EGP`), teacher balances per currency, **no automatic conversi
 11. How Admin reverses a wrongly settled report (PROPOSAL: one action that writes the reversing ledger entries) and the payout cycle (monthly?).
 12. Evaluation-form fields (Phase 7).
 
-*Resolved:* prepaid session packages that never expire; pay is hourly and independent of the student's price; the report triggers the pay; **reports are per student, also in groups (the teacher's credit is created once per session by the first attended report)**; **the teacher's report is visible to the guardian and Admin, the student's evaluation to Admin only**; overtime is decided by Admin from the report; the outage/absence form is in the MVP; the red mark is for late reports only; **no trial-session type**; no Zoom API, no recordings, no embedded interface.
+*Resolved:* prepaid session packages that never expire; pay is hourly and independent of the student's price; **Admin-approved reports drive settlement**; **reports are unified per student/session with Teacher and Student relationships, also in groups (the teacher's credit is created once per session by the first approved attended report)**; **archived reports are visible to Admin, Teacher, the linked guardian, or the student directly when no guardian exists**; attendance remains explicit on SessionStudents; overtime is decided by Admin from the report; the outage/absence form is in the MVP; the red mark is for late reports only; **no trial-session type**; no Zoom API, no recordings, no embedded interface.
 
 ---
 
@@ -178,7 +178,7 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 
 ## 9. Reports & Evaluations — CONFIRMED MVP feature
 
-- **Teacher session report (mandatory, and it triggers her pay):** class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions (CONFIRMED). **Visible to the guardian and Admin.**
+- **Teacher session report (mandatory; Admin approval is required before settlement):** class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions (CONFIRMED). Archived reports are visible to authorized related parties.
 - Teacher free-text progress report per student (longer-term) — may be the same report stream; confirm in Phase 7.
 - Student/Guardian can write a report/evaluation about a teacher — **visible to Admin only** (CONFIRMED).
 - Automatic post-session evaluation form to the student — **optional**, no consequence if late or missing (fields = OPEN, Phase 7).
@@ -250,7 +250,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 
 ## 16. Definition of Success
 
-**Product:** Zarabicschool can run live classes (through Zoom links), scheduling, report-based attendance, report-triggered hourly teacher pay, prepaid student packages with manual billing, and the reports/evaluation loop — end to end, for real.
+**Product:** Zarabicschool can run live classes (through Zoom links), scheduling, report-based explicit attendance, Admin-approved atomic hourly teacher settlement, prepaid student packages with manual billing, and the separate reports/evaluation loop — end to end, for real.
 
 **Developer:** the owner can explain the report-to-payment transaction and its double-payment protections, the auth/onboarding flow, the database schema's shape, and what AI generated vs. what he decided and why — for every non-trivial piece.
 

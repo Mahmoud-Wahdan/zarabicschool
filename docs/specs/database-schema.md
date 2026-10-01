@@ -84,9 +84,7 @@ Unified authentication table. Role-specific details live in profile tables.
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `user_id` | UUID | FK → Users, UNIQUE, NOT NULL | 1:1 with Users |
-| `academy_id` | UUID | FK → Academies, NOT NULL | || `hourly_rate_minor` | INTEGER | NOT NULL, DEFAULT 0 | Hourly rate agreed with academy (e.g. in piasters/cents) |
-| `hourly_rate_currency` | VARCHAR(3) | NOT NULL, DEFAULT 'EGP' | ISO 4217 code (`EGP`, `USD`) |
-| `late_reports_count` | INTEGER | DEFAULT 0 | Count of red marks for overdue session reports |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -197,7 +195,7 @@ Represents scheduled live learning meetings.
 
 > **Security Note:** Zoom URLs are secrets. Never log them. They are readable only by Admin, the assigned teacher, and the session's students; guardian visibility is OPEN. The same link is copied to generated sessions in a recurrence group as a PROPOSAL, and remains editable per session.
 
-> **Status transitions:** `SCHEDULED → COMPLETED` after the session and reports are handled; `SCHEDULED → MISSED` when the session did not take place; `SCHEDULED → CANCELLED` by Admin with a reason. Completed, missed, and cancelled sessions are terminal except for an audited Admin correction or a linked replacement session. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
+> **Status transitions:** `SCHEDULED → IN_PROGRESS → COMPLETED` is the normal session flow. A session may remain `COMPLETED` while its report is `MISSING`; report completeness does not change session status. `SCHEDULED → MISSED` applies when the session did not take place, and `SCHEDULED → CANCELLED` requires an Admin reason. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
 
 ---
 
@@ -211,12 +209,12 @@ Junction mapping students to sessions. Attendance is a report result, not a Zoom
 | `session_id` | UUID | FK → Sessions, NOT NULL | |
 | `student_id` | UUID | FK → Students, NOT NULL | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `attendance_status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `ATTENDED`, `ABSENT`, `NOT_HELD`; set only by report submission or audited Admin override |
+| `attendance_status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `ATTENDED`, `STUDENT_ABSENT`; explicit persisted attendance state, set by an approved report outcome or audited Admin override |
 | `overridden_by` | UUID | FK → Users, nullable | Admin who overrode the report result |
 | `override_reason` | TEXT | nullable | Required for an Admin override |
 | | | UNIQUE(session_id, student_id) | |
 
-> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. A student absence does not create a deduction or credit; an attended report triggers settlement in Phase 6.
+> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. Evaluation existence never dynamically determines this value. An approved `STUDENT_ABSENT` report does not create a deduction or credit; an approved `ATTENDED` report updates this state and can trigger settlement.
 
 ### Optional SessionJoinClicks (PROPOSAL / OPTIONAL)
 
@@ -353,10 +351,11 @@ Per-student teacher reports. In a group session there is one report for each stu
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `session_id` | UUID | FK → Sessions, NOT NULL | Linked session |
 | `student_id` | UUID | FK → Students, NOT NULL | Student covered by this report |
-| `author_id` | UUID | FK → Users, NOT NULL | Assigned teacher who submits it |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL | Teacher who submits it |
 | `report_type` | ENUM | NOT NULL | `SESSION_COMPLETION_REPORT` |
-| `attendance_outcome` | ENUM | NOT NULL | `ATTENDED`, `STUDENT_ABSENT`, plus OPEN outcomes |
-| `class_remark` | ENUM | NOT NULL | Dropdown values OPEN |
+| `status` | ENUM | NOT NULL | `SUBMITTED`, `REJECTED`, `APPROVED`, `ARCHIVED`; `MISSING` is a report-view state when no row exists |
+| `attendance_outcome` | ENUM | NOT NULL | `ATTENDED`, `STUDENT_ABSENT` |
+| `class_remark` | VARCHAR | NOT NULL | Required text; dropdown values remain OPEN |
 | `summary` | TEXT | NOT NULL | Required lesson summary |
 | `homework` | TEXT | NOT NULL | Required homework value; student visibility is OPEN |
 | `notes` | TEXT | nullable | Optional notes |
@@ -365,7 +364,13 @@ Per-student teacher reports. In a group session there is one report for each stu
 | `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer |
 | `extra_time_reviewed_at` | TIMESTAMPTZ | nullable | Review timestamp |
 | `submitted_at` | TIMESTAMPTZ | NOT NULL | Submission timestamp |
+| `rejection_reason` | TEXT | nullable | Admin reason when status is `REJECTED` |
+| `rejected_by` | UUID | FK → Users, nullable | Admin who rejected the report |
+| `rejected_at` | TIMESTAMPTZ | nullable | Rejection timestamp |
+| `approved_at` | TIMESTAMPTZ | nullable | Admin approval timestamp |
+| `approved_by` | UUID | FK → Users, nullable | Admin who approved the report |
 | `settled_at` | TIMESTAMPTZ | nullable | Set in the same transaction as settlement ledger rows; never cleared to retry |
+| `archived_at` | TIMESTAMPTZ | nullable | Set after approved settlement succeeds; archived reports are immutable |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -376,9 +381,9 @@ ON reports (session_id, student_id)
 WHERE report_type = 'SESSION_COMPLETION_REPORT';
 ```
 
-`attendance_outcome` and `extra_time_minutes` are frozen after submission. Text fields remain editable under server-side authorization and audit rules. A settled report is a claim: corrections use `ADMIN_ADJUSTMENT` or refund entries, never clearing `settled_at`.
+Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher nor Admin may edit it. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
 
-Teacher reports are visible to the guardian and Admin, not the student; whether the student sees homework is OPEN. Student evaluations are Admin-only.
+Archived reports are visible to Admin, the submitting Teacher, the linked Guardian when the student has one, or the Student directly when the student has no Guardian. Student evaluations are separate from Reports and are not inferred from attendance; whether evaluation is mandatory after a completed session is OPEN.
 
 ## 18. ReportAttachments
 
@@ -531,7 +536,7 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
 2. **Partial Unique Indexes:**
    - `idx_payroll_ledger_unique_session_credit` on `payroll_ledger(session_id)` WHERE `entry_type = 'SESSION_CREDIT'`.
    - `idx_subscription_ledger_unique_session_deduction` on `subscription_ledger(session_id, subscription_id)` WHERE `entry_type = 'SESSION_DEDUCTION'`.
-   - `idx_reports_unique_session_completion` on `reports(session_id, author_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
+   - `idx_reports_unique_session_completion` on `reports(session_id, student_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
 3. **CHECK Constraints:**
    - `CHECK (amount_minor > 0)` on `payroll_ledger` for `SESSION_CREDIT`.
    - `CHECK (amount_minor < 0)` on `payroll_ledger` for `DISBURSEMENT`.

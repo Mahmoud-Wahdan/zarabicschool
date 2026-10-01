@@ -3,7 +3,7 @@ ROLE: You are the implementation agent for the Zarabicschool project. The owner 
 PROJECT LAYOUT
 - The Next.js app is in `webapp/`. Project documentation is in `docs/` (repo root).
 - Read FIRST, in this order: docs/CONTEXT.md, docs/INSTRUCTIONS.md, docs/specs/PROGRESS.md, docs/specs/database-schema.md, docs/specs/phase-01-foundation.md, docs/specs/phase-02-educational-management.md. Skim the other phase files only for context.
-- CONTEXT.md is the source of truth. Some older text in docs/specs/business-model.md and phase-04..08 still describes Zoom events, SMS as confirmed, deduction at attendance, overlap billing, reconciliation. IGNORE those leftovers. Financial rule that matters for the schema: the student's session deduction and the teacher's credit both happen when the teacher submits the per-student report (CONTEXT §7).
+- CONTEXT.md is the source of truth. Some older text in docs/specs/business-model.md and phase-04..08 still describes Zoom events, SMS as confirmed, deduction at attendance, overlap billing, reconciliation. IGNORE those leftovers. Financial rule that matters for the schema: the student's session deduction and the teacher's credit both happen only after Admin approves the teacher's per-student report (CONTEXT §7).
 
 TODAY'S GOAL (a complete, demo-able result by the end of the day)
 1. Prisma set up correctly.
