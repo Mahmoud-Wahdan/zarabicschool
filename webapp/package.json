@@ -6,14 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:verify": "tsx scripts/verify-db.ts",
+    "db:reset:dev": "tsx scripts/reset-dev.ts"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
     "bcrypt": "^6.0.0",
     "next": "16.3.7",
     "next-auth": "^4.24.15",
     "next-intl": "^4.14.8",
+    "pg": "8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^4.6.5"
@@ -34,9 +42,11 @@
     "eslint-config-next": "16.3.7",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
-    "prisma": "^8.0.0-rc.19",
+    "dotenv": "18.0.4",
+    "prisma": "7.10.0",
     "supertest": "^7.3.0",
     "tailwindcss": "^4",
+    "tsx": "4.23.15",
     "typescript": "^5"
   }
 }
