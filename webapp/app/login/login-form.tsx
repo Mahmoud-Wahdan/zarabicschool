@@ -8,7 +8,7 @@ import { loginSchema } from "../../lib/validation/auth";
 type FieldErrors = Record<string, string[]>;
 
 type SessionResponse = {
-  user?: { mustChangePassword?: boolean } | null;
+  user?: { role?: string | null; mustChangePassword?: boolean } | null;
   error?: string;
 };
 
@@ -48,7 +48,12 @@ export default function LoginForm() {
 
     const response = await fetch("/api/auth/session");
     const session: SessionResponse = response.ok ? await response.json() : {};
-    const destination = session.user?.mustChangePassword ? "/change-password" : "/";
+    const role = session.user?.role;
+    const destination = session.user?.mustChangePassword
+      ? "/change-password"
+      : role
+        ? `/${role.toLowerCase()}`
+        : "/";
     router.replace(destination);
     router.refresh();
   }

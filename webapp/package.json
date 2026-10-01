@@ -9,10 +9,7 @@
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
-    "db:seed:demo": "tsx prisma/seed-demo.ts",
-    "db:verify": "tsx scripts/verify-db.ts",
-    "db:reset:dev": "tsx scripts/reset-dev.ts"
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
