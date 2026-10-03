@@ -150,17 +150,22 @@ ISO codes (`USD`, `EGP`), teacher balances per currency, **no automatic conversi
 1. **Dropdown options** of "Class Remark" and the attendance-outcome values (attended / student absent / …).
 2. **When the report becomes available** (PROPOSAL: after the scheduled end time; Admin can unlock).
 3. **Attachment rules:** allowed file types and maximum size (PROPOSAL: allowlist of images + PDF, size cap, private storage, no executable files).
-4. **Teacher hourly rate storage:** RECOMMENDATION effective-dated `TeacherRates` table; alternative one field on the teacher (each credit stores the rate used). One rate per teacher (private = group) is the working assumption.
+4. **Teacher hourly rate storage:** CONFIRMED (owner, 2026-10-03) — effective-dated `TeacherRates` table (`id, teacher_id, hourly_rate_minor, currency, effective_from, created_by`). **Built in Phase 6, not before.** Rate rule CONFIRMED: a session is paid with the rate row whose `effective_from <=` the **SESSION's scheduled start** (not the approval time); the ledger credit stores `hourly_rate_snapshot_minor`. Pay is agreed with Admin by human contact (outside the system) and entered by Admin later.
 5. Rounding of hourly amounts to minor units.
 6. Zero-sessions mechanism (blocking rule details, recurring generation capped to the remaining sessions).
 7. Late-report reminder/red-mark timing; notification recipients beyond the confirmed ones (e.g. does the student also get the 2-hour reminder? does the guardian get a message when a report is submitted?).
-8. Application form fields for the three forms; login identifier (username vs email).
+8. **Application form fields** — CONFIRMED (owner, 2026-10-03; final):
+   - **Guardian:** `full_name`, `phone_whatsapp`, `email` (optional), `timezone`, `preferred_language`, `children[] {name, age, subjects[]}`, `preferred_times` (optional), `notes` (optional).
+   - **Student:** `full_name`, `date_of_birth`, `phone_whatsapp`, `timezone`, `preferred_language`, `subjects[]`, `level`, `preferred_times` (optional), `notes` (optional); if under 18: `guardian_name`, `guardian_phone`, `guardian_relationship` (father|mother) required.
+   - **Teacher:** `full_name`, `phone_whatsapp`, `email` (optional), `timezone`, `preferred_language`, `subjects[]`, `years_experience`, `qualifications`, `available_times` (optional), `notes` (optional). **No `expected_hourly_rate` / currency** — pay is agreed with Admin by human contact and entered by Admin later.
+   - Keep the honeypot, size limit and per-IP rate limit.
+   - **Login identifier** (`username` vs email): still OPEN — PROPOSAL: username.
 9. Which teacher-dashboard widgets are in the MVP (estimated salary, fines/bonus display).
 10. Whether the student sees the homework part of the teacher's report.
 11. How Admin reverses a wrongly settled report (PROPOSAL: one action that writes the reversing ledger entries) and the payout cycle (monthly?).
 12. Evaluation-form fields (Phase 7).
 
-*Resolved:* prepaid session packages that never expire; pay is hourly and independent of the student's price; **Admin-approved reports drive settlement**; **reports are unified per student/session with Teacher and Student relationships, also in groups (the teacher's credit is created once per session by the first approved attended report)**; **archived reports are visible to Admin, Teacher, the linked guardian, or the student directly when no guardian exists**; attendance remains explicit on SessionStudents; overtime is decided by Admin from the report; the outage/absence form is in the MVP; the red mark is for late reports only; **no trial-session type**; no Zoom API, no recordings, no embedded interface.
+*Resolved:* prepaid session packages that never expire; pay is hourly and independent of the student's price; **Admin-approved reports drive settlement**; **reports are unified per student/session with Teacher and Student relationships, also in groups (the teacher's credit is created once per session by the first approved attended report)**; **archived reports are visible to Admin, Teacher, the linked guardian, or the student directly when no guardian exists**; attendance remains explicit on SessionStudents; overtime is decided by Admin from the report; the outage/absence form is in the MVP; the red mark is for late reports only; **no trial-session type**; no Zoom API, no recordings, no embedded interface; **TeacherRates = effective-dated table (CONFIRMED 2026-10-03, built in Phase 6; rate row chosen by the SESSION's scheduled start; credit stores `hourly_rate_snapshot_minor`)**; **application fields for all three forms (CONFIRMED 2026-10-03, see item 8)**.
 
 ---
 
@@ -196,6 +201,7 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 - **Video:** Zoom used from outside the platform via links (Section 6). No Zoom SDK, no Zoom API client.
 - **Messaging:** OpenWA behind `MessagingProvider`. SMS: post-MVP, may never be built.
 - **Validation:** Zod. **Testing:** Jest + Supertest, React Testing Library, Playwright.
+- **Database for tests (CONFIRMED owner, 2026-10-03):** NO Docker and NO separate test database. The owner's Supabase DB is used directly — it contains no real data. Demo data via `db:seed:demo` (every demo username starts with `demo_`), `db:clear:demo` deletes ONLY `demo_*` records, tests create unique `demo_test_*` records and delete them afterwards. Phase 6 exception (documented; guards listed in PROGRESS.md): after append-only ledgers exist, demo data can still be cleared via the dedicated script with strict guards; the append-only trigger is never dropped or disabled globally.
 - **Hosting:** decided at deployment time (owner, 2026-09-29). Working assumption: a small VPS for the web app and the always-on pieces.
 
 ---
@@ -272,7 +278,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Student evaluation optional | CONFIRMED |
 | WhatsApp = OpenWA behind `MessagingProvider` | CONFIRMED |
 | SMS fallback | Post-MVP, may never be built — CONFIRMED |
-| Three application forms and their flow | CONFIRMED (fields OPEN) |
+| Three application forms and their flow | CONFIRMED; **fields CONFIRMED (2026-10-03, CONTEXT §7 item 8)** |
 | Auth = NextAuth only, forced password change, no self-reset, login rate limit | CONFIRMED |
 | Supabase (Postgres + private Storage) | CONFIRMED |
 | Delivery to the client in stages | CONFIRMED (boundaries OPEN) |
@@ -281,7 +287,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Reports per student (also in groups); teacher report visible to guardian + Admin; student evaluation visible to Admin only; no trial sessions | CONFIRMED |
 | Class-remark options; report availability; attachment rules | OPEN (Section 7) |
 | SaaS conversion after the Zarabicschool delivery | CONFIRMED as a plan (Section 19); nothing built now |
-| Teacher hourly rate storage (table recommended) | OPEN — owner to choose |
+| Teacher hourly rate storage (table recommended) | CONFIRMED (2026-10-03): effective-dated `TeacherRates` table, built in Phase 6; rate row chosen by the SESSION's scheduled start; credit stores `hourly_rate_snapshot_minor` |
 | Login identifier: username vs email | OPEN — PROPOSAL: username |
 | Zoom account cost / capacity (Alaa not yet informed) | OPEN |
 

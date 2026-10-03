@@ -31,12 +31,21 @@ Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and ve
 - [x] Align context/spec documentation with external Zoom links, no video recordings, and teacher mobile dashboard requirements.
 - [x] Update payroll rule: teacher report triggers scheduled-duration hourly credit and student deduction in one transaction.
 - [x] Remove Zoom event, attendance threshold, overlap-billing, recording, and reconciliation requirements from the documentation.
-- [ ] Confirm login identifier, application fields, TeacherRates design, report values, attachment cap, rounding, and zero-session mechanism.
+- [x] Confirm application fields (FINAL, 2026-10-03) and TeacherRates design (effective-dated table, Phase 6). Still open: login identifier (username PROPOSAL), report values, attachment cap, rounding, zero-session mechanism.
 - [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin approval gates settlement; no revision/version table.
 - [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
 - [ ] Decide whether student evaluation is mandatory after every completed session.
 
-## 2026-10-01 Phase 1 audit and gap fixes
+## 2026-10-03 Confirmed owner decisions (all marked CONFIRMED in CONTEXT.md §7 and the phase-02 spec)
+
+1. **Application fields (FINAL):** Guardian: `full_name`, `phone_whatsapp`, `email` (optional), `timezone`, `preferred_language`, `children[] {name, age, subjects[]}`, `preferred_times` (optional), `notes` (optional). Student: `full_name`, `date_of_birth`, `phone_whatsapp`, `timezone`, `preferred_language`, `subjects[]`, `level`, `preferred_times` (optional), `notes` (optional); if under 18: `guardian_name`, `guardian_phone`, `guardian_relationship` (father|mother) required. Teacher: `full_name`, `phone_whatsapp`, `email` (optional), `timezone`, `preferred_language`, `subjects[]`, `years_experience`, `qualifications`, `available_times` (optional), `notes` (optional) — `expected_hourly_rate`/`currency` removed (pay agreed with Admin by human contact, entered by Admin later). Honeypot, size limit, per-IP rate limit kept.
+2. **Provisioning:** every child gets their own username + temporary password; a guardian application with N children = 1 guardian user + N student users, created in ONE transaction (all or nothing) and idempotent.
+3. **Guardian linking:** Admin links a student to an existing guardian or creates the guardian in the same approval step; manual adds from the dashboard any time (guardian, student, teacher, subject, another admin); credentials shown to Admin ONCE, delivery by WhatsApp later via `MessagingProvider` (fake provider only).
+4. **Site config:** logo still being made and contact info comes later — clearly marked placeholders in a site config module; invent nothing (no claims, no prices).
+5. **Database for tests:** NO Docker and NO separate test database — the owner's Supabase DB used directly (contains no real data). `db:seed:demo` (academy, admin, demo guardians/students/teachers; every demo username starts with `demo_`), `db:clear:demo` deletes ONLY `demo_*` records, tests create unique `demo_test_*` records and delete them afterwards. **Phase 6 exception (documented, implemented only in Phase 6):** after append-only ledgers exist, demo data can still be cleared with these guards: (1) only records linked to `demo_*` users/teachers; (2) only via the dedicated `db:clear:demo` script — the append-only trigger is NEVER dropped or disabled globally; (3) abort if any non-demo record references the same session/report/subscription; (4) explicit `--confirm` flag and print the counts first; (5) refuse to run when `NODE_ENV=production`.
+6. **TeacherRates = effective-dated table** (`id, teacher_id, hourly_rate_minor, currency, effective_from, created_by`) — CONFIRMED. Built in Phase 6, NOT now. Rate rule CONFIRMED: a session is paid with the row whose `effective_from <=` the SESSION's scheduled start (not the approval time); the ledger credit stores `hourly_rate_snapshot_minor`.
+
+## 2026-10-03 Phase 1 audit and gap fixes
 
 - Phase 1 audited against the repo: typecheck, lint, build, and `prisma migrate status` verified clean; tests and next-intl were missing.
 - Audit deviations: init migration includes the Phase 2 `applications`/`subjects` tables; auth is next-auth v4 with username-first login; `Users` has `username` + nullable email (differs from `database-schema.md`).
