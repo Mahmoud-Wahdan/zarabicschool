@@ -12,6 +12,20 @@
     "title": "Zarabicschool",
     "tagline": "Learn Arabic & Quran... with a foundation that lights your heart",
     "login": "Sign in",
+    "whatWeTeach": {
+      "title": "What we teach",
+      "arabic": "Arabic language",
+      "arabicDescription": "Reading, writing, and grammar with a structured approach for every level",
+      "quran": "Quran",
+      "quranDescription": "Recitation and memorisation with teachers specialised in Quran instruction"
+    },
+    "howItWorks": {
+      "title": "How it works",
+      "step1": "Apply through the right application form",
+      "step2": "The academy's admin reviews your application",
+      "step3": "You receive your credentials via WhatsApp",
+      "step4": "Sign in and start learning"
+    },
     "applyTitle": "Join the academy",
     "applySubtitle": "Application forms will be available soon",
     "applyGuardian": "Guardian application",
