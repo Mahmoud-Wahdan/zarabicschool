@@ -4,6 +4,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getLocale } from "next-intl/server";
 
 import { authOptions } from "./auth";
 import { prisma } from "./prisma";
@@ -39,14 +40,11 @@ export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
 
 export async function requireRole(role: AuthUser["role"]): Promise<AuthUser> {
   const user = await getAuthSession();
-  if (!user) redirect("/login");
-  if (user.mustChangePassword) redirect("/change-password");
-  if (user.role !== role) redirect(`/${user.role.toLowerCase()}`);
+  const locale = await getLocale();
+  if (!user) redirect(`/${locale}/login`);
+  if (user.mustChangePassword) redirect(`/${locale}/change-password`);
+  if (user.role !== role) redirect(`/${locale}/${user.role.toLowerCase()}`);
   return user;
-}
-
-export function dashboardPath(role: AuthUser["role"]) {
-  return `/${role.toLowerCase()}`;
 }
 
 export async function requireApiRole(role: AuthUser["role"]) {

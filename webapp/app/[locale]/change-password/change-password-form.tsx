@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { changePasswordSchema } from "../../lib/validation/auth";
+import { useLocale, useTranslations } from "next-intl";
+
+import { changePasswordSchema } from "../../../lib/validation/auth";
 
 type FieldErrors = Record<string, string[]>;
 
@@ -16,6 +18,8 @@ type ApiError = {
 
 export default function ChangePasswordForm({ username, role }: { username: string; role: string }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("changePassword");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
@@ -49,23 +53,23 @@ export default function ChangePasswordForm({ username, role }: { username: strin
       if (apiError.error?.fieldErrors) {
         setFieldErrors(apiError.error.fieldErrors);
       }
-      setFormError(apiError.error?.message ?? "حدث خطأ غير متوقع. حاول مرة أخرى.");
+      setFormError(apiError.error?.message ?? t("unexpectedError"));
       return;
     }
 
-    router.replace(`/${role.toLowerCase()}`);
+    router.replace(`/${locale}/${role.toLowerCase()}`);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
       <p className="text-xs text-[var(--foreground)] opacity-60">
-        الحساب: <span dir="ltr" className="font-medium">{username}</span>
+        {t("account")}: <span dir="ltr" className="font-medium">{username}</span>
       </p>
 
       <div>
         <label htmlFor="currentPassword" className="block text-sm font-medium text-[var(--navy)]">
-          كلمة المرور الحالية
+          {t("currentPassword")}
         </label>
         <input
           id="currentPassword"
@@ -82,7 +86,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
 
       <div>
         <label htmlFor="newPassword" className="block text-sm font-medium text-[var(--navy)]">
-          كلمة المرور الجديدة
+          {t("newPassword")}
         </label>
         <input
           id="newPassword"
@@ -99,7 +103,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
 
       <div>
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--navy)]">
-          تأكيد كلمة المرور الجديدة
+          {t("confirmPassword")}
         </label>
         <input
           id="confirmPassword"
@@ -123,7 +127,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
         disabled={pending}
         className="w-full rounded-lg bg-[var(--emerald)] py-2.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? "جارٍ التغيير..." : "تغيير كلمة المرور"}
+        {pending ? t("submitting") : t("submit")}
       </button>
     </form>
   );

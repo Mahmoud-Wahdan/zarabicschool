@@ -2,14 +2,14 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-09-30
+> Last updated: 2026-10-03
 
 ## Phase Status
 
 | # | Phase | Status | Last Updated | Note |
 |---|-------|--------|--------------|------|
-| 1 | Foundation | In Progress | 2026-09-30 | Documentation aligned; implementation target is `webapp/` |
-| 2 | Educational Management | Not Started | 2026-09-28 | — |
+| 1 | Foundation | In Progress | 2026-10-03 | Slice A3 (next-intl) done and verified; next: slice A4 (tests), then landing page |
+| 2 | Educational Management | In Progress | 2026-10-01 | Started early (applications/subjects endpoints); form fields CONFIRMED by owner, forms not built yet |
 | 3 | Schedules & Sessions | Not Started | 2026-09-28 | — |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
 | 5 | Session Reports & Attendance | Not Started | 2026-09-30 | Reports are attendance evidence and pay trigger |
@@ -19,7 +19,7 @@
 
 ## Current Active Task
 
-Current task: documentation migration from the 2026-09-29 context revision. Implementation target is `webapp/`; root `docs/` contains project documentation.
+Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and verified 2026-10-03: `[locale]` routing, locale-aware login/change-password/dashboards, proxy role checks + i18n, LocaleSwitcher, 404. Next: slice A4 (rate-limit unit tests + DB integration tests, jest config), then landing page (slice B). Seed is NOT run until the owner confirms secret rotation. Implementation target is `webapp/`; root `docs/` contains project documentation.
 
 ## Action Items
 
@@ -35,6 +35,13 @@ Current task: documentation migration from the 2026-09-29 context revision. Impl
 - [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin approval gates settlement; no revision/version table.
 - [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
 - [ ] Decide whether student evaluation is mandatory after every completed session.
+
+## 2026-10-01 Phase 1 audit and gap fixes
+
+- Phase 1 audited against the repo: typecheck, lint, build, and `prisma migrate status` verified clean; tests and next-intl were missing.
+- Audit deviations: init migration includes the Phase 2 `applications`/`subjects` tables; auth is next-auth v4 with username-first login; `Users` has `username` + nullable email (differs from `database-schema.md`).
+- Gap fixes committed on `feature/phase-1-foundation`: branch created; previous work committed separately (docs `16b8371`, Phase 1 `118e4d6`, Phase 2 `14ec222`); `docs.zip` removed; `!.env.example` added and `.env.example` committed; three broken npm scripts deleted (`prisma migrate status`/`reset` cover them); login now redirects to the role dashboard.
+- Blocked on owner: secrets rotation (seed not run), brand logo files, landing-page copy (what the academy teaches, contact info), final application form fields.
 
 ## 2026-09-30 Documentation Update
 

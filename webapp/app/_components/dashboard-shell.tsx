@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
+import LocaleSwitcher from "./locale-switcher";
 import SignOutButton from "./sign-out-button";
 
 export default function DashboardShell({
@@ -11,7 +13,8 @@ export default function DashboardShell({
   userName: string;
   children: ReactNode;
 }) {
-  const roleLabel = { ADMIN: "الإدارة", TEACHER: "المعلمة", STUDENT: "الطالب", GUARDIAN: "ولي الأمر" }[role] ?? role;
+  const t = useTranslations("dashboard");
+  const roleLabel = t(`roles.${role}`);
 
   return (
     <div className="min-h-screen">
@@ -22,6 +25,7 @@ export default function DashboardShell({
             <p className="text-xs text-[var(--foreground)] opacity-60">{roleLabel}</p>
           </div>
           <div className="flex items-center gap-3">
+            <LocaleSwitcher />
             <span className="text-sm text-[var(--foreground)]">{userName}</span>
             <SignOutButton />
           </div>

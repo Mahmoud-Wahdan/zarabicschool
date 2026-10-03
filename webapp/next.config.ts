@@ -1,5 +1,6 @@
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
+import createNextIntlPlugin from "next-intl/plugin";
 
 dotenvConfig({ path: resolve(__dirname, "../.env") });
 
@@ -11,4 +12,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin();
+
+export default withNextIntl(nextConfig);

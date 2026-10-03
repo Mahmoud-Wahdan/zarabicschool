@@ -1,0 +1,96 @@
+{
+  "brand": {
+    "name": "Zarabicschool",
+    "tagline": "Learn Arabic & Quran... with a foundation that lights your heart"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "ar": "العربية",
+    "en": "English"
+  },
+  "home": {
+    "title": "Zarabicschool",
+    "tagline": "Learn Arabic & Quran... with a foundation that lights your heart",
+    "login": "Sign in",
+    "applyTitle": "Join the academy",
+    "applySubtitle": "Application forms will be available soon",
+    "applyGuardian": "Guardian application",
+    "applyGuardianDescription": "For guardians who want to enroll their children",
+    "applyStudent": "Student application",
+    "applyStudentDescription": "For students who want to learn Arabic and Quran",
+    "applyTeacher": "Teacher application",
+    "applyTeacherDescription": "For teachers specialized in Arabic and Quran",
+    "comingSoon": "Coming soon"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Enter your username and password to access your account",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "invalidCredentials": "Incorrect username or password, or too many attempts. Please try again in a little while."
+  },
+  "changePassword": {
+    "title": "Change password",
+    "subtitle": "You must change the temporary password before accessing the platform",
+    "account": "Account",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Change password",
+    "submitting": "Changing...",
+    "unexpectedError": "An unexpected error occurred. Please try again."
+  },
+  "signOut": "Sign out",
+  "dashboard": {
+    "roles": {
+      "ADMIN": "Admin",
+      "TEACHER": "Teacher",
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    },
+    "emptyState": "No data yet",
+    "admin": {
+      "title": "Admin dashboard",
+      "welcome": "Welcome {name}. From here you will manage applications, accounts, schedules, and reports.",
+      "sections": {
+        "applications": "New applications",
+        "accounts": "Accounts",
+        "schedules": "Schedules and sessions"
+      }
+    },
+    "teacher": {
+      "title": "Teacher dashboard",
+      "welcome": "Welcome {name}. From here you will see your sessions, reports, and salary.",
+      "sections": {
+        "today": "Today's classes",
+        "reports": "Reports due",
+        "salary": "Salary so far"
+      }
+    },
+    "student": {
+      "title": "Student dashboard",
+      "welcome": "Welcome {name}. From here you will see your schedule, upcoming sessions, and homework.",
+      "sections": {
+        "upcoming": "Upcoming sessions",
+        "past": "Past sessions",
+        "homework": "Homework"
+      }
+    },
+    "guardian": {
+      "title": "Guardian dashboard",
+      "welcome": "Welcome {name}. From here you will see your children, their schedules, progress reports, and financial status.",
+      "sections": {
+        "schedule": "Children's schedule",
+        "reports": "Progress reports",
+        "finance": "Financial status"
+      }
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for is not available.",
+    "backHome": "Back to home"
+  }
+}

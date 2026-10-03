@@ -97,4 +97,4 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Execution log (updated as soon as real work happens)
 
-(empty for now)
+- 2026-10-01: Phase 2 started early inside the Phase 1 branch, before owner confirmation of the form fields. Existing pieces: `Application` + `Subject` models inside the init migration (already applied to Supabase), `POST /api/applications` (rate limit, honeypot, size cap, 24h duplicate check), `GET /api/subjects` (public, active subjects), and `lib/validation/application.ts` with a concrete field list that is a **DRAFT** — the final field list must be confirmed by the owner before the application UI is built. Open items flagged for the plan: guardian link on the student application, username generation on provisioning, guardian message on approval, OpenWA wiring.

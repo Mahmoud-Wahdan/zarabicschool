@@ -82,24 +82,27 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Initialize Next.js project (App Router, TypeScript, Tailwind CSS)
-- [ ] Configure `next-intl` (Arabic primary, English secondary, RTL layout)
-- [ ] Apply brand colors and typography to Tailwind config
-- [ ] Set up Prisma with PostgreSQL (Supabase pooler + direct URL)
-- [ ] Create initial migration: `Academies`, `Users` tables
-- [ ] Seed script: create single `academy_id` UUID + initial Admin user
-- [ ] Set up NextAuth/Auth.js credentials authentication
-- [ ] Implement password hashing (bcrypt)
-- [ ] Implement `must_change_password` first-login gate & password change form
-- [ ] Implement login rate limiting (local in-memory implementation for Phase 1)
-- [ ] Implement RBAC middleware (route protection by role)
-- [ ] Create responsive RTL layout with brand styling
-- [ ] Create dashboard shell pages for Admin, Teacher, Student, Guardian
-- [ ] Create `.env.example` with variable names only
-- [ ] Verify `.env` in `.gitignore`
+- [x] Initialize Next.js project (App Router, TypeScript, Tailwind CSS)
+- [x] Configure `next-intl` (Arabic primary, English secondary, RTL layout) *(slice A3: `[locale]` routing, ar/en messages, locale-aware auth flows, dashboards, 404; verified typecheck/lint/build 2026-10-03)*
+- [x] Apply brand colors and typography to Tailwind config
+- [x] Set up Prisma with PostgreSQL (Supabase pooler + direct URL)
+- [x] Create initial migration: `Academies`, `Users` tables
+- [ ] Seed script: create single `academy_id` UUID + initial Admin user *(script written and reviewed; NOT executed — awaiting owner confirmation that secrets are rotated)*
+- [x] Set up NextAuth/Auth.js credentials authentication
+- [x] Implement password hashing (bcrypt)
+- [x] Implement `must_change_password` first-login gate & password change form
+- [x] Implement login rate limiting (local in-memory implementation for Phase 1)
+- [x] Implement RBAC middleware (route protection by role)
+- [x] Create responsive RTL layout with brand styling
+- [x] Create dashboard shell pages for Admin, Teacher, Student, Guardian
+- [x] Create `.env.example` with variable names only
+- [x] Verify `.env` in `.gitignore`
 - [ ] Write tests: auth credentials flow, `must_change_password` enforcement, rate limiting, RBAC route guarding
-- [ ] REMOVED — all `ZOOM_*` environment variables; the MVP has no Zoom API.
+- [x] REMOVED — all `ZOOM_*` environment variables; the MVP has no Zoom API.
 
 ## Execution log (updated as soon as real work happens)
 
 - 2026-09-30: Documentation aligned with the fifth context revision; frontend target is `webapp/`, and Zoom API/event requirements are removed.
+- 2026-10-01 (audit): Verified against the repo — typecheck, lint, `next build`, and `prisma migrate status` all clean (migration `20260930155035_init` applied to Supabase). Audit deviations recorded: (1) the init migration also creates the Phase 2 `applications`/`subjects` tables — already applied, not split retroactively; (2) auth is next-auth **v4** (not Auth.js v5) with a username-first credentials provider; (3) `Users` uses `username` (`UNIQUE(academy_id, username)`) + nullable email, which differs from `database-schema.md` — login identifier remains an OPEN owner decision; (4) login landed on `/` instead of the role dashboard (fixed in `d10eb90`); (5) three npm scripts (`db:seed:demo`, `db:verify`, `db:reset:dev`) pointed to non-existent files and were deleted — built-in `prisma migrate status` / `prisma migrate reset` cover those needs; (6) tests did not exist; (7) `.env.example` was ignored by the `.env*` pattern (fixed with `!.env.example`, committed in `f90d203`).
+- 2026-10-01 (slices): Work moved to branch `feature/phase-1-foundation`. Committed the previous session's uncommitted work as separate commits: docs sync (`16b8371`), Phase 1 foundation (`118e4d6`), Phase 2 start (`14ec222`). Slice A2 fixes verified (typecheck/lint/build) and committed (`d10eb90`, `f90d203`). Seed intentionally NOT run until the owner confirms secret rotation.
+- 2026-10-03 (slice A3 — next-intl finished): The owner moved all pages under `app/[locale]/`, fixed their relative imports, and edited `layout.tsx` (NextIntlClientProvider, `lang`/`dir` per locale, `LayoutProps<"/[locale]">`). Completed: `next.config.ts` next-intl plugin; `i18n/routing.ts` (`ar` default, `en`), `i18n/request.ts`, `i18n/navigation.ts`; `messages/ar.json` + `en.json`; login form uses `useLocale`/`useTranslations` with a locale-aware destination (`/{locale}/change-password` or `/{locale}/{role}`); change-password page + form locale-aware; dashboard shell + 4 role dashboards fully translated; sign-out button locale-aware (`callbackUrl: /{locale}/login`); `LocaleSwitcher` on home, login, and dashboard shell; `[locale]/not-found.tsx` + `[locale]/[...rest]/page.tsx` catch-all; `requireRole` in `lib/dal.ts` redirects with the locale prefix (interim `dashboardPath` removed); `proxy.ts` is locale-aware (strips the locale for role checks, preserves it in redirects, runs next-intl routing last). Verified: `tsc --noEmit` clean, `eslint` clean, `next build` clean (all `[locale]` routes + proxy listed). No tests exist yet (slice A4).

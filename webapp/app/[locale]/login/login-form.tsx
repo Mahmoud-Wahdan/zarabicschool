@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { loginSchema } from "../../lib/validation/auth";
+import { useLocale, useTranslations } from "next-intl";
+
+import { loginSchema } from "../../../lib/validation/auth";
 
 type FieldErrors = Record<string, string[]>;
 
@@ -14,6 +16,8 @@ type SessionResponse = {
 
 export default function LoginForm() {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("login");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
@@ -42,7 +46,7 @@ export default function LoginForm() {
 
     if (!result || result.error) {
       setPending(false);
-      setFormError("اسم المستخدم أو كلمة المرور غير صحيحة، أو تم تجاوز عدد المحاولات المسموح. حاول مرة أخرى بعد قليل.");
+      setFormError(t("invalidCredentials"));
       return;
     }
 
@@ -50,10 +54,10 @@ export default function LoginForm() {
     const session: SessionResponse = response.ok ? await response.json() : {};
     const role = session.user?.role;
     const destination = session.user?.mustChangePassword
-      ? "/change-password"
+      ? `/${locale}/change-password`
       : role
-        ? `/${role.toLowerCase()}`
-        : "/";
+        ? `/${locale}/${role.toLowerCase()}`
+        : `/${locale}`;
     router.replace(destination);
     router.refresh();
   }
@@ -62,7 +66,7 @@ export default function LoginForm() {
     <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
       <div>
         <label htmlFor="username" className="block text-sm font-medium text-[var(--navy)]">
-          اسم المستخدم
+          {t("username")}
         </label>
         <input
           id="username"
@@ -79,7 +83,7 @@ export default function LoginForm() {
 
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-[var(--navy)]">
-          كلمة المرور
+          {t("password")}
         </label>
         <input
           id="password"
@@ -103,7 +107,7 @@ export default function LoginForm() {
         disabled={pending}
         className="w-full rounded-lg bg-[var(--emerald)] py-2.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
+        {pending ? t("submitting") : t("submit")}
       </button>
     </form>
   );
