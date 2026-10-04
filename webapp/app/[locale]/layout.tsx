@@ -9,7 +9,7 @@ import { routing } from "../../i18n/routing";
 
 const cairo = Cairo({
   variable: "--font-cairo",
-  subsets: ["latin"],
+  subsets: ["arabic", "latin"],
 });
 
 const tajawal = Tajawal({
@@ -27,11 +27,12 @@ type Props = LayoutProps<"/[locale]">;
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "home" });
+  const tBrand = await getTranslations({ locale, namespace: "brand" });
+  const tHero = await getTranslations({ locale, namespace: "hero" });
 
   return {
-    title: `${t("title")} | ${t("tagline")}`,
-    description: t("tagline"),
+    title: tBrand("name"),
+    description: tHero("subtitle"),
   };
 }
 

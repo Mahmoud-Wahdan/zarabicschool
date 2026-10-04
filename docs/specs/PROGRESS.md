@@ -8,7 +8,7 @@
 
 | # | Phase | Status | Last Updated | Note |
 |---|-------|--------|--------------|------|
-| 1 | Foundation | In Progress | 2026-10-03 | Slice A3 (next-intl) done and verified; next: slice A4 (tests), then landing page |
+| 1 | Foundation | In Progress | 2026-10-03 | Slices A3 (next-intl) and B+ (full landing page, DB subjects) done and verified; next: slice A4 (tests) |
 | 2 | Educational Management | In Progress | 2026-10-01 | Started early (applications/subjects endpoints); form fields CONFIRMED by owner, forms not built yet |
 | 3 | Schedules & Sessions | Not Started | 2026-09-28 | — |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
@@ -19,7 +19,7 @@
 
 ## Current Active Task
 
-Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and verified 2026-10-03: `[locale]` routing, locale-aware login/change-password/dashboards, proxy role checks + i18n, LocaleSwitcher, 404. Next: slice A4 (rate-limit unit tests + DB integration tests, jest config), then landing page (slice B). Seed is NOT run until the owner confirms secret rotation. Implementation target is `webapp/`; root `docs/` contains project documentation.
+Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and verified 2026-10-03: `[locale]` routing, locale-aware login/change-password/dashboards, proxy role checks + i18n, LocaleSwitcher, 404. Slice B+ (full landing page) done and verified: sticky header with hamburger + anchors, hero with arch visual, features strip, subjects from DB (bilingual, `demo-` seed rows available via `db:seed:demo`), why-us, how-to-start, apply role cards → `/apply?type=`, FAQ accordion, closing CTA, footer; landing copy lives in the new messages key tree (brand/common/nav/hero/features/subjects/why/steps/apply/faq/closing/footer/comingSoon) with login/changePassword/dashboard/notFound merged back; `lucide-react` added; Subject model expanded to bilingual fields (`slug`, `nameAr/nameEn`, `descriptionAr/descriptionEn`, `icon`, `sortOrder`) with migration `20261003120000_subject_bilingual`. Next: slice A4 (rate-limit unit tests + DB integration tests, jest config). Seed is NOT run until the owner confirms secret rotation. Implementation target is `webapp/`; root `docs/` contains project documentation.
 
 ## Action Items
 

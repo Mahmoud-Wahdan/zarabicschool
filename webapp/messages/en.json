@@ -3,108 +3,201 @@
     "name": "Zarabicschool",
     "tagline": "Learn Arabic & Quran... with a foundation that lights your heart"
   },
-  "localeSwitcher": {
-    "label": "Language",
-    "ar": "العربية",
-    "en": "English"
+  "common": {
+    "login": "Log in",
+    "applyNow": "Apply now",
+    "langSwitch": "العربية",
+    "skipToContent": "Skip to content"
   },
-  "home": {
-    "title": "Zarabicschool",
+  "signOut": "Sign out",
+  "nav": {
+    "subjects": "Subjects",
+    "howToStart": "How to start",
+    "why": "Why us",
+    "faq": "FAQ",
+    "apply": "Apply",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "hero": {
+    "title": "Learn Arabic & Quran... with a foundation that lights your heart",
+    "subtitle": "Live classes with specialized female teachers in academic and Islamic subjects, and a report after every class that reassures guardians about their children's progress.",
+    "primaryCta": "Apply now",
+    "secondaryCta": "Log in",
+    "trust": [
+      "Classes on Zoom",
+      "Private and group",
+      "Times that fit your time zone"
+    ]
+  },
+  "features": {
+    "items": [
+      { "title": "Live classes", "text": "Learn face to face with your teacher" },
+      { "title": "Specialized teachers", "text": "A teacher who knows each subject" },
+      { "title": "A report after every class", "text": "Summary, homework and notes" },
+      { "title": "One account to follow up", "text": "For guardians and all their children" }
+    ]
+  },
+  "subjects": {
+    "title": "Subjects that build a person inside and out",
+    "subtitle": "Choose the subject, and we will match you with the right teacher.",
+    "more": "More subjects are added regularly",
+    "cta": "Apply now",
+    "empty": "[PLACEHOLDER: subjects list coming soon]"
+  },
+  "why": {
+    "title": "Why Zarabicschool?",
+    "subtitle": "Everything a student and a guardian need, in one place.",
+    "items": [
+      { "title": "Specialized teachers", "text": "Each subject is taught by a specialized teacher who explains it clearly." },
+      { "title": "Private or group", "text": "Pick what suits your child: a private class or a group." },
+      { "title": "Flexible schedule", "text": "A timetable that fits your time zone and your family." },
+      { "title": "A report after every class", "text": "The class summary, homework and teacher's notes reach the guardian." },
+      { "title": "Prepaid session packages", "text": "Buy the number of sessions that suits you. Sessions never expire." },
+      { "title": "Follow every child", "text": "Schedule, attendance, reports and remaining sessions from one account." }
+    ]
+  },
+  "steps": {
+    "title": "How to start",
+    "subtitle": "Four simple steps between your application and your first class.",
+    "items": [
+      { "title": "Apply", "text": "Fill in the form that fits you: guardian, student or teacher." },
+      { "title": "We review", "text": "The administration reviews your details and accepts the application." },
+      { "title": "Receive your login", "text": "We send your username and password on WhatsApp." },
+      { "title": "Log in and start", "text": "Log in to follow your schedule and your class link." }
+    ]
+  },
+  "apply": {
+    "title": "Who are you? Start your journey",
+    "subtitle": "Pick what fits you. The form takes only a few minutes.",
+    "guardian": {
+      "title": "Guardian",
+      "headline": "Register your children in one place",
+      "points": [
+        "One account for all your children",
+        "A report after every class",
+        "Always know the remaining sessions"
+      ],
+      "cta": "Register your children"
+    },
+    "student": {
+      "title": "Student",
+      "headline": "Start learning with a teacher who suits you",
+      "points": [
+        "A teacher specialized in your subject",
+        "A clear schedule and the class link ready",
+        "Homework and feedback after every class"
+      ],
+      "cta": "Apply as a student"
+    },
+    "teacher": {
+      "title": "Teacher",
+      "headline": "Teach your subject to students looking for you",
+      "points": [
+        "An organized schedule and the class link ready",
+        "Your salary shows on your dashboard with every report",
+        "Clear follow-up of your students"
+      ],
+      "cta": "Join our team"
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "items": [
+      { "q": "How do I register?", "a": "Through the application form. The administration reviews it, and once accepted your login details arrive on WhatsApp." },
+      { "q": "Are the classes live?", "a": "Yes, classes are live on Zoom, and the class link appears in your account." },
+      { "q": "Are classes private or group?", "a": "Both are available, and you can choose what suits you." },
+      { "q": "Do package sessions expire?", "a": "No, package sessions never expire, and you use them over whatever period you like." },
+      { "q": "How does a guardian follow the children?", "a": "From their own dashboard: schedule, attendance, teacher reports and remaining sessions." },
+      { "q": "What are the prices and payment methods?", "a": "[PLACEHOLDER: set by the administration]" }
+    ]
+  },
+  "closing": {
+    "title": "Start today... and build knowledge that benefits",
+    "subtitle": "One step away from your first class.",
+    "primaryCta": "Apply now",
+    "secondaryCta": "Log in"
+  },
+  "footer": {
     "tagline": "Learn Arabic & Quran... with a foundation that lights your heart",
-    "login": "Sign in",
-    "whatWeTeach": {
-      "title": "What we teach",
-      "arabic": "Arabic language",
-      "arabicDescription": "Reading, writing, and grammar with a structured approach for every level",
-      "quran": "Quran",
-      "quranDescription": "Recitation and memorisation with teachers specialised in Quran instruction"
-    },
-    "howItWorks": {
-      "title": "How it works",
-      "step1": "Apply through the right application form",
-      "step2": "The academy's admin reviews your application",
-      "step3": "You receive your credentials via WhatsApp",
-      "step4": "Sign in and start learning"
-    },
-    "applyTitle": "Join the academy",
-    "applySubtitle": "Application forms will be available soon",
-    "applyGuardian": "Guardian application",
-    "applyGuardianDescription": "For guardians who want to enroll their children",
-    "applyStudent": "Student application",
-    "applyStudentDescription": "For students who want to learn Arabic and Quran",
-    "applyTeacher": "Teacher application",
-    "applyTeacherDescription": "For teachers specialized in Arabic and Quran",
-    "comingSoon": "Coming soon"
+    "linksTitle": "Quick links",
+    "contactTitle": "Contact us",
+    "whatsapp": "[PLACEHOLDER: contact WhatsApp number]",
+    "rights": "© Zarabicschool. All rights reserved."
+  },
+  "comingSoon": {
+    "title": "Application form coming soon",
+    "text": "We are preparing the form and it will be available soon.",
+    "back": "Back to home"
   },
   "login": {
-    "title": "Sign in",
-    "subtitle": "Enter your username and password to access your account",
+    "title": "Log in",
+    "subtitle": "Enter your username and password.",
     "username": "Username",
     "password": "Password",
-    "submit": "Sign in",
+    "submit": "Log in",
     "submitting": "Signing in...",
-    "invalidCredentials": "Incorrect username or password, or too many attempts. Please try again in a little while."
+    "invalidCredentials": "Incorrect username or password."
   },
   "changePassword": {
     "title": "Change password",
-    "subtitle": "You must change the temporary password before accessing the platform",
+    "subtitle": "You must set a new password before continuing.",
     "account": "Account",
     "currentPassword": "Current password",
     "newPassword": "New password",
-    "confirmPassword": "Confirm new password",
-    "submit": "Change password",
-    "submitting": "Changing...",
-    "unexpectedError": "An unexpected error occurred. Please try again."
+    "confirmPassword": "Confirm password",
+    "submit": "Save",
+    "submitting": "Saving...",
+    "unexpectedError": "Something went wrong. Please try again."
   },
-  "signOut": "Sign out",
   "dashboard": {
+    "emptyState": "Nothing here yet.",
     "roles": {
       "ADMIN": "Admin",
       "TEACHER": "Teacher",
       "STUDENT": "Student",
       "GUARDIAN": "Guardian"
     },
-    "emptyState": "No data yet",
     "admin": {
       "title": "Admin dashboard",
-      "welcome": "Welcome {name}. From here you will manage applications, accounts, schedules, and reports.",
+      "welcome": "Welcome, {name}",
       "sections": {
-        "applications": "New applications",
+        "applications": "Applications",
         "accounts": "Accounts",
-        "schedules": "Schedules and sessions"
+        "schedules": "Schedules"
       }
     },
     "teacher": {
       "title": "Teacher dashboard",
-      "welcome": "Welcome {name}. From here you will see your sessions, reports, and salary.",
+      "welcome": "Welcome, {name}",
       "sections": {
         "today": "Today's classes",
-        "reports": "Reports due",
-        "salary": "Salary so far"
+        "reports": "Reports",
+        "salary": "Salary"
       }
     },
     "student": {
       "title": "Student dashboard",
-      "welcome": "Welcome {name}. From here you will see your schedule, upcoming sessions, and homework.",
+      "welcome": "Welcome, {name}",
       "sections": {
-        "upcoming": "Upcoming sessions",
-        "past": "Past sessions",
+        "upcoming": "Upcoming classes",
+        "past": "Past classes",
         "homework": "Homework"
       }
     },
     "guardian": {
       "title": "Guardian dashboard",
-      "welcome": "Welcome {name}. From here you will see your children, their schedules, progress reports, and financial status.",
+      "welcome": "Welcome, {name}",
       "sections": {
-        "schedule": "Children's schedule",
-        "reports": "Progress reports",
-        "finance": "Financial status"
+        "schedule": "Schedule",
+        "reports": "Reports",
+        "finance": "Remaining sessions"
       }
     }
   },
   "notFound": {
     "title": "Page not found",
-    "description": "The page you are looking for is not available.",
+    "description": "The page you requested could not be found.",
     "backHome": "Back to home"
   }
 }
