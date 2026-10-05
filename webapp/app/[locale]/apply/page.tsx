@@ -1,30 +1,58 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 
-import { Link } from "../../../i18n/navigation";
+import { prisma } from "../../../lib/prisma";
+import ApplyRoles from "../../_components/landing/apply-roles";
+import ApplyForm from "./apply-form";
 
-const roles = ["guardian", "student", "teacher"] as const;
+const validRoles = ["guardian", "student", "teacher"] as const;
+type ValidRole = (typeof validRoles)[number];
 
 export default async function ApplyPage({
   searchParams,
-}: Pick<PageProps<"/[locale]/apply">, "searchParams">) {
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
   const { type } = await searchParams;
-  const t = await getTranslations("comingSoon");
-  const tApply = await getTranslations("apply");
+  const locale = await getLocale();
 
-  const role = typeof type === "string" ? roles.find((item) => item === type) : undefined;
+  const role: ValidRole | undefined =
+    typeof type === "string" && validRoles.includes(type as ValidRole)
+      ? (type as ValidRole)
+      : undefined;
+
+  if (!role) {
+    return (
+      <div className="py-6 sm:py-12">
+        <ApplyRoles />
+      </div>
+    );
+  }
+
+  let subjects: {
+    id: string;
+    slug: string;
+    nameAr: string;
+    nameEn: string;
+  }[] = [];
+
+  try {
+    subjects = await prisma.subject.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        nameAr: true,
+        nameEn: true,
+      },
+    });
+  } catch {
+    subjects = [];
+  }
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold text-[var(--navy)] sm:text-3xl">{t("title")}</h1>
-      {role ? (
-        <p className="mt-3 text-sm font-semibold text-[var(--emerald)]">
-          {tApply(`${role}.title`)}
-        </p>
-      ) : null}
-      <p className="mt-4 max-w-md text-[var(--foreground)]/80">{t("text")}</p>
-      <Link href="/" className="cta-secondary mt-8">
-        {t("back")}
-      </Link>
+    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
+      <ApplyForm type={role} subjects={subjects} locale={locale} />
     </div>
   );
 }

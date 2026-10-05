@@ -130,6 +130,67 @@
     "text": "نجهّز النموذج الآن، وسيكون متاحًا قريبًا.",
     "back": "العودة للرئيسية"
   },
+  "applyForm": {
+    "guardianTitle": "تقديم ولي أمر",
+    "guardianSubtitle": "سجّل أبناءك وسننسق لهم الجدول المناسب مع معلمات متخصصات.",
+    "studentTitle": "تقديم طالب",
+    "studentSubtitle": "قدّم طلبك لدراسة المواد التي تختارها مع أفضل المعلمات.",
+    "teacherTitle": "انضمام معلمة",
+    "teacherSubtitle": "انضمي إلى فريق المعلمات المتميزات في أكاديمية Zarabicschool.",
+    "fullName": "الاسم الكامل",
+    "fullNamePlaceholder": "مثال: فاطمة أحمد",
+    "phoneWhatsapp": "رقم واتساب للتواصل",
+    "phoneWhatsappPlaceholder": "مثال: 01012345678",
+    "email": "البريد الإلكتروني (اختياري)",
+    "emailPlaceholder": "name@example.com",
+    "timezone": "المنطقة الزمنية",
+    "preferredLanguage": "لغة التواصل المفضلة",
+    "langAr": "العربية",
+    "langEn": "الإنجليزية",
+    "preferredTimes": "المواعيد المفضلة (اختياري)",
+    "preferredTimesPlaceholder": "مثال: بعد العصر، أو أيام السبت والاثنين",
+    "notes": "ملاحظات إضافية (اختياري)",
+    "notesPlaceholder": "أي تفاصيل أخرى تود إخبارنا بها",
+    "dateOfBirth": "تاريخ الميلاد",
+    "level": "المستوى الحالي في المادة",
+    "levelBeginner": "مبتدئ",
+    "levelIntermediate": "متوسط",
+    "levelAdvanced": "متقدم",
+    "minorNotice": "تنبيه: للمتقدمين دون سن 18 عاماً، يرجى تزويدنا ببيانات ولي الأمر للتواصل.",
+    "guardianName": "اسم ولي الأمر",
+    "guardianNamePlaceholder": "مثال: أحمد محمد",
+    "guardianPhone": "رقم واتساب ولي الأمر",
+    "guardianPhonePlaceholder": "مثال: 01012345678",
+    "guardianRelationship": "صلة قرابة ولي الأمر",
+    "relationshipFather": "الأب",
+    "relationshipMother": "الأم",
+    "childrenSectionTitle": "بيانات الأبناء",
+    "addChild": "+ إضافة ابن / ابنة",
+    "removeChild": "حذف",
+    "childNumber": "الابن / الابنة #{num}",
+    "childName": "اسم الابن / الابنة",
+    "childAge": "العمر (بالسنوات)",
+    "childSubjects": "المواد المطلوبة لهذا الابن",
+    "yearsExperience": "سنوات الخبرة بالتدريس",
+    "qualifications": "المؤهلات العلمية والإجازات",
+    "qualificationsPlaceholder": "مثال: إجازة في قراءة عاصم، ليسانس دراسات إسلامية ولغة عربية...",
+    "availableTimes": "الأوقات المتاحة للتدريس (اختياري)",
+    "availableTimesPlaceholder": "مثال: الفترة الصباحية أو المسائية طوال أيام الأسبوع",
+    "subjectsTitle": "المواد المطلوبة",
+    "subjectsDescription": "اختر مادة واحدة على الأقل:",
+    "noSubjectsAvailable": "قائمة المواد قيد التحديث من قبل الإدارة.",
+    "submit": "إرسال طلب التقديم",
+    "submitting": "جارٍ إرسال الطلب...",
+    "backToRoles": "← اختيار دور آخر (ولي أمر / طالب / معلمة)",
+    "successTitle": "تم استلام طلبك بنجاح!",
+    "successMessage": "شكراً لتقديمك في Zarabicschool. سنراجع بياناتك ونتواصل معك عبر واتساب بمجرد مراجعة الإدارة لتزويدك ببيانات الدخول.",
+    "backHome": "العودة للرئيسية",
+    "submitAnother": "تقديم طلب جديد",
+    "generalError": "تعذر إرسال الطلب حالياً. يرجى المحاولة مرة أخرى.",
+    "duplicateError": "يوجد طلب مسجل بهذا الرقم خلال آخر 24 ساعة. سنتواصل معك قريباً.",
+    "rateLimitError": "تم إرسال عدد كبير من الطلبات مؤخراً. يرجى الانتظار قليلاً ثم المحاولة.",
+    "validationError": "يرجى مراجعة وتصحيح الحقول المحددة أدناه."
+  },
   "login": {
     "title": "تسجيل الدخول",
     "subtitle": "أدخل اسم المستخدم وكلمة المرور.",
@@ -163,6 +224,7 @@
       "welcome": "مرحبًا {name}",
       "sections": {
         "applications": "الطلبات",
+        "openApplications": "فتح الطلبات",
         "accounts": "الحسابات",
         "schedules": "الجداول"
       }
@@ -193,6 +255,135 @@
         "reports": "التقارير",
         "finance": "الحصص المتبقية"
       }
+    }
+  },
+  "adminApplications": {
+    "title": "طلبات الانضمام",
+    "subtitle": "مراجعة طلبات الانضمام وقبولها وإنشاء الحسابات",
+    "status": {
+      "NEW": "جديد",
+      "REVIEWED": "تمت المراجعة",
+      "APPROVED": "مقبول",
+      "REJECTED": "مرفوض"
+    },
+    "type": {
+      "GUARDIAN": "ولي أمر",
+      "STUDENT": "طالب",
+      "TEACHER": "معلمة"
+    },
+    "filters": {
+      "all": "الكل",
+      "status": "الحالة",
+      "type": "النوع"
+    },
+    "table": {
+      "name": "الاسم",
+      "type": "النوع",
+      "status": "الحالة",
+      "date": "تاريخ التقديم",
+      "actions": "إجراءات",
+      "view": "عرض"
+    },
+    "pagination": {
+      "previous": "السابق",
+      "next": "التالي",
+      "pageInfo": "صفحة {page} من {totalPages}"
+    },
+    "states": {
+      "empty": "لا توجد طلبات مطابقة.",
+      "loading": "جاري التحميل...",
+      "loadFailed": "تعذر تحميل الطلبات. حاول مرة أخرى."
+    },
+    "detail": {
+      "back": "رجوع إلى الطلبات",
+      "contactSection": "بيانات التواصل",
+      "phone": "هاتف الواتساب",
+      "email": "البريد الإلكتروني",
+      "timezone": "المنطقة الزمنية",
+      "preferredLanguage": "اللغة المفضلة",
+      "notes": "ملاحظات",
+      "preferredTimes": "الأوقات المفضلة",
+      "availableTimes": "الأوقات المتاحة",
+      "level": "المستوى",
+      "levels": {
+        "beginner": "مبتدئ",
+        "intermediate": "متوسط",
+        "advanced": "متقدم"
+      },
+      "dateOfBirth": "تاريخ الميلاد",
+      "children": "الأطفال",
+      "childAge": "العمر: {age}",
+      "subjects": "المواد",
+      "yearsExperience": "سنوات الخبرة",
+      "qualifications": "المؤهلات",
+      "guardianSection": "بيانات ولي الأمر",
+      "guardianName": "الاسم",
+      "guardianPhone": "هاتف الواتساب",
+      "guardianRelationship": "صلة القرابة",
+      "relationships": {
+        "father": "أب",
+        "mother": "أم"
+      },
+      "reviewSection": "بيانات المراجعة",
+      "reviewedAt": "تاريخ المراجعة",
+      "approvedAt": "تاريخ القبول",
+      "submittedAt": "تاريخ التقديم",
+      "rejectionReason": "سبب الرفض",
+      "createdAccounts": "الحسابات المُنشأة",
+      "notFound": "الطلب غير موجود."
+    },
+    "actions": {
+      "title": "إجراءات الطلب",
+      "markReviewed": "تأكيد المراجعة",
+      "reject": "رفض",
+      "approve": "قبول",
+      "submitting": "جاري الحفظ..."
+    },
+    "rejectForm": {
+      "title": "سبب الرفض",
+      "placeholder": "اكتب سبب الرفض...",
+      "reasonRequired": "سبب الرفض مطلوب.",
+      "confirm": "تأكيد الرفض",
+      "cancel": "إلغاء"
+    },
+    "approveForm": {
+      "title": "قبول الطلب وإنشاء الحسابات",
+      "relationship": "صلة القرابة",
+      "relationshipRequired": "صلة القرابة مطلوبة.",
+      "guardianMode": "طريقة ربط الطالب بولي الأمر",
+      "guardianModeExisting": "ولي أمر موجود",
+      "guardianModeCreate": "إنشاء ولي أمر جديد",
+      "existingGuardian": "اختر ولي الأمر",
+      "existingGuardianRequired": "أدخل معرّف ولي الأمر الموجود.",
+      "guardianRequired": "أدخل اسم ولي الأمر ورقم الواتساب.",
+      "guardianName": "اسم ولي الأمر",
+      "guardianPhone": "هاتف واتساب ولي الأمر",
+      "usernames": "أسماء المستخدمين",
+      "usernameFor": "اسم المستخدم — {account}",
+      "usernameHint": "يمكنك تعديل الاسم. الاسم المحجوز سيُطلب تغييره.",
+      "accounts": {
+        "guardian": "ولي الأمر",
+        "student": "الطالب",
+        "teacher": "المعلمة",
+        "child": "الطفل {index}"
+      },
+      "childDeliveryNote": "ستُسلَّم بيانات دخول الأطفال على رقم واتساب ولي الأمر.",
+      "minorGuardianRequired": "الطالب أقل من 18 سنة: مطلوب ربطه بولي أمر أو إنشاء واحد.",
+      "confirm": "تأكيد القبول"
+    },
+    "credentials": {
+      "title": "بيانات الدخول المؤقتة",
+      "warning": "تحذير: تُعرض هذه البيانات مرة واحدة فقط. انسخها واحفظها الآن.",
+      "username": "اسم المستخدم",
+      "tempPassword": "كلمة المرور المؤقتة",
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "done": "تم — أخفِ البيانات",
+      "childDeliveryNote": "تُسلَّم بيانات دخول الأطفال على رقم واتساب ولي الأمر."
+    },
+    "errors": {
+      "generic": "حدث خطأ. حاول مرة أخرى.",
+      "alreadyProcessed": "تمت معالجة هذا الطلب بالفعل."
     }
   },
   "notFound": {

@@ -27,6 +27,11 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum GuardianRelationship {
+  FATHER
+  MOTHER
+}
+
 model Academy {
   id           String        @id @default(uuid()) @db.Uuid
   name         String        @unique
@@ -35,6 +40,10 @@ model Academy {
   users        User[]
   applications Application[]
   subjects     Subject[]
+  guardians    Guardian[]
+  students     Student[]
+  teachers     Teacher[]
+  teacherSubjects TeacherSubject[]
 
   @@map("academies")
 }
@@ -49,6 +58,7 @@ model User {
   phone              String?
   role               UserRole
   timezone           String      @default("Africa/Cairo")
+  preferredLanguage  String      @default("ar") @map("preferred_language")
   isActive           Boolean     @default(true) @map("is_active")
   mustChangePassword Boolean     @default(true) @map("must_change_password")
   passwordChangedAt  DateTime?   @map("password_changed_at") @db.Timestamptz(6)
@@ -57,6 +67,11 @@ model User {
   academy            Academy     @relation(fields: [academyId], references: [id], onDelete: Restrict)
   reviewedApplications Application[] @relation("ApplicationReviewer")
   approvedApplications Application[] @relation("ApplicationApprover")
+  approvedByApplications Application[] @relation("ApplicationApprovedBy")
+  guardianProfile    Guardian?   @relation("GuardianUser")
+  studentProfile     Student?    @relation("StudentUser")
+  teacherProfile     Teacher?    @relation("TeacherUser")
+  createdApplicationRecords ApplicationRecord[] @relation("ApplicationCreatedUser")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -77,6 +92,7 @@ model Subject {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy       Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  teacherSubjects TeacherSubject[]
 
   @@unique([academyId, slug])
   @@index([academyId, isActive, sortOrder])
@@ -93,13 +109,94 @@ model Application {
   status         ApplicationStatus @default(NEW)
   reviewedById   String?           @map("reviewed_by") @db.Uuid
   reviewedAt     DateTime?         @map("reviewed_at") @db.Timestamptz(6)
+  approvedById   String?           @map("approved_by") @db.Uuid
+  approvedAt     DateTime?         @map("approved_at") @db.Timestamptz(6)
   approvedUserId String?           @map("approved_user_id") @db.Uuid
+  rejectionReason String?          @map("rejection_reason")
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   academy        Academy           @relation(fields: [academyId], references: [id], onDelete: Restrict)
   reviewedBy     User?             @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  approvedBy     User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   approvedUser   User?             @relation("ApplicationApprover", fields: [approvedUserId], references: [id], onDelete: Restrict)
+  createdRecords ApplicationRecord[]
 
   @@index([academyId, status, createdAt])
   @@index([contactPhone, applicationType, createdAt])
   @@map("applications")
+}
+
+model Guardian {
+  id           String               @id @default(uuid()) @db.Uuid
+  userId       String               @unique @map("user_id") @db.Uuid
+  academyId    String               @map("academy_id") @db.Uuid
+  relationship GuardianRelationship
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User                 @relation("GuardianUser", fields: [userId], references: [id], onDelete: Restrict)
+  academy      Academy              @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  students     Student[]
+
+  @@index([academyId])
+  @@map("guardians")
+}
+
+model Student {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @unique @map("user_id") @db.Uuid
+  guardianId     String?   @map("guardian_id") @db.Uuid
+  isAdult        Boolean   @default(false) @map("is_adult")
+  academyId      String    @map("academy_id") @db.Uuid
+  enrollmentDate DateTime? @map("enrollment_date") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user           User      @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
+  guardian       Guardian? @relation(fields: [guardianId], references: [id], onDelete: Restrict)
+  academy        Academy   @relation(fields: [academyId], references: [id], onDelete: Restrict)
+
+  @@index([academyId])
+  @@index([guardianId])
+  @@map("students")
+}
+
+model Teacher {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  academyId String   @map("academy_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
+  academy   Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subjects  TeacherSubject[]
+
+  @@index([academyId])
+  @@map("teachers")
+}
+
+model TeacherSubject {
+  id         String   @id @default(uuid()) @db.Uuid
+  teacherId  String   @map("teacher_id") @db.Uuid
+  subjectId  String   @map("subject_id") @db.Uuid
+  academyId  String   @map("academy_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  academy    Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
+
+  @@unique([teacherId, subjectId])
+  @@index([academyId])
+  @@map("teacher_subjects")
+}
+
+model ApplicationRecord {
+  id            String      @id @default(uuid()) @db.Uuid
+  applicationId String      @map("application_id") @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  role          UserRole
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  user          User        @relation("ApplicationCreatedUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([applicationId, userId])
+  @@index([applicationId])
+  @@map("application_created_records")
 }

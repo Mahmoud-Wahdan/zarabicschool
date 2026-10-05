@@ -130,6 +130,67 @@
     "text": "We are preparing the form and it will be available soon.",
     "back": "Back to home"
   },
+  "applyForm": {
+    "guardianTitle": "Guardian Application",
+    "guardianSubtitle": "Register your children and we'll arrange the right schedule with specialized teachers.",
+    "studentTitle": "Student Application",
+    "studentSubtitle": "Apply to study your chosen subjects with dedicated female teachers.",
+    "teacherTitle": "Teacher Application",
+    "teacherSubtitle": "Join our distinguished team of teachers at Zarabicschool Academy.",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "e.g. Fatima Ahmed",
+    "phoneWhatsapp": "WhatsApp Phone Number",
+    "phoneWhatsappPlaceholder": "e.g. 01012345678",
+    "email": "Email Address (optional)",
+    "emailPlaceholder": "name@example.com",
+    "timezone": "Timezone",
+    "preferredLanguage": "Preferred Communication Language",
+    "langAr": "Arabic",
+    "langEn": "English",
+    "preferredTimes": "Preferred Times (optional)",
+    "preferredTimesPlaceholder": "e.g. Afternoons, or Saturdays and Mondays",
+    "notes": "Additional Notes (optional)",
+    "notesPlaceholder": "Any other details you would like to share",
+    "dateOfBirth": "Date of Birth",
+    "level": "Current Level in Subject",
+    "levelBeginner": "Beginner",
+    "levelIntermediate": "Intermediate",
+    "levelAdvanced": "Advanced",
+    "minorNotice": "Notice: For applicants under 18 years old, please provide guardian contact details.",
+    "guardianName": "Guardian Name",
+    "guardianNamePlaceholder": "e.g. Ahmed Mohamed",
+    "guardianPhone": "Guardian WhatsApp Phone",
+    "guardianPhonePlaceholder": "e.g. 01012345678",
+    "guardianRelationship": "Guardian Relationship",
+    "relationshipFather": "Father",
+    "relationshipMother": "Mother",
+    "childrenSectionTitle": "Children Details",
+    "addChild": "+ Add Child",
+    "removeChild": "Remove",
+    "childNumber": "Child #{num}",
+    "childName": "Child's Name",
+    "childAge": "Age (years)",
+    "childSubjects": "Subjects for this child",
+    "yearsExperience": "Years of Teaching Experience",
+    "qualifications": "Qualifications & Certifications",
+    "qualificationsPlaceholder": "e.g. Ijazah in Asim, Bachelor in Islamic Studies and Arabic...",
+    "availableTimes": "Available Teaching Times (optional)",
+    "availableTimesPlaceholder": "e.g. Morning or evening shifts throughout the week",
+    "subjectsTitle": "Selected Subjects",
+    "subjectsDescription": "Choose at least one subject:",
+    "noSubjectsAvailable": "The subjects list is currently being updated by administration.",
+    "submit": "Submit Application",
+    "submitting": "Submitting...",
+    "backToRoles": "← Choose a different role (Guardian / Student / Teacher)",
+    "successTitle": "Application Received Successfully!",
+    "successMessage": "Thank you for applying to Zarabicschool. We will review your application and contact you via WhatsApp with your login credentials once approved.",
+    "backHome": "Back to Home",
+    "submitAnother": "Submit Another Application",
+    "generalError": "Unable to submit application right now. Please try again.",
+    "duplicateError": "An application with this phone number was recently submitted within the last 24 hours. We will contact you soon.",
+    "rateLimitError": "Too many applications submitted recently. Please wait a moment and try again.",
+    "validationError": "Please review and correct the highlighted fields below."
+  },
   "login": {
     "title": "Log in",
     "subtitle": "Enter your username and password.",
@@ -163,6 +224,7 @@
       "welcome": "Welcome, {name}",
       "sections": {
         "applications": "Applications",
+        "openApplications": "Open applications",
         "accounts": "Accounts",
         "schedules": "Schedules"
       }
@@ -193,6 +255,135 @@
         "reports": "Reports",
         "finance": "Remaining sessions"
       }
+    }
+  },
+  "adminApplications": {
+    "title": "Applications",
+    "subtitle": "Review, approve, and provision accounts from incoming applications",
+    "status": {
+      "NEW": "New",
+      "REVIEWED": "Reviewed",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    },
+    "type": {
+      "GUARDIAN": "Guardian",
+      "STUDENT": "Student",
+      "TEACHER": "Teacher"
+    },
+    "filters": {
+      "all": "All",
+      "status": "Status",
+      "type": "Type"
+    },
+    "table": {
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "date": "Submitted",
+      "actions": "Actions",
+      "view": "View"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageInfo": "Page {page} of {totalPages}"
+    },
+    "states": {
+      "empty": "No matching applications.",
+      "loading": "Loading...",
+      "loadFailed": "Could not load the applications. Try again."
+    },
+    "detail": {
+      "back": "Back to applications",
+      "contactSection": "Contact details",
+      "phone": "WhatsApp number",
+      "email": "Email",
+      "timezone": "Timezone",
+      "preferredLanguage": "Preferred language",
+      "notes": "Notes",
+      "preferredTimes": "Preferred times",
+      "availableTimes": "Available times",
+      "level": "Level",
+      "levels": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "dateOfBirth": "Date of birth",
+      "children": "Children",
+      "childAge": "Age: {age}",
+      "subjects": "Subjects",
+      "yearsExperience": "Years of experience",
+      "qualifications": "Qualifications",
+      "guardianSection": "Guardian details",
+      "guardianName": "Name",
+      "guardianPhone": "WhatsApp number",
+      "guardianRelationship": "Relationship",
+      "relationships": {
+        "father": "Father",
+        "mother": "Mother"
+      },
+      "reviewSection": "Review details",
+      "reviewedAt": "Reviewed at",
+      "approvedAt": "Approved at",
+      "submittedAt": "Submitted at",
+      "rejectionReason": "Rejection reason",
+      "createdAccounts": "Created accounts",
+      "notFound": "Application not found."
+    },
+    "actions": {
+      "title": "Application actions",
+      "markReviewed": "Mark reviewed",
+      "reject": "Reject",
+      "approve": "Approve",
+      "submitting": "Saving..."
+    },
+    "rejectForm": {
+      "title": "Rejection reason",
+      "placeholder": "Write the rejection reason...",
+      "reasonRequired": "A rejection reason is required.",
+      "confirm": "Confirm rejection",
+      "cancel": "Cancel"
+    },
+    "approveForm": {
+      "title": "Approve and create accounts",
+      "relationship": "Relationship",
+      "relationshipRequired": "A relationship is required.",
+      "guardianMode": "How to link the student to a guardian",
+      "guardianModeExisting": "Existing guardian",
+      "guardianModeCreate": "Create a new guardian",
+      "existingGuardian": "Choose a guardian",
+      "existingGuardianRequired": "Enter the existing guardian ID.",
+      "guardianRequired": "Enter the guardian name and WhatsApp number.",
+      "guardianName": "Guardian name",
+      "guardianPhone": "Guardian WhatsApp number",
+      "usernames": "Usernames",
+      "usernameFor": "Username — {account}",
+      "usernameHint": "You can edit the name. A taken name will be rejected.",
+      "accounts": {
+        "guardian": "Guardian",
+        "student": "Student",
+        "teacher": "Teacher",
+        "child": "Child {index}"
+      },
+      "childDeliveryNote": "Children's credentials will be delivered to the guardian's WhatsApp number.",
+      "minorGuardianRequired": "Student is under 18: a guardian link or a new guardian is required.",
+      "confirm": "Confirm approval"
+    },
+    "credentials": {
+      "title": "Temporary credentials",
+      "warning": "Warning: these are shown once only. Copy and save them now.",
+      "username": "Username",
+      "tempPassword": "Temporary password",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done — hide credentials",
+      "childDeliveryNote": "Children's credentials will be delivered to the guardian's WhatsApp number."
+    },
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "alreadyProcessed": "This application has already been processed."
     }
   },
   "notFound": {

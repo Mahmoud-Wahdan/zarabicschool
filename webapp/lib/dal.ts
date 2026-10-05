@@ -11,6 +11,7 @@ import { prisma } from "./prisma";
 
 export type AuthUser = {
   id: string;
+  academyId: string;
   username: string;
   displayName: string;
   role: "ADMIN" | "TEACHER" | "STUDENT" | "GUARDIAN";
@@ -26,6 +27,7 @@ export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
     where: { id },
     select: {
       id: true,
+      academyId: true,
       username: true,
       displayName: true,
       role: true,

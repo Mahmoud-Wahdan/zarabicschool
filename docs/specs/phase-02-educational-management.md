@@ -84,12 +84,12 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Add Prisma schema: `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects`
-- [ ] Add Prisma schema: `Applications` (supporting Guardian, Student, Teacher applicant types)
-- [ ] Run migrations
-- [ ] Build public landing page application forms (3 tabs: Guardian, Student, Teacher)
-- [ ] Build admin application inbox & review UI (validate, accept, reject)
-- [ ] Build automated account provisioning flow on admin acceptance (User + profile + OpenWA WhatsApp credential dispatch)
+- [x] Add Prisma schema: `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects` *(schema and un-applied Phase 2 migration are in the working tree; database application remains pending)*
+- [x] Add Prisma schema: `Applications` (supporting Guardian, Student, Teacher applicant types) *(existing init schema extended with review/provisioning fields)*
+- [ ] Run migrations *(blocked pending explicit development-database confirmation)*
+- [x] Build public landing page application forms (3 tabs: Guardian, Student, Teacher)
+- [x] Build admin application inbox & review UI (validate, accept, reject) *(list, detail, review/reject/approve actions, loading/error states)*
+- [x] Build automated account provisioning flow on admin acceptance (User + profile + fake messaging provider) *(OpenWA delivery remains deferred behind `MessagingProvider`)*
 - [ ] Build admin CRUD: Students
 - [ ] Build admin CRUD: Guardians
 - [ ] Build admin CRUD: Teachers
@@ -105,3 +105,4 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 - 2026-10-01: Phase 2 started early inside the Phase 1 branch, before owner confirmation of the form fields. Existing pieces: `Application` + `Subject` models inside the init migration (already applied to Supabase), `POST /api/applications` (rate limit, honeypot, size cap, 24h duplicate check), `GET /api/subjects` (public, active subjects), and `lib/validation/application.ts` with a concrete field list that is a **DRAFT** — the final field list must be confirmed by the owner before the application UI is built. Open items flagged for the plan: guardian link on the student application, username generation on provisioning, guardian message on approval, OpenWA wiring.
 - 2026-10-03 (owner decisions — CONFIRMED): (1) Final application fields for all three forms (see Open decisions); `expected_hourly_rate`/`currency` removed from the teacher application; honeypot, size limit, per-IP rate limit kept. (2) Every child gets their own username + temporary password; guardian application with N children = 1 guardian user + N student users in ONE idempotent transaction. (3) Guardian linking: Admin links to an existing guardian or creates one in the same approval step; manual adds from the dashboard any time; credentials shown to Admin ONCE, delivered later via `MessagingProvider`. (4) Logo/contact info = clearly marked placeholders in a site config module; invent nothing. (5) NO Docker / NO separate test DB — the owner's Supabase DB used directly with demo data: `db:seed:demo` (all demo usernames start with `demo_`), `db:clear:demo` deletes ONLY `demo_*` records, tests create unique `demo_test_*` records and clean them up. Phase 6 exception documented (append-only ledger guards; see PROGRESS.md) — only the Phase 2 part (demo users, profiles, applications) implemented now. (6) `TeacherRates` = effective-dated table, built in Phase 6; rate row chosen by the SESSION's scheduled start; credit stores `hourly_rate_snapshot_minor`. The DRAFT `lib/validation/application.ts` must be rewritten to the confirmed fields in the application-forms slice.
+- 2026-10-05 (working-tree implementation): The confirmed application form/API, localized Admin inbox, Admin dashboard link, application detail page, review/reject/approve controls, one-time credentials panel, profile provisioning service, fake messaging provider, Jest setup, and initial tests are present. `webapp` typecheck and ESLint pass. The Phase 2 migration has not been applied. Jest still has an approval timeout, validation expectation failures, an empty request test file, and open async handles; integration is not complete.

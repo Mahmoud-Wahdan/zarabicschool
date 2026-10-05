@@ -2,14 +2,14 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-03
+> Last updated: 2026-10-05
 
 ## Phase Status
 
 | # | Phase | Status | Last Updated | Note |
 |---|-------|--------|--------------|------|
-| 1 | Foundation | In Progress | 2026-10-03 | Slices A3 (next-intl) and B+ (full landing page, DB subjects) done and verified; next: slice A4 (tests) |
-| 2 | Educational Management | In Progress | 2026-10-01 | Started early (applications/subjects endpoints); form fields CONFIRMED by owner, forms not built yet |
+| 1 | Foundation | In Progress | 2026-10-05 | A3 and landing page verified; test tooling exists but the current application test suite still has failures |
+| 2 | Educational Management | In Progress | 2026-10-05 | Public forms/API, Prisma profile schema/migration, admin inbox, detail/review UI, and provisioning are in the working tree; migration and integration verification are not complete |
 | 3 | Schedules & Sessions | Not Started | 2026-09-28 | — |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
 | 5 | Session Reports & Attendance | Not Started | 2026-09-30 | Reports are attendance evidence and pay trigger |
@@ -19,7 +19,9 @@
 
 ## Current Active Task
 
-Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and verified 2026-10-03: `[locale]` routing, locale-aware login/change-password/dashboards, proxy role checks + i18n, LocaleSwitcher, 404. Slice B+ (full landing page) done and verified: sticky header with hamburger + anchors, hero with arch visual, features strip, subjects from DB (bilingual, `demo-` seed rows available via `db:seed:demo`), why-us, how-to-start, apply role cards → `/apply?type=`, FAQ accordion, closing CTA, footer; landing copy lives in the new messages key tree (brand/common/nav/hero/features/subjects/why/steps/apply/faq/closing/footer/comingSoon) with login/changePassword/dashboard/notFound merged back; `lucide-react` added; Subject model expanded to bilingual fields (`slug`, `nameAr/nameEn`, `descriptionAr/descriptionEn`, `icon`, `sortOrder`) with migration `20261003120000_subject_bilingual`. Next: slice A4 (rate-limit unit tests + DB integration tests, jest config). Seed is NOT run until the owner confirms secret rotation. Implementation target is `webapp/`; root `docs/` contains project documentation.
+Current work is the Phase 2 application-review slice on branch `feature/phase-1-foundation`. The public application forms and API, localized Admin inbox, application detail page, review/reject/approve controls, account provisioning, and one-time credential display are implemented in the working tree. The original Admin dashboard remains a shell, but its Applications card now links to `/[locale]/admin/applications`. The Phase 2 migration is written but NOT applied; do not run it or seed data until the owner confirms the development database and secret rotation. Implementation target is `webapp/`; root `docs/` contains project documentation.
+
+Verification on 2026-10-05: `webapp` typecheck and ESLint pass. Jest runs but is not green: the concurrent approval integration test times out, two application tests receive `400` instead of the expected honeypot/rate-limit success, and `lib/request.test.ts` contains no test. These are integration/test follow-ups, not marked complete.
 
 ## Action Items
 
@@ -35,6 +37,7 @@ Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and ve
 - [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin approval gates settlement; no revision/version table.
 - [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
 - [ ] Decide whether student evaluation is mandatory after every completed session.
+- [ ] Confirm the development database before applying `20261004000000_phase2_profiles`.
 
 ## 2026-10-03 Confirmed owner decisions (all marked CONFIRMED in CONTEXT.md §7 and the phase-02 spec)
 
@@ -44,6 +47,14 @@ Phase 1 on branch `feature/phase-1-foundation`. Slice A3 (next-intl) done and ve
 4. **Site config:** logo still being made and contact info comes later — clearly marked placeholders in a site config module; invent nothing (no claims, no prices).
 5. **Database for tests:** NO Docker and NO separate test database — the owner's Supabase DB used directly (contains no real data). `db:seed:demo` (academy, admin, demo guardians/students/teachers; every demo username starts with `demo_`), `db:clear:demo` deletes ONLY `demo_*` records, tests create unique `demo_test_*` records and delete them afterwards. **Phase 6 exception (documented, implemented only in Phase 6):** after append-only ledgers exist, demo data can still be cleared with these guards: (1) only records linked to `demo_*` users/teachers; (2) only via the dedicated `db:clear:demo` script — the append-only trigger is NEVER dropped or disabled globally; (3) abort if any non-demo record references the same session/report/subscription; (4) explicit `--confirm` flag and print the counts first; (5) refuse to run when `NODE_ENV=production`.
 6. **TeacherRates = effective-dated table** (`id, teacher_id, hourly_rate_minor, currency, effective_from, created_by`) — CONFIRMED. Built in Phase 6, NOT now. Rate rule CONFIRMED: a session is paid with the row whose `effective_from <=` the SESSION's scheduled start (not the approval time); the ledger credit stores `hourly_rate_snapshot_minor`.
+
+## 2026-10-05 Applications slice status
+
+- The current working tree contains the confirmed application fields, public submission form/API protections (same-origin, size limit, honeypot, rate limit, duplicate check, subject validation), the Phase 2 profile schema, and the un-applied profile migration.
+- The Admin list is available at `/[locale]/admin/applications`; the Admin dashboard card links to it. The detail page renders contact/application data and provides localized review, rejection, approval, and one-time credential surfaces.
+- Approval is intended to create the guardian/student/teacher profiles and all child accounts in one transaction. Real-Postgres integration verification remains pending because the migration has not been applied.
+- The fake messaging provider is used for the current slice. Passwords are returned only in the approval response for the Admin's one-time display and are not written to logs or notification content.
+- Remaining before this slice is complete: fix the failing tests, apply and verify the migration after database confirmation, verify rollback/concurrency behavior, and add the remaining Admin CRUD/profile management surfaces.
 
 ## 2026-10-03 Phase 1 audit and gap fixes
 

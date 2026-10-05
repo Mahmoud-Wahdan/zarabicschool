@@ -96,18 +96,11 @@ Unified authentication table. Role-specific details live in profile tables.
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `slug` | TEXT | NOT NULL, `UNIQUE(academy_id, slug)` | Stable identifier, e.g. `quran`, `demo-quran` |
-| `name_ar` | TEXT | NOT NULL | Arabic name (Arabic locale UI) |
-| `name_en` | TEXT | NOT NULL | English name (English locale UI) |
-| `description_ar` | TEXT | | Arabic description |
-| `description_en` | TEXT | | English description |
-| `icon` | TEXT | | Allowlisted Lucide icon name; unknown/null → generic fallback |
-| `sort_order` | INTEGER | DEFAULT 0 | Display order (ascending) |
-| `is_active` | BOOLEAN | DEFAULT true | Public listing: `isActive: true`, `orderBy sortOrder` |
+| `name` | VARCHAR | NOT NULL | e.g. "Quran Recitation", "Arabic Grammar" |
+| `description` | TEXT | | |
+| `is_active` | BOOLEAN | DEFAULT true | |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
-
-Expanded in migration `20261003120000_subject_bilingual` (replaced the single `name`/`description` columns; old values migrated into `name_ar`/`name_en`/`description_ar`/`description_en`). Demo rows use the `demo-` slug prefix (`demo-quran` … `demo-math`) so they are easy to clear with `DELETE WHERE slug LIKE 'demo-%'`.
 
 ---
 

@@ -13,3 +13,7 @@ export function allowRequest(key: string, limit = 5, windowMs = 10 * 60 * 1000) 
   current.count += 1;
   return true;
 }
+
+export function resetRateLimits() {
+  buckets.clear();
+}
