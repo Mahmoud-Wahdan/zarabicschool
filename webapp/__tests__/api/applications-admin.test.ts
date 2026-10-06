@@ -11,7 +11,7 @@ jest.mock("next-intl/server", () => ({
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 
-import { prisma } from "../../lib/prisma";
+import { disconnectPrisma, prisma } from "../../lib/prisma";
 import { approveApplication, ProvisioningError } from "../../lib/provisioning";
 import { POST as approveRoute } from "../../app/api/applications/[id]/approve/route";
 import { POST as rejectRoute } from "../../app/api/applications/[id]/reject/route";
@@ -124,6 +124,46 @@ async function quiet(operation: () => Promise<unknown>): Promise<void> {
 }
 
 beforeAll(async () => {
+  const staleUsers = await prisma.user.findMany({
+    where: {
+      OR: [
+        { username: { startsWith: "demo-test-" } },
+        { username: { startsWith: "demo_test_" } },
+      ],
+    },
+    select: { id: true },
+  });
+  const staleUserIds = staleUsers.map((user) => user.id);
+  const staleApplications = await prisma.application.findMany({
+    where: { contactPhone: testPhone },
+    select: { id: true },
+  });
+  const staleApplicationIds = staleApplications.map((application) => application.id);
+  const staleRecords = staleApplicationIds.length > 0
+    ? await prisma.applicationRecord.findMany({
+      where: { applicationId: { in: staleApplicationIds } },
+      select: { userId: true },
+    })
+    : [];
+  const allStaleUserIds = [...new Set([
+    ...staleUserIds,
+    ...staleRecords.map((record) => record.userId),
+  ])];
+  if (staleApplicationIds.length > 0) {
+    await prisma.applicationRecord.deleteMany({ where: { applicationId: { in: staleApplicationIds } } });
+    await prisma.application.deleteMany({ where: { id: { in: staleApplicationIds } } });
+  }
+  if (allStaleUserIds.length > 0) {
+    await prisma.student.updateMany({
+      where: { guardian: { user: { id: { in: allStaleUserIds } } } },
+      data: { guardianId: null },
+    });
+    await prisma.student.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+    await prisma.guardian.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+    await prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: allStaleUserIds } } } } });
+    await prisma.teacher.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+    await prisma.user.deleteMany({ where: { id: { in: allStaleUserIds } } });
+  }
   const runId = randomUUID().slice(0, 8);
   const academy = await prisma.academy.upsert({
     where: { name: academyName },
@@ -162,34 +202,47 @@ beforeAll(async () => {
   });
   teacherUserId = teacher.id;
   createdUserIds.add(teacher.id);
-});
+}, 30_000);
 
 afterAll(async () => {
   try {
     const appIds = [...createdApplicationIds];
     const userIds = [...createdUserIds];
+    const testUsers = await prisma.user.findMany({
+      where: {
+        academyId,
+        OR: [
+          { username: { startsWith: "demo_test_" } },
+          { username: { startsWith: "demo-test-" } },
+        ],
+      },
+      select: { id: true },
+    });
+    const allTestUserIds = [...new Set([...userIds, ...testUsers.map((user) => user.id)])];
+    const allTestApplicationIds = await prisma.application.findMany({
+      where: { academyId, contactPhone: testPhone },
+      select: { id: true },
+    });
+    const allTestAppIds = [...new Set([...appIds, ...allTestApplicationIds.map((app) => app.id)])];
     await quiet(() =>
-      appIds.length > 0
-        ? prisma.applicationRecord.deleteMany({ where: { applicationId: { in: appIds } } })
+      allTestAppIds.length > 0
+        ? prisma.applicationRecord.deleteMany({ where: { applicationId: { in: allTestAppIds } } })
         : Promise.resolve()
     );
-    await quiet(() => prisma.student.deleteMany({ where: { user: { id: { in: userIds } } } }));
-    await quiet(() => prisma.guardian.deleteMany({ where: { user: { id: { in: userIds } } } }));
+    await quiet(() => prisma.student.deleteMany({ where: { user: { id: { in: allTestUserIds } } } }));
+    await quiet(() => prisma.guardian.deleteMany({ where: { user: { id: { in: allTestUserIds } } } }));
     await quiet(() =>
-      prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: userIds } } } } })
+      prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: allTestUserIds } } } } })
     );
-    await quiet(() => prisma.teacher.deleteMany({ where: { user: { id: { in: userIds } } } }));
+    await quiet(() => prisma.teacher.deleteMany({ where: { user: { id: { in: allTestUserIds } } } }));
     await quiet(() =>
-      appIds.length > 0
-        ? prisma.application.deleteMany({ where: { id: { in: appIds } } })
+      allTestAppIds.length > 0
+        ? prisma.application.deleteMany({ where: { id: { in: allTestAppIds } } })
         : Promise.resolve()
     );
-    await quiet(() => prisma.user.deleteMany({ where: { id: { in: userIds } } }));
-    await quiet(() =>
-      prisma.user.deleteMany({ where: { academyId, username: { contains: "demo-test-" } } })
-    );
+    await quiet(() => prisma.user.deleteMany({ where: { id: { in: allTestUserIds } } }));
   } finally {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 });
 
@@ -262,7 +315,7 @@ describe("Slice C2 — Admin review, approval, provisioning", () => {
       });
       expect(usersForDigit).toBe(2);
     }
-  });
+  }, 30_000);
 
   it("failure on child #2 rolls back everything — zero users/profiles, application NOT approved", async () => {
     const digit = nextDigit();

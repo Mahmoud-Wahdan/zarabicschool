@@ -13,7 +13,7 @@ Build the central analytics and administration dashboard, the report approval qu
    - Operational metrics: active students, teachers, scheduled/completed sessions, pending applications, pending invoices.
    - Financial overview: total subscription collections vs. accrued teacher payroll liabilities.
 3. **Report review system:**
-   - Admin reviews every unified teacher `Reports` row and approves or rejects it.
+   - Admin or Supervisor reviews every unified teacher `Reports` row and approves or rejects it. Approval invokes the Phase 6 settlement; submission only queues the report.
    - Rejected reports return to the teacher for correction and resubmission; approved reports settle in Phase 6 and then become immutable `ARCHIVED` records.
    - A completed session may have a missing report without changing session status.
    - Student/Guardian evaluations remain a separate entity and flow.
@@ -47,13 +47,14 @@ Touches `Reports`, `SessionRequests`, `TeacherFlags`, optional `Evaluations`, `A
 
 ## Auth & Authorization
 
-| Role | Admin queues | Own report view | Submit evaluation | Publish announcement |
+| Role | Review reports/requests | Own report view | Submit evaluation | Publish announcement |
 |---|---:|---:|---:|---:|
+| Supervisor | Yes (no money fields) | Operational fields only | Review | No |
 | Admin | Yes | All | Review | Yes |
 | Teacher | No | Own | No | No |
 | Student/Guardian | No | Confirmed visibility | Optional student evaluation | No |
 
-Archived teacher reports are visible to Admin, the teacher, the linked guardian when present, or the student directly when no guardian exists. Student evaluations remain separate and Admin-only.
+Archived teacher reports are visible to Admin or Supervisor, the teacher, the linked guardian when present, or the student directly when no guardian exists. Student evaluations remain separate and Admin-only.
 
 ## Security
 
@@ -100,4 +101,7 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Execution log (updated as soon as real work happens)
 
-(empty for now)
+### 2026-10-06 reconciliation
+
+- Phase 7 remains Not Started. Report/request queues, TeacherFlags, complaints, announcements, evaluations, dashboard aggregation, and role-safe visibility tests are not implemented.
+- Supervisor may review operational queues and approve reports, but must never receive or edit money fields or perform payroll, payment, adjustment, payout, refund, or Admin/Supervisor-management actions.

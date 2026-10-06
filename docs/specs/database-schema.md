@@ -40,7 +40,7 @@ Unified authentication table. Role-specific details live in profile tables.
 | `password_hash` | VARCHAR | NOT NULL | Stored via bcrypt |
 | `display_name` | VARCHAR | NOT NULL | |
 | `phone` | VARCHAR | | For WhatsApp notifications |
-| `role` | ENUM | NOT NULL | `ADMIN`, `TEACHER`, `STUDENT`, `GUARDIAN` |
+| `role` | ENUM | NOT NULL | `ADMIN`, `SUPERVISOR`, `TEACHER`, `STUDENT`, `GUARDIAN` |
 | `timezone` | VARCHAR | NOT NULL, DEFAULT 'Africa/Cairo' | IANA timezone identifier for all user schedule localization |
 | `is_active` | BOOLEAN | DEFAULT true | Admin can deactivate; checked on every authenticated request |
 | `must_change_password` | BOOLEAN | DEFAULT true | Forced password reset on first login |
@@ -236,11 +236,13 @@ Stores core configuration for student prepaid session packages. Remaining sessio
 | `total_amount_minor` | INTEGER | NOT NULL | Package purchase price in minor units |
 | `currency` | VARCHAR(3) | NOT NULL | ISO 4217 code (`USD`, `EGP`) |
 | `sessions_purchased` | INTEGER | NOT NULL | Total sessions bought in this package |
+| `package_type` | ENUM | NOT NULL | `MONTHLY_PLAN` or `PAY_PER_SESSION` |
+| `period_ends_at` | TIMESTAMPTZ | nullable | Required for monthly plans; NULL for never-expiring pay-per-session credits |
 | `status` | ENUM | DEFAULT 'ACTIVE' | `ACTIVE`, `EXHAUSTED`, `CANCELLED` |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
-> **Business Rule (Confirmed):** Packages have no time-based expiration date. The former per-session price field is intentionally absent because package consumption is one session per attended class, and teacher pay is hourly and independent.
+> **Business Rule (Confirmed):** Monthly-plan credits expire at the end of their billing period and do not roll over; pay-per-session credits have no expiry. The former per-session price field is intentionally absent because consumption is one session per attended class, and teacher pay is hourly and independent.
 
 ---
 
@@ -359,16 +361,17 @@ Per-student teacher reports. In a group session there is one report for each stu
 | `summary` | TEXT | NOT NULL | Required lesson summary |
 | `homework` | TEXT | NOT NULL | Required homework value; student visibility is OPEN |
 | `notes` | TEXT | nullable | Optional notes |
+| `operational_events` | JSONB | nullable | Facts such as late entry, early exit, outage, disconnection, or reconnection; informational evidence for review, never an automatic attendance decision |
 | `extra_time_minutes` | INTEGER | DEFAULT 0 | Frozen after submission |
 | `extra_time_status` | ENUM | DEFAULT 'NONE' | `NONE`, `PENDING`, `APPROVED`, `REJECTED` |
-| `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer |
+| `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer; Supervisor cannot approve money |
 | `extra_time_reviewed_at` | TIMESTAMPTZ | nullable | Review timestamp |
 | `submitted_at` | TIMESTAMPTZ | NOT NULL | Submission timestamp |
 | `rejection_reason` | TEXT | nullable | Admin reason when status is `REJECTED` |
-| `rejected_by` | UUID | FK → Users, nullable | Admin who rejected the report |
+| `rejected_by` | UUID | FK → Users, nullable | Admin or Supervisor who rejected the report |
 | `rejected_at` | TIMESTAMPTZ | nullable | Rejection timestamp |
-| `approved_at` | TIMESTAMPTZ | nullable | Admin approval timestamp |
-| `approved_by` | UUID | FK → Users, nullable | Admin who approved the report |
+| `approved_at` | TIMESTAMPTZ | nullable | Admin or Supervisor approval timestamp |
+| `approved_by` | UUID | FK → Users, nullable | Admin or Supervisor who approved the report; the actor cannot edit ledger amounts |
 | `settled_at` | TIMESTAMPTZ | nullable | Set in the same transaction as settlement ledger rows; never cleared to retry |
 | `archived_at` | TIMESTAMPTZ | nullable | Set after approved settlement succeeds; archived reports are immutable |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
@@ -381,7 +384,7 @@ ON reports (session_id, student_id)
 WHERE report_type = 'SESSION_COMPLETION_REPORT';
 ```
 
-Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher nor Admin may edit it. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
+Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin or Supervisor rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher, Supervisor, nor Admin may edit the evidence. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
 
 Archived reports are visible to Admin, the submitting Teacher, the linked Guardian when the student has one, or the Student directly when the student has no Guardian. Student evaluations are separate from Reports and are not inferred from attendance; whether evaluation is mandatory after a completed session is OPEN.
 
@@ -556,7 +559,7 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 
 ## 28. Open Decisions
 
-- **S2:** Remove `Reports` as a separate history table or retain derived history? Recommend removal of a duplicate attendance table; reports remain the source evidence.
+- **S2:** Remove a duplicate `Attendance` history table or retain derived history? Recommend removal; `SessionStudents` stores the explicit current outcome and Reports remain the evidence.
 - **S5:** Store `zoom_host_url`? Options: store it encrypted for teacher/Admin convenience, or require the teacher to use the join link. Recommend optional storage, pending owner confirmation.
 - **S9:** Attachment allowlist and size cap. Options: images plus PDF with a small cap, images only with a smaller cap, or broader documents with scanning. Recommend images plus PDF, no executables.
 - **S14:** Keep `SubscriptionLedger.amount_minor` informational or remove it. Recommend remove; invoices are the money source of truth.
@@ -564,6 +567,8 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 - **S21:** INTEGER versus BIGINT for money and hourly rounding. Recommend BIGINT if high-volume SaaS growth is expected; rounding remains OPEN.
 - **S22:** Zero-session scheduling mechanism. Options: reserve pending sessions, block generation at balance, or allow audited Admin override. Confirm the mechanism; teacher credit must never be blocked.
 - Report attendance outcomes, class remarks, homework visibility, notification recipients/timing, guardian visibility of links, evaluation fields, reversal UX, payout cycle, and tenant-scoped uniqueness remain OPEN where noted above.
+
+Supervisor approval is confirmed, but Supervisor permissions remain operational only: the actor may approve/reject the report, while the system performs settlement and exposes no money amounts or payroll actions to that role.
 
 ## Change Summary Labels
 

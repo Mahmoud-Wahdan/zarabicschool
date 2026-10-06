@@ -1,8 +1,8 @@
-# Prompts for Gemini (Antigravity) — revision 4 (2026-09-29)
+# Prompts for Gemini (Antigravity) — revision 5 (2026-10-06)
 
 Run **Prompt A first, then Prompt B**. Put the updated `CONTEXT.md` and `INSTRUCTIONS.md` in `docs/` BEFORE running them. **Documentation only — no code, no migrations, no dependency changes.**
 
-What changed vs revision 3: **no Zoom API at all** (Admin pastes Zoom links) → no Zoom events, no attendance segments, no reconciliation, no recordings, no embedded interface. **Admin approval of the teacher's report permits atomic settlement** (hourly × scheduled duration). Attendance is stored explicitly on SessionStudents from the approved outcome. Prepaid session packages. Three application forms. Outage form in MVP.
+What changed vs revision 4: **Admin or Supervisor approval is the settlement gate**. Submission only enters the queue. Reports are per student (including group sessions), approved attendance updates `SessionStudents`, and an approved attended report creates the student deduction plus the one-per-session teacher credit in one transaction. Zoom opening/click evidence is optional audit data only; it never determines attendance or pay.
 
 ---
 
@@ -23,9 +23,9 @@ RULES
 
 CONFIRMED FACTS (from CONTEXT.md)
 - NO Zoom API, no Zoom events/WebSocket, no meeting registration, no recordings, no embedded interface. Admin creates the meeting in Zoom and pastes the link into the session.
-- The platform cannot verify attendance: the teacher's report is evidence for an explicit attendance write, and Admin approval is required before pay settlement.
+- The platform cannot verify attendance: the teacher's report is evidence for an explicit attendance write, and Admin or Supervisor approval is required before pay settlement.
 - Student side = prepaid packages counted in SESSIONS (e.g. 8), any subject/teacher, never expire. Teacher side = hourly pay = scheduled duration × her hourly rate, independent of the student's price.
-- Settlement happens only after Admin approves a submitted report: one idempotent transaction writes one SESSION_DEDUCTION (−1) for that student's subscription + ONE SESSION_CREDIT per session (created by the first approved attended report) + the report's settled/archived marks.
+- Settlement happens only after Admin or Supervisor approves a submitted report: one idempotent transaction writes one SESSION_DEDUCTION (−1) for that student's subscription + ONE SESSION_CREDIT per session (created by the first approved attended report) + the report's settled/archived marks.
 - Overtime: the teacher states it in the report; Admin decides; approved extra time is an ADMIN_ADJUSTMENT.
 - SMS is post-MVP and may never be built.
 
@@ -75,6 +75,56 @@ WHEN DONE
 - Do not touch the phase-0X files in this task.
 ```
 
+## PROMPT C — Final consistency sweep for all remaining docs
+
+```
+ROLE: You are a documentation consistency assistant for Zarabicschool.
+TASK: Audit and update every affected file under `docs/` in place. Documentation only:
+do not modify application code, Prisma schema, migrations, package manifests, or seed data.
+
+SOURCE OF TRUTH
+- Read `docs/CONTEXT.md` first, then `docs/INSTRUCTIONS.md`, `docs/specs/PROGRESS.md`,
+  `docs/specs/business-model.md`, and `docs/specs/database-schema.md`.
+- Treat the owner's confirmed decisions from 2026-10-06 as CONFIRMED:
+  1. Only the teacher assigned to a session submits its report.
+  2. A report is idempotent: one row per (session, student).
+  3. Submission enters an approval queue; it does not create money.
+  4. Admin OR Supervisor reviews and approves/rejects the report.
+  5. Only approval settles an attended report. The settlement transaction writes the
+     explicit per-student attendance, one student SESSION_DEDUCTION, the first
+     session-level SESSION_CREDIT for the teacher, and report settled/archive markers.
+  6. An approved MISSED/STUDENT_ABSENT outcome creates no teacher earning and no
+     student deduction. A group session can complete while one student is absent.
+  7. Teacher reports record facts such as late entry, early exit, outages, and
+     reconnection for review; these facts are not automatic attendance decisions.
+  8. Zoom links are externally opened. Optional click/join logs are soft audit evidence,
+     never a source of attendance, payroll, or quota truth.
+  9. Archived reports and both ledgers are immutable; corrections use the documented
+     adjustment/reversal path.
+
+AUDIT AND EDIT RULES
+- Search all docs for obsolete claims that submission raises salary, Zoom events prove
+  attendance, recordings exist, reconciliation/overlap billing exists, or a Supervisor
+  can view/edit money. Replace them with the confirmed model and explain removals in
+  the relevant execution log.
+- Preserve each file's structure, labels, OPEN decisions, and historical execution
+  entries. Do not silently turn an OPEN/PROPOSAL into a decision.
+- In phase specs, keep removed work as `REMOVED — <reason>`, and ensure acceptance
+  criteria, routes, authorization tables, transactions, tests, and tasks agree.
+- State why every uniqueness constraint, append-only rule, transaction boundary, and
+  authorization check exists. Use raw SQL migration notes where Prisma cannot express it.
+- Keep report visibility precise: Admin/Supervisor and the linked guardian see the
+  teacher report; the student sees only the confirmed fields; student evaluations are
+  Admin-only.
+
+OUTPUT
+- Append a dated change entry to `docs/specs/PROGRESS.md`.
+- End with a concise file-by-file summary, remaining OPEN decisions, and a list of
+  obsolete statements removed or corrected.
+- If two confirmed statements conflict, stop and report the conflict instead of
+  inventing a resolution.
+```
+
 ---
 
 ## PROMPT B — Upgrade every docs/specs/phase-0X-*.md
@@ -119,9 +169,9 @@ Phase 3: IANA timezone on Users; store UTC; display per viewer. Session creation
 
 Phase 4 (now small): Admin edits the Zoom link per session/series; teacher and student session lists with the Zoom button; the button goes through a small redirect route that logs the click (PROPOSAL/OPTIONAL) and opens Zoom; links never logged, shown only to authorized users; mobile-friendly. Mark as REMOVED: Zoom technical spike, Server-to-Server OAuth, REST meeting creation, registrants, WebSocket consumer, ZoomEvents, event keys, embedded Meeting SDK, Redis/BullMQ bootstrap for Zoom, reconciliation. Note the future Zoom API verification layer under Deferred (CONTEXT §18). Because Phase 4 became small, propose (as an OPEN decision only) merging it into Phase 3 or 5.
 
-Phase 5 (title "Session reports & attendance"; keep the file name): the teacher dashboard (total/done/remaining sessions and hours, attended percentage, salary so far per currency; fines/bonus as adjustments; estimated-salary widget OPEN); Today's-classes list with statuses; the report icon appears once the scheduled end has passed (PROPOSAL; Admin can unlock); the unified "End class" form: class remark, summary, homework, notes, attachments, attendance outcome, optional extra-time claim; one report per student, also in group sessions (CONFIRMED); attachment security (private bucket, signed URLs, allowlist, size cap); who sees which field (OPEN). Attendance history views read the explicit `SessionStudents.attendance_status`. Report lifecycle is `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin reviews every report, and archived reports are immutable. The outage/absence request form and the Admin queue are [MVP]. Removed: the 25% absence timer, late-join detection, join/leave alerts, participant mapping, attendance segments. Settlement is Phase 6-owned and begins only after approval; it must be atomic and idempotent.
+Phase 5 (title "Session reports & attendance"; keep the file name): the teacher dashboard (total/done/remaining sessions and hours, attended percentage, approved salary per currency; pending approval may be shown separately); Today's-classes list with statuses; the report icon appears once the scheduled end has passed (PROPOSAL; Admin can unlock); the unified "End class" form: class remark, summary, homework, notes, attachments, attendance outcome, operational facts, optional extra-time claim; one report per student, also in group sessions (CONFIRMED); attachment security (private bucket, signed URLs, allowlist, size cap); who sees which field (OPEN). Attendance history views read the explicit `SessionStudents.attendance_status`. Report lifecycle is `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin or Supervisor reviews every report, and archived reports are immutable. The outage/absence request form and the Admin queue are [MVP]. Removed: the 25% absence timer, late-join detection, join/leave alerts, participant mapping, attendance segments. Settlement is Phase 6-owned and begins only after approval; it must be atomic and idempotent.
 
-Phase 6: Settlement after report approval: document the exact transaction (one deduction for that student, one teacher credit per session created by the first approved attended report and skipped by later ones, settled and archived marks); the unique constraints as the double-payment guard; frozen archived fields; unique-violation = "already settled"; partial failure rolls everything back and leaves the report unarchived; notifications only after commit; overtime approval by Admin creating one ADMIN_ADJUSTMENT (claim it with a conditional status update so approving twice cannot pay twice); Admin adjustments (fines/bonus) and disbursements; multi-currency without conversion; prepaid rules and the "never block the teacher's pay" requirement; the consistency-checker query. BLOCKED parts: teacher rate storage, rounding, zero-sessions mechanism. REMOVED: reconciliation job, event processing, overlap-based billable time. Low-balance alert [DEFERRED] candidate ("sessions remaining", e.g. 2 of 8). Tests MUST include: double settlement of the same approved report; two concurrent settlement requests; a teacher who is not assigned; a report before the scheduled end; editing an archived report is rejected; rollback when the second ledger insert fails; group session with two students reporting (teacher credited once, two deductions); student absent (no money, explicit attendance is STUDENT_ABSENT); empty student package (teacher still credited, Admin flagged); overtime approved twice (paid once); currency handling.
+Phase 6: Settlement after Admin or Supervisor report approval: document the exact transaction (one deduction for that student, one teacher credit per session created by the first approved attended report and skipped by later ones, settled and archived marks); the unique constraints as the double-payment guard; frozen archived fields; unique-violation = "already settled"; partial failure rolls everything back and leaves the report unarchived; notifications only after commit; overtime approval by Admin creating one ADMIN_ADJUSTMENT (claim it with a conditional status update so approving twice cannot pay twice); Admin adjustments (fines/bonus) and disbursements; multi-currency without conversion; prepaid rules and the "never block the teacher's pay" requirement; the consistency-checker query. BLOCKED parts: teacher rate storage, rounding, zero-sessions mechanism. REMOVED: reconciliation job, event processing, overlap-based billable time. Low-balance alert [DEFERRED] candidate ("sessions remaining", e.g. 2 of 8). Tests MUST include: double settlement of the same approved report; two concurrent settlement requests; a teacher who is not assigned; a report before the scheduled end; editing an archived report is rejected; rollback when the second ledger insert fails; group session with two students reporting (teacher credited once, two deductions); student absent (no money, explicit attendance is STUDENT_ABSENT); empty student package (teacher still credited, Admin flagged); overtime approved twice (paid once); currency handling.
 
 Phase 7: Admin dashboard, review queues (reports, outage requests, overtime), TeacherFlags view, evaluations (OPTIONAL for students), announcements. Tag the evaluation prompt and announcements as [DEFERRED] candidates if the owner wants a smaller MVP. Report visibility matrix as confirmed (teacher report: guardian + Admin; student evaluation: Admin only). Student "dispute this attendance" button = [DEFERRED].
 

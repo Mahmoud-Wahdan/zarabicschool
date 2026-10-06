@@ -9,7 +9,7 @@ import { allowRequest } from "./rate-limit";
 import { getClientIp } from "./request";
 import { loginSchema, normalizeUsername, rateLimitKeys } from "./validation/auth";
 
-export type SessionRole = "ADMIN" | "TEACHER" | "STUDENT" | "GUARDIAN";
+export type SessionRole = "ADMIN" | "SUPERVISOR" | "TEACHER" | "STUDENT" | "GUARDIAN";
 
 declare module "next-auth" {
   interface Session {

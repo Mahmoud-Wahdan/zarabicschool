@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Cairo, Montserrat, Tajawal } from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
@@ -23,7 +24,10 @@ const montserrat = Montserrat({
   subsets: ["latin"],
 });
 
-type Props = LayoutProps<"/[locale]">;
+type Props = {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+};
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const { locale } = await params;

@@ -6,7 +6,7 @@ import {
   calculateAge,
 } from "../../lib/validation/application";
 import { POST } from "../../app/api/applications/route";
-import { prisma } from "../../lib/prisma";
+import { disconnectPrisma, prisma } from "../../lib/prisma";
 import { resetRateLimits } from "../../lib/rate-limit";
 
 describe("Slice C1 — Application Validation & Submission", () => {
@@ -23,6 +23,10 @@ describe("Slice C1 — Application Validation & Submission", () => {
     } catch {
       // Ignored if DB is not reachable in offline unit test runs
     }
+  });
+
+  afterAll(async () => {
+    await disconnectPrisma();
   });
 
   describe("Zod Unit Tests Per Type", () => {

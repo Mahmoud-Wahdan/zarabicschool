@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { changePasswordSchema } from "../../../lib/validation/auth";
@@ -54,6 +55,17 @@ export default function ChangePasswordForm({ username, role }: { username: strin
         setFieldErrors(apiError.error.fieldErrors);
       }
       setFormError(apiError.error?.message ?? t("unexpectedError"));
+      return;
+    }
+
+    const sessionRefresh = await signIn("credentials", {
+      redirect: false,
+      username,
+      password: parsed.data.newPassword,
+    });
+    if (!sessionRefresh || sessionRefresh.error) {
+      setPending(false);
+      setFormError(t("unexpectedError"));
       return;
     }
 

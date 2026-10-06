@@ -215,6 +215,7 @@
     "emptyState": "لا توجد بيانات بعد.",
     "roles": {
       "ADMIN": "إدارة",
+      "SUPERVISOR": "مشرف",
       "TEACHER": "معلمة",
       "STUDENT": "طالب",
       "GUARDIAN": "ولي أمر"
@@ -227,6 +228,12 @@
         "openApplications": "فتح الطلبات",
         "accounts": "الحسابات",
         "schedules": "الجداول"
+      },
+      "metrics": {
+        "students": "طلاب",
+        "guardians": "أولياء أمور",
+        "teachers": "معلمات",
+        "subjects": "مواد"
       }
     },
     "teacher": {
@@ -236,6 +243,12 @@
         "today": "حصص اليوم",
         "reports": "التقارير",
         "salary": "الراتب"
+      },
+      "metrics": {
+        "upcoming": "حصص قادمة",
+        "students": "طلاب",
+        "subjects": "مواد مكلّفة",
+        "salaryUnavailable": "سجل الراتب سيظهر بعد اعتماد تقارير الجلسات في المرحلة المالية."
       }
     },
     "student": {
@@ -245,6 +258,10 @@
         "upcoming": "الحصص القادمة",
         "past": "الحصص السابقة",
         "homework": "الواجبات"
+      },
+      "metrics": {
+        "attendanceFromReports": "سيظهر الحضور بعد اعتماد تقارير الجلسات.",
+        "notAvailable": "لا يوجد نموذج واجبات في قاعدة البيانات الحالية."
       }
     },
     "guardian": {
@@ -254,7 +271,70 @@
         "schedule": "الجدول",
         "reports": "التقارير",
         "finance": "الحصص المتبقية"
+      },
+      "metrics": {
+        "upcoming": "حصص قادمة",
+        "remaining": "حصة متبقية",
+        "reportsUnavailable": "التقارير ستظهر بعد تنفيذ نموذج تقارير الجلسات.",
+        "remainingFromSubscriptions": "الرصيد محسوب من الاشتراكات النشطة وسجل الحركات."
       }
+    },
+    "supervisor": {
+      "title": "لوحة المشرف",
+      "welcome": "مرحبًا {name}",
+      "sections": {
+        "applications": "طلبات التسجيل",
+        "reports": "تقارير الجلسات",
+        "profiles": "الملفات التشغيلية"
+      }
+    }
+  },
+  "supervisor": {
+    "title": "لوحة المشرف",
+    "subtitle": "مراجعة الطلبات والتقارير التشغيلية دون الوصول إلى البيانات المالية.",
+    "applications": {
+      "title": "طلبات التسجيل",
+      "description": "مراجعة طلبات المتقدمين ومتابعة حالتها."
+    },
+    "reports": {
+      "title": "تقارير الجلسات",
+      "description": "سيتم ربط طابور مراجعة التقارير في المرحلة الخامسة."
+    },
+    "restricted": "لا تشمل صلاحيات المشرف إدارة المستخدمين الإداريين أو البيانات المالية."
+    ,
+    "metrics": {
+      "pending": "طلبات جديدة",
+      "reviewed": "تمت مراجعتها",
+      "approved": "مقبولة",
+      "rejected": "مرفوضة"
+    },
+    "profiles": {
+      "students": "الطلاب النشطون",
+      "guardians": "أولياء الأمور النشطون",
+      "teachers": "المعلمات النشطات",
+      "subjects": "المواد النشطة"
+    },
+    "recent": {
+      "title": "آخر الطلبات",
+      "description": "أحدث الطلبات في أكاديميتك مرتبة من الأحدث إلى الأقدم.",
+      "viewAll": "فتح كل الطلبات",
+      "empty": "لا توجد طلبات حتى الآن.",
+      "name": "الاسم",
+      "type": "النوع",
+      "status": "الحالة",
+      "date": "التاريخ",
+      "unnamed": "بدون اسم"
+    },
+    "types": {
+      "GUARDIAN": "ولي أمر",
+      "STUDENT": "طالب",
+      "TEACHER": "معلمة"
+    },
+    "statuses": {
+      "NEW": "جديد",
+      "REVIEWED": "تمت المراجعة",
+      "APPROVED": "مقبول",
+      "REJECTED": "مرفوض"
     }
   },
   "adminApplications": {

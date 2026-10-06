@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "../../../../../lib/prisma";
-import { requireApiRole } from "../../../../../lib/dal";
+import { requireApiRoles } from "../../../../../lib/dal";
 import { errorResponse, isSameOrigin } from "../../../../../lib/request";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export async function POST(
     return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
   }
 
-  const { user, error } = await requireApiRole("ADMIN");
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
 
   const { id } = await params;

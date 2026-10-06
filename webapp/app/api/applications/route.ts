@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { allowRequest } from "../../../lib/rate-limit";
 import { errorResponse, getClientIp } from "../../../lib/request";
-import { requireApiRole } from "../../../lib/dal";
+import { requireApiRoles } from "../../../lib/dal";
 import {
   applicationSchema,
   normalizeApplication,
@@ -21,7 +21,7 @@ const validTypes = new Set(["GUARDIAN", "STUDENT", "TEACHER"]);
 type ApplicationDetails = { full_name?: string };
 
 export async function GET(request: Request) {
-  const { user, error } = await requireApiRole("ADMIN");
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
 
   const url = new URL(request.url);

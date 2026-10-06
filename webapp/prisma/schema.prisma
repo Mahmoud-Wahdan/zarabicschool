@@ -9,6 +9,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  SUPERVISOR
   TEACHER
   STUDENT
   GUARDIAN
@@ -32,6 +33,62 @@ enum GuardianRelationship {
   MOTHER
 }
 
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  PAYMOB
+  USD_GATEWAY
+}
+
+enum PaymentAttemptStatus {
+  CREATED
+  REDIRECTED
+  SUCCEEDED
+  FAILED
+}
+
+enum SubscriptionPackageType {
+  MONTHLY_PLAN
+  PAY_PER_SESSION
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXHAUSTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SubscriptionLedgerEntryType {
+  INITIAL_PURCHASE
+  SESSION_DEDUCTION
+  ADMIN_ADJUSTMENT
+  REFUND
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+  CANCELLED
+}
+
+enum SessionType {
+  PRIVATE
+  GROUP
+}
+
+enum AttendanceStatus {
+  PENDING
+  ATTENDED
+  STUDENT_ABSENT
+}
+
 model Academy {
   id           String        @id @default(uuid()) @db.Uuid
   name         String        @unique
@@ -44,6 +101,10 @@ model Academy {
   students     Student[]
   teachers     Teacher[]
   teacherSubjects TeacherSubject[]
+  subscriptions Subscription[]
+  invoices     Invoice[]
+  subscriptionLedger SubscriptionLedger[]
+  sessions        Session[]
 
   @@map("academies")
 }
@@ -72,6 +133,8 @@ model User {
   studentProfile     Student?    @relation("StudentUser")
   teacherProfile     Teacher?    @relation("TeacherUser")
   createdApplicationRecords ApplicationRecord[] @relation("ApplicationCreatedUser")
+  overriddenSessionStudents SessionStudent[] @relation("SessionStudentOverride")
+  sessionJoinClicks       SessionJoinClick[]
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -93,6 +156,7 @@ model Subject {
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy       Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
   teacherSubjects TeacherSubject[]
+  sessions       Session[]
 
   @@unique([academyId, slug])
   @@index([academyId, isActive, sortOrder])
@@ -152,10 +216,158 @@ model Student {
   user           User      @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
   guardian       Guardian? @relation(fields: [guardianId], references: [id], onDelete: Restrict)
   academy        Academy   @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  sessionStudents SessionStudent[] @relation("SessionStudentStudent")
 
   @@index([academyId])
   @@index([guardianId])
   @@map("students")
+}
+
+model Subscription {
+  id                String                    @id @default(uuid()) @db.Uuid
+  academyId         String                    @map("academy_id") @db.Uuid
+  studentId         String                    @map("student_id") @db.Uuid
+  packageType       SubscriptionPackageType  @map("package_type")
+  sessionsPurchased Int                       @map("sessions_purchased")
+  totalAmountMinor  BigInt                    @map("total_amount_minor")
+  currency          String                    @db.VarChar(3)
+  periodStartsAt    DateTime?                 @map("period_starts_at") @db.Timestamptz(6)
+  periodEndsAt      DateTime?                 @map("period_ends_at") @db.Timestamptz(6)
+  status            SubscriptionStatus        @default(ACTIVE)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy           Academy                   @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  student           Student                   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  invoices          Invoice[]
+  ledgerEntries     SubscriptionLedger[]
+
+  @@index([academyId, studentId, status])
+  @@map("subscriptions")
+}
+
+model Session {
+  id                    String        @id @default(uuid()) @db.Uuid
+  academyId             String        @map("academy_id") @db.Uuid
+  teacherId             String        @map("teacher_id") @db.Uuid
+  subjectId             String        @map("subject_id") @db.Uuid
+  sessionType           SessionType   @map("session_type")
+  scheduledStart        DateTime      @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd          DateTime      @map("scheduled_end") @db.Timestamptz(6)
+  durationMinutes       Int           @map("duration_minutes")
+  timezone              String        @default("UTC")
+  zoomJoinUrl           String        @map("zoom_join_url")
+  zoomHostUrl           String?       @map("zoom_host_url")
+  recurrenceGroupId     String?       @map("recurrence_group_id") @db.Uuid
+  replacementForSessionId String?     @map("replacement_for_session_id") @db.Uuid
+  cancellationReason    String?       @map("cancellation_reason")
+  status                SessionStatus @default(SCHEDULED)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy               Academy       @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  teacher               Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject               Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  replacementFor        Session?      @relation("SessionReplacement", fields: [replacementForSessionId], references: [id], onDelete: Restrict)
+  replacements           Session[]     @relation("SessionReplacement")
+  students              SessionStudent[]
+  joinClicks             SessionJoinClick[]
+
+  @@index([academyId, scheduledStart, status])
+  @@index([teacherId, scheduledStart])
+  @@index([recurrenceGroupId])
+  @@map("sessions")
+}
+
+model SessionStudent {
+  id                 String          @id @default(uuid()) @db.Uuid
+  sessionId          String          @map("session_id") @db.Uuid
+  studentId          String          @map("student_id") @db.Uuid
+  attendanceStatus   AttendanceStatus @default(PENDING) @map("attendance_status")
+  overriddenById     String?         @map("overridden_by") @db.Uuid
+  overrideReason     String?         @map("override_reason")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  session            Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student            Student         @relation("SessionStudentStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  overriddenBy       User?           @relation("SessionStudentOverride", fields: [overriddenById], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, studentId])
+  @@index([studentId, attendanceStatus])
+  @@map("session_students")
+}
+
+model SessionJoinClick {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  clickedAt DateTime @default(now()) @map("clicked_at") @db.Timestamptz(6)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId, clickedAt])
+  @@map("session_join_clicks")
+}
+
+model Invoice {
+  id                 String             @id @default(uuid()) @db.Uuid
+  academyId          String             @map("academy_id") @db.Uuid
+  studentId          String             @map("student_id") @db.Uuid
+  subscriptionId     String?            @map("subscription_id") @db.Uuid
+  amountMinor        BigInt             @map("amount_minor")
+  currency           String             @db.VarChar(3)
+  provider           PaymentProvider
+  exchangeRate       Decimal?           @map("exchange_rate") @db.Decimal(20, 8)
+  packageType        SubscriptionPackageType @map("package_type")
+  sessionsPurchased  Int                  @map("sessions_purchased")
+  status             InvoiceStatus      @default(PENDING)
+  providerReference  String?            @map("provider_reference")
+  paidAt             DateTime?          @map("paid_at") @db.Timestamptz(6)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy            Academy            @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  student            Student            @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subscription       Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  attempts           PaymentAttempt[]
+  ledgerEntries      SubscriptionLedger[]
+
+  @@index([academyId, status, createdAt])
+  @@index([provider, providerReference])
+  @@map("invoices")
+}
+
+model PaymentAttempt {
+  id                String               @id @default(uuid()) @db.Uuid
+  invoiceId         String               @map("invoice_id") @db.Uuid
+  provider          PaymentProvider
+  idempotencyKey    String               @unique @map("idempotency_key")
+  providerReference String?              @map("provider_reference")
+  checkoutUrl       String?              @map("checkout_url")
+  status            PaymentAttemptStatus @default(CREATED)
+  rawEventHash      String?              @unique @map("raw_event_hash")
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  invoice           Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, status])
+  @@index([provider, providerReference])
+  @@map("payment_attempts")
+}
+
+model SubscriptionLedger {
+  id             String                        @id @default(uuid()) @db.Uuid
+  academyId      String                        @map("academy_id") @db.Uuid
+  subscriptionId String                        @map("subscription_id") @db.Uuid
+  invoiceId      String?                       @map("invoice_id") @db.Uuid
+  entryType      SubscriptionLedgerEntryType   @map("entry_type")
+  sessionsDelta  Int                           @map("sessions_delta")
+  createdAt      DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy        Academy                       @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subscription   Subscription                  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  invoice        Invoice?                      @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([subscriptionId, createdAt])
+  @@map("subscription_ledger")
 }
 
 model Teacher {
@@ -167,6 +379,7 @@ model Teacher {
   user      User     @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
   academy   Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
   subjects  TeacherSubject[]
+  sessions  Session[]
 
   @@index([academyId])
   @@map("teachers")

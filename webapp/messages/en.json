@@ -215,6 +215,7 @@
     "emptyState": "Nothing here yet.",
     "roles": {
       "ADMIN": "Admin",
+      "SUPERVISOR": "Supervisor",
       "TEACHER": "Teacher",
       "STUDENT": "Student",
       "GUARDIAN": "Guardian"
@@ -227,6 +228,12 @@
         "openApplications": "Open applications",
         "accounts": "Accounts",
         "schedules": "Schedules"
+      },
+      "metrics": {
+        "students": "students",
+        "guardians": "guardians",
+        "teachers": "teachers",
+        "subjects": "subjects"
       }
     },
     "teacher": {
@@ -236,6 +243,12 @@
         "today": "Today's classes",
         "reports": "Reports",
         "salary": "Salary"
+      },
+      "metrics": {
+        "upcoming": "upcoming classes",
+        "students": "students",
+        "subjects": "assigned subjects",
+        "salaryUnavailable": "Salary history will appear after session reports are approved in the financial phase."
       }
     },
     "student": {
@@ -245,6 +258,10 @@
         "upcoming": "Upcoming classes",
         "past": "Past classes",
         "homework": "Homework"
+      },
+      "metrics": {
+        "attendanceFromReports": "Attendance will appear after session reports are approved.",
+        "notAvailable": "No homework model exists in the current database schema."
       }
     },
     "guardian": {
@@ -254,7 +271,70 @@
         "schedule": "Schedule",
         "reports": "Reports",
         "finance": "Remaining sessions"
+      },
+      "metrics": {
+        "upcoming": "upcoming classes",
+        "remaining": "sessions remaining",
+        "reportsUnavailable": "Reports will appear after the session-report model is implemented.",
+        "remainingFromSubscriptions": "Balance is calculated from active subscriptions and ledger entries."
       }
+    },
+    "supervisor": {
+      "title": "Supervisor dashboard",
+      "welcome": "Welcome, {name}",
+      "sections": {
+        "applications": "Applications",
+        "reports": "Session reports",
+        "profiles": "Operational profiles"
+      }
+    }
+  },
+  "supervisor": {
+    "title": "Supervisor dashboard",
+    "subtitle": "Review applications and operational reports without access to financial data.",
+    "applications": {
+      "title": "Applications",
+      "description": "Review incoming applications and follow their status."
+    },
+    "reports": {
+      "title": "Session reports",
+      "description": "The report review queue will be connected in Phase 5."
+    },
+    "restricted": "Supervisor access does not include financial data or Admin/Supervisor management."
+    ,
+    "metrics": {
+      "pending": "New applications",
+      "reviewed": "Reviewed",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "profiles": {
+      "students": "Active students",
+      "guardians": "Active guardians",
+      "teachers": "Active teachers",
+      "subjects": "Active subjects"
+    },
+    "recent": {
+      "title": "Recent applications",
+      "description": "The latest applications in your academy, newest first.",
+      "viewAll": "Open all applications",
+      "empty": "No applications yet.",
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "date": "Date",
+      "unnamed": "Unnamed"
+    },
+    "types": {
+      "GUARDIAN": "Guardian",
+      "STUDENT": "Student",
+      "TEACHER": "Teacher"
+    },
+    "statuses": {
+      "NEW": "New",
+      "REVIEWED": "Reviewed",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
     }
   },
   "adminApplications": {

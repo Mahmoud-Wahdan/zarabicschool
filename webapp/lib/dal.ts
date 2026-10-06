@@ -14,7 +14,7 @@ export type AuthUser = {
   academyId: string;
   username: string;
   displayName: string;
-  role: "ADMIN" | "TEACHER" | "STUDENT" | "GUARDIAN";
+  role: "ADMIN" | "SUPERVISOR" | "TEACHER" | "STUDENT" | "GUARDIAN";
   mustChangePassword: boolean;
 };
 
@@ -49,6 +49,15 @@ export async function requireRole(role: AuthUser["role"]): Promise<AuthUser> {
   return user;
 }
 
+export async function requireRoles(roles: AuthUser["role"][]): Promise<AuthUser> {
+  const user = await getAuthSession();
+  const locale = await getLocale();
+  if (!user) redirect(`/${locale}/login`);
+  if (user.mustChangePassword) redirect(`/${locale}/change-password`);
+  if (!roles.includes(user.role)) redirect(`/${locale}/${user.role.toLowerCase()}`);
+  return user;
+}
+
 export async function requireApiRole(role: AuthUser["role"]) {
   const user = await getAuthSession();
   if (!user) {
@@ -70,6 +79,38 @@ export async function requireApiRole(role: AuthUser["role"]) {
     };
   }
   if (user.role !== role) {
+    return {
+      user: null,
+      error: NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "You do not have access to this resource." } },
+        { status: 403 },
+      ),
+    };
+  }
+  return { user, error: null };
+}
+
+export async function requireApiRoles(roles: AuthUser["role"][]) {
+  const user = await getAuthSession();
+  if (!user) {
+    return {
+      user: null,
+      error: NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Authentication is required." } },
+        { status: 401 },
+      ),
+    };
+  }
+  if (user.mustChangePassword) {
+    return {
+      user: null,
+      error: NextResponse.json(
+        { error: { code: "MUST_CHANGE_PASSWORD", message: "Change your password before using the platform." } },
+        { status: 403 },
+      ),
+    };
+  }
+  if (!roles.includes(user.role)) {
     return {
       user: null,
       error: NextResponse.json(

@@ -100,4 +100,9 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Execution log (updated as soon as real work happens)
 
-(empty for now)
+### 2026-10-06 reconciliation
+
+- Phase 3 is now In Progress. The Prisma schema contains the initial `Session`, `SessionStudent`, and optional `SessionJoinClick` models with explicit attendance status, session status/type, manual Zoom links, recurrence/replacement fields, and restrictive relations.
+- Scheduling APIs/UI, recurrence generation, replacement flow, timezone views, prepaid-session guard, migration, and authorization tests are still not present.
+- 2026-10-06 database verification: the session/payment migration was applied during the confirmed development reset, and the demo seed created one future session with one explicit `PENDING` student assignment and one optional click-audit row. No scheduling behavior is claimed complete from seed data alone.
+- The implementation must use manually pasted Zoom links, explicit per-student participants, UTC storage with IANA display, and audited Admin overrides; it must not introduce Zoom API/event attendance.

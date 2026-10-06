@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
-import { requireRole } from "../../../../lib/dal";
+import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { Link, Link as LocaleLink } from "../../../../i18n/navigation";
 
@@ -41,7 +41,7 @@ export default async function AdminApplicationsPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string; type?: string; page?: string }>;
 }) {
-  const user = await requireRole("ADMIN");
+  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
   const { locale } = await params;
   const { status: statusParam, type: typeParam, page: pageParam } = await searchParams;
   const t = await getTranslations({ locale, namespace: "adminApplications" });

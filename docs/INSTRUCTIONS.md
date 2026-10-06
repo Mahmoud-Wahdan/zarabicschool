@@ -11,14 +11,14 @@ Before making a product/architecture decision:
 1. Read `docs/CONTEXT.md` first, in full.
 2. Check `docs/specs/` for any existing spec/phase files and their current status (see Section 22).
 3. Distinguish: confirmed decision / proposal / open question / assumption.
-4. Never silently invent missing business rules — especially the open items listed in CONTEXT.md Section 7 (open payroll and report rules, notification recipients), Section 5 (credential delivery channel), Section 14 (timeline), and the status table in Section 17.
+4. Never silently invent missing business rules — especially the remaining OPEN items listed in CONTEXT.md Section 7, Section 5, Section 14, and the status table in Section 17. The confirmed report flow is not open: submission only enters review; Admin or Supervisor approval is required before settlement.
 5. If an unresolved decision materially affects implementation, stop and ask the owner before coding.
 The archived screenshots (`programming.rar`) are unverified — do not treat claims sourced only from them as confirmed.
 
 # 2. Owner-control protocol
 The owner is the decision maker. For meaningful architectural decisions, present: the problem; constraints; 2–3 viable options when alternatives genuinely exist; trade-offs; your recommendation as reasoning, not authority; what changes if reversed.
-Examples requiring explicit confirmation: the report-to-payment settlement transaction (what triggers pay, group sessions, double-payment protection); payroll accrual logic; database schema for financial/attendance tables; the notification scheduler (BullMQ + Redis vs database polling) and process model; credential delivery channel; any multi-tenant-readiness schema decision; deployment architecture.
-Already decided (do not reopen without the owner): live sessions run in Zoom through links that Admin pastes into the platform — no Zoom API, no Zoom events/WebSocket, no embedded Zoom interface, no recordings; OpenWA as the WhatsApp provider; the teacher's report on the student is reviewed by Admin and, once approved, drives atomic hourly settlement; students buy prepaid session packages; the SMS fallback is post-MVP and may never be built.
+Examples requiring explicit confirmation: unresolved payroll/report fields or reversal policy; database schema for financial/attendance tables; the notification process model; credential delivery channel; any multi-tenant-readiness schema decision; deployment architecture.
+Already decided (do not reopen without the owner): live sessions run in Zoom through links that Admin pastes into the platform — no Zoom API, no Zoom events/WebSocket, no embedded Zoom interface, no recordings; OpenWA as the WhatsApp provider; the teacher's per-student report is reviewed by Admin or Supervisor, and only approval drives atomic hourly settlement; each group student has an independent report/outcome; students buy prepaid session packages; the SMS fallback is post-MVP and may never be built.
 
 # 3. Learning protocol — critical
 ## 3.1 Do not teach by dumping
@@ -38,7 +38,7 @@ End new-concept work with a short check: "Explain the request flow." / "Why does
 **Phase E — Review:** inspect diff, security boundaries, error handling, tests, migrations, docs, trade-offs — then update the phase's spec file (Section 22).
 
 # 5. Testing philosophy
-Unit tests isolate business logic. Integration tests verify real boundaries (API+service, service+repository+Postgres test DB, **report submission + ledger persistence** — this specific boundary is high priority given Section 7's financial risk). E2E verifies critical flows via Jest/Supertest/RTL/Playwright. Prefer real behavior over unnecessary mocks; mock only external/expensive/unreliable dependencies (OpenWA). For critical domains — attendance, payroll, auth — prioritize failure cases and security boundaries, not only happy paths. Include tests for: double submission of the same report, concurrent submissions, a report from a teacher who is not assigned to the session, a report before the scheduled end, money fields edited after submission, and rollback when the second ledger insert fails.
+Unit tests isolate business logic. Integration tests verify real boundaries (API+service, service+repository+Postgres test DB, **report approval + ledger persistence** — this specific boundary is high priority given Section 7's financial risk). E2E verifies critical flows via Jest/Supertest/RTL/Playwright. Prefer real behavior over unnecessary mocks; mock only external/expensive/unreliable dependencies (OpenWA). For critical domains — attendance, payroll, auth — prioritize failure cases and security boundaries, not only happy paths. Include tests for: duplicate report claims, concurrent approvals, a report from a teacher who is not assigned to the session, a report before the scheduled end, money fields locked after submission, absent approval with no ledger rows, and rollback when the second ledger insert fails.
 
 # 6. Security is part of the feature
 For every feature ask: Who can call this? Is authorization checked server-side? Is input validated? Can an operation be replayed? Does it need idempotency? Does it need a transaction? Is sensitive data logged? For the teacher's report: can only the assigned teacher submit it, only after the session's scheduled end, only once, and can anything that affects money be changed afterwards? Zoom links are secrets shared with participants — do not log them or show them to unrelated users.
@@ -48,11 +48,11 @@ Secrets: never write secret values into docs, code, commits, or chats. Environme
 # 7. Financial & Payroll Rules — HIGH RISK, read carefully
 Two distinct money-adjacent systems exist here, and BOTH need this level of rigor, not just the obvious one:
 1. **Student payment (manual):** integer minor units, never floats; payment state changes only via explicit Admin confirmation action, never inferred.
-2. **Teacher payroll accrual (triggered by Admin approval of the teacher's report on the student, hourly) — this is the one that's easy to under-engineer because "it's not a payment gateway."** It IS a financial system:
+2. **Teacher payroll accrual (triggered by Admin or Supervisor approval of the teacher's report on the student, hourly) — this is the one that's easy to under-engineer because "it's not a payment gateway."** It IS a financial system:
    - **Settlement is ONE database transaction** created only after Admin approves the report: the student's `SubscriptionLedger` deduction (only when the approved report says the student attended) + the teacher's `PayrollLedger` credit (scheduled duration × her hourly rate, once per session) + the report's settled/archived-mark commit or roll back together. Nothing is set in a separate step, nothing is cleared to "retry"; corrections are new adjustment entries.
    - **Idempotency is mandatory.** The same report can be submitted twice (double click, retry, replay). Use unique constraints: one report per (session, student); one teacher credit per session; one student deduction per (session, subscription). A unique-constraint violation means "already done" — not an error.
    - **Every accrual must be traceable** to the report/session/teacher/student that caused it, with the minutes credited and the hourly-rate snapshot — append-only ledger, not a mutable running total.
-   - **The report is evidence for an explicit attendance write** (there is no Zoom verification). Therefore: only the assigned teacher, only after the scheduled end, Admin approval before settlement, editable only after rejection, immutable after archival, and an Admin review queue (CONTEXT.md Section 6, Trust model).
+   - **The report is evidence for an explicit attendance write** (there is no Zoom verification). Therefore: only the assigned teacher, only after the scheduled end, Admin or Supervisor approval before settlement, editable only after rejection, immutable after archival, and an approval queue (CONTEXT.md Section 6, Trust model).
    - The student side is **prepaid session packages**; the teacher side is **hourly**, independent of the student's price (CONTEXT.md Section 7). The teacher's pay must never fail because the student's package is empty. Do not guess rules that CONTEXT.md §7 lists as OPEN — surface them.
 
 # 8. Zoom Rules (manual links)
@@ -69,7 +69,7 @@ This build is single-tenant (Zarabicschool only). Keep a fixed `academy_id` FK o
 Put WhatsApp (OpenWA) and (later) any payment gateway behind application interfaces (e.g. `MessagingProvider`) so business logic isn't tightly coupled to one provider and can be tested with fakes. OpenWA is unofficial and can be banned: never make it the only channel for critical flows.
 
 # 11. API rules
-Explicit request/response schemas (Zod); consistent error structure; appropriate HTTP status codes; idempotency for retry-sensitive operations (report submission especially); authorization close to the protected operation.
+Explicit request/response schemas (Zod); consistent error structure; appropriate HTTP status codes; idempotency for retry-sensitive operations (report submission and approval especially); authorization close to the protected operation.
 
 # 12. Database rules
 PostgreSQL + Prisma. The owner should understand primary/foreign keys, unique constraints, indexes, transactions, migrations — not just accept whatever Prisma generates. Schema changes require deliberate migration thinking, especially for the financial/attendance tables. The database is hosted on Supabase behind a transaction-mode pooler: use `DIRECT_URL` for migrations.

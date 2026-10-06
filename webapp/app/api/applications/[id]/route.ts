@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { prisma } from "../../../../lib/prisma";import { requireApiRole } from "../../../../lib/dal";
+import { prisma } from "../../../../lib/prisma";import { requireApiRoles } from "../../../../lib/dal";
 import { errorResponse } from "../../../../lib/request";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error } = await requireApiRole("ADMIN");
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
 
   const { id } = await params;

@@ -28,3 +28,8 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const prisma = database.client;
+
+export async function disconnectPrisma() {
+  await database.client.$disconnect();
+  await database.pool?.end();
+}

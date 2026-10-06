@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import DashboardShell from "../../../../_components/dashboard-shell";
-import { requireRole } from "../../../../../lib/dal";
+import { requireRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { Link } from "../../../../../i18n/navigation";
 import ReviewActions from "./review-actions";
@@ -26,7 +26,7 @@ export default async function AdminApplicationDetailPage({
 }: {
   params: Promise<{ locale: string; id: string }>;
 }) {
-  const user = await requireRole("ADMIN");
+  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
   const { locale, id } = await params;
   const t = await getTranslations({ locale, namespace: "adminApplications" });
   const application = await prisma.application.findFirst({

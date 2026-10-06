@@ -72,7 +72,7 @@ Hosting, stage dates, scheduler, and unresolved domain choices from earlier phas
 
 ## Deferred / Post-MVP
 
-- [DEFERRED] SaaS roadmap, Zoom verification, SMS, recordings, and payment gateway.
+- [DEFERRED] SaaS roadmap, Zoom verification, SMS, and recordings. Payment gateways are MVP scope: Paymob is the EGP provider and USD remains unavailable until a concrete provider is configured.
 
 ## Definition of Done
 
@@ -81,7 +81,7 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ## Tasks
 
 - [ ] Write Playwright E2E tests for student onboarding flow
-- [ ] Write integration test suite for report submission -> Admin approval -> attendance -> settlement
+- [ ] Write integration test suite for report submission -> Admin/Supervisor approval -> attendance -> settlement
 - [ ] Run automated idempotency verification for duplicate settlement requests
 - [ ] Run rejection/resubmission, missing-report, archive-immutability, and rollback tests
 - [ ] Conduct full Arabic RTL responsive UI audit
@@ -97,3 +97,8 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 - REMOVED — Zoom WebSocket lifecycle, event replay, and reconciliation tests.
 - [MVP] Launch verification centers on approval-gated settlement, explicit attendance, immutable archives, manual links, authorization, uploads, backups, and staged handoffs.
+
+### 2026-10-06 reconciliation
+
+- Phase 8 remains Not Started. Playwright coverage, real-Postgres settlement/idempotency/rollback evidence, RTL/accessibility review, security audit, backup/restore verification, monitoring, and deployment runbook are not complete.
+- Payment gateway verification belongs to the launch gate; it is not deferred. The browser checkout return is not authoritative, and signed provider events must be verified before invoice settlement.

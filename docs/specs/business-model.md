@@ -1,8 +1,8 @@
 # Zarabicschool — Business Model
 
-> Sourced from `docs/CONTEXT.md` and owner-confirmed technical decisions (2026-09-28). Nothing here is invented. Every item is labeled: **Confirmed**, **Open**, or **Proposal**.
+> Sourced from `docs/CONTEXT.md` and owner-confirmed technical decisions (2026-10-06). Nothing here is invented. Every item is labeled: **Confirmed**, **Open**, or **Proposal**.
 >
-> Last updated: 2026-09-28
+> Last updated: 2026-10-06
 
 ---
 
@@ -16,6 +16,7 @@
 | **Guardian** | Centralized view across linked children: schedules, attendance, financial status, teacher reports, and updates. Adult-student handling is OPEN. |
 | **Teacher** | Own schedule, assigned students, session join, past-session log, attendance view, financial/payroll info, writes per-student progress reports, writes mandatory post-session reports, receives student evaluations. |
 | **Admin** | Full control: applications, accounts, subjects/relationships, schedules and pasted Zoom links, reports, outage requests, finances, payroll adjustments, payouts, and announcements. |
+| **Supervisor** | Same operational controls as Admin, including report approval, but no money fields/actions and no Admin/Supervisor management. |
 
 ### Relationship rules (Confirmed — owner 2026-09-29)
 
@@ -71,15 +72,15 @@ Landing page (public)
 
 *Source: CONTEXT.md §6-7. Status: **Confirmed**.*
 
-The platform cannot verify attendance. The teacher's per-student report is evidence for an explicit attendance write and a financial review request. `SessionStudents.attendance_status` is persisted as `PENDING`, `ATTENDED`, or `STUDENT_ABSENT`; Admin overrides require an actor and reason. Evaluation is separate and missing evaluation never means absence.
+The platform cannot verify attendance. The teacher's per-student report is evidence for an explicit attendance write and a financial review request. `SessionStudents.attendance_status` is persisted as `PENDING`, `ATTENDED`, or `STUDENT_ABSENT`; Admin or Supervisor approval is required, and Admin overrides require an actor and reason. Evaluation is separate and missing evaluation never means absence.
 
 ### Private Sessions (1:1)
 1. Notification sent to student and teacher.
 2. The teacher records the outcome in a report after the scheduled end.
 3. If the teacher reports the student absent:
-   - Student marked **Absent**.
-   - Session marked **Cancelled/Missed**.
-   - **Zero financial effect:** Teacher is not paid for a session that did not occur; student subscription quota is not deducted.
+   - Student marked **STUDENT_ABSENT** after Admin or Supervisor approval.
+   - The session is marked **MISSED** only when the session itself did not take place; a completed group session may include absent students.
+   - **Zero financial effect:** Teacher is not paid for that student's absence; that student's subscription quota is not deducted.
 4. An attended report consumes one prepaid session and settles teacher pay atomically.
 
 ### Group Sessions (1:N)
@@ -105,13 +106,13 @@ The platform cannot verify attendance. The teacher's per-student report is evide
 *Source: CONTEXT.md §7 + Confirmed Decisions 2026-09-29. Status: **Confirmed** (HIGH RISK).*
 
 ### The Core Financial Invariant
-> **Settlement is triggered only after Admin approves the teacher's report, in ONE atomic database transaction.**
+> **Settlement is triggered only after Admin or Supervisor approves the teacher's report, in ONE atomic database transaction.**
 
 1. **Teacher Side (Hourly):**
   - Pay basis is scheduled duration, not observed Zoom time. If the teacher stayed longer, she claims overtime in the report and Admin approves it via `ADMIN_ADJUSTMENT`.
   - Every `SESSION_CREDIT` records an immutable `hourly_rate_snapshot_minor` at settlement time.
 2. **Student Side (Prepaid Session Packages):**
-   - Prepaid packages (e.g., 8 sessions), with **no expiration date**.
+   - Monthly plans grant 8 sessions (or an Admin-defined tier) for the billing period; unused monthly sessions do **not** roll over. The separate pay-per-session purchase never expires.
    - Each completed session attended by the student consumes **1 session** (`SESSION_DEDUCTION`).
    - If a student's package is exhausted (0 balance), the teacher is **still paid** for work performed; the deduction records negative balance with an Admin alert for quota replenishment.
 3. **Teacher Post-Session Report:**
@@ -119,13 +120,13 @@ The platform cannot verify attendance. The teacher's per-student report is evide
   - In group sessions, the teacher submits one report per student, while the teacher credit is created once per session by the first attended report.
    - Escalation: T+0 reminder, T+15m reminder, T+30m **red mark** recorded on teacher profile.
 4. **Financial Execution:**
-  - When an attended report is approved, deduct one session for that student, create the first session credit, set `Reports.settled_at`, and archive the report together.
+  - When an attended report is approved by Admin or Supervisor, deduct one session for that student, create the first session credit, set `Reports.settled_at`, and archive the report together. Submission alone creates no ledger row.
 
 ```
 Teacher submits attended report
   │
   │
-  ▼ (Single Atomic DB Transaction)
+  ▼ Admin/Supervisor approval (single atomic DB transaction)
 ┌─────────────────────────────────────────┐
 │ 1. SubscriptionLedger: -1 session/attendee│
 │ 2. PayrollLedger: Credit (hours × rate) │
@@ -147,7 +148,7 @@ Teacher submits attended report
    - `created_by = NULL` for system-generated entries; `NOT NULL` for Admin manual adjustments.
    - Enforced by database partial unique index:
      ```sql
-     CREATE UNIQUE INDEX ON payroll_ledger (session_id, student_id)
+     CREATE UNIQUE INDEX ON payroll_ledger (session_id)
      WHERE entry_type = 'SESSION_CREDIT';
      ```
 
@@ -158,7 +159,7 @@ Teacher submits attended report
 - Admin manually reviews accrued balances, performs conversions if necessary, and approves payouts/disbursements.
 
 ### Idempotency & consistency
-- One report per `(session_id, student_id)` prevents double submission.
+- One report per `(session_id, student_id)` prevents duplicate claims; a database unique constraint makes retries idempotent.
 - One `SESSION_DEDUCTION` per `(session, subscription)` and one `SESSION_CREDIT` per session prevent double settlement.
 - A periodic consistency query finds settled reports without ledger rows and ledger rows without a settled report.
 

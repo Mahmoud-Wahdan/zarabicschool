@@ -79,4 +79,7 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Execution log (updated as soon as real work happens)
 
-(empty for now)
+### 2026-10-06 reconciliation
+
+- Phase 4 remains Not Started. Manual-link editing, authorized join redirect, private-link access checks, and optional click-evidence logging are not implemented.
+- Any click evidence remains optional audit data only; it cannot determine attendance, report outcomes, or teacher pay.

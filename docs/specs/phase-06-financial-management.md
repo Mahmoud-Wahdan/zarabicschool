@@ -2,7 +2,7 @@
 
 ## Goal
 
-Manual payment confirmation (Section 12) + automatic teacher payroll accrual (Section 7). (CONTEXT.md §13, Phase 6.)
+Hosted payment gateways (Paymob for EGP plus an unconfigured USD provider boundary) + automatic teacher payroll accrual (Section 7). (CONTEXT.md §13, Phase 6.)
 
 Implement student billing with Supabase Storage proof uploads, the dual-ledger accounting architecture (`SubscriptionLedger` + `PayrollLedger`), multi-currency balance tracking, and approval-gated report settlement. BullMQ/Zoom reconciliation is not part of this phase.
 
@@ -16,16 +16,17 @@ Implement student billing with Supabase Storage proof uploads, the dual-ledger a
      ON payroll_ledger (session_id)
      WHERE entry_type = 'SESSION_CREDIT';
      ```
-2. **Student Manual Billing & Supabase Storage:**
-   - Invoices generated with integer minor units and ISO currency codes for prepaid packages (no expiry date).
-   - Students/guardians upload receipt files directly to private **Supabase Storage** bucket.
-   - Database stores `file_path`. Admin accesses proofs via short-lived signed URLs.
-   - When Admin marks invoice `PAID`, system inserts `INITIAL_PURCHASE` row (+N sessions) into `SubscriptionLedger`.
+2. **Student Billing & Gateway Settlement:**
+   - Invoices use integer minor units, ISO currency codes, package metadata, and an exchange-rate snapshot.
+   - EGP invoices use Paymob hosted checkout; the signed webhook, not the browser return, is authoritative.
+   - USD uses the provider interface but remains unavailable until a concrete provider is configured; no fake success path exists.
+   - A verified webhook atomically marks the invoice paid, creates the package subscription, and inserts the `INITIAL_PURCHASE` row (+N sessions) into `SubscriptionLedger`.
+   - Manual proof uploads, if retained as a fallback, reuse the same invoice state transition and never bypass verification.
 3. **Dual-Ledger Financial Engine:**
    - **`SubscriptionLedger`:** Remaining student balance is calculated from append-only rows (`INITIAL_PURCHASE`, `SESSION_DEDUCTION`, `ADMIN_ADJUSTMENT`, `REFUND`).
    - **`PayrollLedger`:** Append-only teacher compensation ledger. Stores scheduled `minutes_credited` and `hourly_rate_snapshot_minor`. `created_by = NULL` for system entries, `NOT NULL` for Admin manual adjustments.
 4. **Approval-gated atomic settlement:**
-   - After Admin approves an attended report, record one `SESSION_DEDUCTION` for that student and one `SESSION_CREDIT` for the session.
+   - After Admin or Supervisor approves an attended report, record one `SESSION_DEDUCTION` for that student and one first `SESSION_CREDIT` for the session. Submission alone records no money.
    - Use scheduled duration and the rate snapshot; later reports cannot create another session credit.
    - The same transaction sets `Reports.settled_at` and `Reports.archived_at`.
    - Any failure rolls back both ledger effects and report markers; retry is safe through idempotency constraints.
@@ -36,7 +37,7 @@ Implement student billing with Supabase Storage proof uploads, the dual-ledger a
    - Admin manages manual currency conversion and logs payout disbursements (`DISBURSEMENT`).
 6. **Consistency:** Query for approved/archived reports without ledger rows and ledger rows without a settled report. Low-balance alerts are deferred.
 
-Delivery stage: Stage 3.
+Delivery stage: Stage 3 — In Progress.
 
 ## Acceptance criteria
 
@@ -49,7 +50,7 @@ Routes: `/student/invoices`, `/guardian/invoices`, `/admin/invoices`, `/teacher/
 
 ## Backend
 
-POST `/api/invoices/:id/confirm`, POST `/api/reports/:id/settle`, POST `/api/payroll/adjustments`, POST `/api/payroll/disbursements`, POST `/api/reports/:id/overtime/approve`. Zod schemas, consistent errors, conditional overtime claim, and post-commit notifications.
+POST `/api/invoices/:id/checkout`, POST `/api/payments/paymob/webhook`, POST `/api/invoices/:id/confirm` (fallback), POST `/api/reports/:id/settle`, POST `/api/payroll/adjustments`, POST `/api/payroll/disbursements`, POST `/api/reports/:id/overtime/approve`. Zod schemas, signed webhook verification, idempotency, consistent errors, conditional overtime claim, and post-commit notifications.
 
 ## Database
 
@@ -61,6 +62,7 @@ Touches `Subscriptions`, both ledgers, `Invoices`, `PaymentProofs`, `Reports`, a
 |---|---:|---:|---:|---:|---:|
 | Student/Guardian | Own | No | No | No | Own permitted view |
 | Teacher | No | No | Own report | No | Own |
+| Supervisor | No | No | Review/approve report only; no amounts | No | No payroll/money |
 | Admin | All | Yes | Review | Yes | All |
 
 ## Security
@@ -86,7 +88,7 @@ TeacherRates storage, rounding, zero-session mechanism, `amount_minor`, integer 
 
 ## Deferred / Post-MVP
 
-- [DEFERRED] Low-balance alerts, payment gateways, Zoom reconciliation, and overlap-based billing.
+- [DEFERRED] Low-balance alerts, Zoom reconciliation, and overlap-based billing. Payment gateways are in MVP scope per CONTEXT.md §20.
 
 ## Definition of Done
 
@@ -100,11 +102,11 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - [ ] Set up private Supabase Storage bucket for payment proofs & signed URL generator
 - [ ] Build student/guardian invoice payment proof upload form
 - [ ] Build Admin invoice verification and confirmation workflow (`INITIAL_PURCHASE` credit)
-- [ ] Implement Admin approval-gated settlement processor (deduction + first credit + report markers in one transaction)
+- [ ] Implement Admin/Supervisor approval-gated settlement processor (deduction + first credit + attendance + report markers in one transaction; Supervisor never receives amounts)
 - [ ] Build multi-currency teacher earnings breakdown UI (per-currency balances)
 - [ ] Build Admin payroll review, manual adjustment, and disbursement approval views
 - [ ] REMOVED — BullMQ scheduled Zoom reconciliation worker.
-- [ ] Implement 75% usage low-balance alert trigger via WhatsApp (OpenWA)
+- [ ] [DEFERRED] Implement 75% usage low-balance alert trigger via WhatsApp (OpenWA); keep the balance calculation available for Admin review.
 - [ ] Write tests: transaction atomicity, double-spend prevention, dual-ledger balance calculations, idempotent replay rejection
 
 ## Execution log (updated as soon as real work happens)
@@ -114,3 +116,11 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - REMOVED — Zoom reconciliation, event processing, overlap-based billing, and `Sessions.financially_settled_at`.
 - [MVP] Only an approved report can settle; successful settlement archives the original immutable report.
 - BLOCKED — TeacherRates storage, rounding, and the zero-session scheduling mechanism remain owner decisions.
+
+### 2026-10-06 implementation slice
+
+- [MVP] Added the Paymob EGP provider boundary with hosted checkout, HMAC webhook verification, and an explicit unconfigured USD provider boundary.
+- [MVP] Added invoice checkout and Paymob webhook routes; verified paid events create the subscription and `INITIAL_PURCHASE` ledger entry atomically and idempotently.
+- [MVP] Added replay/signature/provider tests. Database migration and execution remain blocked until the owner confirms the development database and secret rotation.
+- [VERIFIED] Reviewed the current payment implementation and ran `npm run typecheck`, `npm run lint`, `npx prisma validate`, `npm run build`, and the focused Paymob Jest suite (3/3) from `webapp`.
+- [OPEN] Reports, SessionStudents attendance settlement, PayrollLedger, TeacherRates, invoice UI, raw SQL ledger constraints/triggers, and real-Postgres transaction tests remain before Phase 6 can be marked complete.
