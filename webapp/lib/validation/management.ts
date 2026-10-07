@@ -105,6 +105,11 @@ export const sessionUpdateSchema = z.object({
 
 export const replacementSessionSchema = sessionCreateSchema;
 
+export const sessionChangeRequestSchema = z.object({
+  reason: z.string().trim().min(2).max(1000),
+  proposedChange: z.string().trim().min(2).max(2000),
+});
+
 export const sessionReportSchema = z.object({
   attendanceOutcome: z.enum(["ATTENDED", "STUDENT_ABSENT"]),
   classRemark: z.string().trim().min(2).max(200),

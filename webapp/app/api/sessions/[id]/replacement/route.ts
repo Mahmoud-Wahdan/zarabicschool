@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
-import { reserveCredit } from "../../route";
+import { reserveCredit, runSerializable } from "../../route";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
   if (durationMinutes <= 0 || durationMinutes > 720) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Session duration must be between 1 and 720 minutes." } }, { status: 400 });
   try {
-    const replacement = await prisma.$transaction(async (tx) => {
+    const replacement = await runSerializable(async (tx) => {
       const teacherSubject = await tx.teacherSubject.findFirst({ where: { academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId } });
       const students = await tx.student.findMany({ where: { id: { in: data.studentIds }, academyId: user.academyId, user: { isActive: true } }, select: { id: true } });
       if (!teacherSubject || students.length !== new Set(data.studentIds).size) throw new Error("SESSION_PARTICIPANTS_INVALID");
@@ -32,15 +32,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           sessionType: data.sessionType, scheduledStart: start, scheduledEnd: end,
           durationMinutes, timezone: data.timezone, zoomJoinUrl: data.zoomJoinUrl,
           zoomHostUrl: data.zoomHostUrl || null, replacementForSessionId: sourceSessionId,
+          createdById: user.id,
           students: { create: data.studentIds.map((studentId) => ({ studentId })) },
         },
         select: { id: true, replacementForSessionId: true },
       });
       for (const studentId of new Set(data.studentIds)) {
-        if (!(await reserveCredit(tx, user.academyId, studentId, created.id))) throw new Error("INSUFFICIENT_SESSION_CREDIT");
+        if (!(await reserveCredit(tx, user.academyId, studentId, created.id, start))) throw new Error("INSUFFICIENT_SESSION_CREDIT");
       }
       return created;
-    }, { isolationLevel: "Serializable" });
+    });
     return NextResponse.json({ data: replacement }, { status: 201 });
   } catch (cause) {
     if (cause instanceof Error && cause.message === "INSUFFICIENT_SESSION_CREDIT") return NextResponse.json({ error: { code: "INSUFFICIENT_SESSION_CREDIT", message: "One or more students do not have an available session credit." } }, { status: 409 });

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../generated/prisma/client";
 
 import { requireApiRoles } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { enqueueSessionJobs } from "../../../lib/notifications/session-jobs";
 import { sessionCreateSchema } from "../../../lib/validation/management";
 
 export async function reserveCredit(
@@ -10,10 +11,22 @@ export async function reserveCredit(
   academyId: string,
   studentId: string,
   sessionId: string,
+  sessionDate: Date,
 ) {
   const subscriptions = await tx.subscription.findMany({
-    where: { academyId, studentId, status: "ACTIVE" },
-    orderBy: { createdAt: "asc" },
+    where: {
+      academyId,
+      studentId,
+      status: "ACTIVE",
+      OR: [
+        { packageType: "PAY_PER_SESSION" },
+        {
+          periodStartsAt: { lte: sessionDate },
+          periodEndsAt: { gt: sessionDate },
+        },
+      ],
+    },
+    orderBy: [{ periodEndsAt: "asc" }, { createdAt: "asc" }],
     include: {
       ledgerEntries: { select: { sessionsDelta: true } },
       reservations: { where: { status: "RESERVED" }, select: { id: true } },
@@ -24,10 +37,59 @@ export async function reserveCredit(
     return balance - item.reservations.length > 0;
   });
   if (!subscription) return false;
-  await tx.sessionReservation.create({
-    data: { academyId, sessionId, studentId, subscriptionId: subscription.id },
-  });
+  const existing = await tx.sessionReservation.findUnique({ where: { sessionId_studentId: { sessionId, studentId } } });
+  if (existing) {
+    if (existing.status === "RESERVED" || existing.status === "CONSUMED") return false;
+    await tx.sessionReservation.update({
+      where: { id: existing.id },
+      data: { status: "RESERVED", releasedAt: null, subscriptionId: subscription.id },
+    });
+  } else {
+    await tx.sessionReservation.create({
+      data: { academyId, sessionId, studentId, subscriptionId: subscription.id },
+    });
+  }
   return true;
+}
+
+export async function hasAvailableCredit(
+  tx: Prisma.TransactionClient,
+  academyId: string,
+  studentId: string,
+  sessionDate: Date,
+) {
+  const subscriptions = await tx.subscription.findMany({
+    where: {
+      academyId,
+      studentId,
+      status: "ACTIVE",
+      OR: [
+        { packageType: "PAY_PER_SESSION" },
+        { periodStartsAt: { lte: sessionDate }, periodEndsAt: { gt: sessionDate } },
+      ],
+    },
+    include: {
+      ledgerEntries: { select: { sessionsDelta: true } },
+      reservations: { where: { status: "RESERVED" }, select: { id: true } },
+    },
+  });
+  return subscriptions.some((subscription) => {
+    const balance = subscription.ledgerEntries.reduce((total, entry) => total + entry.sessionsDelta, 0);
+    return balance > subscription.reservations.length;
+  });
+}
+
+export async function runSerializable<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, { isolationLevel: "Serializable" });
+    } catch (cause) {
+      if (!(cause instanceof Prisma.PrismaClientKnownRequestError) || cause.code !== "P2034" || attempt === 2) {
+        throw cause;
+      }
+    }
+  }
+  throw new Error("Serializable transaction retry limit reached.");
 }
 
 export async function GET(request: Request) {
@@ -50,7 +112,11 @@ export async function GET(request: Request) {
       students: { select: { studentId: true, attendanceStatus: true, student: { select: { user: { select: { displayName: true } } } } } },
     },
   });
-  return NextResponse.json({ data: sessions });
+  const data = sessions.map(({ zoomHostUrl, ...session }) => ({
+    ...session,
+    ...(user.role === "ADMIN" || user.role === "SUPERVISOR" || user.role === "TEACHER" ? { zoomHostUrl } : {}),
+  }));
+  return NextResponse.json({ data });
 }
 
 export async function POST(request: Request) {
@@ -73,7 +139,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "A student cannot be selected twice." } }, { status: 400 });
   }
   try {
-    const session = await prisma.$transaction(async (tx) => {
+    const session = await runSerializable(async (tx) => {
       const teacherSubject = await tx.teacherSubject.findFirst({
         where: { academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId },
       });
@@ -94,15 +160,41 @@ export async function POST(request: Request) {
           timezone: data.timezone,
           zoomJoinUrl: data.zoomJoinUrl,
           zoomHostUrl: data.zoomHostUrl || null,
+          createdById: user.id,
           students: { create: uniqueStudentIds.map((studentId) => ({ studentId })) },
         },
         select: { id: true },
       });
+      const recipients = await tx.session.findUniqueOrThrow({
+        where: { id: created.id },
+        select: {
+          teacher: { select: { userId: true } },
+          students: {
+            select: {
+              student: {
+                select: {
+                  userId: true,
+                  guardian: { select: { userId: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+      await enqueueSessionJobs(
+        tx,
+        user.academyId,
+        created.id,
+        start,
+        recipients.teacher.userId,
+        recipients.students.map(({ student }) => student.userId),
+        recipients.students.flatMap(({ student }) => student.guardian ? [student.guardian.userId] : []),
+      );
       for (const studentId of uniqueStudentIds) {
-        if (!(await reserveCredit(tx, user.academyId, studentId, created.id))) throw new Error("INSUFFICIENT_SESSION_CREDIT");
+        if (!(await reserveCredit(tx, user.academyId, studentId, created.id, start))) throw new Error("INSUFFICIENT_SESSION_CREDIT");
       }
       return created;
-    }, { isolationLevel: "Serializable" });
+    });
     return NextResponse.json({ data: session }, { status: 201 });
   } catch (cause) {
     if (cause instanceof Error && cause.message === "INSUFFICIENT_SESSION_CREDIT") {
