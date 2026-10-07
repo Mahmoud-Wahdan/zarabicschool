@@ -6,6 +6,7 @@ generator client {
 enum SessionReservationStatus {
   RESERVED
   RELEASED
+  CONSUMED
 }
 
 model Report {
@@ -43,6 +44,7 @@ model Report {
   approvedBy            User?            @relation("ReportApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   rejectedBy            User?            @relation("ReportRejectedBy", fields: [rejectedById], references: [id], onDelete: Restrict)
   extraTimeReviewedBy   User?            @relation("ReportExtraTimeReviewer", fields: [extraTimeReviewedById], references: [id], onDelete: Restrict)
+  subscriptionDeductions SubscriptionLedger[] @relation("LedgerReport")
 
   @@unique([sessionId, studentId, reportType])
   @@index([academyId, status, submittedAt])
@@ -121,6 +123,7 @@ enum PaymentAttemptStatus {
 
 enum SubscriptionPackageType {
   MONTHLY_PLAN
+  ANNUAL_PLAN
   PAY_PER_SESSION
 }
 
@@ -134,8 +137,30 @@ enum SubscriptionStatus {
 enum SubscriptionLedgerEntryType {
   INITIAL_PURCHASE
   SESSION_DEDUCTION
+  EXPIRY
   ADMIN_ADJUSTMENT
   REFUND
+}
+
+enum RecurrenceSeriesStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationJobStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum SessionChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum SessionStatus {
@@ -197,6 +222,9 @@ model Academy {
   sessions        Session[]
   reservations    SessionReservation[]
   reports         Report[] @relation("ReportAcademy")
+  recurrenceSeries RecurrenceSeries[]
+  notificationJobs NotificationJob[]
+  sessionChangeRequests SessionChangeRequest[]
 
   @@map("academies")
 }
@@ -230,6 +258,11 @@ model User {
   approvedReports         Report[] @relation("ReportApprovedBy")
   rejectedReports         Report[] @relation("ReportRejectedBy")
   extraTimeReports        Report[] @relation("ReportExtraTimeReviewer")
+  recurrenceSeries         RecurrenceSeries[]
+  notificationJobs         NotificationJob[]
+  reviewedSessionChangeRequests SessionChangeRequest[] @relation("SessionChangeRequestReviewer")
+  createdSessions         Session[] @relation("SessionCreatedBy")
+  cancelledSessions       Session[] @relation("SessionCancelledBy")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -252,6 +285,7 @@ model Subject {
   academy       Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
   teacherSubjects TeacherSubject[]
   sessions       Session[]
+  recurrenceSeries RecurrenceSeries[]
 
   @@unique([academyId, slug])
   @@index([academyId, isActive, sortOrder])
@@ -358,8 +392,11 @@ model Session {
   zoomJoinUrl           String        @map("zoom_join_url")
   zoomHostUrl           String?       @map("zoom_host_url")
   recurrenceGroupId     String?       @map("recurrence_group_id") @db.Uuid
+  recurrenceWeekIndex   Int?          @map("recurrence_week_index")
   replacementForSessionId String?     @map("replacement_for_session_id") @db.Uuid
   cancellationReason    String?       @map("cancellation_reason")
+  createdById           String        @map("created_by") @db.Uuid
+  cancelledById         String?       @map("cancelled_by") @db.Uuid
   status                SessionStatus @default(SCHEDULED)
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -368,14 +405,21 @@ model Session {
   subject               Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   replacementFor        Session?      @relation("SessionReplacement", fields: [replacementForSessionId], references: [id], onDelete: Restrict)
   replacements           Session[]     @relation("SessionReplacement")
+  recurrenceSeries       RecurrenceSeries? @relation(fields: [recurrenceGroupId], references: [id], onDelete: Restrict)
+  createdBy               User          @relation("SessionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy             User?         @relation("SessionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   students              SessionStudent[]
   joinClicks             SessionJoinClick[]
   reports              Report[]
   reservations        SessionReservation[]
+  notificationJobs     NotificationJob[]
+  subscriptionDeductions SubscriptionLedger[] @relation("LedgerSession")
+  changeRequests       SessionChangeRequest[]
 
   @@index([academyId, scheduledStart, status])
   @@index([teacherId, scheduledStart])
   @@index([recurrenceGroupId])
+  @@unique([recurrenceGroupId, recurrenceWeekIndex])
   @@map("sessions")
 }
 
@@ -459,15 +503,89 @@ model SubscriptionLedger {
   academyId      String                        @map("academy_id") @db.Uuid
   subscriptionId String                        @map("subscription_id") @db.Uuid
   invoiceId      String?                       @map("invoice_id") @db.Uuid
+  sessionId      String?                       @map("session_id") @db.Uuid
+  reportId       String?                       @map("report_id") @db.Uuid
   entryType      SubscriptionLedgerEntryType   @map("entry_type")
   sessionsDelta  Int                           @map("sessions_delta")
   createdAt      DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
   academy        Academy                       @relation(fields: [academyId], references: [id], onDelete: Restrict)
   subscription   Subscription                  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
   invoice        Invoice?                      @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  session        Session?                      @relation("LedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  report         Report?                       @relation("LedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
 
   @@index([subscriptionId, createdAt])
+  @@index([sessionId])
   @@map("subscription_ledger")
+}
+
+model RecurrenceSeries {
+  id                  String               @id @default(uuid()) @db.Uuid
+  academyId           String               @map("academy_id") @db.Uuid
+  teacherId           String               @map("teacher_id") @db.Uuid
+  subjectId           String               @map("subject_id") @db.Uuid
+  sessionType          SessionType         @map("session_type")
+  recurrenceRule       Json                 @map("recurrence_rule")
+  timezone             String
+  startDate            DateTime             @map("start_date") @db.Date
+  totalWeeks           Int                  @map("total_weeks")
+  generatedThroughWeek Int                  @default(-1) @map("generated_through_week")
+  status               RecurrenceSeriesStatus @default(ACTIVE)
+  createdById          String               @map("created_by") @db.Uuid
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy             Academy              @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  teacher             Teacher              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject             Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  createdBy           User                 @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  sessions            Session[]
+
+  @@index([academyId, status])
+  @@index([teacherId, status])
+  @@map("recurrence_series")
+}
+
+model NotificationJob {
+  id             String               @id @default(uuid()) @db.Uuid
+  academyId      String               @map("academy_id") @db.Uuid
+  sessionId      String               @map("session_id") @db.Uuid
+  recipientUserId String               @map("recipient_user_id") @db.Uuid
+  kind           String
+  scheduledFor   DateTime             @map("scheduled_for") @db.Timestamptz(6)
+  status         NotificationJobStatus @default(PENDING)
+  attempts       Int                  @default(0)
+  lastError      String?              @map("last_error")
+  sentAt         DateTime?            @map("sent_at") @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy        Academy              @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  session        Session?             @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  recipientUser  User                 @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, recipientUserId, kind])
+  @@index([academyId, status, scheduledFor])
+  @@map("notification_jobs")
+}
+
+model SessionChangeRequest {
+  id                String                    @id @default(uuid()) @db.Uuid
+  academyId         String                    @map("academy_id") @db.Uuid
+  sessionId         String                    @map("session_id") @db.Uuid
+  teacherId         String                    @map("teacher_id") @db.Uuid
+  reason            String
+  proposedChange    String                    @map("proposed_change")
+  status            SessionChangeRequestStatus @default(PENDING)
+  reviewedById      String?                   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime?                 @map("reviewed_at") @db.Timestamptz(6)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy           Academy                   @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  session           Session                   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  teacher           Teacher                   @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  reviewedBy        User?                     @relation("SessionChangeRequestReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status, createdAt])
+  @@map("session_change_requests")
 }
 
 model Teacher {
@@ -481,6 +599,8 @@ model Teacher {
   subjects  TeacherSubject[]
   sessions  Session[]
   reports   Report[] @relation("ReportTeacher")
+  recurrenceSeries RecurrenceSeries[]
+  changeRequests SessionChangeRequest[]
 
   @@index([academyId])
   @@map("teachers")

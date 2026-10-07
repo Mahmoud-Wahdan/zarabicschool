@@ -301,6 +301,7 @@ async function main() {
         durationMinutes: 60,
         timezone: "Africa/Cairo",
         zoomJoinUrl: "https://zoom.us/j/demo-session",
+        createdById: admin.id,
         status: "SCHEDULED",
       },
       create: {
@@ -314,6 +315,7 @@ async function main() {
         durationMinutes: 60,
         timezone: "Africa/Cairo",
         zoomJoinUrl: "https://zoom.us/j/demo-session",
+        createdById: admin.id,
         status: "SCHEDULED",
       },
     });
