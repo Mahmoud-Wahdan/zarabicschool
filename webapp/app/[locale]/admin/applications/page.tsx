@@ -41,7 +41,7 @@ export default async function AdminApplicationsPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string; type?: string; page?: string }>;
 }) {
-  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
+  const user = await requireRoles(["ADMIN"]);
   const { locale } = await params;
   const { status: statusParam, type: typeParam, page: pageParam } = await searchParams;
   const t = await getTranslations({ locale, namespace: "adminApplications" });

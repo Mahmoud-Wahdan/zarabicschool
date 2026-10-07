@@ -8,12 +8,12 @@ import { getClientIp } from "./lib/request";
 
 const handleI18nRouting = createMiddleware(routing);
 
-const roleRoutes = new Map([
-  ["/admin", "ADMIN"],
-  ["/supervisor", "SUPERVISOR"],
-  ["/teacher", "TEACHER"],
-  ["/student", "STUDENT"],
-  ["/guardian", "GUARDIAN"],
+const roleRoutes = new Map<string, string[]>([
+  ["/admin", ["ADMIN"]],
+  ["/supervisor", ["SUPERVISOR"]],
+  ["/teacher", ["TEACHER"]],
+  ["/student", ["STUDENT"]],
+  ["/guardian", ["GUARDIAN"]],
 ]);
 
 function splitLocale(pathname: string) {
@@ -28,6 +28,24 @@ function splitLocale(pathname: string) {
 
 function localizedUrl(path: string, locale: string, base: URL) {
   return new URL(`/${locale}${path === "/" ? "" : path}`, base);
+}
+
+function rolesForRoute(rest: string): string[] | undefined {
+  if (rest === "/admin/applications" || rest.startsWith("/admin/applications/")) {
+    return ["ADMIN"];
+  }
+  if (
+    rest === "/admin/students" || rest.startsWith("/admin/students/") ||
+    rest === "/admin/guardians" || rest.startsWith("/admin/guardians/") ||
+    rest === "/admin/teachers" || rest.startsWith("/admin/teachers/") ||
+    rest === "/admin/subjects" || rest.startsWith("/admin/subjects/")
+    || rest === "/admin/assignments" || rest.startsWith("/admin/assignments/")
+    || rest === "/admin/enrollments" || rest.startsWith("/admin/enrollments/")
+    || rest === "/admin/sessions" || rest.startsWith("/admin/sessions/")
+  ) {
+    return ["ADMIN", "SUPERVISOR"];
+  }
+  return roleRoutes.get(`/${rest.split("/")[1] ?? ""}`);
 }
 
 export async function proxy(req: NextRequest) {
@@ -56,12 +74,12 @@ export async function proxy(req: NextRequest) {
     if (token?.mustChangePassword) {
       return NextResponse.redirect(localizedUrl("/change-password", effectiveLocale, req.nextUrl));
     }
-    const requiredRole = roleRoutes.get(`/${rest.split("/")[1] ?? ""}`);
-    if (requiredRole) {
+    const allowedRoles = rolesForRoute(rest);
+    if (allowedRoles) {
       if (!token) {
         return NextResponse.redirect(localizedUrl("/login", effectiveLocale, req.nextUrl));
       }
-      if (token.role !== requiredRole) {
+      if (!allowedRoles.includes(String(token.role))) {
         const ownDashboard = `/${String(token.role ?? "STUDENT").toLowerCase()}`;
         return NextResponse.redirect(localizedUrl(ownDashboard, effectiveLocale, req.nextUrl));
       }

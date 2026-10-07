@@ -214,14 +214,15 @@
   "dashboard": {
     "emptyState": "Nothing here yet.",
     "roles": {
-      "ADMIN": "Admin",
+      "ADMIN": "SuperAdmin",
+      "SUPERADMIN": "SuperAdmin",
       "SUPERVISOR": "Supervisor",
       "TEACHER": "Teacher",
       "STUDENT": "Student",
       "GUARDIAN": "Guardian"
     },
     "admin": {
-      "title": "Admin dashboard",
+      "title": "SuperAdmin dashboard",
       "welcome": "Welcome, {name}",
       "sections": {
         "applications": "Applications",
@@ -249,6 +250,10 @@
         "students": "students",
         "subjects": "assigned subjects",
         "salaryUnavailable": "Salary history will appear after session reports are approved in the financial phase."
+      },
+      "actions": {
+        "report": "Report",
+        "schedule": "View full schedule"
       }
     },
     "student": {
@@ -291,16 +296,31 @@
   },
   "supervisor": {
     "title": "Supervisor dashboard",
-    "subtitle": "Review applications and operational reports without access to financial data.",
-    "applications": {
-      "title": "Applications",
-      "description": "Review incoming applications and follow their status."
-    },
+    "eyebrow": "Operational control center",
+    "subtitle": "Keep classes, profiles, assignments and session operations moving smoothly without access to applications or financial data.",
     "reports": {
       "title": "Session reports",
       "description": "The report review queue will be connected in Phase 5."
     },
     "restricted": "Supervisor access does not include financial data or Admin/Supervisor management."
+    ,
+    "operations": {
+      "sessions": "Sessions",
+      "activeSessions": "active",
+      "totalSessions": "total",
+      "reports": "Report review",
+      "pendingReports": "pending reports"
+    },
+    "actions": {
+      "students": "Students",
+      "studentsDescription": "Maintain active student profiles and guardian links.",
+      "teachers": "Teachers",
+      "teachersDescription": "Review teaching profiles and operational assignments.",
+      "subjects": "Subjects",
+      "subjectsDescription": "Keep the academy subject catalogue organized.",
+      "enrollments": "Session enrollments",
+      "enrollmentsDescription": "Assign students to the right scheduled sessions."
+    }
     ,
     "metrics": {
       "pending": "New applications",
@@ -336,6 +356,27 @@
       "APPROVED": "Approved",
       "REJECTED": "Rejected"
     }
+  },
+  "privilegedUsers": {
+    "title": "SuperAdmin accounts",
+    "subtitle": "Create, activate, and deactivate Admin and Supervisor accounts.",
+    "created": "Account created."
+  },
+  "teacherReport": {
+    "title": "Session report"
+  },
+  "studentReport": {
+    "title": "Session report",
+    "attendance": "Attendance",
+    "remark": "Class remark",
+    "summary": "Summary",
+    "homework": "Homework",
+    "notes": "Notes",
+    "pending": "The report is not available until it is approved and archived."
+  },
+  "subjectsAdmin": {
+    "title": "Subjects",
+    "subtitle": "Create, order, activate, and deactivate academy subjects."
   },
   "adminApplications": {
     "title": "Applications",

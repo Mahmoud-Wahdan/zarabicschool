@@ -1,13 +1,21 @@
 type SiteConfig = {
   brandName: string;
   tagline: { ar: string; en: string };
-  logo: { src: string | null; alt: string };
+  logo: {
+    alt: string;
+    variations: {
+      horizontal: string | null;
+      vertical: string | null;
+      mark: string | null;
+      navy: string | null;
+      reversed: string | null;
+    };
+  };
   contact: { whatsapp: string | null; email: string | null; address: string | null };
 };
 
-// PLACEHOLDERS (owner decision 2026-10-03): the logo is still being made and contact info
-// comes later. Every placeholder below stays null until the owner provides the real value.
-// Invent nothing — no claims, no prices. Tagline comes from CONTEXT.md §3 (confirmed).
+// Logo files stay null until the owner provides the exports from the brand PDF.
+// Do not recreate the mark in code. Tagline comes from CONTEXT.md §3.
 export const siteConfig: SiteConfig = {
   brandName: "Zarabicschool",
   tagline: {
@@ -15,8 +23,14 @@ export const siteConfig: SiteConfig = {
     en: "Learn Arabic & Quran... with a foundation that lights your heart",
   },
   logo: {
-    src: null,
     alt: "Zarabicschool",
+    variations: {
+      horizontal: null,
+      vertical: null,
+      mark: null,
+      navy: null,
+      reversed: null,
+    },
   },
   contact: {
     whatsapp: null,

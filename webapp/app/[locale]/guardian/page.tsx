@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { Link } from "../../../i18n/navigation";
 
 export const metadata = { title: "لوحة ولي الأمر | Zarabicschool" };
 
@@ -59,6 +60,7 @@ export default async function GuardianDashboard() {
           ))}
         </div>
       </section>
+      <Link href="/guardian/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">View family schedule</Link>
       <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("guardian.sections.reports")}</h2>
         <p className="mt-2 text-sm opacity-70">{t("guardian.metrics.reportsUnavailable")}</p>

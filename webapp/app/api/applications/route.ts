@@ -21,7 +21,7 @@ const validTypes = new Set(["GUARDIAN", "STUDENT", "TEACHER"]);
 type ApplicationDetails = { full_name?: string };
 
 export async function GET(request: Request) {
-  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
+  const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
 
   const url = new URL(request.url);

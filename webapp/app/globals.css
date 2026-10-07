@@ -8,6 +8,15 @@
   --gold: #d4af37;
   --line: #dfe5e2;
   --surface: #ffffff;
+  --status-pending: #d4af37;
+  --status-info: #3b82f6;
+  --status-success: #10b981;
+  --status-danger: #ef4444;
+  --dashboard-shadow: 0 10px 30px rgb(27 54 93 / 0.07);
+  --brand-clear-space: 1rem;
+  --brand-neutral-ratio: 60%;
+  --brand-primary-ratio: 30%;
+  --brand-accent-ratio: 10%;
 }
 
 @theme inline {
@@ -88,6 +97,23 @@ button, input, select, textarea { font: inherit; }
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 8px 24px rgb(27 54 93 / 0.06);
 }
+
+.dashboard-card {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-metric {
+  border-radius: 0.875rem;
+  padding: 1rem;
+}
+
+.dashboard-metric--navy { background: rgb(27 54 93 / 0.08); }
+.dashboard-metric--emerald { background: rgb(0 137 123 / 0.1); }
+.dashboard-metric--gold { background: rgb(212 175 55 / 0.14); }
+.dashboard-metric--info { background: rgb(59 130 246 / 0.1); }
 
 .lift-card:hover {
   transform: translateY(-4px);

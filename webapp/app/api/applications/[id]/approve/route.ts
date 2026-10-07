@@ -19,7 +19,7 @@ export async function POST(
     return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
   }
 
-  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
+  const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
 
   const { id } = await params;

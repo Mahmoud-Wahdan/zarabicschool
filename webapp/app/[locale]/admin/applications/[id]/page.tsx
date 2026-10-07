@@ -26,7 +26,7 @@ export default async function AdminApplicationDetailPage({
 }: {
   params: Promise<{ locale: string; id: string }>;
 }) {
-  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
+  const user = await requireRoles(["ADMIN"]);
   const { locale, id } = await params;
   const t = await getTranslations({ locale, namespace: "adminApplications" });
   const application = await prisma.application.findFirst({

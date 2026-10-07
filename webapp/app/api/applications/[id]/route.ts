@@ -16,7 +16,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
+  const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
 
   const { id } = await params;

@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { Link } from "../../../i18n/navigation";
 
 export const metadata = { title: "لوحة المعلمة | Zarabicschool" };
 
@@ -12,18 +13,19 @@ export default async function TeacherDashboard() {
   const teacher = await prisma.teacher.findUnique({
     where: { userId: user.id },
     select: {
+      id: true,
       subjects: { select: { subject: { select: { nameAr: true, nameEn: true } } } },
       sessions: {
-        where: { scheduledStart: { gte: new Date() } },
         orderBy: { scheduledStart: "asc" },
         take: 8,
         select: {
+          id: true,
           scheduledStart: true,
           scheduledEnd: true,
           sessionType: true,
           status: true,
           subject: { select: { nameAr: true, nameEn: true } },
-          students: { select: { student: { select: { user: { select: { displayName: true } } } } } },
+          students: { select: { studentId: true, student: { select: { user: { select: { displayName: true } } } } } },
         },
       },
     },
@@ -48,7 +50,7 @@ export default async function TeacherDashboard() {
         </p>
         <div className="mt-4 space-y-3">
           {teacher?.sessions.map((session) => (
-            <div key={`${session.scheduledStart.toISOString()}-${session.subject.nameEn}`} className="rounded-lg bg-[var(--background)] p-3 text-sm">
+            <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
               <div className="flex flex-wrap justify-between gap-2">
                 <strong>{currentLocale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
                 <span>{formatDate(session.scheduledStart)}</span>
@@ -56,10 +58,22 @@ export default async function TeacherDashboard() {
               <p className="mt-1 opacity-70">
                 {session.students.length} {t("teacher.metrics.students")} · {session.sessionType}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {session.students.map((student) => (
+                  <Link
+                    key={student.studentId}
+                    href={`/teacher/sessions/${session.id}/report?studentId=${student.studentId}`}
+                    className="cta-primary rounded-lg px-3 py-2 text-xs"
+                  >
+                    {t("teacher.actions.report")} · {student.student.user.displayName}
+                  </Link>
+                ))}
+              </div>
             </div>
           ))}
         </div>
       </section>
+      <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">View full schedule</Link>
       <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.reports")}</h2>
         <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">

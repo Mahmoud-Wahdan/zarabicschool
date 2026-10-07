@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { Link } from "../../../i18n/navigation";
 
 export const metadata = { title: "لوحة الطالب | Zarabicschool" };
 
@@ -24,7 +25,7 @@ export default async function StudentDashboard() {
         where: { session: { scheduledStart: { gte: new Date() } } },
         orderBy: { session: { scheduledStart: "asc" } },
         take: 8,
-        select: { attendanceStatus: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
+        select: { attendanceStatus: true, session: { select: { id: true, scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
       },
     },
   });
@@ -57,10 +58,14 @@ export default async function StudentDashboard() {
             <div key={item.session.scheduledStart.toISOString()} className="flex justify-between gap-3 rounded-lg bg-[var(--background)] p-3 text-sm">
               <span>{item.session.subject.nameEn}</span>
               <span>{item.session.scheduledStart.toLocaleString()}</span>
+              <Link href={`/student/sessions/${item.session.id}/report`} className="cta-primary rounded-lg px-3 py-2 text-xs">
+                {t("student.actions.session")}
+              </Link>
             </div>
           ))}
         </div>
       </section>
+      <Link href="/student/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">{t("student.actions.schedule")}</Link>
     </DashboardShell>
   );
 }

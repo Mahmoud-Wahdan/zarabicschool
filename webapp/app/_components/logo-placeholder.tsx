@@ -12,7 +12,7 @@ export default async function LogoPlaceholder({
 }) {
   const t = await getTranslations("brand");
   const name = t("name");
-  const src = siteConfig.logo.src;
+  const src = siteConfig.logo.variations.mark;
 
   if (src) {
     return (
@@ -29,17 +29,13 @@ export default async function LogoPlaceholder({
 
   return (
     <span
-      className={`flex h-full w-full items-end justify-center overflow-hidden border-2 border-[var(--gold)] bg-transparent ${
-        inverted ? "text-white" : "text-[var(--navy)]"
+      className={`flex h-full w-full items-center justify-center rounded-lg border border-dashed border-[var(--line)] px-1 text-center text-[0.6rem] font-semibold leading-tight ${
+        inverted ? "text-white/80" : "text-[var(--navy)]/70"
       }`}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: `${size}px ${size}px ${size * 0.18}px ${size * 0.18}px / ${size}px ${size}px ${size * 0.42}px ${size * 0.42}px`,
-      }}
+      style={{ width: size, height: size }}
       aria-label={name}
     >
-      <span className="mb-[18%] px-1 text-center text-[0.65rem] font-bold leading-tight">{name}</span>
+      {name}
     </span>
   );
 }

@@ -214,14 +214,15 @@
   "dashboard": {
     "emptyState": "لا توجد بيانات بعد.",
     "roles": {
-      "ADMIN": "إدارة",
+      "ADMIN": "SuperAdmin",
+      "SUPERADMIN": "SuperAdmin",
       "SUPERVISOR": "مشرف",
       "TEACHER": "معلمة",
       "STUDENT": "طالب",
       "GUARDIAN": "ولي أمر"
     },
     "admin": {
-      "title": "لوحة الإدارة",
+      "title": "لوحة SuperAdmin",
       "welcome": "مرحبًا {name}",
       "sections": {
         "applications": "الطلبات",
@@ -249,6 +250,10 @@
         "students": "طلاب",
         "subjects": "مواد مكلّفة",
         "salaryUnavailable": "سجل الراتب سيظهر بعد اعتماد تقارير الجلسات في المرحلة المالية."
+      },
+      "actions": {
+        "report": "التقرير",
+        "schedule": "عرض الجدول الكامل"
       }
     },
     "student": {
@@ -291,17 +296,31 @@
   },
   "supervisor": {
     "title": "لوحة المشرف",
-    "subtitle": "مراجعة الطلبات والتقارير التشغيلية دون الوصول إلى البيانات المالية.",
-    "applications": {
-      "title": "طلبات التسجيل",
-      "description": "مراجعة طلبات المتقدمين ومتابعة حالتها."
-    },
+    "eyebrow": "مركز التحكم التشغيلي",
+    "subtitle": "حافظ على انتظام الحصص والملفات والتكليفات والعمليات التشغيلية دون الوصول إلى طلبات التسجيل أو البيانات المالية.",
     "reports": {
       "title": "تقارير الجلسات",
       "description": "سيتم ربط طابور مراجعة التقارير في المرحلة الخامسة."
     },
     "restricted": "لا تشمل صلاحيات المشرف إدارة المستخدمين الإداريين أو البيانات المالية."
     ,
+    "operations": {
+      "sessions": "الحصص",
+      "activeSessions": "نشطة",
+      "totalSessions": "إجمالي",
+      "reports": "مراجعة التقارير",
+      "pendingReports": "تقارير معلقة"
+    },
+    "actions": {
+      "students": "الطلاب",
+      "studentsDescription": "إدارة ملفات الطلاب النشطة وروابط أولياء الأمور.",
+      "teachers": "المعلمون",
+      "teachersDescription": "مراجعة ملفات المعلمين والتكليفات التشغيلية.",
+      "subjects": "المواد",
+      "subjectsDescription": "تنظيم قائمة المواد التعليمية في الأكاديمية.",
+      "enrollments": "تسجيل الحصص",
+      "enrollmentsDescription": "إسناد الطلاب إلى الحصص المجدولة الصحيحة."
+    },
     "metrics": {
       "pending": "طلبات جديدة",
       "reviewed": "تمت مراجعتها",
@@ -336,6 +355,27 @@
       "APPROVED": "مقبول",
       "REJECTED": "مرفوض"
     }
+  },
+  "privilegedUsers": {
+    "title": "حسابات SuperAdmin",
+    "subtitle": "إنشاء وتفعيل وتعطيل حسابات الإدارة والمشرفين.",
+    "created": "تم إنشاء الحساب."
+  },
+  "teacherReport": {
+    "title": "تقرير الحصة"
+  },
+  "studentReport": {
+    "title": "تقرير الحصة",
+    "attendance": "الحضور",
+    "remark": "ملاحظة الحصة",
+    "summary": "الملخص",
+    "homework": "الواجب",
+    "notes": "ملاحظات",
+    "pending": "لن يظهر التقرير إلا بعد اعتماده وأرشفته."
+  },
+  "subjectsAdmin": {
+    "title": "المواد",
+    "subtitle": "إنشاء وترتيب وتفعيل وتعطيل مواد الأكاديمية."
   },
   "adminApplications": {
     "title": "طلبات الانضمام",
