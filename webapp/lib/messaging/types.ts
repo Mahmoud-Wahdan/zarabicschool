@@ -18,4 +18,5 @@ export interface MessagingProvider {
     recipient: MessagingRecipient,
     credentials: MessagingCredentials
   ): Promise<MessagingSendResult>;
+  sendText(recipient: MessagingRecipient, message: string): Promise<MessagingSendResult>;
 }

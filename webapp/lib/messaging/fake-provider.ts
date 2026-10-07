@@ -16,6 +16,12 @@ export class FakeMessagingProvider implements MessagingProvider {
     console.log(`[fake-messaging] credentials prepared for user ${recipient.userId}`);
     return { ok: true };
   }
+
+  async sendText(recipient: MessagingRecipient, message: string): Promise<MessagingSendResult> {
+    void message;
+    console.log(`[fake-messaging] message prepared for user ${recipient.userId}`);
+    return { ok: true };
+  }
 }
 
 export const fakeMessagingProvider: MessagingProvider = new FakeMessagingProvider();
