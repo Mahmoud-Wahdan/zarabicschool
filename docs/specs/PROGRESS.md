@@ -9,10 +9,10 @@
 | # | Phase | Status | Last Updated | Note |
 |---|-------|--------|--------------|------|
 | 1 | Foundation | Complete | 2026-10-06 | Auth/RBAC, username login, forced-password and Supervisor boundaries verified; development DB seeded; 40 tests, clean handle exit, static checks, and build pass |
-| 2 | Educational Management | In Progress | 2026-10-06 | Application/provisioning slice and profile migration verified on development DB; CRUD/profile surfaces and integration coverage remain |
-| 3 | Schedules & Sessions | In Progress | 2026-10-06 | Initial Session/SessionStudent schema slice added; APIs/UI, migration, recurrence, replacement, and tests remain |
+| 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
+| 3 | Schedules & Sessions | In Progress | 2026-10-06 | Session APIs/UI, recurring/replacement flows, and credit reservation slice added; migration deployment, OpenWA notifications, timezone rendering, and tests remain |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
-| 5 | Session Reports & Attendance | Not Started | 2026-09-30 | Reports are attendance evidence and pay trigger |
+| 5 | Session Reports & Attendance | In Progress | 2026-09-30 | Teacher per-student submission and review API/UI are implemented; queue, tests, and settlement handoff remain |
 | 6 | Financial Management | In Progress | 2026-10-06 | Paymob EGP checkout/webhook and initial subscription settlement slice verified; reports/payroll and migration remain |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | Not Started | 2026-09-28 | — |
@@ -44,6 +44,14 @@ Final Phase 1 closure on 2026-10-06: added focused Auth.js/RBAC coverage for use
 Post-closure auth fix on 2026-10-06: fixed the forced-password redirect loop caused by a stale Auth.js JWT after the password update; the change-password form now refreshes the credentials session before redirecting to the role dashboard. Added a request-level in-memory limiter in `proxy.ts` for dynamic page and API requests (120 requests per IP per minute), while endpoint-specific limiters remain in place.
 
 Role dashboard data pass on 2026-10-06: replaced the Supervisor placeholder cards with academy-scoped application status counts, active profile counts, active subject count, and a recent application table. Admin now fetches open applications and active profile/subject totals; Teacher fetches assigned subjects and upcoming sessions with enrolled students; Student fetches upcoming session attendance rows; Guardian fetches linked children, upcoming sessions, and remaining sessions computed from active subscription ledger entries. Reports, homework, salary history, and other features without models remain explicitly unavailable until their documented phases add the required schema.
+
+Phase 2 control-surface pass on 2026-10-06: retained `ADMIN` as the internal full-control role and presented it as SuperAdmin in the UI. Added academy-scoped SuperAdmin CRUD for Admin/Supervisor accounts with direct privileged provisioning, activation/deactivation, self-lockout protection, and last-active-SuperAdmin protection. Fixed Supervisor application actions by allowing the already-authorized operational `/admin/applications` routes through the proxy. Added centralized dashboard status/metric tokens and metrics-first SuperAdmin/Supervisor presentation. Educational profile CRUD and Teacher–Subject relationship management remain open.
+
+Phase 2 subject CRUD slice on 2026-10-06: added academy-scoped Subject creation, update, activation/deactivation, duplicate-slug conflict handling, localized Admin UI, and management validation tests. Student/guardian/teacher CRUD and Teacher–Subject relationship management remain open.
+
+Phase 2 profile/relationship pass on 2026-10-06: added academy-scoped Student, Guardian, and Teacher CRUD surfaces with temporary-password account creation and safe activation/deactivation, guarded Guardian–Student linking, duplicate-protected Teacher–Subject assignment with UI, and SessionStudent enrollment APIs with academy/subject/unique-pair safeguards. Management Zod schemas, typecheck, lint, build, and focused validation tests pass. Enrollment management UI and database-backed authorization/relationship tests remain.
+
+Brand alignment pass on 2026-10-06: reconciled the Context with the supplied logo variations, clear-space rule, 60/30/10 color guidance, and typography guidance. Added nullable logo-variation slots in site configuration and removed the code-drawn mihrab fallback; approved brand exports remain required before real logo assets are wired.
 
 ## Action Items
 

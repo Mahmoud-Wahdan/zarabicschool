@@ -84,17 +84,17 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Add Prisma schema: `Sessions`, `SessionStudents`
-- [ ] Run migration
-- [ ] Build Admin single session creation UI (1:1 and group 1:N)
-- [ ] Build Admin weekly recurring session generator (batch scheduling)
-- [ ] Build Admin replacement session creation flow (`replacement_for_session_id`)
-- [ ] Build Admin session management list (filter, cancel, reschedule)
-- [ ] Build Teacher schedule dashboard
-- [ ] Build Student schedule dashboard
-- [ ] Build Guardian consolidated schedule dashboard
+- [x] Add Prisma schema: `Sessions`, `SessionStudents` *(existing session slice plus credit reservation model)*
+- [ ] Run migration *(migration generated; development database application is pending connectivity)*
+- [x] Build Admin single session creation UI (1:1 and group 1:N)
+- [x] Build Admin weekly recurring session generator (API batch generation)
+- [x] Build Admin replacement session creation flow (`replacement_for_session_id`)
+- [x] Build Admin session management list (initial list and cancel flow; filters/reschedule remain)
+- [x] Build Teacher schedule dashboard
+- [x] Build Student schedule dashboard
+- [x] Build Guardian consolidated schedule dashboard
 - [ ] Implement timezone-aware schedule display for all roles
-- [ ] Add Zod validation schemas for single and recurring session inputs
+- [x] Add Zod validation schemas for single and recurring session inputs
 - [ ] Write tests: session CRUD, recurring generation, replacement session linking, authorization
 - [ ] REMOVED — Zoom REST meeting creation, registration, participant-specific links, and event-derived attendance.
 
@@ -106,3 +106,4 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - Scheduling APIs/UI, recurrence generation, replacement flow, timezone views, prepaid-session guard, migration, and authorization tests are still not present.
 - 2026-10-06 database verification: the session/payment migration was applied during the confirmed development reset, and the demo seed created one future session with one explicit `PENDING` student assignment and one optional click-audit row. No scheduling behavior is claimed complete from seed data alone.
 - The implementation must use manually pasted Zoom links, explicit per-student participants, UTC storage with IANA display, and audited Admin overrides; it must not introduce Zoom API/event attendance.
+- 2026-10-06 implementation slice: added session create/list/update/replacement/recurrence APIs, prepaid credit reservation persistence, Admin/Supervisor session management UI, and role-scoped Teacher/Student/Guardian schedule pages. Database deployment of the reservation migration is pending a temporary database connectivity failure; OpenWA scheduling and timezone-specific rendering remain.

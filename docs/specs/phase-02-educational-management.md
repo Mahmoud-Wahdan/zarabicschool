@@ -41,7 +41,7 @@ Touches `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects`, `Enr
 |---|---:|---:|---:|---:|
 | Public | Yes | No | No | No |
 | Admin | Yes | Yes | Yes | Yes |
-| Supervisor | No | Yes (operational only) | Yes (operational profiles) | Yes; no money or Admin/Supervisor management |
+| Supervisor | No | No | Yes (operational profiles) | Yes; no applications, money, or Admin/Supervisor management |
 | Teacher/Student/Guardian | No | No | Own limited view | No |
 
 Server-side ownership checks prevent cross-student and cross-guardian access.
@@ -85,22 +85,26 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [x] Add Prisma schema: `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects` *(schema and un-applied Phase 2 migration are in the working tree; database application remains pending)*
+- [x] Add Prisma schema: `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects` *(applied and verified on the development database)*
 - [x] Add Prisma schema: `Applications` (supporting Guardian, Student, Teacher applicant types) *(existing init schema extended with review/provisioning fields)*
-- [ ] Run migrations *(blocked pending explicit development-database confirmation)*
+- [x] Run migrations *(development database reset and migration application verified on 2026-10-06)*
 - [x] Build public landing page application forms (3 tabs: Guardian, Student, Teacher)
 - [x] Build admin application inbox & review UI (validate, accept, reject) *(list, detail, review/reject/approve actions, loading/error states)*
 - [x] Build automated account provisioning flow on admin acceptance (User + profile + fake messaging provider) *(OpenWA delivery remains deferred behind `MessagingProvider`)*
-- [ ] Build admin CRUD: Students
-- [ ] Build admin CRUD: Guardians
-- [ ] Build admin CRUD: Teachers
-- [ ] Build admin CRUD: Subjects
-- [ ] Build admin UI: Teacher–Subject assignment (many-to-many)
-- [ ] Build teacher dashboard: view assigned students and subjects
-- [ ] Build guardian dashboard: view linked children
-- [ ] Build student dashboard: view own profile and assigned subjects
-- [ ] Add Zod validation schemas for all entities
-- [ ] Write tests: CRUD operations, authorization, relationships
+- [x] Build admin CRUD: Students *(academy-scoped create, update, activation/deactivation API and UI)*
+- [x] Build admin CRUD: Guardians *(academy-scoped create, update, activation/deactivation API and UI)*
+- [x] Build admin CRUD: Teachers *(academy-scoped create, update, activation/deactivation API and UI)*
+- [x] Build admin CRUD: Subjects *(academy-scoped create, update, activate/deactivate API and localized UI)*
+- [x] Build admin UI: Teacher–Subject assignment (many-to-many) *(duplicate-protected API and UI)*
+- [x] Build teacher dashboard: view assigned students and subjects *(server-side data fetch and metrics)*
+- [x] Build guardian dashboard: view linked children *(server-side data fetch and session balances)*
+- [x] Build student dashboard: view own profile and assigned subjects *(server-side data fetch and upcoming sessions)*
+- [x] Build SuperAdmin CRUD: Admin/Supervisor activation and deactivation *(privileged account API and UI; profile edit fields remain to be expanded)*
+- [x] Build admin UI: Session enrollment management *(academy-scoped session/student selection, subject/teacher display, duplicate-safe add/remove)*
+- [x] Repair Supervisor operational actions *(shared proxy authorization now permits Supervisor access to the application review surface)*
+- [x] Rework dashboard metric presentation *(real counts, centralized visual tokens, and metrics-first SuperAdmin/Supervisor surfaces)*
+- [x] Add Zod validation schemas for all entities *(profiles, subjects, assignments, and enrollments)*
+- [x] Close Phase 2 implementation scope *(CRUD, relationships, enrollment UI, seed, and migration are complete; database-backed tests explicitly deferred per owner instruction)*
 
 ## Execution log (updated as soon as real work happens)
 
@@ -111,3 +115,9 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - 2026-10-06 verification: the application validation and request helper tests pass, and the full suite passes 33/33 after fixing honeypot parsing and the long-running concurrency test timeout. Profile CRUD, migration execution, and real-Postgres integration coverage remain open.
 - 2026-10-06 database verification: the confirmed development database reset applied the Phase 2 profile migration successfully. Base/demo seeds now provide namespaced accounts, linked guardian/student/teacher profiles, subjects, and an application; CRUD surfaces and broader relationship/authorization integration coverage remain open.
 - 2026-10-06 dashboard data pass: Admin, Teacher, Student, Guardian, and Supervisor role pages now perform server-side Prisma fetches scoped to the authenticated academy/user and display the available profile, subject, application, subscription, and session data. Unsupported report/homework/payroll UI is not faked; it remains gated by the missing Phase 5/6 models.
+- 2026-10-06 control-surface pass: the internal `ADMIN` role is presented as SuperAdmin in the UI. SuperAdmin can create and activate/deactivate Admin and Supervisor accounts through an academy-scoped API/UI with self-lockout and last-active-SuperAdmin guards. The proxy now allows Supervisor access to the existing operational `/admin/applications` routes, fixing dashboard action links. Dashboard status colors and metric cards use centralized CSS tokens; final palette can be adjusted in one place.
+- 2026-10-06 subject CRUD slice: added Zod-validated, academy-scoped Subject create/update/activation APIs and the localized `/admin/subjects` UI. Existing subject uniqueness is surfaced as a 409 conflict, and deactivation is used instead of destructive deletion.
+- 2026-10-06 profile and relationship slice: added academy-scoped Student, Guardian, and Teacher create/list/update/activation APIs and pages; guarded Guardian–Student linking; duplicate-protected Teacher–Subject assignment with UI; and SessionStudent enrollment APIs with academy, subject, and unique-pair safeguards. Enrollment still needs a dedicated management UI, and database-backed authorization tests remain.
+- 2026-10-06 enrollment management slice: added a dedicated `/admin/enrollments` page with server-side academy-scoped sessions/students, add/remove actions, current enrollment lists, and Supervisor route access. Duplicate and subject/teacher safeguards remain enforced by the existing API. Database-backed relationship and authorization tests remain.
+- 2026-10-06 Phase 2 closure: owner requested completion without adding database-backed tests. All implementation and operational scope is complete; tests are deferred to the testing/launch workstream and are not represented as a blocker for this phase.
+- 2026-10-06 Supervisor boundary correction: Supervisor is operational-only and has no access to application list, review, approval, rejection, or provisioning routes; those remain Admin-only.

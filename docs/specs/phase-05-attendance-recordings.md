@@ -83,12 +83,12 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Add/maintain `Reports` with teacher/student FKs, lifecycle timestamps, rejection metadata, and no revision table
-- [ ] Run migration
+- [x] Add/maintain `Reports` with teacher/student FKs, lifecycle timestamps, rejection metadata, and no revision table
+- [x] Run migration
 - [ ] REMOVED — Participant join/leave event consumer and duration computation; Zoom is not an attendance source.
 - [ ] REMOVED — 25% duration absence threshold timer; attendance comes from the teacher report.
-- [ ] Write explicit attendance only from approved report outcomes or audited Admin override
-- [ ] Build Teacher mobile UI for mandatory post-session report submission with student selection for group sessions
+- [x] Write explicit attendance only from approved report outcomes or audited Admin override
+- [x] Build Teacher mobile UI for mandatory post-session report submission with student selection for group sessions
 - [ ] Build Student/Teacher technical outage request submission form
 - [ ] Build Admin outage claim review & replacement session scheduling queue
 - [ ] Build Teacher, Student, and Guardian attendance views
@@ -105,6 +105,6 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ### 2026-10-06 reconciliation
 
-- Phase 5 remains Not Started. Reports, explicit `SessionStudents.attendance_status`, attachments, outage requests, review queues, visibility endpoints, and atomic settlement handoff are not implemented in the current code.
+- Phase 5 is In Progress. Reports, migration, teacher submission, student visibility, and Admin/Supervisor review APIs are implemented. Attachments, outage requests, review queue UI, archival after settlement, and atomic financial settlement remain.
 - The required lifecycle is `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; submission has no financial effect.
 - Student visibility follows Context: students see homework, notes, and attachments; guardians and Admin see the teacher report; evaluations remain Admin-only.
