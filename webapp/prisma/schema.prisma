@@ -3,6 +3,73 @@ generator client {
   output   = "../generated/prisma"
 }
 
+enum SessionReservationStatus {
+  RESERVED
+  RELEASED
+}
+
+model Report {
+  id                    String           @id @default(uuid()) @db.Uuid
+  academyId             String           @map("academy_id") @db.Uuid
+  sessionId             String           @map("session_id") @db.Uuid
+  studentId             String           @map("student_id") @db.Uuid
+  teacherId             String           @map("teacher_id") @db.Uuid
+  reportType            ReportType       @map("report_type")
+  status                ReportStatus     @default(SUBMITTED)
+  attendanceOutcome     AttendanceOutcome @map("attendance_outcome")
+  classRemark           String           @map("class_remark")
+  summary               String
+  homework              String
+  notes                 String?
+  operationalEvents     Json?            @map("operational_events")
+  extraTimeMinutes      Int              @default(0) @map("extra_time_minutes")
+  extraTimeStatus       ExtraTimeStatus  @default(NONE) @map("extra_time_status")
+  extraTimeReviewedById String?          @map("extra_time_reviewed_by") @db.Uuid
+  extraTimeReviewedAt   DateTime?        @map("extra_time_reviewed_at") @db.Timestamptz(6)
+  submittedAt           DateTime         @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  rejectionReason       String?          @map("rejection_reason")
+  rejectedById          String?           @map("rejected_by") @db.Uuid
+  rejectedAt            DateTime?        @map("rejected_at") @db.Timestamptz(6)
+  approvedAt            DateTime?        @map("approved_at") @db.Timestamptz(6)
+  approvedById          String?          @map("approved_by") @db.Uuid
+  settledAt             DateTime?        @map("settled_at") @db.Timestamptz(6)
+  archivedAt            DateTime?        @map("archived_at") @db.Timestamptz(6)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy               Academy          @relation("ReportAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session               Session          @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student               Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher               Teacher          @relation("ReportTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  approvedBy            User?            @relation("ReportApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  rejectedBy            User?            @relation("ReportRejectedBy", fields: [rejectedById], references: [id], onDelete: Restrict)
+  extraTimeReviewedBy   User?            @relation("ReportExtraTimeReviewer", fields: [extraTimeReviewedById], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, studentId, reportType])
+  @@index([academyId, status, submittedAt])
+  @@index([teacherId, status])
+  @@map("reports")
+}
+
+model SessionReservation {
+  id             String                    @id @default(uuid()) @db.Uuid
+  academyId      String                    @map("academy_id") @db.Uuid
+  sessionId      String                    @map("session_id") @db.Uuid
+  studentId      String                    @map("student_id") @db.Uuid
+  subscriptionId String                    @map("subscription_id") @db.Uuid
+  status         SessionReservationStatus  @default(RESERVED)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  releasedAt     DateTime?                 @map("released_at") @db.Timestamptz(6)
+  academy        Academy                   @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  session        Session                   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student        Student                   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subscription   Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, studentId])
+  @@index([subscriptionId, status])
+  @@index([academyId, status])
+  @@map("session_reservations")
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -89,6 +156,29 @@ enum AttendanceStatus {
   STUDENT_ABSENT
 }
 
+enum ReportType {
+  SESSION_COMPLETION_REPORT
+}
+
+enum ReportStatus {
+  SUBMITTED
+  REJECTED
+  APPROVED
+  ARCHIVED
+}
+
+enum AttendanceOutcome {
+  ATTENDED
+  STUDENT_ABSENT
+}
+
+enum ExtraTimeStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Academy {
   id           String        @id @default(uuid()) @db.Uuid
   name         String        @unique
@@ -105,6 +195,8 @@ model Academy {
   invoices     Invoice[]
   subscriptionLedger SubscriptionLedger[]
   sessions        Session[]
+  reservations    SessionReservation[]
+  reports         Report[] @relation("ReportAcademy")
 
   @@map("academies")
 }
@@ -135,6 +227,9 @@ model User {
   createdApplicationRecords ApplicationRecord[] @relation("ApplicationCreatedUser")
   overriddenSessionStudents SessionStudent[] @relation("SessionStudentOverride")
   sessionJoinClicks       SessionJoinClick[]
+  approvedReports         Report[] @relation("ReportApprovedBy")
+  rejectedReports         Report[] @relation("ReportRejectedBy")
+  extraTimeReports        Report[] @relation("ReportExtraTimeReviewer")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -219,6 +314,8 @@ model Student {
   subscriptions Subscription[]
   invoices      Invoice[]
   sessionStudents SessionStudent[] @relation("SessionStudentStudent")
+  reports        Report[]
+  reservations   SessionReservation[]
 
   @@index([academyId])
   @@index([guardianId])
@@ -242,6 +339,7 @@ model Subscription {
   student           Student                   @relation(fields: [studentId], references: [id], onDelete: Restrict)
   invoices          Invoice[]
   ledgerEntries     SubscriptionLedger[]
+  reservations      SessionReservation[]
 
   @@index([academyId, studentId, status])
   @@map("subscriptions")
@@ -272,6 +370,8 @@ model Session {
   replacements           Session[]     @relation("SessionReplacement")
   students              SessionStudent[]
   joinClicks             SessionJoinClick[]
+  reports              Report[]
+  reservations        SessionReservation[]
 
   @@index([academyId, scheduledStart, status])
   @@index([teacherId, scheduledStart])
@@ -380,6 +480,7 @@ model Teacher {
   academy   Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
   subjects  TeacherSubject[]
   sessions  Session[]
+  reports   Report[] @relation("ReportTeacher")
 
   @@index([academyId])
   @@map("teachers")
