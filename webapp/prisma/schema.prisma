@@ -175,6 +175,11 @@ enum SessionType {
   GROUP
 }
 
+enum AssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
 enum AttendanceStatus {
   PENDING
   ATTENDED
@@ -226,6 +231,8 @@ model Academy {
   notificationJobs NotificationJob[]
   sessionChangeRequests SessionChangeRequest[]
   teacherFlags TeacherFlag[]
+  studentSubjects StudentSubject[] @relation("StudentSubjectAcademy")
+  studentTeacherAssignments StudentTeacherAssignment[] @relation("StudentTeacherAssignmentAcademy")
 
   @@map("academies")
 }
@@ -264,6 +271,8 @@ model User {
   reviewedSessionChangeRequests SessionChangeRequest[] @relation("SessionChangeRequestReviewer")
   createdSessions         Session[] @relation("SessionCreatedBy")
   cancelledSessions       Session[] @relation("SessionCancelledBy")
+  createdAssignments      StudentTeacherAssignment[] @relation("AssignmentCreatedBy")
+  assignmentOverriddenSessions Session[] @relation("SessionAssignmentOverriddenBy")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -287,6 +296,8 @@ model Subject {
   teacherSubjects TeacherSubject[]
   sessions       Session[]
   recurrenceSeries RecurrenceSeries[]
+  studentSubjects StudentSubject[]
+  studentTeacherAssignments StudentTeacherAssignment[]
 
   @@unique([academyId, slug])
   @@index([academyId, isActive, sortOrder])
@@ -351,6 +362,8 @@ model Student {
   sessionStudents SessionStudent[] @relation("SessionStudentStudent")
   reports        Report[]
   reservations   SessionReservation[]
+  studentSubjects StudentSubject[]
+  assignments    StudentTeacherAssignment[]
 
   @@index([academyId])
   @@index([guardianId])
@@ -396,6 +409,8 @@ model Session {
   recurrenceWeekIndex   Int?          @map("recurrence_week_index")
   replacementForSessionId String?     @map("replacement_for_session_id") @db.Uuid
   cancellationReason    String?       @map("cancellation_reason")
+  assignmentOverriddenById String?    @map("assignment_overridden_by_id") @db.Uuid
+  assignmentOverrideReason String?     @map("assignment_override_reason")
   createdById           String        @map("created_by") @db.Uuid
   cancelledById         String?       @map("cancelled_by") @db.Uuid
   status                SessionStatus @default(SCHEDULED)
@@ -409,6 +424,7 @@ model Session {
   recurrenceSeries       RecurrenceSeries? @relation(fields: [recurrenceGroupId], references: [id], onDelete: Restrict)
   createdBy               User          @relation("SessionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   cancelledBy             User?         @relation("SessionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  assignmentOverriddenBy  User?         @relation("SessionAssignmentOverriddenBy", fields: [assignmentOverriddenById], references: [id], onDelete: Restrict)
   students              SessionStudent[]
   joinClicks             SessionJoinClick[]
   reports              Report[]
@@ -604,6 +620,7 @@ model Teacher {
   recurrenceSeries RecurrenceSeries[]
   changeRequests SessionChangeRequest[]
   teacherFlags TeacherFlag[]
+  assignments StudentTeacherAssignment[]
 
   @@index([academyId])
   @@map("teachers")
@@ -642,6 +659,46 @@ model TeacherSubject {
   @@unique([teacherId, subjectId])
   @@index([academyId])
   @@map("teacher_subjects")
+}
+
+model StudentSubject {
+  id        String   @id @default(uuid()) @db.Uuid
+  academyId String   @map("academy_id") @db.Uuid
+  studentId String   @map("student_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  academy   Academy  @relation("StudentSubjectAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, subjectId])
+  @@index([academyId])
+  @@map("student_subjects")
+}
+
+model StudentTeacherAssignment {
+  id          String           @id @default(uuid()) @db.Uuid
+  academyId   String           @map("academy_id") @db.Uuid
+  studentId   String           @map("student_id") @db.Uuid
+  teacherId   String           @map("teacher_id") @db.Uuid
+  subjectId   String           @map("subject_id") @db.Uuid
+  status      AssignmentStatus @default(ACTIVE)
+  createdById String           @map("created_by") @db.Uuid
+  endedAt     DateTime?        @map("ended_at") @db.Timestamptz(6)
+  endedReason String?          @map("ended_reason")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  student     Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher     Teacher          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("AssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  academy     Academy          @relation("StudentTeacherAssignmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status])
+  @@index([studentId, status])
+  @@index([teacherId, status])
+  @@index([subjectId])
+  @@map("student_teacher_assignments")
 }
 
 model ApplicationRecord {
