@@ -77,6 +77,12 @@ export const enrollmentSchema = z.object({
 
 const isoDateTime = z.string().datetime({ offset: true });
 
+const httpsZoomUrl = z
+  .string()
+  .url()
+  .max(2000)
+  .refine((value) => value.startsWith("https://"), "Zoom links must use https.");
+
 export const sessionCreateSchema = z.object({
   teacherId: z.string().uuid(),
   subjectId: z.string().uuid(),
@@ -84,8 +90,8 @@ export const sessionCreateSchema = z.object({
   scheduledStart: isoDateTime,
   scheduledEnd: isoDateTime,
   timezone: z.string().trim().min(1).max(80).default("UTC"),
-  zoomJoinUrl: z.string().url().max(2000),
-  zoomHostUrl: z.string().url().max(2000).optional().or(z.literal("")),
+  zoomJoinUrl: httpsZoomUrl,
+  zoomHostUrl: httpsZoomUrl.optional().or(z.literal("")),
   studentIds: z.array(z.string().uuid()).min(1).max(100),
 });
 
@@ -97,9 +103,9 @@ export const sessionUpdateSchema = z.object({
   scheduledStart: isoDateTime.optional(),
   scheduledEnd: isoDateTime.optional(),
   timezone: z.string().trim().min(1).max(80).optional(),
-  zoomJoinUrl: z.string().url().max(2000).optional(),
-  zoomHostUrl: z.string().url().max(2000).optional().or(z.literal("")),
-  status: z.enum(["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"]).optional(),
+  zoomJoinUrl: httpsZoomUrl.optional(),
+  zoomHostUrl: httpsZoomUrl.optional().or(z.literal("")),
+  status: z.enum(["SCHEDULED", "CANCELLED"]).optional(),
   cancellationReason: z.string().trim().max(1000).optional().or(z.literal("")),
 }).refine((value) => Object.keys(value).length > 0, "At least one update is required.");
 

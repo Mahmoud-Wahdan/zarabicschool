@@ -30,3 +30,26 @@ export async function enqueueSessionJobs(
   ]);
   await tx.notificationJob.createMany({ data: jobs, skipDuplicates: true });
 }
+
+export async function enqueueSeriesPausedFlag(
+  tx: Prisma.TransactionClient,
+  academyId: string,
+  seriesId: string,
+  pendingWeekIndex: number,
+) {
+  const admins = await tx.user.findMany({
+    where: { academyId, role: "ADMIN", isActive: true },
+    select: { id: true },
+  });
+  await tx.notificationJob.createMany({
+    data: admins.map((admin) => ({
+      academyId,
+      sessionId: null,
+      recipientUserId: admin.id,
+      kind: "SERIES_PAUSED",
+      dedupKey: `SERIES_PAUSED:${seriesId}:${admin.id}:${pendingWeekIndex}`,
+      scheduledFor: new Date(),
+    })),
+    skipDuplicates: true,
+  });
+}

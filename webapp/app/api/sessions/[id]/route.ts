@@ -25,6 +25,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const start = data.scheduledStart ? new Date(data.scheduledStart) : existing.scheduledStart;
   const end = data.scheduledEnd ? new Date(data.scheduledEnd) : existing.scheduledEnd;
   if (end <= start) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Session end must be after its start." } }, { status: 400 });
+  const isCancellationTransition = data.status === "CANCELLED" && existing.status !== "CANCELLED";
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.session.update({
       where: { id },
@@ -35,14 +36,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         durationMinutes: Math.round((end.getTime() - start.getTime()) / 60000),
         zoomHostUrl: data.zoomHostUrl === "" ? null : data.zoomHostUrl,
         cancellationReason: data.cancellationReason === "" ? null : data.cancellationReason,
-        cancelledById: data.status === "CANCELLED" ? user.id : undefined,
+        cancelledById: isCancellationTransition ? user.id : undefined,
       },
     });
-    if (data.status === "CANCELLED") {
+    if (isCancellationTransition) {
       await tx.sessionReservation.updateMany({
         where: { sessionId: id, status: "RESERVED" },
         data: { status: "RELEASED", releasedAt: new Date() },
       });
+      await tx.notificationJob.updateMany({
+        where: { sessionId: id, status: { in: ["PENDING", "PROCESSING"] } },
+        data: { status: "CANCELLED" },
+      });
+    }
+    if (data.scheduledStart && !isCancellationTransition && existing.status === "SCHEDULED") {
+      const deltaMs = start.getTime() - existing.scheduledStart.getTime();
+      if (deltaMs !== 0) {
+        const pendingJobs = await tx.notificationJob.findMany({
+          where: { sessionId: id, status: "PENDING" },
+          select: { id: true, scheduledFor: true },
+        });
+        for (const job of pendingJobs) {
+          await tx.notificationJob.update({
+            where: { id: job.id },
+            data: { scheduledFor: new Date(job.scheduledFor.getTime() + deltaMs) },
+          });
+        }
+      }
     }
     return next;
   });

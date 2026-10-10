@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
-import { reserveCredit, runSerializable } from "../../route";
+import { reserveCredit, runSerializable } from "../../../../../lib/credits/reservation";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +26,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const teacherSubject = await tx.teacherSubject.findFirst({ where: { academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId } });
       const students = await tx.student.findMany({ where: { id: { in: data.studentIds }, academyId: user.academyId, user: { isActive: true } }, select: { id: true } });
       if (!teacherSubject || students.length !== new Set(data.studentIds).size) throw new Error("SESSION_PARTICIPANTS_INVALID");
+      const replacementStudentIds = [...new Set(data.studentIds)];
+      await tx.sessionReservation.updateMany({
+        where: { sessionId: sourceSessionId, studentId: { in: replacementStudentIds }, status: "RESERVED" },
+        data: { status: "RELEASED", releasedAt: new Date() },
+      });
       const created = await tx.session.create({
         data: {
           academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId,

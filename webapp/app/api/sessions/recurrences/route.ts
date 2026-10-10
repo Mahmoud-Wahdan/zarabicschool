@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
-import { prisma } from "../../../../lib/prisma";
-import { hasAvailableCredit, reserveCredit, runSerializable } from "../route";
+import { runSerializable } from "../../../../lib/credits/reservation";
+import { zonedWallClock } from "../../../../lib/schedules/recurrence";
+import { generateSeriesWeek, type SeriesForGeneration } from "../../../../lib/schedules/series";
 import { recurringSessionSchema } from "../../../../lib/validation/management";
 
 export async function POST(request: Request) {
@@ -31,6 +32,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "A student cannot be selected twice." } }, { status: 400 });
   }
 
+  const recurrenceRule = {
+    scheduledStart: data.scheduledStart,
+    scheduledEnd: data.scheduledEnd,
+    zoomJoinUrl: data.zoomJoinUrl,
+    zoomHostUrl: data.zoomHostUrl || null,
+    studentIds,
+  };
+
   try {
     const result = await runSerializable(async (tx) => {
       const teacherSubject = await tx.teacherSubject.findFirst({
@@ -49,75 +58,36 @@ export async function POST(request: Request) {
           subjectId: data.subjectId,
           sessionType: data.sessionType,
           timezone: data.timezone,
-          startDate: start,
+          startDate: zonedWallClock(start, data.timezone),
           totalWeeks: data.weekCount,
-          recurrenceRule: {
-            scheduledStart: data.scheduledStart,
-            scheduledEnd: data.scheduledEnd,
-            zoomJoinUrl: data.zoomJoinUrl,
-            zoomHostUrl: data.zoomHostUrl || null,
-            studentIds,
-          },
+          recurrenceRule,
           createdById: user.id,
         },
         select: { id: true },
       });
 
-      const created = [];
-      for (let index = 0; index < data.weekCount; index += 1) {
-        const sessionStart = new Date(start.getTime() + index * 7 * 24 * 60 * 60 * 1000);
-        const sessionEnd = new Date(end.getTime() + index * 7 * 24 * 60 * 60 * 1000);
-        const everyStudentHasCredit = (await Promise.all(
-          studentIds.map((studentId) => hasAvailableCredit(tx, user.academyId, studentId, sessionStart)),
-        )).every(Boolean);
-        if (!everyStudentHasCredit) {
-          await tx.recurrenceSeries.update({
-            where: { id: series.id },
-            data: { generatedThroughWeek: index - 1, status: "PAUSED" },
-          });
-          break;
-        }
+      const seriesRecord: SeriesForGeneration = {
+        id: series.id,
+        academyId: user.academyId,
+        teacherId: data.teacherId,
+        subjectId: data.subjectId,
+        sessionType: data.sessionType,
+        timezone: data.timezone,
+        totalWeeks: data.weekCount,
+        createdById: user.id,
+        recurrenceRule,
+      };
 
-        const session = await tx.session.create({
-          data: {
-            academyId: user.academyId,
-            teacherId: data.teacherId,
-            subjectId: data.subjectId,
-            sessionType: data.sessionType,
-            scheduledStart: sessionStart,
-            scheduledEnd: sessionEnd,
-            durationMinutes,
-            timezone: data.timezone,
-            zoomJoinUrl: data.zoomJoinUrl,
-            zoomHostUrl: data.zoomHostUrl || null,
-            recurrenceGroupId: series.id,
-            recurrenceWeekIndex: index,
-            createdById: user.id,
-            students: { create: studentIds.map((studentId) => ({ studentId })) },
-          },
-          select: { id: true, scheduledStart: true },
-        });
-        for (const studentId of studentIds) {
-          if (!(await reserveCredit(tx, user.academyId, studentId, session.id, sessionStart))) {
-            throw new Error("INSUFFICIENT_SESSION_CREDIT");
-          }
-        }
-        created.push(session);
-        await tx.recurrenceSeries.update({
-          where: { id: series.id },
-          data: {
-            generatedThroughWeek: index,
-            status: index === data.weekCount - 1 ? "COMPLETED" : "ACTIVE",
-          },
-        });
+      const created: { id: string; scheduledStart: Date }[] = [];
+      for (let index = 0; index < data.weekCount; index += 1) {
+        const outcome = await generateSeriesWeek(tx, seriesRecord, index);
+        if (outcome.outcome === "paused") break;
+        created.push({ id: outcome.sessionId, scheduledStart: outcome.sessionStart });
       }
       return { seriesId: series.id, sessions: created };
     });
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (cause) {
-    if (cause instanceof Error && cause.message === "INSUFFICIENT_SESSION_CREDIT") {
-      return NextResponse.json({ error: { code: "INSUFFICIENT_SESSION_CREDIT", message: "One or more students do not have an available session credit." } }, { status: 409 });
-    }
     if (cause instanceof Error && cause.message === "SESSION_PARTICIPANTS_INVALID") {
       return NextResponse.json({ error: { code: "CONFLICT", message: "Teacher, subject, or students are not valid for this academy." } }, { status: 409 });
     }

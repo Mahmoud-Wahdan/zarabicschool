@@ -11,6 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     where: {
       id,
       academyId: user.academyId,
+      status: "SCHEDULED",
       OR: [
         ...(user.role === "ADMIN" || user.role === "SUPERVISOR" ? [{}] : []),
         ...(user.role === "TEACHER" ? [{ teacher: { userId: user.id } }] : []),
@@ -21,6 +22,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     select: { zoomJoinUrl: true, id: true },
   });
   if (!session) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
+  if (!session.zoomJoinUrl.startsWith("https://")) {
+    return NextResponse.json({ error: { code: "CONFLICT", message: "The session link is not available." } }, { status: 409 });
+  }
   await prisma.sessionJoinClick.create({ data: { sessionId: session.id, userId: user.id } });
   return NextResponse.redirect(session.zoomJoinUrl);
 }
