@@ -124,8 +124,16 @@ async function quiet(operation: () => Promise<unknown>): Promise<void> {
 }
 
 beforeAll(async () => {
+  const academy = await prisma.academy.upsert({
+    where: { name: academyName },
+    update: {},
+    create: { name: academyName },
+  });
+  academyId = academy.id;
+
   const staleUsers = await prisma.user.findMany({
     where: {
+      academyId,
       OR: [
         { username: { startsWith: "demo-test-" } },
         { username: { startsWith: "demo_test_" } },
@@ -135,7 +143,7 @@ beforeAll(async () => {
   });
   const staleUserIds = staleUsers.map((user) => user.id);
   const staleApplications = await prisma.application.findMany({
-    where: { contactPhone: testPhone },
+    where: { academyId, contactPhone: testPhone },
     select: { id: true },
   });
   const staleApplicationIds = staleApplications.map((application) => application.id);
@@ -154,6 +162,10 @@ beforeAll(async () => {
     await prisma.application.deleteMany({ where: { id: { in: staleApplicationIds } } });
   }
   if (allStaleUserIds.length > 0) {
+    await prisma.sessionJoinClick.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+    await prisma.notificationJob.deleteMany({ where: { recipientUserId: { in: allStaleUserIds } } });
+    await prisma.sessionReservation.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
+    await prisma.sessionStudent.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
     await prisma.student.updateMany({
       where: { guardian: { user: { id: { in: allStaleUserIds } } } },
       data: { guardianId: null },
@@ -165,12 +177,6 @@ beforeAll(async () => {
     await prisma.user.deleteMany({ where: { id: { in: allStaleUserIds } } });
   }
   const runId = randomUUID().slice(0, 8);
-  const academy = await prisma.academy.upsert({
-    where: { name: academyName },
-    update: {},
-    create: { name: academyName },
-  });
-  academyId = academy.id;
 
   const passwordHash = await bcrypt.hash(randomUUID(), 12);
   const admin = await prisma.user.create({
