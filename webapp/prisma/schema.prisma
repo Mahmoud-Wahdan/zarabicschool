@@ -225,6 +225,7 @@ model Academy {
   recurrenceSeries RecurrenceSeries[]
   notificationJobs NotificationJob[]
   sessionChangeRequests SessionChangeRequest[]
+  teacherFlags TeacherFlag[]
 
   @@map("academies")
 }
@@ -415,6 +416,7 @@ model Session {
   notificationJobs     NotificationJob[]
   subscriptionDeductions SubscriptionLedger[] @relation("LedgerSession")
   changeRequests       SessionChangeRequest[]
+  teacherFlags         TeacherFlag[]
 
   @@index([academyId, scheduledStart, status])
   @@index([teacherId, scheduledStart])
@@ -601,9 +603,30 @@ model Teacher {
   reports   Report[] @relation("ReportTeacher")
   recurrenceSeries RecurrenceSeries[]
   changeRequests SessionChangeRequest[]
+  teacherFlags TeacherFlag[]
 
   @@index([academyId])
   @@map("teachers")
+}
+
+enum TeacherFlagType {
+  LATE_REPORT
+}
+
+model TeacherFlag {
+  id        String          @id @default(uuid()) @db.Uuid
+  academyId String          @map("academy_id") @db.Uuid
+  teacherId String          @map("teacher_id") @db.Uuid
+  sessionId String          @map("session_id") @db.Uuid
+  flagType  TeacherFlagType @map("flag_type")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy   Academy         @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  teacher   Teacher         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  session   Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, flagType])
+  @@index([teacherId, createdAt])
+  @@map("teacher_flags")
 }
 
 model TeacherSubject {

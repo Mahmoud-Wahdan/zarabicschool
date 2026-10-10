@@ -5,5 +5,5 @@ import { openWaProvider } from "./openwa-provider";
 import type { MessagingProvider } from "./types";
 
 export function getMessagingProvider(): MessagingProvider {
-  return process.env.MESSAGING_PROVIDER === "fake" ? fakeMessagingProvider : openWaProvider;
+  return process.env.MESSAGING_PROVIDER === "openwa" ? openWaProvider : fakeMessagingProvider;
 }

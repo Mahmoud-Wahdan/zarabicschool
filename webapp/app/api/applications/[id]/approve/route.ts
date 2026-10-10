@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../lib/dal";
-import { fakeMessagingProvider } from "../../../../../lib/messaging/fake-provider";
+import { getMessagingProvider } from "../../../../../lib/messaging/provider";
+import { prisma } from "../../../../../lib/prisma";
 import {
   approveApplication,
   ProvisioningError,
@@ -70,10 +71,24 @@ export async function POST(
 
   for (const account of accounts) {
     try {
-      await fakeMessagingProvider.sendCredentials(
+      const provider = getMessagingProvider();
+      const result = await provider.sendCredentials(
         { userId: account.userId, phone: account.deliveryPhone },
         { username: account.username, tempPassword: account.tempPassword }
       );
+      if (!result.ok) {
+        await prisma.notificationJob.create({
+          data: {
+            academyId: user.academyId,
+            recipientUserId: account.userId,
+            kind: "CREDENTIALS",
+            dedupKey: `CREDENTIALS:${account.userId}:${account.key}`,
+            scheduledFor: new Date(),
+            status: "FAILED",
+            lastError: result.error ?? "Messaging provider failed.",
+          },
+        });
+      }
     } catch {
       // Delivery failure must not roll back the approval nor reveal passwords.
     }
