@@ -169,14 +169,15 @@ Records **which subjects a confirmed student studies**. Created automatically up
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
-### Raw-SQL invariants (migration, pending owner approval)
-1. **Partial unique index:** `CREATE UNIQUE INDEX idx_student_teacher_assignments_active ON student_teacher_assignments (student_id, teacher_id, subject_id) WHERE status = 'ACTIVE';` — one ACTIVE assignment per trio; `ENDED` rows are kept as history.
-2. **Unique index:** `UNIQUE (student_id, subject_id)` on `student_subjects`.
-3. **Composite FK:** `FOREIGN KEY (teacher_id, subject_id) REFERENCES teacher_subjects (teacher_id, subject_id)` on `student_teacher_assignments` — an assignment may exist only where the teacher already teaches the subject (possible because `teacher_subjects` has `UNIQUE(teacher_id, subject_id)`). Side effect: a `TeacherSubject` row cannot be deleted while an ACTIVE assignment references it; the teacher-subjects API surfaces this as a 409 so assignments are ended first.
-4. **Delete policy:** all FKs `ON DELETE RESTRICT`.
-5. **Backfill (owner decision 2026-10-10):** NOT inside the migration — a separate idempotent `INSERT … ON CONFLICT DO NOTHING` statement of `student_subjects` rows from existing session rosters (`session_students ⋈ sessions`), with the proposed rows shown to the owner and applied only on explicit instruction. **No assignments are auto-created** — assignments remain an explicit Admin/Supervisor decision; the demo seed (not yet run) adds the Demo Student ↔ Demo Teacher ↔ Quran assignment.
+### Raw-SQL invariants (migration reviewed by the owner 2026-10-10; the owner applies it)
+1. **Partial unique index (owner choice, 2026-10-10):** `CREATE UNIQUE INDEX idx_student_teacher_assignments_active ON student_teacher_assignments (student_id, subject_id) WHERE status = 'ACTIVE';` — **one ACTIVE teacher per (student, subject)**. Changing the teacher = end the old row + create the new one in ONE transaction (API flow); an accidental second active teacher for the same student+subject is impossible at the DB level. `ENDED` rows remain as history (re-assigning the same teacher later creates a fresh ACTIVE row).
+2. **Lifecycle CHECK:** `CHECK ((status = 'ACTIVE' AND ended_at IS NULL) OR (status = 'ENDED' AND ended_at IS NOT NULL))` on `student_teacher_assignments` — an ACTIVE assignment never carries `ended_at`; an ENDED one always does.
+3. **Unique index:** `UNIQUE (student_id, subject_id)` on `student_subjects`.
+4. **Composite FK:** `FOREIGN KEY (teacher_id, subject_id) REFERENCES teacher_subjects (teacher_id, subject_id)` on `student_teacher_assignments` — an assignment may exist only where the teacher already teaches the subject (possible because `teacher_subjects` has the verified unique index `teacher_subjects_teacher_id_subject_id_key`). Side effect: a `TeacherSubject` row **cannot be deleted while ANY assignment row references it — ACTIVE or ENDED** (the FK matches history, not just active rows), so a teacher who ever had an assignment for a subject is effectively permanently linked to it; the teacher-subjects API surfaces a clean 409 and the assignments/teacher-subjects UI must explain this instead of leaving the operator with a bare error.
+5. **Delete policy:** all FKs `ON DELETE RESTRICT`.
+6. **Backfill (owner decision 2026-10-10):** NOT inside the migration — a separate idempotent `INSERT … ON CONFLICT DO NOTHING` statement of `student_subjects` rows from existing session rosters (`session_students ⋈ sessions`), with the proposed rows shown to the owner and applied only on explicit instruction. **No assignments are auto-created** — assignments remain an explicit Admin/Supervisor decision; the demo seed (not yet run) adds the Demo Student ↔ Demo Teacher ↔ Quran assignment.
 
-**Override rule (CONFIRMED):** scheduling without a required assignment is allowed only for Admin/Supervisor **with a reason**, and is logged on the created `sessions` row (`assignment_overridden_by_id` + `assignment_override_reason`, §10) — queryable audit columns, not a separate table.
+**Override rule (CONFIRMED):** scheduling without a required assignment is allowed only for Admin/Supervisor **with a reason**, and is logged on the created `sessions` row (`assignment_overridden_by_id` + `assignment_override_reason`, §10) — queryable audit columns, not a separate table. The audit is **per session, not per student**: one override action marks the one session it created. Students added to an already-created session afterwards (the enrollment side-door) do not produce their own override record yet — if per-student override evidence is ever needed, that becomes a future audit table, not a schema change now.
 
 ---
 
@@ -238,6 +239,8 @@ Represents scheduled live learning meetings.
 | `updated_at` | TIMESTAMPTZ | | |
 
 > **Security Note:** Zoom URLs are secrets. Never log them. They are readable only by Admin, the assigned teacher, and the session's students; guardian visibility is OPEN. The same link is copied to generated sessions in a recurrence group as a PROPOSAL, and remains editable per session.
+
+> **Override audit (2026-10-10):** `assignment_overridden_by_id` + `assignment_override_reason` mark the whole session row — the audit is **per session, not per student** (the CHECK makes a non-blank reason mandatory exactly when an override actor is set). Students added to an already-created session later (enrollment side-door) get no separate override record yet.
 
 > **Status transitions:** `SCHEDULED → IN_PROGRESS → COMPLETED` is the normal session flow. A session may remain `COMPLETED` while its report is `MISSING`; report completeness does not change session status. `SCHEDULED → MISSED` applies when the session did not take place, and `SCHEDULED → CANCELLED` requires an Admin reason. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
 
@@ -584,7 +587,7 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `idx_payroll_ledger_unique_session_credit` on `payroll_ledger(session_id)` WHERE `entry_type = 'SESSION_CREDIT'`.
    - `idx_subscription_ledger_unique_session_deduction` on `subscription_ledger(session_id, subscription_id)` WHERE `entry_type = 'SESSION_DEDUCTION'`.
    - `idx_reports_unique_session_completion` on `reports(session_id, student_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
-   - `idx_student_teacher_assignments_active` on `student_teacher_assignments(student_id, teacher_id, subject_id)` WHERE `status = 'ACTIVE'` (NEW, 2026-10-10 plan — pending owner approval).
+   - `idx_student_teacher_assignments_active` on `student_teacher_assignments(student_id, subject_id)` WHERE `status = 'ACTIVE'` (NEW, 2026-10-10 — owner reviewed: one ACTIVE teacher per student+subject).
 3. **CHECK Constraints:**
    - `CHECK (amount_minor > 0)` on `payroll_ledger` for `SESSION_CREDIT`.
    - `CHECK (amount_minor < 0)` on `payroll_ledger` for `DISBURSEMENT`.
@@ -593,6 +596,8 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `CHECK (scheduled_end > scheduled_start)` on `sessions`.
    - `CHECK (scheduled_end > scheduled_start)` and a duration consistency check on `sessions`.
    - `CHECK (length(currency) = 3)` on financial tables.
+   - `CHECK ((status = 'ACTIVE' AND ended_at IS NULL) OR (status = 'ENDED' AND ended_at IS NOT NULL))` on `student_teacher_assignments` (NEW, 2026-10-10).
+   - `sessions_assignment_override_audit_check` on `sessions`: the override reason is mandatory and non-blank exactly when `assignment_overridden_by_id` is set (NEW, 2026-10-10).
 
 The duration expression, partial indexes, append-only triggers, and conditional checks are raw SQL because Prisma cannot express them completely.
 

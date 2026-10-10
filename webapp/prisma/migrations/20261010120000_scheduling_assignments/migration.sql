@@ -81,9 +81,18 @@ ALTER TABLE "student_teacher_assignments" ADD CONSTRAINT "student_teacher_assign
 -- where the teacher already teaches the subject (teacher_subjects is UNIQUE(teacher_id, subject_id)).
 ALTER TABLE "student_teacher_assignments" ADD CONSTRAINT "student_teacher_assignments_teacher_subject_fkey" FOREIGN KEY ("teacher_id", "subject_id") REFERENCES "teacher_subjects"("teacher_id", "subject_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- Partial unique index (raw SQL; Prisma cannot express it): one ACTIVE assignment per
--- (student, teacher, subject); ENDED rows remain as history.
-CREATE UNIQUE INDEX "idx_student_teacher_assignments_active" ON "student_teacher_assignments"("student_id", "teacher_id", "subject_id") WHERE "status" = 'ACTIVE';
+-- Partial unique index (raw SQL; Prisma cannot express it): ONE ACTIVE assignment per
+-- (student, subject) — a student has a single active teacher per subject; changing the
+-- teacher ends the old row and creates the new one in one transaction. ENDED rows remain history.
+CREATE UNIQUE INDEX "idx_student_teacher_assignments_active" ON "student_teacher_assignments"("student_id", "subject_id") WHERE "status" = 'ACTIVE';
+
+-- CHECK (raw SQL): lifecycle consistency — an ACTIVE assignment has no ended_at;
+-- an ENDED assignment always has one.
+ALTER TABLE "student_teacher_assignments" ADD CONSTRAINT "student_teacher_assignments_lifecycle_check" CHECK (
+    ("status" = 'ACTIVE' AND "ended_at" IS NULL)
+    OR
+    ("status" = 'ENDED' AND "ended_at" IS NOT NULL)
+);
 
 -- AlterTable: override-audit columns on sessions (raw SQL section kept next to its CHECK)
 ALTER TABLE "sessions" ADD COLUMN "assignment_overridden_by_id" UUID,
