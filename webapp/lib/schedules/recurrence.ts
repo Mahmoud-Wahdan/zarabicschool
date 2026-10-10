@@ -29,6 +29,15 @@ export function addWeeksInTimeZone(anchor: Date, weeks: number, timeZone: string
   return zonedWallClockToUtc(wallShifted, timeZone);
 }
 
+export function wallClockToUtc(wall: Date, timeZone: string): Date {
+  return zonedWallClockToUtc(wall, timeZone);
+}
+
+export function wallClockInputToUtc(value: string, timeZone: string): Date {
+  const wall = new Date(value.length === 16 ? `${value}:00.000Z` : `${value}.000Z`);
+  return zonedWallClockToUtc(wall, timeZone);
+}
+
 export function zonedWallClock(instant: Date, timeZone: string): Date {
   const offset = timezoneOffsetMs(instant, timeZone);
   return new Date(instant.getTime() + offset);

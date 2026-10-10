@@ -15,6 +15,7 @@ export type AuthUser = {
   username: string;
   displayName: string;
   role: "ADMIN" | "SUPERVISOR" | "TEACHER" | "STUDENT" | "GUARDIAN";
+  timezone: string;
   mustChangePassword: boolean;
 };
 
@@ -32,6 +33,7 @@ export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
       displayName: true,
       role: true,
       isActive: true,
+      timezone: true,
       mustChangePassword: true,
     },
   });

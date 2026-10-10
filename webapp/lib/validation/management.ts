@@ -116,6 +116,10 @@ export const sessionChangeRequestSchema = z.object({
   proposedChange: z.string().trim().min(2).max(2000),
 });
 
+export const changeRequestReviewSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+});
+
 export const sessionReportSchema = z.object({
   attendanceOutcome: z.enum(["ATTENDED", "STUDENT_ABSENT"]),
   classRemark: z.string().trim().min(2).max(200),

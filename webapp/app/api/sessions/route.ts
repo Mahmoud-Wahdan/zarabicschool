@@ -10,13 +10,27 @@ export async function GET(request: Request) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
   if (error) return error;
   const url = new URL(request.url);
+  const searchParams = url.searchParams;
+  const isOperator = user.role === "ADMIN" || user.role === "SUPERVISOR";
+  const statusFilter = searchParams.get("status");
+  const fromFilter = searchParams.get("from");
+  const toFilter = searchParams.get("to");
+  const scheduledStartFilter = {
+    ...(fromFilter && !Number.isNaN(new Date(fromFilter).getTime()) ? { gte: new Date(fromFilter) } : {}),
+    ...(toFilter && !Number.isNaN(new Date(toFilter).getTime()) ? { lte: new Date(toFilter) } : {}),
+  };
   const sessions = await prisma.session.findMany({
     where: {
       academyId: user.academyId,
       ...(user.role === "TEACHER" ? { teacher: { userId: user.id } } : {}),
       ...(user.role === "STUDENT" ? { students: { some: { student: { userId: user.id } } } } : {}),
       ...(user.role === "GUARDIAN" ? { students: { some: { student: { guardian: { userId: user.id } } } } } : {}),
-      ...(url.searchParams.get("status") ? { status: url.searchParams.get("status") as never } : {}),
+      ...(statusFilter ? { status: statusFilter as never } : {}),
+      ...(Object.keys(scheduledStartFilter).length ? { scheduledStart: scheduledStartFilter } : {}),
+      ...(isOperator && searchParams.get("teacherId") ? { teacherId: searchParams.get("teacherId") as string } : {}),
+      ...(isOperator && searchParams.get("studentId")
+        ? { students: { some: { studentId: searchParams.get("studentId") as string } } }
+        : {}),
     },
     orderBy: { scheduledStart: "asc" },
     take: 100,
