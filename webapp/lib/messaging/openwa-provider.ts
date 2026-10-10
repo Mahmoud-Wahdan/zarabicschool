@@ -8,21 +8,20 @@ import type {
 } from "./types";
 
 export class OpenWAProvider implements MessagingProvider {
-  private readonly baseUrl = process.env.OPENWA_URL;
-  private readonly apiKey = process.env.OPENWA_API_KEY;
-  private readonly sessionId = process.env.OPENWA_SESSION_ID;
-
   private async send(recipient: MessagingRecipient, message: string): Promise<MessagingSendResult> {
     if (!recipient.phone) return { ok: false, error: "Recipient has no phone number." };
-    if (!this.baseUrl || !this.apiKey || !this.sessionId) {
+    const baseUrl = process.env.OPENWA_URL;
+    const apiKey = process.env.OPENWA_API_KEY;
+    const sessionId = process.env.OPENWA_SESSION_ID;
+    if (!baseUrl || !apiKey || !sessionId) {
       return { ok: false, error: "OpenWA is not configured." };
     }
 
     try {
-      const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/api/sendText`, {
+      const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/sendText`, {
         method: "POST",
-        headers: { "content-type": "application/json", "X-API-Key": this.apiKey },
-        body: JSON.stringify({ sessionId: this.sessionId, chatId: recipient.phone, text: message }),
+        headers: { "content-type": "application/json", "X-API-Key": apiKey },
+        body: JSON.stringify({ sessionId, chatId: recipient.phone, text: message }),
       });
       if (!response.ok) return { ok: false, error: `OpenWA returned HTTP ${response.status}.` };
       return { ok: true };

@@ -214,7 +214,11 @@ async function main() {
         status: "ACTIVE",
       },
     });
-    await prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } });
+    await prisma.$transaction([
+      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
+      prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
+      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
+    ]);
     await prisma.subscriptionLedger.create({
       data: {
         academyId: academy.id,

@@ -51,9 +51,13 @@ function composeJobMessage(job: JobWithRelations): string {
   return "لديك إشعار من الأكاديمية.";
 }
 
-export async function processDueNotificationJobs(now = new Date()) {
+export async function processDueNotificationJobs(now = new Date(), academyId?: string) {
   const due = await prisma.notificationJob.findMany({
-    where: { status: "PENDING", scheduledFor: { lte: now } },
+    where: {
+      status: "PENDING",
+      scheduledFor: { lte: now },
+      ...(academyId ? { academyId } : {}),
+    },
     orderBy: { scheduledFor: "asc" },
     take: POLL_BATCH,
     include: {
@@ -97,10 +101,14 @@ export async function processDueNotificationJobs(now = new Date()) {
   }
 }
 
-export async function processLateReportNotifications(now = new Date()) {
+export async function processLateReportNotifications(now = new Date(), academyId?: string) {
   const windowStart = new Date(now.getTime() - LATE_REPORT_WINDOW_MS);
   const sessions = await prisma.session.findMany({
-    where: { status: { in: ["SCHEDULED", "COMPLETED"] }, scheduledEnd: { gte: windowStart, lte: now } },
+    where: {
+      status: { in: ["SCHEDULED", "COMPLETED"] },
+      scheduledEnd: { gte: windowStart, lte: now },
+      ...(academyId ? { academyId } : {}),
+    },
     select: {
       id: true,
       academyId: true,
@@ -158,9 +166,9 @@ export async function processLateReportNotifications(now = new Date()) {
   }
 }
 
-export async function extendDueSeries(now = new Date()) {
+export async function extendDueSeries(now = new Date(), academyId?: string) {
   const seriesList = await prisma.recurrenceSeries.findMany({
-    where: { status: { in: ["ACTIVE", "PAUSED"] } },
+    where: { status: { in: ["ACTIVE", "PAUSED"] }, ...(academyId ? { academyId } : {}) },
   });
   for (const series of seriesList) {
     const nextWeekIndex = series.generatedThroughWeek + 1;
