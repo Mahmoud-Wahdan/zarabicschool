@@ -27,6 +27,10 @@ export async function createSessionFixtures() {
     { key: "student6", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000011" },
     { key: "student7", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000012" },
     { key: "student8", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000013" },
+    { key: "student9", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000017" },
+    { key: "student10", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000018" },
+    { key: "student11", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000019" },
+    { key: "student12", role: "STUDENT" as const, academyId: academy.id, phone: "+201000000020" },
     { key: "foreignAdmin", role: "ADMIN" as const, academyId: foreignAcademy.id, phone: "+201000000014" },
     { key: "foreignTeacher", role: "TEACHER" as const, academyId: foreignAcademy.id, phone: "+201000000015" },
     { key: "foreignStudent", role: "STUDENT" as const, academyId: foreignAcademy.id, phone: "+201000000016" },
@@ -56,7 +60,11 @@ export async function createSessionFixtures() {
     select: { id: true },
   });
 
-  const studentSpecs = ["student1", "student2", "student3", "student4", "student5", "student6", "student7", "student8"];
+  const studentSpecs = [
+    "student1", "student2", "student3", "student4",
+    "student5", "student6", "student7", "student8",
+    "student9", "student10", "student11", "student12",
+  ];
   const students: Record<string, string> = {};
   for (const key of studentSpecs) {
     const student = await prisma.student.create({
@@ -94,6 +102,10 @@ export async function createSessionFixtures() {
     data: { academyId: academy.id, slug: `demo-test-${suffix}`, nameAr: "قرآن تجريبي", nameEn: "Test Quran", isActive: true },
     select: { id: true },
   });
+  const subjectB = await prisma.subject.create({
+    data: { academyId: academy.id, slug: `demo-test-b-${suffix}`, nameAr: "لغة تجريبية", nameEn: "Test Arabic", isActive: true },
+    select: { id: true },
+  });
   const foreignSubject = await prisma.subject.create({
     data: { academyId: foreignAcademy.id, slug: `demo-test-${suffix}`, nameAr: "قرآن أجنبي", nameEn: "Foreign Quran", isActive: true },
     select: { id: true },
@@ -102,6 +114,46 @@ export async function createSessionFixtures() {
   await prisma.teacherSubject.create({ data: { academyId: academy.id, teacherId: teacher.id, subjectId: subject.id } });
   await prisma.teacherSubject.create({ data: { academyId: academy.id, teacherId: teacher2.id, subjectId: subject.id } });
   await prisma.teacherSubject.create({ data: { academyId: foreignAcademy.id, teacherId: foreignTeacher.id, subjectId: foreignSubject.id } });
+
+  // StudentSubject bookkeeping: students 1-10 study the main subject; 11/12 have none.
+  const assignedStudentKeys = [
+    "student1", "student2", "student3", "student4",
+    "student5", "student6", "student7", "student8", "student9", "student10",
+  ];
+  await prisma.studentSubject.createMany({
+    data: assignedStudentKeys.map((key) => ({ academyId: academy.id, studentId: students[key], subjectId: subject.id })),
+  });
+  await prisma.studentSubject.create({
+    data: { academyId: foreignAcademy.id, studentId: foreignStudent.id, subjectId: foreignSubject.id },
+  });
+
+  // ACTIVE assignments: students 1-8 -> teacher; student9 -> teacher2. student10 stays unassigned
+  // (override/unassigned-path tests); students 11/12 have neither StudentSubject nor assignment.
+  await prisma.studentTeacherAssignment.createMany({
+    data: [
+      ...["student1", "student2", "student3", "student4", "student5", "student6", "student7", "student8"].map((key) => ({
+        academyId: academy.id,
+        studentId: students[key],
+        teacherId: teacher.id,
+        subjectId: subject.id,
+        createdById: users.admin.id,
+      })),
+      {
+        academyId: academy.id,
+        studentId: students.student9,
+        teacherId: teacher2.id,
+        subjectId: subject.id,
+        createdById: users.admin.id,
+      },
+      {
+        academyId: foreignAcademy.id,
+        studentId: foreignStudent.id,
+        teacherId: foreignTeacher.id,
+        subjectId: foreignSubject.id,
+        createdById: users.foreignAdmin.id,
+      },
+    ],
+  });
 
   return {
     suffix,
@@ -123,6 +175,7 @@ export async function createSessionFixtures() {
     studentProfileIds: students,
     foreignStudentProfileId: foreignStudent.id,
     subjectId: subject.id,
+    subjectBId: subjectB.id,
     foreignSubjectId: foreignSubject.id,
   };
 }
@@ -147,6 +200,8 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     await prisma.session.deleteMany({ where: { academyId } });
     await prisma.recurrenceSeries.deleteMany({ where: { academyId } });
     await prisma.subscription.deleteMany({ where: { academyId } });
+    await prisma.studentTeacherAssignment.deleteMany({ where: { academyId } });
+    await prisma.studentSubject.deleteMany({ where: { academyId } });
     await prisma.teacherSubject.deleteMany({ where: { academyId } });
     await prisma.student.deleteMany({ where: { academyId } });
     await prisma.guardian.deleteMany({ where: { academyId } });

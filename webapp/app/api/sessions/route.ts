@@ -4,7 +4,36 @@ import { requireApiRoles } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { reserveCredit, runSerializable } from "../../../lib/credits/reservation";
 import { enqueueSessionJobs } from "../../../lib/notifications/session-jobs";
+import { SchedulingValidationError, assertTeacherFree, resolveParticipants } from "../../../lib/scheduling/checks";
 import { sessionCreateSchema } from "../../../lib/validation/management";
+import { validateZoomUrl, zoomUrlReasonMessages } from "../../../lib/validation/zoom-url";
+
+function zoomUrlErrorResponse(value: string) {
+  const result = validateZoomUrl(value);
+  if (result.ok) return null;
+  return NextResponse.json(
+    {
+      error: {
+        code: "INVALID_ZOOM_URL",
+        message: `${zoomUrlReasonMessages[result.reason]} This is a format check only; it does not verify that the meeting exists.`,
+      },
+    },
+    { status: 400 },
+  );
+}
+
+function schedulingErrorResponse(error: SchedulingValidationError) {
+  return NextResponse.json(
+    {
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(error.studentIds ? { studentIds: error.studentIds } : {}),
+      },
+    },
+    { status: 409 },
+  );
+}
 
 export async function GET(request: Request) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
@@ -66,16 +95,22 @@ export async function POST(request: Request) {
   if (uniqueStudentIds.length !== data.studentIds.length) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "A student cannot be selected twice." } }, { status: 400 });
   }
+  const zoomError = zoomUrlErrorResponse(data.zoomJoinUrl)
+    ?? (data.zoomHostUrl ? zoomUrlErrorResponse(data.zoomHostUrl) : null);
+  if (zoomError) return zoomError;
+  if (start.getTime() <= Date.now()) {
+    return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "The session start must be in the future." } }, { status: 400 });
+  }
   try {
     const session = await runSerializable(async (tx) => {
-      const teacherSubject = await tx.teacherSubject.findFirst({
-        where: { academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId },
+      const participants = await resolveParticipants(tx, {
+        academyId: user.academyId,
+        teacherId: data.teacherId,
+        subjectId: data.subjectId,
+        studentIds: uniqueStudentIds,
+        assignmentOverrideReason: data.assignmentOverrideReason,
       });
-      const students = await tx.student.findMany({
-        where: { id: { in: uniqueStudentIds }, academyId: user.academyId, user: { isActive: true } },
-        select: { id: true },
-      });
-      if (!teacherSubject || students.length !== uniqueStudentIds.length) throw new Error("SESSION_PARTICIPANTS_INVALID");
+      await assertTeacherFree(tx, user.academyId, data.teacherId, start, end);
       const created = await tx.session.create({
         data: {
           academyId: user.academyId,
@@ -88,6 +123,8 @@ export async function POST(request: Request) {
           timezone: data.timezone,
           zoomJoinUrl: data.zoomJoinUrl,
           zoomHostUrl: data.zoomHostUrl || null,
+          assignmentOverriddenById: participants.overrodeAssignment ? user.id : null,
+          assignmentOverrideReason: participants.overrodeAssignment ? data.assignmentOverrideReason : null,
           createdById: user.id,
           students: { create: uniqueStudentIds.map((studentId) => ({ studentId })) },
         },
@@ -118,18 +155,25 @@ export async function POST(request: Request) {
         recipients.students.map(({ student }) => student.userId),
         recipients.students.flatMap(({ student }) => student.guardian ? [student.guardian.userId] : []),
       );
+      const insufficientStudentIds: string[] = [];
       for (const studentId of uniqueStudentIds) {
-        if (!(await reserveCredit(tx, user.academyId, studentId, created.id, start))) throw new Error("INSUFFICIENT_SESSION_CREDIT");
+        if (!(await reserveCredit(tx, user.academyId, studentId, created.id, start))) {
+          insufficientStudentIds.push(studentId);
+        }
+      }
+      if (insufficientStudentIds.length > 0) {
+        throw new SchedulingValidationError(
+          "INSUFFICIENT_SESSION_CREDIT",
+          "One or more students do not have an available session credit.",
+          insufficientStudentIds,
+        );
       }
       return created;
     });
     return NextResponse.json({ data: session }, { status: 201 });
   } catch (cause) {
-    if (cause instanceof Error && cause.message === "INSUFFICIENT_SESSION_CREDIT") {
-      return NextResponse.json({ error: { code: "INSUFFICIENT_SESSION_CREDIT", message: "One or more students do not have an available session credit." } }, { status: 409 });
-    }
-    if (cause instanceof Error && cause.message === "SESSION_PARTICIPANTS_INVALID") {
-      return NextResponse.json({ error: { code: "CONFLICT", message: "Teacher, subject, or students are not valid for this academy." } }, { status: 409 });
+    if (cause instanceof SchedulingValidationError) {
+      return schedulingErrorResponse(cause);
     }
     throw cause;
   }

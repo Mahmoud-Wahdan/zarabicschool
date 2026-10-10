@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
 import { runSerializable } from "../../../../lib/credits/reservation";
+import { SchedulingValidationError, resolveParticipants } from "../../../../lib/scheduling/checks";
 import { zonedWallClock } from "../../../../lib/schedules/recurrence";
 import { generateSeriesWeek, type SeriesForGeneration } from "../../../../lib/schedules/series";
 import { recurringSessionSchema } from "../../../../lib/validation/management";
+import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
 
 export async function POST(request: Request) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
@@ -31,6 +33,25 @@ export async function POST(request: Request) {
   if (studentIds.length !== data.studentIds.length) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "A student cannot be selected twice." } }, { status: 400 });
   }
+  const zoomResult = validateZoomUrl(data.zoomJoinUrl);
+  if (!zoomResult.ok) {
+    return NextResponse.json(
+      { error: { code: "INVALID_ZOOM_URL", message: `${zoomUrlReasonMessages[zoomResult.reason]} This is a format check only; it does not verify that the meeting exists.` } },
+      { status: 400 },
+    );
+  }
+  if (data.zoomHostUrl) {
+    const hostResult = validateZoomUrl(data.zoomHostUrl);
+    if (!hostResult.ok) {
+      return NextResponse.json(
+        { error: { code: "INVALID_ZOOM_URL", message: `${zoomUrlReasonMessages[hostResult.reason]} This is a format check only; it does not verify that the meeting exists.` } },
+        { status: 400 },
+      );
+    }
+  }
+  if (start.getTime() <= Date.now()) {
+    return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "The first session must start in the future." } }, { status: 400 });
+  }
 
   const recurrenceRule = {
     scheduledStart: data.scheduledStart,
@@ -38,18 +59,20 @@ export async function POST(request: Request) {
     zoomJoinUrl: data.zoomJoinUrl,
     zoomHostUrl: data.zoomHostUrl || null,
     studentIds,
+    assignmentOverride: data.assignmentOverrideReason
+      ? { overriddenById: user.id, reason: data.assignmentOverrideReason }
+      : null,
   };
 
   try {
     const result = await runSerializable(async (tx) => {
-      const teacherSubject = await tx.teacherSubject.findFirst({
-        where: { academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId },
+      await resolveParticipants(tx, {
+        academyId: user.academyId,
+        teacherId: data.teacherId,
+        subjectId: data.subjectId,
+        studentIds,
+        assignmentOverrideReason: data.assignmentOverrideReason,
       });
-      const students = await tx.student.findMany({
-        where: { id: { in: studentIds }, academyId: user.academyId, user: { isActive: true } },
-        select: { id: true },
-      });
-      if (!teacherSubject || students.length !== studentIds.length) throw new Error("SESSION_PARTICIPANTS_INVALID");
 
       const series = await tx.recurrenceSeries.create({
         data: {
@@ -79,17 +102,30 @@ export async function POST(request: Request) {
       };
 
       const created: { id: string; scheduledStart: Date }[] = [];
+      let paused = false;
       for (let index = 0; index < data.weekCount; index += 1) {
         const outcome = await generateSeriesWeek(tx, seriesRecord, index);
-        if (outcome.outcome === "paused") break;
+        if (outcome.outcome === "paused") {
+          paused = true;
+          break;
+        }
         created.push({ id: outcome.sessionId, scheduledStart: outcome.sessionStart });
       }
-      return { seriesId: series.id, sessions: created };
+      return { seriesId: series.id, sessions: created, paused };
     });
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (cause) {
-    if (cause instanceof Error && cause.message === "SESSION_PARTICIPANTS_INVALID") {
-      return NextResponse.json({ error: { code: "CONFLICT", message: "Teacher, subject, or students are not valid for this academy." } }, { status: 409 });
+    if (cause instanceof SchedulingValidationError) {
+      return NextResponse.json(
+        {
+          error: {
+            code: cause.code,
+            message: cause.message,
+            ...(cause.studentIds ? { studentIds: cause.studentIds } : {}),
+          },
+        },
+        { status: 409 },
+      );
     }
     throw cause;
   }

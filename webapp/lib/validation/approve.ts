@@ -35,6 +35,12 @@ export const approveApplicationSchema = z
       )
       .max(20, "Too many account overrides")
       .optional(),
+    teachers: z
+      .record(
+        z.string().trim().min(1).max(30),
+        z.record(z.string().trim().min(1).max(80), z.string().uuid())
+      )
+      .optional(),
   })
   .refine((value) => !(value.existingGuardianId && value.createGuardian), {
     message: "Choose either an existing guardian or create a new one, not both.",

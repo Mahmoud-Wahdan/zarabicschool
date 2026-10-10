@@ -40,9 +40,14 @@ function apiRequest(path: string, method: string, body: unknown) {
   });
 }
 
+let sessionSlotCounter = 0;
+
 async function createSessionViaApi(studentProfileId: string, overrides: Record<string, unknown> = {}) {
   asActor(fx.adminUserId);
-  const start = new Date(Date.now() + 2 * 3600 * 1000);
+  // Distinct two-hour offsets keep the teacher-conflict check happy across tests
+  // while the series anchor (now + 2h) stays free for the resume test.
+  sessionSlotCounter += 1;
+  const start = new Date(Date.now() + (2 + sessionSlotCounter * 2) * 3600 * 1000);
   start.setUTCMinutes(0, 0, 0);
   const response = await createSessionRoute(
     apiRequest("/api/sessions", "POST", {
@@ -52,7 +57,7 @@ async function createSessionViaApi(studentProfileId: string, overrides: Record<s
       scheduledStart: start.toISOString(),
       scheduledEnd: new Date(start.getTime() + 3600 * 1000).toISOString(),
       timezone: "Africa/Cairo",
-      zoomJoinUrl: "https://zoom.us/j/worker-test",
+      zoomJoinUrl: "https://zoom.us/j/123456789012",
       studentIds: [studentProfileId],
       ...overrides,
     }),
@@ -98,7 +103,7 @@ async function createPrismaSession(studentProfileId: string, scheduledEnd: Date)
       scheduledEnd,
       durationMinutes: 60,
       timezone: "Africa/Cairo",
-      zoomJoinUrl: "https://zoom.us/j/late-report",
+      zoomJoinUrl: "https://zoom.us/j/345678901234",
       createdById: fx.adminUserId,
       status: "SCHEDULED",
       students: { create: [{ studentId: studentProfileId }] },
@@ -246,7 +251,7 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
         scheduledStart: anchor.toISOString(),
         scheduledEnd: new Date(anchor.getTime() + 3600 * 1000).toISOString(),
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "https://zoom.us/j/resume-test",
+        zoomJoinUrl: "https://zoom.us/j/234567890123",
         studentIds: [fx.studentProfileIds.student7],
         weekCount: 5,
       }),
@@ -273,7 +278,8 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
 
   it("never creates a duplicate week when two workers extend the same series concurrently", async () => {
     await grantCredit(fx.studentProfileIds.student5, 4);
-    const anchor = new Date(Date.now() + 2 * 3600 * 1000);
+    // One hour after the resume-test series anchor: week boundaries touch but never overlap.
+    const anchor = new Date(Date.now() + 3 * 3600 * 1000);
     anchor.setUTCMinutes(0, 0, 0);
     const series = await prisma.recurrenceSeries.create({
       data: {
@@ -284,7 +290,7 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
         recurrenceRule: {
           scheduledStart: anchor.toISOString(),
           scheduledEnd: new Date(anchor.getTime() + 3600 * 1000).toISOString(),
-          zoomJoinUrl: "https://zoom.us/j/dup-test",
+          zoomJoinUrl: "https://zoom.us/j/456789012345",
           zoomHostUrl: null,
           studentIds: [fx.studentProfileIds.student5],
         },

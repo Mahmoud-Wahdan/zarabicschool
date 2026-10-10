@@ -10,6 +10,7 @@ export type SeriesRecurrenceRule = {
   zoomJoinUrl: string;
   zoomHostUrl: string | null;
   studentIds: string[];
+  assignmentOverride?: { overriddenById: string; reason: string } | null;
 };
 
 export type SeriesForGeneration = Pick<
@@ -34,6 +35,25 @@ export async function generateSeriesWeek(
   const durationMinutes = Math.round((sessionEnd.getTime() - sessionStart.getTime()) / 60000);
   const studentIds = rule.studentIds;
 
+  const teacherConflicts = await tx.session.findMany({
+    where: {
+      academyId: series.academyId,
+      teacherId: series.teacherId,
+      status: "SCHEDULED",
+      scheduledStart: { lt: sessionEnd },
+      scheduledEnd: { gt: sessionStart },
+    },
+    select: { id: true },
+  });
+  if (teacherConflicts.length > 0) {
+    await tx.recurrenceSeries.update({
+      where: { id: series.id },
+      data: { generatedThroughWeek: weekIndex - 1, status: "PAUSED" },
+    });
+    await enqueueSeriesPausedFlag(tx, series.academyId, series.id, weekIndex);
+    return { outcome: "paused" };
+  }
+
   const session = await tx.session.create({
     data: {
       academyId: series.academyId,
@@ -46,6 +66,8 @@ export async function generateSeriesWeek(
       timezone: series.timezone,
       zoomJoinUrl: rule.zoomJoinUrl,
       zoomHostUrl: rule.zoomHostUrl,
+      assignmentOverriddenById: rule.assignmentOverride?.overriddenById ?? null,
+      assignmentOverrideReason: rule.assignmentOverride?.reason ?? null,
       recurrenceGroupId: series.id,
       recurrenceWeekIndex: weekIndex,
       createdById: series.createdById,

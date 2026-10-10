@@ -3,6 +3,21 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { sessionUpdateSchema } from "../../../../lib/validation/management";
+import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
+
+function zoomUrlErrorResponse(value: string) {
+  const result = validateZoomUrl(value);
+  if (result.ok) return null;
+  return NextResponse.json(
+    {
+      error: {
+        code: "INVALID_ZOOM_URL",
+        message: `${zoomUrlReasonMessages[result.reason]} This is a format check only; it does not verify that the meeting exists.`,
+      },
+    },
+    { status: 400 },
+  );
+}
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
@@ -10,12 +25,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const parsed = sessionUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid session update.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
+  const data = parsed.data;
+  if (data.zoomJoinUrl) {
+    const zoomError = zoomUrlErrorResponse(data.zoomJoinUrl);
+    if (zoomError) return zoomError;
+  }
+  if (data.zoomHostUrl) {
+    const hostError = zoomUrlErrorResponse(data.zoomHostUrl);
+    if (hostError) return hostError;
+  }
   const existing = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, status: true, scheduledStart: true, scheduledEnd: true } });
   if (!existing) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
   if (existing.status === "COMPLETED" || existing.status === "MISSED") {
     return NextResponse.json({ error: { code: "CONFLICT", message: "Completed or missed sessions are immutable." } }, { status: 409 });
   }
-  const data = parsed.data;
   if (existing.status === "CANCELLED" && data.status && data.status !== "CANCELLED") {
     return NextResponse.json({ error: { code: "CONFLICT", message: "Cancelled sessions cannot be reopened." } }, { status: 409 });
   }

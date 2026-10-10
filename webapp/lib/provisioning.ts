@@ -37,6 +37,7 @@ export type ApproveInput = {
     relationship: "father" | "mother";
   };
   accounts?: { key: string; username: string }[];
+  teachers?: Record<string, Record<string, string>>;
   randomDigits?: () => number;
 };
 
@@ -83,7 +84,10 @@ function expectedAccountKeys(
   return ["teacher"];
 }
 
-async function resolveSubjectIds(academyId: string, entries: string[]): Promise<string[]> {
+async function resolveSubjectEntries(
+  academyId: string,
+  entries: string[]
+): Promise<Map<string, string>> {
   const subjects = await prisma.subject.findMany({
     where: { academyId, isActive: true },
     select: { id: true, slug: true },
@@ -91,14 +95,14 @@ async function resolveSubjectIds(academyId: string, entries: string[]): Promise<
   const bySlug = new Map(subjects.map((subject) => [subject.slug, subject.id]));
   const byId = new Set(subjects.map((subject) => subject.id));
 
-  const resolved: string[] = [];
+  const resolved = new Map<string, string>();
   const unknown: string[] = [];
   for (const entry of entries) {
     const id = bySlug.get(entry) ?? (byId.has(entry) ? entry : undefined);
     if (!id) {
       unknown.push(entry);
-    } else if (!resolved.includes(id)) {
-      resolved.push(id);
+    } else {
+      resolved.set(entry, id);
     }
   }
   if (unknown.length > 0) {
@@ -110,6 +114,107 @@ async function resolveSubjectIds(academyId: string, entries: string[]): Promise<
     );
   }
   return resolved;
+}
+
+async function resolveSubjectIds(academyId: string, entries: string[]): Promise<string[]> {
+  const resolved = await resolveSubjectEntries(academyId, entries);
+  return [...new Set(resolved.values())];
+}
+
+type StudentSubjectPlan = {
+  subjectIds: string[];
+  teacherBySubject: Map<string, string>;
+};
+
+async function buildStudentSubjectPlans(
+  input: ApproveInput,
+  appType: ApplicationTypeValue,
+  details: ApplicationDetails
+): Promise<Map<string, StudentSubjectPlan>> {
+  const plans = new Map<string, StudentSubjectPlan>();
+  if (appType !== "GUARDIAN" && appType !== "STUDENT") return plans;
+
+  const childrenSubjects =
+    appType === "GUARDIAN"
+      ? (details.children ?? []).map((child, index) => ({ key: `child-${index}`, entries: child.subjects ?? [] }))
+      : [{ key: "student", entries: details.subjects ?? [] }];
+
+  for (const { key, entries } of childrenSubjects) {
+    const entryToSubject = await resolveSubjectEntries(input.academyId, entries);
+    const subjectIds = [...new Set(entryToSubject.values())];
+    const teacherBySubject = new Map<string, string>();
+
+    const selections = input.teachers?.[key] ?? {};
+    for (const [entry, teacherId] of Object.entries(selections)) {
+      const subjectId = entryToSubject.get(entry);
+      if (!subjectId) {
+        throw new ProvisioningError(400, "VALIDATION_ERROR", "Please correct the highlighted fields.", {
+          [`teachers.${key}.${entry}`]: ["This subject is not part of the application."],
+        });
+      }
+      if (teacherBySubject.has(subjectId) && teacherBySubject.get(subjectId) !== teacherId) {
+        throw new ProvisioningError(400, "VALIDATION_ERROR", "Please correct the highlighted fields.", {
+          [`teachers.${key}.${entry}`]: ["Only one teacher per subject can be selected."],
+        });
+      }
+      const teacher = await prisma.teacher.findFirst({
+        where: { id: teacherId, academyId: input.academyId, user: { isActive: true } },
+        select: { id: true },
+      });
+      if (!teacher) {
+        throw new ProvisioningError(400, "VALIDATION_ERROR", "Please correct the highlighted fields.", {
+          [`teachers.${key}.${entry}`]: ["The selected teacher was not found or is not active."],
+        });
+      }
+      const teacherSubject = await prisma.teacherSubject.findFirst({
+        where: { academyId: input.academyId, teacherId, subjectId },
+        select: { id: true },
+      });
+      if (!teacherSubject) {
+        throw new ProvisioningError(400, "VALIDATION_ERROR", "Please correct the highlighted fields.", {
+          [`teachers.${key}.${entry}`]: ["The selected teacher does not teach this subject."],
+        });
+      }
+      teacherBySubject.set(subjectId, teacherId);
+    }
+
+    plans.set(key, { subjectIds, teacherBySubject });
+  }
+  return plans;
+}
+
+async function createStudentSubjectsAndAssignments(
+  tx: Prisma.TransactionClient,
+  input: ApproveInput,
+  plans: Map<string, StudentSubjectPlan>,
+  accountKey: string,
+  studentProfileId: string
+): Promise<void> {
+  const plan = plans.get(accountKey);
+  if (!plan) return;
+  if (plan.subjectIds.length > 0) {
+    await tx.studentSubject.createMany({
+      data: plan.subjectIds.map((subjectId) => ({
+        academyId: input.academyId,
+        studentId: studentProfileId,
+        subjectId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+  for (const [subjectId, teacherId] of plan.teacherBySubject) {
+    await tx.studentTeacherAssignment.create({
+      data: {
+        academyId: input.academyId,
+        studentId: studentProfileId,
+        teacherId,
+        subjectId,
+        status: "ACTIVE",
+        createdById: input.adminId,
+      },
+      select: { id: true },
+    });
+  }
 }
 
 async function resolveUsername(
@@ -208,6 +313,8 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
   if (appType === "TEACHER") {
     teacherSubjectIds = await resolveSubjectIds(input.academyId, precheckDetails.subjects ?? []);
   }
+
+  const studentPlans = await buildStudentSubjectPlans(input, appType, precheckDetails);
 
   const accountKeys = expectedAccountKeys(
     appType,
@@ -326,7 +433,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
           select: { id: true, username: true },
         });
 
-        await tx.student.create({
+        const childStudentProfile = await tx.student.create({
           data: {
             userId: childUser.id,
             guardianId: guardianProfile.id,
@@ -334,7 +441,9 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
             academyId: input.academyId,
             enrollmentDate: new Date(),
           },
+          select: { id: true },
         });
+        await createStudentSubjectsAndAssignments(tx, input, studentPlans, key, childStudentProfile.id);
 
         accounts.push({
           key,
@@ -433,7 +542,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
         select: { id: true, username: true },
       });
 
-      await tx.student.create({
+      const studentProfile = await tx.student.create({
         data: {
           userId: studentUser.id,
           guardianId: guardianProfileId,
@@ -441,7 +550,9 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
           academyId: input.academyId,
           enrollmentDate: new Date(),
         },
+        select: { id: true },
       });
+      await createStudentSubjectsAndAssignments(tx, input, studentPlans, "student", studentProfile.id);
 
       accounts.push({
         key: "student",

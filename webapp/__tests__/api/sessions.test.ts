@@ -18,6 +18,7 @@ import { POST as recurrencesRoute } from "../../app/api/sessions/recurrences/rou
 import { POST as changeRequestRoute } from "../../app/api/sessions/[id]/change-request/route";
 import { GET as joinRoute } from "../../app/api/sessions/[id]/join/route";
 import { PATCH as reviewChangeRequestRoute } from "../../app/api/session-change-requests/[id]/route";
+import { POST as enrollRoute, DELETE as unenrollRoute } from "../../app/api/admin/enrollments/route";
 import {
   cleanupSessionFixtures,
   createSessionFixtures,
@@ -42,15 +43,26 @@ function futureDate(days: number, hours: number) {
   return date;
 }
 
-function sessionPayload(overrides: Record<string, unknown> = {}) {
+function futureDateTime(days: number, hour: number, minutes = 0) {
+  const date = futureDate(days, hour);
+  date.setUTCMinutes(minutes, 0, 0);
+  return date;
+}
+
+const JOIN_URL = "https://zoom.us/j/123456789012";
+const HOST_URL = "https://zoom.us/s/987654321012";
+
+function sessionPayload(overrides: Record<string, unknown> = {}, slot: { day: number; hour: number; minutes?: number } = { day: 3, hour: 10 }) {
+  const start = futureDateTime(slot.day, slot.hour, slot.minutes);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
   return {
     teacherId: fx.teacherProfileId,
     subjectId: fx.subjectId,
     sessionType: "PRIVATE",
-    scheduledStart: futureDate(3, 10).toISOString(),
-    scheduledEnd: futureDate(3, 11).toISOString(),
+    scheduledStart: start.toISOString(),
+    scheduledEnd: end.toISOString(),
     timezone: "Africa/Cairo",
-    zoomJoinUrl: "https://zoom.us/j/test-session",
+    zoomJoinUrl: JOIN_URL,
     studentIds: [fx.studentProfileIds.student1],
     ...overrides,
   };
@@ -68,9 +80,13 @@ function routeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
 
-async function createSession(actorId: string, overrides: Record<string, unknown> = {}) {
+async function createSession(
+  actorId: string,
+  overrides: Record<string, unknown> = {},
+  slot: { day: number; hour: number; minutes?: number } = { day: 3, hour: 10 },
+) {
   asActor(actorId);
-  const response = await createSessionRoute(apiRequest("/api/sessions", "POST", sessionPayload(overrides)));
+  const response = await createSessionRoute(apiRequest("/api/sessions", "POST", sessionPayload(overrides, slot)));
   return { status: response.status, body: await response.json() };
 }
 
@@ -116,8 +132,8 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
   it("scenario 1: concurrent scheduling against the last available credit allows exactly one booking", async () => {
     await grantCredit(fx.studentProfileIds.student1, 1);
     const [first, second] = await Promise.all([
-      createSession(fx.adminUserId),
-      createSession(fx.adminUserId),
+      createSession(fx.adminUserId, {}, { day: 3, hour: 10 }),
+      createSession(fx.adminUserId, {}, { day: 3, hour: 12 }),
     ]);
     expect([first.status, second.status].sort()).toEqual([201, 409]);
     const activeReservations = await prisma.sessionReservation.count({
@@ -132,9 +148,10 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     const { status, body } = await createSession(fx.adminUserId, {
       sessionType: "GROUP",
       studentIds: [fx.studentProfileIds.student2, fx.studentProfileIds.student3],
-    });
+    }, { day: 3, hour: 14 });
     expect(status).toBe(409);
     expect(body.error?.code).toBe("INSUFFICIENT_SESSION_CREDIT");
+    expect(body.error?.studentIds).toEqual([fx.studentProfileIds.student3]);
     const afterSessions = await prisma.session.count({ where: { academyId: fx.academyId } });
     expect(afterSessions).toBe(beforeSessions);
     const leftoverReservations = await prisma.sessionReservation.count({
@@ -174,7 +191,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("scenario 7: double cancellation is idempotent, keeps the first canceller, and stops reminder jobs", async () => {
     await grantCredit(fx.studentProfileIds.student5, 4);
-    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student5] });
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student5] }, { day: 3, hour: 16 });
     const sessionId = body.data.id as string;
     const jobsBefore = await prisma.notificationJob.count({ where: { sessionId } });
     expect(jobsBefore).toBeGreaterThan(0);
@@ -211,7 +228,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("scenario 8: replacement releases the missed source reservation and reserves new credit", async () => {
     await grantCredit(fx.studentProfileIds.student6, 3);
-    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] });
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 3, hour: 18 });
     const sourceId = body.data.id as string;
     await prisma.session.update({ where: { id: sourceId }, data: { status: "MISSED" } });
     asActor(fx.adminUserId);
@@ -238,12 +255,13 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("scenario 9: cross-academy access is rejected and teacher scoping holds", async () => {
     await grantCredit(fx.studentProfileIds.student7, 4);
-    const { body: firstBody } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] });
+    await grantCredit(fx.studentProfileIds.student9, 4);
+    const { body: firstBody } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] }, { day: 3, hour: 20 });
     const sessionA = firstBody.data.id as string;
     const { body: secondBody } = await createSession(fx.adminUserId, {
       teacherId: fx.teacher2ProfileId,
-      studentIds: [fx.studentProfileIds.student7],
-    });
+      studentIds: [fx.studentProfileIds.student9],
+    }, { day: 3, hour: 20 });
     const sessionB = secondBody.data.id as string;
 
     asActor(fx.foreignAdminUserId);
@@ -275,7 +293,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("scenario 10: teachers cannot mutate sessions but can request a change", async () => {
     await grantCredit(fx.studentProfileIds.student8, 4);
-    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student8] });
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student8] }, { day: 4, hour: 10 });
     const sessionId = body.data.id as string;
 
     asActor(fx.teacherUserId);
@@ -317,36 +335,36 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
   it("scenario 11: zoom link exposure follows the role matrix and the join route is guarded", async () => {
     await grantCredit(fx.studentProfileIds.student1, 4);
     const { body } = await createSession(fx.adminUserId, {
-      zoomHostUrl: "https://zoom.us/host/test-session",
+      zoomHostUrl: HOST_URL,
       studentIds: [fx.studentProfileIds.student1],
-    });
+    }, { day: 4, hour: 12 });
     const sessionId = body.data.id as string;
 
     asActor(fx.adminUserId);
     const adminList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const adminPayload = await adminList.json();
     const adminItem = adminPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(adminItem.zoomHostUrl).toBe("https://zoom.us/host/test-session");
-    expect(adminItem.zoomJoinUrl).toBe("https://zoom.us/j/test-session");
+    expect(adminItem.zoomHostUrl).toBe(HOST_URL);
+    expect(adminItem.zoomJoinUrl).toBe(JOIN_URL);
 
     asActor(fx.studentUserIds.student1);
     const studentList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const studentPayload = await studentList.json();
     const studentItem = studentPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(studentItem.zoomJoinUrl).toBe("https://zoom.us/j/test-session");
+    expect(studentItem.zoomJoinUrl).toBe(JOIN_URL);
     expect(studentItem.zoomHostUrl).toBeUndefined();
 
     asActor(fx.guardianUserId);
     const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const guardianPayload = await guardianList.json();
     const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe("https://zoom.us/j/test-session");
+    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
     expect(guardianItem.zoomHostUrl).toBeUndefined();
 
     asActor(fx.studentUserIds.student1);
     const studentJoin = await joinRoute(new Request(`http://localhost:3000/api/sessions/${sessionId}/join`), routeParams(sessionId));
     expect(studentJoin.status).toBe(307);
-    expect(studentJoin.headers.get("location")).toBe("https://zoom.us/j/test-session");
+    expect(studentJoin.headers.get("location")).toBe(JOIN_URL);
     const click = await prisma.sessionJoinClick.findFirst({ where: { sessionId, userId: fx.studentUserIds.student1 } });
     expect(click).not.toBeNull();
 
@@ -375,7 +393,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
         scheduledEnd: futureDate(4, 10),
         durationMinutes: 60,
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "http://zoom.us/j/insecure",
+        zoomJoinUrl: "http://zoom.us/j/123456789",
         createdById: fx.adminUserId,
         status: "SCHEDULED",
         students: { create: [{ studentId: fx.studentProfileIds.student1 }] },
@@ -385,11 +403,13 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     asActor(fx.studentUserIds.student1);
     const insecureJoin = await joinRoute(new Request(`http://localhost:3000/api/sessions/${insecureSession.id}/join`), routeParams(insecureSession.id));
     expect(insecureJoin.status).toBe(409);
+    const insecurePayload = await insecureJoin.json();
+    expect(insecurePayload.error?.code).toBe("INVALID_ZOOM_URL");
   });
 
   it("scenario 12: session status transitions follow the allowlist", async () => {
     await grantCredit(fx.studentProfileIds.student2, 4);
-    const { body } = await createSession(fx.adminUserId);
+    const { body } = await createSession(fx.adminUserId, {}, { day: 4, hour: 16 });
     const sessionId = body.data.id as string;
     asActor(fx.adminUserId);
 
@@ -439,18 +459,19 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
   it("regression R10: zoom links must be https", async () => {
     asActor(fx.adminUserId);
     const httpJoin = await createSessionRoute(
-      apiRequest("/api/sessions", "POST", sessionPayload({ zoomJoinUrl: "http://zoom.us/j/insecure", studentIds: [fx.studentProfileIds.student3] })),
+      apiRequest("/api/sessions", "POST", sessionPayload({ zoomJoinUrl: "http://zoom.us/j/123456789", studentIds: [fx.studentProfileIds.student3] })),
     );
     expect(httpJoin.status).toBe(400);
+    const payload = await httpJoin.json();
+    expect(payload.error?.code).toBe("INVALID_ZOOM_URL");
   });
 
   it("regression R21: rescheduling moves pending reminder jobs by the same delta", async () => {
     await grantCredit(fx.studentProfileIds.student3, 4);
-    const originalStart = futureDate(3, 10);
+    const originalStart = futureDateTime(5, 10);
     const { body } = await createSession(fx.adminUserId, {
       studentIds: [fx.studentProfileIds.student3],
-      scheduledStart: originalStart.toISOString(),
-    });
+    }, { day: 5, hour: 10 });
     const sessionId = body.data.id as string;
     const newStart = new Date(originalStart.getTime() + 3 * 24 * 3600 * 1000);
     const newEnd = new Date(originalStart.getTime() + 3 * 24 * 3600 * 1000 + 3600 * 1000);
@@ -479,14 +500,14 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
         currency: "EGP",
         status: "ACTIVE",
         periodStartsAt: new Date(Date.now() - 24 * 3600 * 1000),
-        periodEndsAt: new Date(Date.now() + 5 * 24 * 3600 * 1000),
+        periodEndsAt: new Date(Date.now() + 8 * 24 * 3600 * 1000),
       },
       select: { id: true },
     });
     await prisma.subscriptionLedger.create({
       data: { academyId: fx.academyId, subscriptionId: expiring.id, entryType: "INITIAL_PURCHASE", sessionsDelta: 2 },
     });
-    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student4] });
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student4] }, { day: 6, hour: 10 });
     expect(body.data.id).toBeTruthy();
     const reservation = await prisma.sessionReservation.findFirstOrThrow({
       where: { sessionId: body.data.id as string },
@@ -497,7 +518,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("regression R6/R16: cancelled sessions free credits and the guardian sees only the join link", async () => {
     await grantCredit(fx.studentProfileIds.student5, 2);
-    const { body } = await createSession(fx.adminUserId);
+    const { body } = await createSession(fx.adminUserId, {}, { day: 6, hour: 12 });
     const sessionId = body.data.id as string;
     asActor(fx.adminUserId);
     await updateSessionRoute(
@@ -512,13 +533,13 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const guardianPayload = await guardianList.json();
     const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe("https://zoom.us/j/test-session");
+    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
     expect(guardianItem.zoomHostUrl).toBeUndefined();
   });
 
   it("regression R27: change requests never mutate the session and require a scheduled target", async () => {
     await grantCredit(fx.studentProfileIds.student6, 2);
-    const { body } = await createSession(fx.adminUserId);
+    const { body } = await createSession(fx.adminUserId, {}, { day: 6, hour: 14 });
     const sessionId = body.data.id as string;
     await prisma.session.update({ where: { id: sessionId }, data: { status: "CANCELLED" } });
     asActor(fx.teacherUserId);
@@ -570,7 +591,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("regression: reserveCredit flips a released reservation instead of inserting a duplicate", async () => {
     await grantCredit(fx.studentProfileIds.student7, 2);
-    const anchor = futureDate(6, 14);
+    const anchor = futureDate(6, 16);
     const session = await prisma.session.create({
       data: {
         academyId: fx.academyId,
@@ -581,7 +602,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
         scheduledEnd: new Date(anchor.getTime() + 3600 * 1000),
         durationMinutes: 60,
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "https://zoom.us/j/flip-test",
+        zoomJoinUrl: "https://zoom.us/j/987654321123",
         createdById: fx.adminUserId,
         status: "SCHEDULED",
         students: { create: [{ studentId: fx.studentProfileIds.student7 }] },
@@ -611,5 +632,221 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     expect(rows[0].id).toBe(reservation.id);
     expect(rows[0].status).toBe("RESERVED");
     expect(rows[0].releasedAt).toBeNull();
+  });
+
+  it("returns TEACHER_SUBJECT_NOT_ASSIGNED when the teacher is not linked to the subject", async () => {
+    const { status, body } = await createSession(fx.adminUserId, { subjectId: fx.subjectBId }, { day: 8, hour: 10 });
+    expect(status).toBe(409);
+    expect(body.error?.code).toBe("TEACHER_SUBJECT_NOT_ASSIGNED");
+  });
+
+  it("returns STUDENT_NOT_FOUND_OR_INACTIVE with the offending ids", async () => {
+    const unknownId = "00000000-0000-4000-8000-000000000000";
+    const { status, body } = await createSession(fx.adminUserId, { studentIds: [unknownId] }, { day: 8, hour: 12 });
+    expect(status).toBe(409);
+    expect(body.error?.code).toBe("STUDENT_NOT_FOUND_OR_INACTIVE");
+    expect(body.error?.studentIds).toEqual([unknownId]);
+
+    await prisma.user.update({ where: { id: fx.studentUserIds.student12 }, data: { isActive: false } });
+    const inactive = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student12] }, { day: 8, hour: 14 });
+    expect(inactive.status).toBe(409);
+    expect(inactive.body.error?.code).toBe("STUDENT_NOT_FOUND_OR_INACTIVE");
+    expect(inactive.body.error?.studentIds).toEqual([fx.studentProfileIds.student12]);
+  });
+
+  it("returns STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT with the offending ids", async () => {
+    const { status, body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student10] }, { day: 8, hour: 16 });
+    expect(status).toBe(409);
+    expect(body.error?.code).toBe("STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT");
+    expect(body.error?.studentIds).toEqual([fx.studentProfileIds.student10]);
+  });
+
+  it("allows an Admin/Supervisor assignment override only with a reason and logs it on the session", async () => {
+    await grantCredit(fx.studentProfileIds.student10, 4);
+    const withoutReason = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student10] }, { day: 9, hour: 10 });
+    expect(withoutReason.status).toBe(409);
+    expect(withoutReason.body.error?.code).toBe("STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT");
+
+    const { status, body } = await createSession(
+      fx.adminUserId,
+      { studentIds: [fx.studentProfileIds.student10], assignmentOverrideReason: "Emergency coverage approved by admin" },
+      { day: 9, hour: 10 },
+    );
+    expect(status).toBe(201);
+    const session = await prisma.session.findUniqueOrThrow({
+      where: { id: body.data.id },
+      select: { assignmentOverriddenById: true, assignmentOverrideReason: true },
+    });
+    expect(session.assignmentOverriddenById).toBe(fx.adminUserId);
+    expect(session.assignmentOverrideReason).toBe("Emergency coverage approved by admin");
+
+    const asSupervisor = await createSession(
+      fx.supervisorUserId,
+      { studentIds: [fx.studentProfileIds.student10], assignmentOverrideReason: "Supervisor-approved swap" },
+      { day: 9, hour: 14 },
+    );
+    expect(asSupervisor.status).toBe(201);
+  });
+
+  it("blocks teacher time conflicts and allows boundary touch, cancelled and missed sessions", async () => {
+    await grantCredit(fx.studentProfileIds.student6, 8);
+    const { status: firstStatus } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10 });
+    expect(firstStatus).toBe(201);
+
+    const exact = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10 });
+    expect(exact.status).toBe(409);
+    expect(exact.body.error?.code).toBe("TEACHER_TIME_CONFLICT");
+
+    const partial = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10, minutes: 30 });
+    expect(partial.status).toBe(409);
+    expect(partial.body.error?.code).toBe("TEACHER_TIME_CONFLICT");
+
+    const boundary = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 11 });
+    expect(boundary.status).toBe(201);
+
+    const differentTeacher = await createSession(
+      fx.adminUserId,
+      { teacherId: fx.teacher2ProfileId, studentIds: [fx.studentProfileIds.student9] },
+      { day: 7, hour: 10 },
+    );
+    expect(differentTeacher.status).toBe(201);
+
+    const cancellable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 14 });
+    expect(cancellable.status).toBe(201);
+    asActor(fx.adminUserId);
+    await updateSessionRoute(
+      apiRequest(`/api/sessions/${cancellable.body.data.id}`, "PATCH", { status: "CANCELLED", cancellationReason: "test" }),
+      routeParams(cancellable.body.data.id as string),
+    );
+    const afterCancel = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 14 });
+    expect(afterCancel.status).toBe(201);
+
+    const missable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 16 });
+    await prisma.session.update({ where: { id: missable.body.data.id as string }, data: { status: "MISSED" } });
+    const afterMiss = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 16 });
+    expect(afterMiss.status).toBe(201);
+  });
+
+  it("rejects sessions starting in the past for creation", async () => {
+    const pastStart = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const pastEnd = new Date(Date.now() - 23 * 3600 * 1000).toISOString();
+    const { status, body } = await createSession(fx.adminUserId, {
+      scheduledStart: pastStart,
+      scheduledEnd: pastEnd,
+      studentIds: [fx.studentProfileIds.student6],
+    }, { day: 3, hour: 10 });
+    expect(status).toBe(400);
+    expect(body.error?.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rejects non-conforming Zoom links on create and update with INVALID_ZOOM_URL", async () => {
+    const evil = await createSession(fx.adminUserId, {
+      zoomJoinUrl: "https://zoom.us.evil.com/j/123456789",
+      studentIds: [fx.studentProfileIds.student6],
+    }, { day: 3, hour: 10 });
+    expect(evil.status).toBe(400);
+    expect(evil.body.error?.code).toBe("INVALID_ZOOM_URL");
+
+    const shortId = await createSession(fx.adminUserId, {
+      zoomJoinUrl: "https://zoom.us/j/12345",
+      studentIds: [fx.studentProfileIds.student6],
+    }, { day: 3, hour: 10 });
+    expect(shortId.status).toBe(400);
+    expect(shortId.body.error?.code).toBe("INVALID_ZOOM_URL");
+
+    const personal = await createSession(fx.adminUserId, {
+      zoomJoinUrl: "https://zoom.us/my/rooms-name",
+      studentIds: [fx.studentProfileIds.student6],
+    }, { day: 3, hour: 10 });
+    expect(personal.status).toBe(400);
+    expect(personal.body.error?.code).toBe("INVALID_ZOOM_URL");
+
+    await grantCredit(fx.studentProfileIds.student6, 2);
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 8, hour: 18 });
+    const sessionId = body.data.id as string;
+    asActor(fx.adminUserId);
+    const badPatch = await updateSessionRoute(
+      apiRequest(`/api/sessions/${sessionId}`, "PATCH", { zoomJoinUrl: "https://user:pass@zoom.us/j/123456789" }),
+      routeParams(sessionId),
+    );
+    expect(badPatch.status).toBe(400);
+    expect((await badPatch.json()).error?.code).toBe("INVALID_ZOOM_URL");
+  });
+
+  it("pauses a series with an admin notification when a week conflicts with the teacher's schedule", async () => {
+    await grantCredit(fx.studentProfileIds.student6, 4);
+    const busy = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 10, hour: 10 });
+    expect(busy.status).toBe(201);
+
+    const anchor = futureDateTime(10, 10, 30);
+    const response = await recurrencesRoute(
+      apiRequest("/api/sessions/recurrences", "POST", sessionPayload({
+        scheduledStart: anchor.toISOString(),
+        scheduledEnd: new Date(anchor.getTime() + 3600 * 1000).toISOString(),
+        studentIds: [fx.studentProfileIds.student6],
+        weekCount: 3,
+      })),
+    );
+    expect(response.status).toBe(201);
+    const payload = await response.json();
+    expect(payload.data.sessions).toHaveLength(0);
+    expect(payload.data.paused).toBe(true);
+    const series = await prisma.recurrenceSeries.findUniqueOrThrow({ where: { id: payload.data.seriesId } });
+    expect(series.status).toBe("PAUSED");
+    expect(series.generatedThroughWeek).toBe(-1);
+    const flags = await prisma.notificationJob.findMany({
+      where: { academyId: fx.academyId, kind: "SERIES_PAUSED", recipientUserId: fx.adminUserId },
+    });
+    expect(flags.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("hardened enrollment: assignment required, credit reserved, release on removal", async () => {
+    await grantCredit(fx.studentProfileIds.student10, 2);
+    const { body: sessionBody } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 11, hour: 10 });
+    const sessionId = sessionBody.data.id as string;
+
+    asActor(fx.adminUserId);
+    const enrollRequest = (body: unknown) => apiRequest("/api/admin/enrollments", "POST", body);
+
+    const noAssignment = await enrollRoute(enrollRequest({ sessionId, studentId: fx.studentProfileIds.student10 }));
+    expect(noAssignment.status).toBe(409);
+    expect((await noAssignment.json()).error?.code).toBe("STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT");
+
+    const override = await enrollRoute(
+      enrollRequest({ sessionId, studentId: fx.studentProfileIds.student10, assignmentOverrideReason: "Admin add-on to an existing group" }),
+    );
+    expect(override.status).toBe(201);
+    const reservation = await prisma.sessionReservation.findFirstOrThrow({
+      where: { sessionId, studentId: fx.studentProfileIds.student10 },
+      select: { status: true },
+    });
+    expect(reservation.status).toBe("RESERVED");
+
+    const removed = await unenrollRoute(
+      apiRequest("/api/admin/enrollments", "DELETE", { sessionId, studentId: fx.studentProfileIds.student10 }),
+    );
+    expect(removed.status).toBe(200);
+    const reservationAfter = await prisma.sessionReservation.findFirstOrThrow({
+      where: { sessionId, studentId: fx.studentProfileIds.student10 },
+      select: { status: true },
+    });
+    expect(reservationAfter.status).toBe("RELEASED");
+
+    const duplicate = await enrollRoute(enrollRequest({ sessionId, studentId: fx.studentProfileIds.student6 }));
+    expect(duplicate.status).toBe(409);
+    expect((await duplicate.json()).error?.code).toBe("CONFLICT");
+
+    const noCredit = await enrollRoute(
+      enrollRequest({ sessionId, studentId: fx.studentProfileIds.student11, assignmentOverrideReason: "Emergency add" }),
+    );
+    expect(noCredit.status).toBe(409);
+    const noCreditPayload = await noCredit.json();
+    expect(noCreditPayload.error?.code).toBe("INSUFFICIENT_SESSION_CREDIT");
+    expect(noCreditPayload.error?.studentIds).toEqual([fx.studentProfileIds.student11]);
+
+    await prisma.session.update({ where: { id: sessionId }, data: { status: "CANCELLED" } });
+    const cancelled = await enrollRoute(enrollRequest({ sessionId, studentId: fx.studentProfileIds.student7 }));
+    expect(cancelled.status).toBe(409);
+    expect((await cancelled.json()).error?.code).toBe("SESSION_NOT_SCHEDULED");
   });
 });

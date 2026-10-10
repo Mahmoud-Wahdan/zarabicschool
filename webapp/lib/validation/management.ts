@@ -70,18 +70,41 @@ export const teacherSubjectSchema = z.object({
   subjectId: z.string().uuid(),
 });
 
+export const assignmentCreateSchema = z.object({
+  studentId: z.string().uuid(),
+  teacherId: z.string().uuid(),
+  subjectId: z.string().uuid(),
+});
+
+export const assignmentUpdateSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("END"),
+    endedReason: z.string().trim().max(1000).optional().or(z.literal("")),
+  }),
+  z.object({
+    action: z.literal("CHANGE_TEACHER"),
+    newTeacherId: z.string().uuid(),
+    endedReason: z.string().trim().max(1000).optional().or(z.literal("")),
+  }),
+]);
+
+export const assignmentListSchema = z.object({
+  studentId: z.string().uuid().optional(),
+  teacherId: z.string().uuid().optional(),
+  subjectId: z.string().uuid().optional(),
+  status: z.enum(["ACTIVE", "ENDED"]).optional(),
+});
+
 export const enrollmentSchema = z.object({
   sessionId: z.string().uuid(),
   studentId: z.string().uuid(),
+  assignmentOverrideReason: z.string().trim().min(1).max(1000).optional(),
 });
 
 const isoDateTime = z.string().datetime({ offset: true });
 
-const httpsZoomUrl = z
-  .string()
-  .url()
-  .max(2000)
-  .refine((value) => value.startsWith("https://"), "Zoom links must use https.");
+const zoomUrlField = z.string().trim().min(1).max(2000);
+const optionalZoomUrlField = z.string().trim().max(2000).optional().or(z.literal(""));
 
 export const sessionCreateSchema = z.object({
   teacherId: z.string().uuid(),
@@ -90,9 +113,10 @@ export const sessionCreateSchema = z.object({
   scheduledStart: isoDateTime,
   scheduledEnd: isoDateTime,
   timezone: z.string().trim().min(1).max(80).default("UTC"),
-  zoomJoinUrl: httpsZoomUrl,
-  zoomHostUrl: httpsZoomUrl.optional().or(z.literal("")),
+  zoomJoinUrl: zoomUrlField,
+  zoomHostUrl: optionalZoomUrlField,
   studentIds: z.array(z.string().uuid()).min(1).max(100),
+  assignmentOverrideReason: z.string().trim().min(1).max(1000).optional(),
 });
 
 export const recurringSessionSchema = sessionCreateSchema.extend({
@@ -103,8 +127,8 @@ export const sessionUpdateSchema = z.object({
   scheduledStart: isoDateTime.optional(),
   scheduledEnd: isoDateTime.optional(),
   timezone: z.string().trim().min(1).max(80).optional(),
-  zoomJoinUrl: httpsZoomUrl.optional(),
-  zoomHostUrl: httpsZoomUrl.optional().or(z.literal("")),
+  zoomJoinUrl: zoomUrlField.optional(),
+  zoomHostUrl: optionalZoomUrlField,
   status: z.enum(["SCHEDULED", "CANCELLED"]).optional(),
   cancellationReason: z.string().trim().max(1000).optional().or(z.literal("")),
 }).refine((value) => Object.keys(value).length > 0, "At least one update is required.");

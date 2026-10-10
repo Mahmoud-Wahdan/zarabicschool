@@ -25,6 +25,8 @@ const testPhone = "+201099990000";
 let academyId = "";
 let adminUserId = "";
 let teacherUserId = "";
+let teacherProfileId = "";
+let quranSubjectId = "";
 const createdUserIds = new Set<string>();
 const createdApplicationIds = new Set<string>();
 
@@ -208,6 +210,27 @@ beforeAll(async () => {
   });
   teacherUserId = teacher.id;
   createdUserIds.add(teacher.id);
+
+  const teacherProfile = await prisma.teacher.create({
+    data: { userId: teacher.id, academyId },
+    select: { id: true },
+  });
+  teacherProfileId = teacherProfile.id;
+  const quran = await prisma.subject.findFirst({ where: { academyId, slug: "demo-quran" }, select: { id: true } });
+  if (quran) {
+    quranSubjectId = quran.id;
+    await prisma.teacherSubject.create({
+      data: { academyId, teacherId: teacherProfile.id, subjectId: quran.id },
+      select: { id: true },
+    });
+  }
+  const arabic = await prisma.subject.findFirst({ where: { academyId, slug: "demo-arabic" }, select: { id: true } });
+  if (arabic) {
+    await prisma.teacherSubject.create({
+      data: { academyId, teacherId: teacherProfile.id, subjectId: arabic.id },
+      select: { id: true },
+    });
+  }
 }, 30_000);
 
 afterAll(async () => {
@@ -234,6 +257,12 @@ afterAll(async () => {
       allTestAppIds.length > 0
         ? prisma.applicationRecord.deleteMany({ where: { applicationId: { in: allTestAppIds } } })
         : Promise.resolve()
+    );
+    await quiet(() =>
+      prisma.studentTeacherAssignment.deleteMany({ where: { student: { user: { id: { in: allTestUserIds } } } } })
+    );
+    await quiet(() =>
+      prisma.studentSubject.deleteMany({ where: { student: { user: { id: { in: allTestUserIds } } } } })
     );
     await quiet(() => prisma.student.deleteMany({ where: { user: { id: { in: allTestUserIds } } } }));
     await quiet(() => prisma.guardian.deleteMany({ where: { user: { id: { in: allTestUserIds } } } }));
@@ -638,5 +667,131 @@ describe("Slice C2 — Admin review, approval, provisioning", () => {
     expect(second.status).toBe(409);
     const data = await second.json();
     expect(data.error.code).toBe("ALREADY_PROCESSED");
+  });
+
+  it("approval creates StudentSubject rows from subjects[] and no assignment without a teacher", async () => {
+    const digit = nextDigit();
+    const appId = await createApplication(
+      "GUARDIAN",
+      guardianDetails([{ name: "Omar", age: 10, subjects: ["demo-quran"] }])
+    );
+
+    const accounts = await approve(appId, {}, digit);
+    expect(accounts).toHaveLength(2);
+    await trackCreatedUsers(appId);
+
+    const guardianUser = await prisma.user.findUnique({
+      where: { academyId_username: { academyId, username: `demo-test-guardian${digit}` } },
+      select: { id: true },
+    });
+    expect(guardianUser).not.toBeNull();
+    const studentProfile = await prisma.student.findFirst({
+      where: { guardian: { userId: guardianUser!.id } },
+      select: { id: true },
+    });
+    expect(studentProfile).not.toBeNull();
+    const studentSubjects = await prisma.studentSubject.findMany({
+      where: { studentId: studentProfile!.id },
+      select: { subjectId: true },
+    });
+    expect(studentSubjects).toHaveLength(1);
+
+    const assignments = await prisma.studentTeacherAssignment.findMany({
+      where: { studentId: studentProfile!.id },
+      select: { status: true },
+    });
+    expect(assignments).toHaveLength(0);
+
+    await expect(approve(appId, {}, digit)).rejects.toMatchObject({
+      status: 409,
+      code: "ALREADY_PROCESSED",
+    });
+    const studentSubjectsAfterRetry = await prisma.studentSubject.count({
+      where: { studentId: studentProfile!.id },
+    });
+    expect(studentSubjectsAfterRetry).toBe(1);
+  });
+
+  it("approval with an optional teacher creates an ACTIVE assignment in the same transaction", async () => {
+    if (!quranSubjectId || !teacherProfileId) return;
+    const digit = nextDigit();
+    const appId = await createApplication(
+      "STUDENT",
+      studentDetails("1995-05-15")
+    );
+
+    const accounts = await approve(
+      appId,
+      { teachers: { student: { "demo-quran": teacherProfileId } } },
+      digit
+    );
+    expect(accounts).toHaveLength(1);
+    await trackCreatedUsers(appId);
+
+    const studentProfile = await prisma.student.findFirst({
+      where: { user: { username: `demo-test-student${digit}` } },
+      select: { id: true },
+    });
+    expect(studentProfile).not.toBeNull();
+    const studentSubjects = await prisma.studentSubject.findMany({
+      where: { studentId: studentProfile!.id },
+      select: { subjectId: true },
+    });
+    expect(studentSubjects.map((row) => row.subjectId)).toEqual([quranSubjectId]);
+
+    const assignment = await prisma.studentTeacherAssignment.findFirstOrThrow({
+      where: { studentId: studentProfile!.id },
+      select: { status: true, teacherId: true, subjectId: true, createdById: true, endedAt: true },
+    });
+    expect(assignment.status).toBe("ACTIVE");
+    expect(assignment.teacherId).toBe(teacherProfileId);
+    expect(assignment.subjectId).toBe(quranSubjectId);
+    expect(assignment.createdById).toBe(adminUserId);
+    expect(assignment.endedAt).toBeNull();
+  });
+
+  it("an unknown teacher selection rolls back the whole approval", async () => {
+    const digit = nextDigit();
+    const appId = await createApplication(
+      "STUDENT",
+      studentDetails("1995-05-15")
+    );
+
+    await expect(
+      approve(appId, { teachers: { student: { "demo-quran": "00000000-0000-4000-8000-00000000ffff" } } }, digit)
+    ).rejects.toMatchObject({ status: 400, code: "VALIDATION_ERROR" });
+
+    const appAfter = await prisma.application.findUnique({
+      where: { id: appId },
+      select: { status: true },
+    });
+    expect(appAfter?.status).toBe("NEW");
+    const usersForDigit = await prisma.user.count({
+      where: { academyId, username: { endsWith: String(digit) } },
+    });
+    expect(usersForDigit).toBe(0);
+  });
+
+  it("a teacher who does not teach the selected subject is rejected and rolls back", async () => {
+    if (!teacherProfileId) return;
+    const digit = nextDigit();
+    const appId = await createApplication(
+      "GUARDIAN",
+      guardianDetails([{ name: "Omar", age: 10, subjects: ["demo-math"] }])
+    );
+
+    await expect(
+      approve(appId, { teachers: { "child-0": { "demo-math": teacherProfileId } } }, digit)
+    ).rejects.toMatchObject({ status: 400, code: "VALIDATION_ERROR" });
+
+    const appAfter = await prisma.application.findUnique({
+      where: { id: appId },
+      select: { status: true },
+    });
+    expect(appAfter?.status).toBe("NEW");
+    const usersForDigit = await prisma.user.count({
+      where: { academyId, username: { endsWith: String(digit) } },
+    });
+    expect(usersForDigit).toBe(0);
   });
 });

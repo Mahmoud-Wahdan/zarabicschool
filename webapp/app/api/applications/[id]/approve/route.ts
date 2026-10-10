@@ -61,6 +61,7 @@ export async function POST(
           }
         : undefined,
       accounts: body.accounts,
+      teachers: body.teachers,
     });
   } catch (e) {
     if (e instanceof ProvisioningError) {
