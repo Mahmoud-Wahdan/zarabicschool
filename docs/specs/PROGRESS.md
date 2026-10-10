@@ -10,7 +10,7 @@
 |---|-------|--------|--------------|------|
 | 1 | Foundation | Complete | 2026-10-06 | Auth/RBAC, username login, forced-password and Supervisor boundaries verified; development DB seeded; 40 tests, clean handle exit, static checks, and build pass |
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
-| 3 | Schedules & Sessions | In Progress | 2026-10-06 | Session APIs/UI, recurring/replacement flows, and credit reservation slice added; migration deployment, OpenWA notifications, timezone rendering, and tests remain |
+| 3 | Schedules & Sessions | In Progress | 2026-10-07 | Series/reservation model, migrations, worker, timezone display, and DB-backed tests implemented and verified; settlement handoff (Phase 5/6) remains |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
 | 5 | Session Reports & Attendance | In Progress | 2026-09-30 | Teacher per-student submission and review API/UI are implemented; queue, tests, and settlement handoff remain |
 | 6 | Financial Management | In Progress | 2026-10-06 | Paymob EGP checkout/webhook and initial subscription settlement slice verified; reports/payroll and migration remain |
@@ -53,11 +53,24 @@ Phase 2 profile/relationship pass on 2026-10-06: added academy-scoped Student, G
 
 Brand alignment pass on 2026-10-06: reconciled the Context with the supplied logo variations, clear-space rule, 60/30/10 color guidance, and typography guidance. Added nullable logo-variation slots in site configuration and removed the code-drawn mihrab fallback; approved brand exports remain required before real logo assets are wired.
 
+## 2026-10-07 Phase 3 review + continuation
+
+- [VERIFIED] Review of the uncommitted Phase 3 work produced a 30-item findings table (R1–R30). The owner approved: Admin PAUSED flag = UI + WhatsApp, replacement releases source reservations, R1 period fix as a dependency-only change to `lib/payments/settlement.ts`, worker via `instrumentation.ts`, dedicated `feature/phase-3` branch.
+- [VERIFIED] Prior uncommitted work secured in logical commits on `feature/phase-3`; baseline recorded (validate/typecheck/lint/test/build).
+- [VERIFIED] R1: `settlePaidInvoice` sets `periodStartsAt`/`periodEndsAt` (monthly and annual = one-month window; pay-per-session = none) via `lib/credits/period.ts`; seed subscriptions now carry periods, a ledger-consistent reservation, and notification jobs.
+- [VERIFIED] Migrations applied to the development database and verified directly: `phase3_session_reservations`, `phase3_integrity` (edited before apply: nullable `notification_jobs.session_id`, unique `dedup_key`), `phase3_worker_support` (TeacherFlags). Partial unique indexes, CHECKs, reservation status-consistency CHECK, append-only trigger on `subscription_ledger`, and enums `CONSUMED`/`EXPIRY`/`ANNUAL_PLAN` confirmed in the DB.
+- [VERIFIED] R9: weekly generation is DST-safe (same LOCAL wall clock in `Session.timezone` converted to UTC; the `+7*24h` addition is gone). R5: a failed week rolls back atomically and pauses the series. R6/R7/R21: idempotent cancellation, pending-job cancellation on cancel, reminder-job moves on reschedule, replacement releases the missed source's reservations.
+- [VERIFIED] R22/R23/R24: approval route uses `getMessagingProvider()`, OpenWA reads env at call time, timezone-aware Arabic messages, redacted credential-failure rows. R10/R17/R18: https-only Zoom URLs, join route requires SCHEDULED, update schema allows only SCHEDULED→CANCELLED. R26: viewer-timezone display on the four session pages. R27/R28/R16: change-request review API + admin queue, admin recurring-series UI (created/pending weeks, PAUSED, reschedule, filters), student/guardian join links via the authorized redirect.
+- [VERIFIED] Worker: `instrumentation.ts` → `lib/worker/start.ts` (60s DB polling, no Redis): due jobs (idempotent `dedup_key` claim), session reminder/start via `MessagingProvider`, late-report reminders T+0/T+15 + LATE_REPORT flag at T+30, series continuation when credit exists (14-day horizon, unique `(series, week_index)`).
+- [VERIFIED] Final checks from `webapp/`: `npx prisma validate` valid; `npx prisma migrate status` up to date (8 migrations); `npm run typecheck` clean; `npm run lint` clean; `npm test` 8 suites / 71 tests passing with a clean exit (no open handles); `npm run build` succeeds (Next.js 16.3.7).
+- [VERIFIED] Database-backed tests (`__tests__/api/sessions.test.ts`, `__tests__/worker/scheduling-worker.test.ts`) cover the 12 required scenarios plus review regressions (concurrent last-credit booking, group rollback, series cap/pause/resume, duplicate-week guard, double cancel, replacement, cross-academy/role, teacher request-only, Zoom exposure, status transitions, https, reschedule job moves, consumption order, re-reserve flip, R1 settlement idempotency). Cleanup deletes only per-run `demo_test_*` academies; `subscription_ledger` cleanup uses a transaction-scoped trigger disable (never disabled globally).
+- [OPEN/DEFERRED — out of Phase 3 scope]: settlement/CONSUMED writes (Phase 5/6), monthly EXPIRY writer + annual-plan monthly-grant wiring (Phase 6b/0), payroll append-only trigger (Phase 0/6), full NotificationLog audit store (Phase 0/5), failed-send retry/backoff (accepted MVP gap), Playwright E2E journeys (Phase 8).
+
 ## Action Items
 
 - [ ] Rotate any exposed secrets before real data is stored; no Zoom API secrets are required.
 - [ ] Confirm `NEXTAUTH_SECRET` is configured; `JWT_SECRET` is not used because authentication is Auth.js only.
-- [ ] Decide the timed-notification scheduler: BullMQ + Redis versus database polling.
+- [x] Decide the timed-notification scheduler: database-polling worker confirmed (CONTEXT §10, 2026-10-06); implemented in Phase 3 via `instrumentation.ts` (no Redis/BullMQ).
 - [x] Confirm Supabase as the final Postgres host: Confirmed.
 - [x] Ensure `.env` is in `.gitignore` and create `.env.example` with variable names only.
 - [x] Align context/spec documentation with external Zoom links, no video recordings, and teacher mobile dashboard requirements.
@@ -66,8 +79,8 @@ Brand alignment pass on 2026-10-06: reconciled the Context with the supplied log
 - [x] Confirm application fields (FINAL, 2026-10-03) and TeacherRates design (effective-dated table, Phase 6). Still open: login identifier (username PROPOSAL), report values, attachment cap, rounding, zero-session mechanism.
 - [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin/Supervisor approval gates settlement; no revision/version table.
 - [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
-- [ ] Decide whether student evaluation is mandatory after every completed session.
-- [ ] Confirm the development database before applying `20261004000000_phase2_profiles`.
+- [x] Decide whether student evaluation is mandatory after every completed session: MANDATORY, filled by the student (owner, 2026-10-07 — CONTEXT §7.7); Phase 7 scope.
+- [ ] Confirm the development database before applying `20261004000000_phase2_profiles`. *(Resolved: applied during the confirmed 2026-10-06 reset.)*
 
 ## 2026-10-03 Confirmed owner decisions (all marked CONFIRMED in CONTEXT.md §7 and the phase-02 spec)
 

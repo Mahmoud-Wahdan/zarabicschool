@@ -85,17 +85,18 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ## Tasks
 
 - [x] Add Prisma schema: `Sessions`, `SessionStudents` *(existing session slice plus credit reservation model)*
-- [ ] Run migration *(migration generated; development database application is pending connectivity)*
+- [x] Run migration *(all Phase 3 migrations applied and verified on the development database 2026-10-07: `phase3_session_reservations`, `phase3_integrity` (edited before apply: nullable `notification_jobs.session_id` + unique `dedup_key`), `phase3_worker_support` (TeacherFlags))*
 - [x] Build Admin single session creation UI (1:1 and group 1:N)
-- [x] Build Admin weekly recurring session generator (API batch generation)
-- [x] Build Admin replacement session creation flow (`replacement_for_session_id`)
-- [x] Build Admin session management list (initial list and cancel flow; filters/reschedule remain)
-- [x] Build Teacher schedule dashboard
-- [x] Build Student schedule dashboard
-- [x] Build Guardian consolidated schedule dashboard
-- [ ] Implement timezone-aware schedule display for all roles
-- [x] Add Zod validation schemas for single and recurring session inputs
-- [ ] Write tests: session CRUD, recurring generation, replacement session linking, authorization
+- [x] Build Admin weekly recurring session generator (series-based: `RecurrenceSeries` + per-week generation capped at available credit, PAUSED + admin flag)
+- [x] Build Admin replacement session creation flow (`replacement_for_session_id`; releases the source's active reservations for carried-over students inside the same transaction)
+- [x] Build Admin session management list (filters by date range/teacher/student/status, reschedule UI that moves reminder jobs, cancel flow that cancels pending jobs)
+- [x] Build Teacher schedule dashboard (Zoom button through the authorized `/api/sessions/[id]/join` redirect)
+- [x] Build Student schedule dashboard (join link through the authorized redirect; no raw Zoom links)
+- [x] Build Guardian consolidated schedule dashboard (join link visible per owner decision 2026-10-07)
+- [x] Implement timezone-aware schedule display for all roles (viewer's `User.timezone` via `Intl.DateTimeFormat`; UTC storage unchanged)
+- [x] Add Zod validation schemas for single and recurring session inputs (https-only Zoom URLs; status enum limited to SCHEDULED/CANCELLED)
+- [x] Write tests: session CRUD, recurring generation, replacement session linking, authorization (database-backed Jest against the development database: `__tests__/api/sessions.test.ts`, `__tests__/worker/scheduling-worker.test.ts`, shared fixtures in `__tests__/helpers/session-fixtures.ts`)
+- [x] Scheduling worker (`instrumentation.ts` → `lib/worker/start.ts`, 60s DB polling, no Redis): due notification jobs (idempotent `dedup_key` claim), session reminder/start messages through `MessagingProvider`, late-report reminders (T+0/T+15) + LATE_REPORT TeacherFlag at T+30, recurring-series continuation when credit exists (14-day horizon, unique `(series, week_index)` guard)
 - [ ] REMOVED — Zoom REST meeting creation, registration, participant-specific links, and event-derived attendance.
 
 ## Execution log (updated as soon as real work happens)
@@ -103,7 +104,22 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ### 2026-10-06 reconciliation
 
 - Phase 3 is now In Progress. The Prisma schema contains the initial `Session`, `SessionStudent`, and optional `SessionJoinClick` models with explicit attendance status, session status/type, manual Zoom links, recurrence/replacement fields, and restrictive relations.
-- Scheduling APIs/UI, recurrence generation, replacement flow, timezone views, prepaid-session guard, migration, and authorization tests are still not present.
 - 2026-10-06 database verification: the session/payment migration was applied during the confirmed development reset, and the demo seed created one future session with one explicit `PENDING` student assignment and one optional click-audit row. No scheduling behavior is claimed complete from seed data alone.
-- The implementation must use manually pasted Zoom links, explicit per-student participants, UTC storage with IANA display, and audited Admin overrides; it must not introduce Zoom API/event attendance.
-- 2026-10-06 implementation slice: added session create/list/update/replacement/recurrence APIs, prepaid credit reservation persistence, Admin/Supervisor session management UI, and role-scoped Teacher/Student/Guardian schedule pages. Database deployment of the reservation migration is pending a temporary database connectivity failure; OpenWA scheduling and timezone-specific rendering remain.
+- 2026-10-06 implementation slice: added session create/list/update/replacement/recurrence APIs, prepaid credit reservation persistence, Admin/Supervisor session management UI, and role-scoped Teacher/Student/Guardian schedule pages.
+
+### 2026-10-07 implementation pass (review + continuation)
+
+- Review of the uncommitted Phase 3 work produced a 30-item findings table (R1–R30) and the owner approved the fixes and continuation decisions (Admin flag = UI + WhatsApp, replacement releases source reservations, R1 period fix touches `lib/payments/settlement.ts` as a dependency fix only, worker via `instrumentation.ts`, dedicated `feature/phase-3` branch).
+- Prior uncommitted work was secured on `feature/phase-3` in logical commits (schema+migration, session APIs, messaging, UI) before any changes.
+- R1 fixed: `settlePaidInvoice` now sets `periodStartsAt`/`periodEndsAt` (monthly and annual = one-month window, pay-per-session = none) via `lib/credits/period.ts`; the demo seed creates subscriptions with periods, a reservation consistent with the ledger, and notification jobs.
+- Database invariants applied to the development database and verified directly (tables, partial unique indexes incl. `dedup_key`, CHECKs incl. `scheduled_end > scheduled_start`, reservation status-consistency CHECK, append-only trigger on `subscription_ledger`, enums `CONSUMED`/`EXPIRY`/`ANNUAL_PLAN`).
+- R9 fixed: weekly generation is DST-safe — each week is the same LOCAL wall-clock time in `Session.timezone` converted to UTC (`lib/schedules/recurrence.ts`); the naive `+7*24h` UTC addition is gone. Series race (R5): a week whose reservation fails inside the transaction rolls the week back atomically and pauses the series instead of throwing the whole creation away.
+- R6/R7/R21 fixed: cancellation is idempotent (first canceller kept, release runs once), pending notification jobs are cancelled on cancellation, rescheduling moves reminder jobs by the same delta, and replacement sessions release the missed source's active reservations in the same transaction.
+- R22/R23/R24 fixed: the approval route uses `getMessagingProvider()` (OpenWA selected by configuration), the OpenWA provider reads its env at call time, sends are timezone-aware Arabic messages, and failed credential delivery records a redacted `notification_jobs` failure row without rolling back approval.
+- R10/R17/R18 fixed: Zoom URLs must be https at validation and at the join redirect; the join route requires a SCHEDULED session; the update schema only allows SCHEDULED→CANCELLED.
+- R26 fixed: the four session pages render times in the viewer's `User.timezone` (server-side `Intl.DateTimeFormat`, locale-aware).
+- R27/R28/R16 implemented: teacher change requests get an Admin/Supervisor review API (`PATCH /api/session-change-requests/[id]`) plus a queue section in the admin sessions page; the admin sessions panel gained the recurring-series creation form (weekday derived from the local start, timezone, duration, teacher, subject, students, Zoom link, total weeks), a series list showing generated/pending weeks and PAUSED status, date-range/teacher/student/status filters, and a reschedule UI; the student and guardian pages now use the authorized join redirect.
+- Verification (2026-10-07, from `webapp/`): `npx prisma validate` valid; `npx prisma migrate status` up to date (8 migrations); `npm run typecheck` clean; `npm run lint` clean; `npm test` 8 suites / 71 tests passing with a clean exit (no open handles); `npm run build` succeeds (Next.js 16.3.7).
+- Database-backed tests cover: concurrent booking of the last credit (exactly one), group rollback when one student lacks credit, series capped at available credit + admin pause flag, series resume after a renewal credit, no duplicate week on concurrent extension, group series pause, double cancel idempotency, replacement reservation behavior (MISSED source release), cross-academy and teacher scoping, teacher cannot mutate (request-only), Zoom link exposure matrix and join guards, status transition allowlist, https validation, reschedule job moves, consumption order (earliest-expiring first), reserveCredit re-reserve flip, and R1 settlement periods with webhook idempotency.
+- Test cleanup deletes only per-run `demo_test_*` academies in FK-safe order; `subscription_ledger` rows are removed with a transaction-scoped trigger disable (the append-only trigger is never dropped or disabled globally), matching the documented Phase 6 exception pattern.
+- Still open (out of Phase 3 scope, recorded in PROGRESS.md): report settlement/CONSUMED writes (Phase 5/6), monthly EXPIRY writer + annual-plan monthly grant wiring (Phase 6b/0), payroll-ledger append-only trigger (Phase 0/6 when PayrollLedger exists), full NotificationLog audit store (Phase 0/5), failed-send retry/backoff (accepted MVP gap), and Playwright E2E journeys (Phase 8).
