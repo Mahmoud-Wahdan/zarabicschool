@@ -6,6 +6,7 @@ dotenvConfig({ path: "../.env" });
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../generated/prisma/client";
+import { addMonthsUtc } from "../lib/credits/period";
 import bcrypt from "bcrypt";
 
 const academyName = "Zarabicschool";
@@ -185,6 +186,8 @@ async function main() {
       update: { academyId: academy.id },
       create: { academyId: academy.id, teacherId: teacher.id, subjectId: quran.id },
     });
+    const periodStartsAt = new Date();
+    const periodEndsAt = addMonthsUtc(periodStartsAt, 1);
     const subscription = await prisma.subscription.upsert({
       where: { id: "00000000-0000-0000-0000-000000000601" },
       update: {
@@ -194,6 +197,8 @@ async function main() {
         sessionsPurchased: 8,
         totalAmountMinor: BigInt(80000),
         currency: "EGP",
+        periodStartsAt,
+        periodEndsAt,
         status: "ACTIVE",
       },
       create: {
@@ -204,6 +209,8 @@ async function main() {
         sessionsPurchased: 8,
         totalAmountMinor: BigInt(80000),
         currency: "EGP",
+        periodStartsAt,
+        periodEndsAt,
         status: "ACTIVE",
       },
     });
@@ -289,6 +296,9 @@ async function main() {
       },
     });
     await prisma.applicationRecord.deleteMany({ where: { applicationId: application.id } });
+    const sessionStart = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    sessionStart.setUTCHours(16, 0, 0, 0);
+    const sessionEnd = new Date(sessionStart.getTime() + 60 * 60 * 1000);
     const session = await prisma.session.upsert({
       where: { id: "00000000-0000-0000-0000-000000000603" },
       update: {
@@ -296,8 +306,8 @@ async function main() {
         teacherId: teacher.id,
         subjectId: quran.id,
         sessionType: "PRIVATE",
-        scheduledStart: new Date("2030-01-01T16:00:00.000Z"),
-        scheduledEnd: new Date("2030-01-01T17:00:00.000Z"),
+        scheduledStart: sessionStart,
+        scheduledEnd: sessionEnd,
         durationMinutes: 60,
         timezone: "Africa/Cairo",
         zoomJoinUrl: "https://zoom.us/j/demo-session",
@@ -310,8 +320,8 @@ async function main() {
         teacherId: teacher.id,
         subjectId: quran.id,
         sessionType: "PRIVATE",
-        scheduledStart: new Date("2030-01-01T16:00:00.000Z"),
-        scheduledEnd: new Date("2030-01-01T17:00:00.000Z"),
+        scheduledStart: sessionStart,
+        scheduledEnd: sessionEnd,
         durationMinutes: 60,
         timezone: "Africa/Cairo",
         zoomJoinUrl: "https://zoom.us/j/demo-session",
@@ -324,6 +334,57 @@ async function main() {
       update: { attendanceStatus: "PENDING", overriddenById: null, overrideReason: null },
       create: { sessionId: session.id, studentId: student.id, attendanceStatus: "PENDING" },
     });
+    await prisma.sessionReservation.upsert({
+      where: { sessionId_studentId: { sessionId: session.id, studentId: student.id } },
+      update: { status: "RESERVED", releasedAt: null, subscriptionId: subscription.id },
+      create: {
+        academyId: academy.id,
+        sessionId: session.id,
+        studentId: student.id,
+        subscriptionId: subscription.id,
+        status: "RESERVED",
+      },
+    });
+    for (const recipientUserId of [teacherUser.id, studentUser.id, guardianUser.id]) {
+      await prisma.notificationJob.upsert({
+        where: { dedupKey: `SESSION_REMINDER:${session.id}:${recipientUserId}` },
+        update: {
+          academyId: academy.id,
+          sessionId: session.id,
+          scheduledFor: new Date(sessionStart.getTime() - 2 * 60 * 60 * 1000),
+          status: "PENDING",
+          sentAt: null,
+          lastError: null,
+        },
+        create: {
+          academyId: academy.id,
+          sessionId: session.id,
+          recipientUserId,
+          kind: "SESSION_REMINDER",
+          dedupKey: `SESSION_REMINDER:${session.id}:${recipientUserId}`,
+          scheduledFor: new Date(sessionStart.getTime() - 2 * 60 * 60 * 1000),
+        },
+      });
+      await prisma.notificationJob.upsert({
+        where: { dedupKey: `SESSION_START:${session.id}:${recipientUserId}` },
+        update: {
+          academyId: academy.id,
+          sessionId: session.id,
+          scheduledFor: sessionStart,
+          status: "PENDING",
+          sentAt: null,
+          lastError: null,
+        },
+        create: {
+          academyId: academy.id,
+          sessionId: session.id,
+          recipientUserId,
+          kind: "SESSION_START",
+          dedupKey: `SESSION_START:${session.id}:${recipientUserId}`,
+          scheduledFor: sessionStart,
+        },
+      });
+    }
     await prisma.sessionJoinClick.upsert({
       where: { id: "00000000-0000-0000-0000-000000000604" },
       update: { sessionId: session.id, userId: studentUser.id },

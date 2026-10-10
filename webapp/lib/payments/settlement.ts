@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { addMonthsUtc } from "../credits/period";
 import { PaymentProviderError, type VerifiedPaymentEvent } from "./types";
 
 export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
@@ -39,6 +40,8 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
       throw new PaymentProviderError("Payment does not match the invoice.", "INVALID_WEBHOOK", 400);
     }
 
+    const now = new Date();
+    const hasPeriod = invoice.packageType !== "PAY_PER_SESSION";
     const subscription = await tx.subscription.create({
       data: {
         academyId: invoice.academyId,
@@ -47,6 +50,8 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
         sessionsPurchased: invoice.sessionsPurchased,
         totalAmountMinor: invoice.amountMinor,
         currency: invoice.currency,
+        periodStartsAt: hasPeriod ? now : null,
+        periodEndsAt: hasPeriod ? addMonthsUtc(now, 1) : null,
         status: "ACTIVE",
       },
     });

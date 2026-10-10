@@ -49,9 +49,10 @@ CREATE TABLE "recurrence_series" (
 CREATE TABLE "notification_jobs" (
   "id" UUID NOT NULL,
   "academy_id" UUID NOT NULL,
-  "session_id" UUID NOT NULL,
+  "session_id" UUID,
   "recipient_user_id" UUID NOT NULL,
   "kind" TEXT NOT NULL,
+  "dedup_key" TEXT NOT NULL,
   "scheduled_for" TIMESTAMPTZ(6) NOT NULL,
   "status" "NotificationJobStatus" NOT NULL DEFAULT 'PENDING',
   "attempts" INTEGER NOT NULL DEFAULT 0,
@@ -89,8 +90,8 @@ CREATE INDEX "recurrence_series_academy_status_idx"
   ON "recurrence_series" ("academy_id", "status");
 CREATE INDEX "recurrence_series_teacher_status_idx"
   ON "recurrence_series" ("teacher_id", "status");
-CREATE UNIQUE INDEX "notification_jobs_session_recipient_kind_key"
-  ON "notification_jobs" ("session_id", "recipient_user_id", "kind");
+CREATE UNIQUE INDEX "notification_jobs_dedup_key_key"
+  ON "notification_jobs" ("dedup_key");
 CREATE INDEX "notification_jobs_academy_status_schedule_idx"
   ON "notification_jobs" ("academy_id", "status", "scheduled_for");
 CREATE INDEX "subscription_ledger_session_id_idx"

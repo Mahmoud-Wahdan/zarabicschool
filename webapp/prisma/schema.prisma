@@ -548,9 +548,10 @@ model RecurrenceSeries {
 model NotificationJob {
   id             String               @id @default(uuid()) @db.Uuid
   academyId      String               @map("academy_id") @db.Uuid
-  sessionId      String               @map("session_id") @db.Uuid
+  sessionId      String?              @map("session_id") @db.Uuid
   recipientUserId String               @map("recipient_user_id") @db.Uuid
   kind           String
+  dedupKey       String               @unique @map("dedup_key")
   scheduledFor   DateTime             @map("scheduled_for") @db.Timestamptz(6)
   status         NotificationJobStatus @default(PENDING)
   attempts       Int                  @default(0)
@@ -562,7 +563,6 @@ model NotificationJob {
   session        Session?             @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   recipientUser  User                 @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
 
-  @@unique([sessionId, recipientUserId, kind])
   @@index([academyId, status, scheduledFor])
   @@map("notification_jobs")
 }

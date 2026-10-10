@@ -16,6 +16,7 @@ export async function enqueueSessionJobs(
       sessionId,
       recipientUserId,
       kind: "SESSION_REMINDER",
+      dedupKey: `SESSION_REMINDER:${sessionId}:${recipientUserId}`,
       scheduledFor: new Date(scheduledStart.getTime() - 2 * 60 * 60 * 1000),
     },
     {
@@ -23,6 +24,7 @@ export async function enqueueSessionJobs(
       sessionId,
       recipientUserId,
       kind: "SESSION_START",
+      dedupKey: `SESSION_START:${sessionId}:${recipientUserId}`,
       scheduledFor: scheduledStart,
     },
   ]);
