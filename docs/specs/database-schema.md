@@ -1,6 +1,6 @@
 # Zarabicschool — Database Schema
 
-> **Status: Architecture Aligned — Updated with confirmed 2026-09-29 business rules.**
+> **Status: Architecture Aligned — Updated with confirmed 2026-09-29 business rules; 2026-10-10 scheduling-assignment plan added (pending migration approval).**
 >
 > **Conventions:**
 > - All IDs are `UUID` (generated via `gen_random_uuid()`).
@@ -10,7 +10,7 @@
 > - Timestamps are `TIMESTAMPTZ` (timezone-aware).
 > - Dual-ledger financial design: `SubscriptionLedger` counts sessions and `PayrollLedger` stores teacher compensation.
 >
-> Last updated: 2026-09-28
+> Last updated: 2026-10-10
 
 ---
 
@@ -136,6 +136,48 @@ Maps confirmed student–teacher–subject educational relationships.
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | | | UNIQUE(student_id, teacher_id, subject_id) | Prevent duplicate active pairings |
 
+> **Note (2026-10-10):** the `Enrollments` table above was never implemented. The actual scheduling prerequisite is `StudentTeacherAssignments` (§8.2) plus the new `StudentSubjects` (§8.1) enrollment bookkeeping; see the Phase 2/3 specs.
+
+### 8.1 StudentSubjects (NEW — 2026-10-10 plan, Phase 2/3)
+
+Records **which subjects a confirmed student studies**. Created automatically upon approving a student's or guardian's application (from the application's `subjects[]`) **within the same transaction**, idempotent and unique per pair. It is bookkeeping and the source of the "Needs Teacher" list; scheduling itself is gated by `StudentTeacherAssignments` (§8.2), not by this table.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL, ON DELETE RESTRICT | |
+| `student_id` | UUID | FK → Students, NOT NULL, ON DELETE RESTRICT | |
+| `subject_id` | UUID | FK → Subjects, NOT NULL, ON DELETE RESTRICT | |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| | | UNIQUE(student_id, subject_id) | Idempotent per pair |
+
+### 8.2 StudentTeacherAssignments (NEW — 2026-10-10 plan, Phase 2/3)
+
+**Who teaches whom for which subject** — required for scheduling (session / series / replacement). Managed only by Admin/Supervisor. Zoom links and payments are out of its scope.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL, ON DELETE RESTRICT | |
+| `student_id` | UUID | FK → Students, NOT NULL, ON DELETE RESTRICT | |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL, ON DELETE RESTRICT | |
+| `subject_id` | UUID | FK → Subjects, NOT NULL, ON DELETE RESTRICT | |
+| `status` | ENUM | DEFAULT 'ACTIVE' | `ACTIVE`, `ENDED` |
+| `created_by` | UUID | FK → Users, NOT NULL | Admin/Supervisor who created the assignment |
+| `ended_at` | TIMESTAMPTZ | nullable | Set when the assignment is terminated |
+| `ended_reason` | TEXT | nullable | Optional termination reason |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | | |
+
+### Raw-SQL invariants (migration, pending owner approval)
+1. **Partial unique index:** `CREATE UNIQUE INDEX idx_student_teacher_assignments_active ON student_teacher_assignments (student_id, teacher_id, subject_id) WHERE status = 'ACTIVE';` — one ACTIVE assignment per trio; `ENDED` rows are kept as history.
+2. **Unique index:** `UNIQUE (student_id, subject_id)` on `student_subjects`.
+3. **Composite FK:** `FOREIGN KEY (teacher_id, subject_id) REFERENCES teacher_subjects (teacher_id, subject_id)` on `student_teacher_assignments` — an assignment may exist only where the teacher already teaches the subject (possible because `teacher_subjects` has `UNIQUE(teacher_id, subject_id)`). Side effect: a `TeacherSubject` row cannot be deleted while an ACTIVE assignment references it; the teacher-subjects API surfaces this as a 409 so assignments are ended first.
+4. **Delete policy:** all FKs `ON DELETE RESTRICT`.
+5. **Backfill (owner decision 2026-10-10):** NOT inside the migration — a separate idempotent `INSERT … ON CONFLICT DO NOTHING` statement of `student_subjects` rows from existing session rosters (`session_students ⋈ sessions`), with the proposed rows shown to the owner and applied only on explicit instruction. **No assignments are auto-created** — assignments remain an explicit Admin/Supervisor decision; the demo seed (not yet run) adds the Demo Student ↔ Demo Teacher ↔ Quran assignment.
+
+**Override rule (CONFIRMED):** scheduling without a required assignment is allowed only for Admin/Supervisor **with a reason**, and is logged on the created `sessions` row (`assignment_overridden_by_id` + `assignment_override_reason`, §10) — queryable audit columns, not a separate table.
+
 ---
 
 ### 9. Applications
@@ -189,6 +231,8 @@ Represents scheduled live learning meetings.
 | `recurrence_group_id` | UUID | nullable | Links weekly recurring session series |
 | `replacement_for_session_id` | UUID | FK → Sessions, nullable | Links replacement session to missed original |
 | `cancellation_reason` | TEXT | nullable | Technical outage, absence notes, etc. |
+| `assignment_overridden_by_id` | UUID | FK → Users, nullable | NEW (2026-10-10): Admin/Supervisor who scheduled with an assignment override |
+| `assignment_override_reason` | TEXT | nullable | NEW (2026-10-10): required when `assignment_overridden_by_id` is set; audit log of the override |
 | `created_by` | UUID | FK → Users, NOT NULL | Admin |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
@@ -214,7 +258,7 @@ Junction mapping students to sessions. Attendance is a report result, not a Zoom
 | `override_reason` | TEXT | nullable | Required for an Admin override |
 | | | UNIQUE(session_id, student_id) | |
 
-> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. Evaluation existence never dynamically determines this value. An approved `STUDENT_ABSENT` report does not create a deduction or credit; an approved `ATTENDED` report updates this state and can trigger settlement.
+> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. Evaluation existence never dynamically determines this value. An approved `STUDENT_ABSENT` report does not create a deduction or credit; an approved `ATTENDED` report updates this state and can trigger settlement. **2026-10-10 clarification (CONFIRMED):** `SessionStudents` tracks only **who is booked** for the session (the roster); attendance data comes exclusively from the approved report — the scheduler never writes `attendance_status` (new rows are created with the `PENDING` default).
 
 ### Optional SessionJoinClicks (PROPOSAL / OPTIONAL)
 
@@ -540,6 +584,7 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `idx_payroll_ledger_unique_session_credit` on `payroll_ledger(session_id)` WHERE `entry_type = 'SESSION_CREDIT'`.
    - `idx_subscription_ledger_unique_session_deduction` on `subscription_ledger(session_id, subscription_id)` WHERE `entry_type = 'SESSION_DEDUCTION'`.
    - `idx_reports_unique_session_completion` on `reports(session_id, student_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
+   - `idx_student_teacher_assignments_active` on `student_teacher_assignments(student_id, teacher_id, subject_id)` WHERE `status = 'ACTIVE'` (NEW, 2026-10-10 plan — pending owner approval).
 3. **CHECK Constraints:**
    - `CHECK (amount_minor > 0)` on `payroll_ledger` for `SESSION_CREDIT`.
    - `CHECK (amount_minor < 0)` on `payroll_ledger` for `DISBURSEMENT`.
@@ -600,3 +645,4 @@ Supervisor approval is confirmed, but Supervisor permissions remain operational 
 - **S26:** Added redacted notification content and idempotency.
 - **S27:** Added corrected contents, Prisma notes, and delete policy.
 - **S28:** Added SaaS hygiene and the open-decisions list.
+- **S29 (2026-10-10 plan, pending migration approval):** Added `StudentSubjects` (§8.1) and `StudentTeacherAssignments` (§8.2) with partial-unique/unique/composite-FK invariants, the roster-only clarification for `SessionStudents`, and assignment-override audit columns on `Sessions`.
