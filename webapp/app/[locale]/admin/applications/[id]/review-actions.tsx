@@ -21,12 +21,14 @@ export default function ReviewActions({
   status,
   details,
   childCount,
+  subjectTeachersByEntry,
 }: {
   applicationId: string;
   applicationType: "GUARDIAN" | "STUDENT" | "TEACHER";
   status: string;
   details: Record<string, unknown>;
   childCount: number;
+  subjectTeachersByEntry: Record<string, { teacherId: string; displayName: string }[]>;
 }) {
   const t = useTranslations("adminApplications");
   const router = useRouter();
@@ -105,6 +107,7 @@ export default function ReviewActions({
               applicationType={applicationType}
               details={details}
               childCount={childCount}
+              subjectTeachersByEntry={subjectTeachersByEntry}
               busy={busy}
               onSubmit={async (body) => {
                 const result = await post("approve", body);

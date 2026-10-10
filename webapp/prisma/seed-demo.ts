@@ -7,6 +7,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../generated/prisma/client";
 import { addMonthsUtc } from "../lib/credits/period";
+import { reserveCredit } from "../lib/credits/reservation";
+import { enqueueSessionJobs } from "../lib/notifications/session-jobs";
+import { wallClockToUtc } from "../lib/schedules/recurrence";
 import bcrypt from "bcrypt";
 
 const academyName = "Zarabicschool";
@@ -399,9 +402,441 @@ async function main() {
       },
     });
 
-    console.log(`Seeded ${demoSubjects.length} subjects, demo profiles, subscription, invoice, and session.`);
-    console.log(`Demo login password: ${demoPassword}`);
+    // ---------------------------------------------------------------------------
+    // Batch 3 demo data: scheduling-assignment scenarios (idempotent upserts only).
+    // Credit ALWAYS goes through Subscription + INITIAL_PURCHASE ledger rows with
+    // periods (lib/credits/period.ts); reservations go through reserveCredit only.
+    // ---------------------------------------------------------------------------
+
+    async function ensureTeacher(username: string, displayName: string, subjectSlugs: string[]) {
+      const user = await prisma.user.upsert({
+        where: { academyId_username: { academyId: academy.id, username } },
+        update: { displayName, passwordHash, isActive: true, mustChangePassword: false },
+        create: {
+          academyId: academy.id,
+          username,
+          displayName,
+          passwordHash,
+          role: "TEACHER",
+          mustChangePassword: false,
+        },
+      });
+      const profile = await prisma.teacher.upsert({
+        where: { userId: user.id },
+        update: { academyId: academy.id },
+        create: { userId: user.id, academyId: academy.id },
+      });
+      for (const slug of subjectSlugs) {
+        const subject = await prisma.subject.findUniqueOrThrow({
+          where: { academyId_slug: { academyId: academy.id, slug } },
+          select: { id: true },
+        });
+        await prisma.teacherSubject.upsert({
+          where: { teacherId_subjectId: { teacherId: profile.id, subjectId: subject.id } },
+          update: { academyId: academy.id },
+          create: { academyId: academy.id, teacherId: profile.id, subjectId: subject.id },
+        });
+      }
+      return profile;
+    }
+
+    async function ensureStudent(
+      username: string,
+      displayName: string,
+      options: { withGuardian?: boolean; subjectSlug?: string } = {}
+    ) {
+      const user = await prisma.user.upsert({
+        where: { academyId_username: { academyId: academy.id, username } },
+        update: { displayName, passwordHash, isActive: true, mustChangePassword: false },
+        create: {
+          academyId: academy.id,
+          username,
+          displayName,
+          passwordHash,
+          role: "STUDENT",
+          mustChangePassword: false,
+        },
+      });
+      const profile = await prisma.student.upsert({
+        where: { userId: user.id },
+        update: { academyId: academy.id, guardianId: options.withGuardian ? guardian.id : null },
+        create: {
+          userId: user.id,
+          academyId: academy.id,
+          guardianId: options.withGuardian ? guardian.id : null,
+          isAdult: false,
+          enrollmentDate: new Date(),
+        },
+      });
+      if (options.subjectSlug) {
+        const subject = await prisma.subject.findUniqueOrThrow({
+          where: { academyId_slug: { academyId: academy.id, slug: options.subjectSlug } },
+          select: { id: true },
+        });
+        await prisma.studentSubject.upsert({
+          where: { studentId_subjectId: { studentId: profile.id, subjectId: subject.id } },
+          update: { academyId: academy.id },
+          create: { academyId: academy.id, studentId: profile.id, subjectId: subject.id },
+        });
+      }
+      return profile;
+    }
+
+    async function ensureSubscription(
+      id: string,
+      studentId: string,
+      sessionsDelta: number,
+      packageType: "MONTHLY_PLAN" | "PAY_PER_SESSION" = "MONTHLY_PLAN"
+    ) {
+      const periodStartsAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+      const periodEndsAt = packageType === "MONTHLY_PLAN" ? addMonthsUtc(periodStartsAt, 1) : null;
+      const subscription = await prisma.subscription.upsert({
+        where: { id },
+        update: {
+          academyId: academy.id,
+          studentId,
+          packageType,
+          sessionsPurchased: Math.max(sessionsDelta, 0),
+          totalAmountMinor: BigInt(Math.max(sessionsDelta, 0) * 10000),
+          currency: "EGP",
+          periodStartsAt,
+          periodEndsAt,
+          status: "ACTIVE",
+        },
+        create: {
+          id,
+          academyId: academy.id,
+          studentId,
+          packageType,
+          sessionsPurchased: Math.max(sessionsDelta, 0),
+          totalAmountMinor: BigInt(Math.max(sessionsDelta, 0) * 10000),
+          currency: "EGP",
+          periodStartsAt,
+          periodEndsAt,
+          status: "ACTIVE",
+        },
+      });
+      await prisma.$transaction([
+        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
+        prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
+        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
+      ]);
+      if (sessionsDelta !== 0) {
+        await prisma.subscriptionLedger.create({
+          data: {
+            academyId: academy.id,
+            subscriptionId: subscription.id,
+            entryType: "INITIAL_PURCHASE",
+            sessionsDelta,
+          },
+        });
+      }
+      return subscription;
+    }
+
+    async function ensureActiveAssignment(
+      studentId: string,
+      teacherId: string,
+      subjectId: string
+    ) {
+      const existing = await prisma.studentTeacherAssignment.findFirst({
+        where: { academyId: academy.id, studentId, teacherId, subjectId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (existing) return existing.id;
+      const conflicting = await prisma.studentTeacherAssignment.findFirst({
+        where: { academyId: academy.id, studentId, subjectId, status: "ACTIVE" },
+        select: { id: true, teacherId: true },
+      });
+      if (conflicting) {
+        console.log(`  (skipping assignment: student already has an ACTIVE teacher for this subject)`);
+        return conflicting.id;
+      }
+      const created = await prisma.studentTeacherAssignment.create({
+        data: {
+          academyId: academy.id,
+          studentId,
+          teacherId,
+          subjectId,
+          status: "ACTIVE",
+          createdById: admin.id,
+        },
+        select: { id: true },
+      });
+      return created.id;
+    }
+
+    async function ensureReservation(
+      sessionId: string,
+      studentId: string,
+      subscriptionId: string,
+      sessionDate: Date,
+      options: { released?: boolean } = {}
+    ) {
+      const existing = await prisma.sessionReservation.findUnique({
+        where: { sessionId_studentId: { sessionId, studentId } },
+        select: { id: true, status: true },
+      });
+      if (existing && existing.status === "RESERVED" && !options.released) return;
+      if (existing && existing.status === "RELEASED" && options.released) return;
+      await prisma.$transaction(async (tx) => {
+        const ok = await reserveCredit(tx, academy.id, studentId, sessionId, sessionDate);
+        if (!ok) throw new Error(`Seed reservation failed (no credit) for student ${studentId} in session ${sessionId}`);
+        if (options.released) {
+          await tx.sessionReservation.updateMany({
+            where: { sessionId, studentId, status: "RESERVED" },
+            data: { status: "RELEASED", releasedAt: new Date() },
+          });
+        }
+      });
+      void subscriptionId;
+    }
+
+    const teacherQuran = await ensureTeacher("demo_teacher_quran", "Demo Quran Teacher", ["demo-quran"]);
+    const teacherLang = await ensureTeacher("demo_teacher_lang", "Demo Language Teacher", ["demo-english", "demo-arabic"]);
+    const teacherMulti = await ensureTeacher("demo_teacher_multi", "Demo Multi-Subject Teacher", ["demo-quran", "demo-english"]);
+    void teacherLang;
+
+    const studentCreditMany = await ensureStudent("demo_student_credit_many", "Demo Student Credit Many", { withGuardian: true, subjectSlug: "demo-quran" });
+    const studentCreditOne = await ensureStudent("demo_student_credit_one", "Demo Student Credit One", { subjectSlug: "demo-quran" });
+    const studentZero = await ensureStudent("demo_student_zero", "Demo Student Zero Credit", { subjectSlug: "demo-quran" });
+    const studentNosub = await ensureStudent("demo_student_nosub", "Demo Student No Subscription", { subjectSlug: "demo-quran" });
+    const studentUnassigned = await ensureStudent("demo_student_unassigned", "Demo Student Unassigned", { subjectSlug: "demo-quran" });
+    const studentGroupA = await ensureStudent("demo_student_group_a", "Demo Student Group A", { withGuardian: true, subjectSlug: "demo-quran" });
+    const studentGroupB = await ensureStudent("demo_student_group_b", "Demo Student Group B", { withGuardian: true, subjectSlug: "demo-quran" });
+
+    // Bookkeeping for the original demo student as well (Step-0 decision).
+    await prisma.studentSubject.upsert({
+      where: { studentId_subjectId: { studentId: student.id, subjectId: quran.id } },
+      update: { academyId: academy.id },
+      create: { academyId: academy.id, studentId: student.id, subjectId: quran.id },
+    });
+    await ensureActiveAssignment(student.id, teacher.id, quran.id);
+
+    const subCreditMany = await ensureSubscription("00000000-0000-0000-0000-000000000609", studentCreditMany.id, 8);
+    await ensureSubscription("00000000-0000-0000-0000-00000000060a", studentCreditOne.id, 1);
+    await ensureSubscription("00000000-0000-0000-0000-00000000060b", studentZero.id, 0);
+    const subGroupA = await ensureSubscription("00000000-0000-0000-0000-00000000060c", studentGroupA.id, 4);
+    const subGroupB = await ensureSubscription("00000000-0000-0000-0000-00000000060d", studentGroupB.id, 4);
+    void subCreditMany;
+    void subGroupA;
+    void subGroupB;
+
+    await ensureActiveAssignment(studentCreditMany.id, teacherQuran.id, quran.id);
+    await ensureActiveAssignment(studentCreditOne.id, teacherQuran.id, quran.id);
+    await ensureActiveAssignment(studentZero.id, teacherQuran.id, quran.id);
+    await ensureActiveAssignment(studentNosub.id, teacherQuran.id, quran.id);
+    await ensureActiveAssignment(studentGroupA.id, teacherQuran.id, quran.id);
+    await ensureActiveAssignment(studentGroupB.id, teacherQuran.id, quran.id);
+    // One ENDED assignment: unassigned switched from the multi-subject teacher (history row).
+    {
+      const existingEnded = await prisma.studentTeacherAssignment.findFirst({
+        where: { academyId: academy.id, studentId: studentUnassigned.id, teacherId: teacherMulti.id, subjectId: quran.id, status: "ENDED" },
+        select: { id: true },
+      });
+      if (!existingEnded) {
+        await prisma.studentTeacherAssignment.create({
+          data: {
+            academyId: academy.id,
+            studentId: studentUnassigned.id,
+            teacherId: teacherMulti.id,
+            subjectId: quran.id,
+            status: "ENDED",
+            createdById: admin.id,
+            endedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            endedReason: "Demo: teacher changed, not yet replaced",
+          },
+          select: { id: true },
+        });
+      }
+    }
+
+    const dayOffset = (days: number) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + days);
+      return date;
+    };
+    const tomorrow18 = wallClockToUtc(
+      new Date(Date.UTC(dayOffset(1).getUTCFullYear(), dayOffset(1).getUTCMonth(), dayOffset(1).getUTCDate(), 18, 0, 0)),
+      "Africa/Cairo"
+    );
+    const yesterday18 = wallClockToUtc(
+      new Date(Date.UTC(dayOffset(-1).getUTCFullYear(), dayOffset(-1).getUTCMonth(), dayOffset(-1).getUTCDate(), 18, 0, 0)),
+      "Africa/Cairo"
+    );
+    const yesterday16 = wallClockToUtc(
+      new Date(Date.UTC(dayOffset(-1).getUTCFullYear(), dayOffset(-1).getUTCMonth(), dayOffset(-1).getUTCDate(), 16, 0, 0)),
+      "Africa/Cairo"
+    );
+
+    // Future SCHEDULED session for demo_teacher_quran: tomorrow 18:00-19:00 Cairo (E2E conflict anchor).
+    const futureSessionId = "00000000-0000-0000-0000-000000000606";
+    await prisma.session.upsert({
+      where: { id: futureSessionId },
+      update: {
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: tomorrow18,
+        scheduledEnd: new Date(tomorrow18.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112233",
+        createdById: admin.id,
+        status: "SCHEDULED",
+      },
+      create: {
+        id: futureSessionId,
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: tomorrow18,
+        scheduledEnd: new Date(tomorrow18.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112233",
+        createdById: admin.id,
+        status: "SCHEDULED",
+        students: { create: [{ studentId: studentCreditMany.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: futureSessionId, studentId: studentCreditMany.id } },
+      update: {},
+      create: { sessionId: futureSessionId, studentId: studentCreditMany.id, attendanceStatus: "PENDING" },
+    });
+    await ensureReservation(futureSessionId, studentCreditMany.id, subCreditMany.id, tomorrow18);
+    const creditManyUser = await prisma.user.findFirstOrThrow({ where: { username: "demo_student_credit_many" }, select: { id: true } });
+    const teacherQuranUser = await prisma.user.findFirstOrThrow({ where: { username: "demo_teacher_quran" }, select: { id: true } });
+    await enqueueSessionJobs(prisma, academy.id, futureSessionId, tomorrow18, teacherQuranUser.id, [creditManyUser.id], [guardianUser.id]);
+
+    // CANCELLED session for the same teacher: yesterday 16:00-17:00 Cairo (released reservation).
+    const cancelledSessionId = "00000000-0000-0000-0000-000000000607";
+    await prisma.session.upsert({
+      where: { id: cancelledSessionId },
+      update: {
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: yesterday16,
+        scheduledEnd: new Date(yesterday16.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112244",
+        createdById: admin.id,
+        status: "CANCELLED",
+        cancellationReason: "Demo cancellation",
+        cancelledById: admin.id,
+      },
+      create: {
+        id: cancelledSessionId,
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: yesterday16,
+        scheduledEnd: new Date(yesterday16.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112244",
+        createdById: admin.id,
+        status: "CANCELLED",
+        cancellationReason: "Demo cancellation",
+        students: { create: [{ studentId: studentCreditMany.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: cancelledSessionId, studentId: studentCreditMany.id } },
+      update: {},
+      create: { sessionId: cancelledSessionId, studentId: studentCreditMany.id, attendanceStatus: "PENDING" },
+    });
+    await ensureReservation(cancelledSessionId, studentCreditMany.id, subCreditMany.id, yesterday16, { released: true });
+
+    // Past SCHEDULED session with no report (Phase 5 material): yesterday 18:00-19:00 Cairo.
+    const pastSessionId = "00000000-0000-0000-0000-000000000608";
+    await prisma.session.upsert({
+      where: { id: pastSessionId },
+      update: {
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: yesterday18,
+        scheduledEnd: new Date(yesterday18.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112255",
+        createdById: admin.id,
+        status: "SCHEDULED",
+      },
+      create: {
+        id: pastSessionId,
+        academyId: academy.id,
+        teacherId: teacherQuran.id,
+        subjectId: quran.id,
+        sessionType: "PRIVATE",
+        scheduledStart: yesterday18,
+        scheduledEnd: new Date(yesterday18.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112255",
+        createdById: admin.id,
+        status: "SCHEDULED",
+        students: { create: [{ studentId: studentGroupA.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: pastSessionId, studentId: studentGroupA.id } },
+      update: {},
+      create: { sessionId: pastSessionId, studentId: studentGroupA.id, attendanceStatus: "PENDING" },
+    });
+    await ensureReservation(pastSessionId, studentGroupA.id, subGroupA.id, yesterday18);
+
+    // Final scenario table (username -> role -> available credit -> teacher/subject -> case).
+    const demoStudentCases: { username: string; caseName: string }[] = [
+      { username: "demo_student", caseName: "base student (has session 603 with demo_teacher)" },
+      { username: "demo_student_credit_many", caseName: "8 credits; books freely; conflict-anchor participant" },
+      { username: "demo_student_credit_one", caseName: "1 credit; first booking succeeds, second -> INSUFFICIENT_SESSION_CREDIT" },
+      { username: "demo_student_zero", caseName: "subscription with zero credit -> INSUFFICIENT_SESSION_CREDIT" },
+      { username: "demo_student_nosub", caseName: "StudentSubject only, no subscription -> INSUFFICIENT_SESSION_CREDIT" },
+      { username: "demo_student_unassigned", caseName: "StudentSubject, no ACTIVE assignment (ENDED history) -> STUDENT_NOT_ASSIGNED / needs-teacher" },
+      { username: "demo_student_group_a", caseName: "group member; has past SCHEDULED session without report (Phase 5)" },
+      { username: "demo_student_group_b", caseName: "group member (same teacher+subject as group_a)" },
+    ];
+    console.log("\nDemo scheduling scenarios:");
+    for (const entry of demoStudentCases) {
+      const user = await prisma.user.findFirstOrThrow({
+        where: { username: entry.username },
+        select: { id: true, role: true },
+      });
+      const studentProfile = await prisma.student.findFirstOrThrow({
+        where: { userId: user.id },
+        select: { id: true },
+      });
+      const ledgers = await prisma.subscriptionLedger.findMany({
+        where: { subscription: { studentId: studentProfile.id } },
+        select: { sessionsDelta: true },
+      });
+      const reservations = await prisma.sessionReservation.count({
+        where: { studentId: studentProfile.id, status: "RESERVED" },
+      });
+      const balance = ledgers.reduce((total, entry2) => total + entry2.sessionsDelta, 0) - reservations;
+      const assignment = await prisma.studentTeacherAssignment.findFirst({
+        where: { studentId: studentProfile.id, status: "ACTIVE" },
+        select: { teacher: { select: { user: { select: { displayName: true } } } }, subject: { select: { nameEn: true } } },
+      });
+      const activeAssignment = assignment
+        ? `${assignment.teacher.user.displayName} / ${assignment.subject.nameEn}`
+        : await prisma.studentSubject.count({ where: { studentId: studentProfile.id } }).then((count) => (count > 0 ? "— (needs a teacher)" : "— (no subjects)"));
+      console.log(`${entry.username.padEnd(26)} | ${user.role.padEnd(7)} | credit: ${String(balance).padStart(3)} | ${activeAssignment.padEnd(34)} | ${entry.caseName}`);
+    }
+    console.log(`\nTeachers: demo_teacher_quran (Quran), demo_teacher_lang (English+Arabic), demo_teacher_multi (Quran+English)`);
+    console.log(`Sessions: ${futureSessionId} SCHEDULED tomorrow 18:00 Cairo; ${cancelledSessionId} CANCELLED yesterday 16:00; ${pastSessionId} SCHEDULED yesterday 18:00 (no report)`);
     console.log(`Seed admin id: ${admin.id}`);
+    console.log(`Demo login password (all demo users): ${demoPassword}`);
   } finally {
     await prisma.$disconnect();
     await pool.end();

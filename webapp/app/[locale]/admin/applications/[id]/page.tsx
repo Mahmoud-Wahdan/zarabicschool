@@ -52,15 +52,55 @@ export default async function AdminApplicationDetailPage({
     ? details.children.filter(
         (child): child is { name?: unknown; age?: unknown; subjects?: unknown } =>
           Boolean(child) && typeof child === "object"
-      )
+        )
     : [];
+  const type = application.applicationType as "GUARDIAN" | "STUDENT" | "TEACHER";
+
+  // Eligible teachers per subject entry (slug or id) for the optional approval-time assignment.
+  const subjectTeachersByEntry: Record<string, { teacherId: string; displayName: string }[]> = {};
+  if (type === "GUARDIAN" || type === "STUDENT") {
+    const entries = type === "STUDENT"
+      ? list(details.subjects)
+      : [...new Set(children.flatMap((child) => list(child.subjects)))];
+    if (entries.length > 0) {
+      const subjects = await prisma.subject.findMany({
+        where: { academyId: user.academyId, isActive: true },
+        select: { id: true, slug: true },
+      });
+      const entryToSubjectId = new Map<string, string>();
+      for (const entry of entries) {
+        const match = subjects.find((subject) => subject.slug === entry || subject.id === entry);
+        if (match) entryToSubjectId.set(entry, match.id);
+      }
+      const subjectIds = [...new Set(entryToSubjectId.values())];
+      if (subjectIds.length > 0) {
+        const teacherSubjects = await prisma.teacherSubject.findMany({
+          where: { academyId: user.academyId, subjectId: { in: subjectIds } },
+          select: {
+            subjectId: true,
+            teacher: { select: { id: true, user: { select: { displayName: true, isActive: true } } } },
+          },
+        });
+        const subjectIdToEntry = new Map([...entryToSubjectId.entries()].map(([entry, subjectId]) => [subjectId, entry]));
+        for (const row of teacherSubjects) {
+          if (!row.teacher.user.isActive) continue;
+          const entry = subjectIdToEntry.get(row.subjectId);
+          if (!entry) continue;
+          (subjectTeachersByEntry[entry] ??= []).push({
+            teacherId: row.teacher.id,
+            displayName: row.teacher.user.displayName,
+          });
+        }
+      }
+    }
+  }
+
   const formatDate = (value: Date) =>
     new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(value);
   const label = (key: string) => t(`detail.${key}`);
-  const type = application.applicationType as "GUARDIAN" | "STUDENT" | "TEACHER";
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
@@ -145,6 +185,7 @@ export default async function AdminApplicationDetailPage({
         status={application.status}
         details={details}
         childCount={children.length}
+        subjectTeachersByEntry={subjectTeachersByEntry}
       />
     </DashboardShell>
   );

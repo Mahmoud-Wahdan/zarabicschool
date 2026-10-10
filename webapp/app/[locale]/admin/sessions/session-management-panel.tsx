@@ -1,104 +1,120 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
+import { Link } from "../../../../i18n/navigation";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
+import type { ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
+import {
+  useSmartSessionForm,
+  useTeacherOptions,
+} from "./use-smart-session-form";
 
-type Option = { id: string; displayName?: string; nameEn?: string; nameAr?: string; teacherProfile?: { id: string } | null };
 type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[] };
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
 const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai", "Europe/London", "America/New_York", "UTC"];
 
-function toIsoInTz(value: string, timeZone: string) {
-  return wallClockInputToUtc(value, timeZone).toISOString();
-}
-
 const inputClass = "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2";
 
 export default function SessionManagementPanel({ viewerTimezone, locale, sessions: initialSessions, series, changeRequests }: { viewerTimezone: string; locale: string; sessions: Session[]; series: Series[]; changeRequests: ChangeRequest[] }) {
+  const t = useTranslations("sessionsAdmin");
   const [sessions, setSessions] = useState(initialSessions);
-  const [teachers, setTeachers] = useState<Option[]>([]);
-  const [students, setStudents] = useState<Option[]>([]);
-  const [subjects, setSubjects] = useState<Option[]>([]);
-  const [form, setForm] = useState({ teacherId: "", subjectId: "", sessionType: "PRIVATE", scheduledStart: "", scheduledEnd: "", timezone: viewerTimezone, zoomJoinUrl: "", zoomHostUrl: "", studentIds: [] as string[] });
-  const [seriesForm, setSeriesForm] = useState({ teacherId: "", subjectId: "", sessionType: "PRIVATE", scheduledStart: "", scheduledEnd: "", timezone: viewerTimezone, zoomJoinUrl: "", zoomHostUrl: "", weekCount: 8, studentIds: [] as string[] });
+  const [students, setStudents] = useState<{ id: string; displayName: string }[]>([]);
   const [filters, setFilters] = useState({ status: "", from: "", to: "", teacherId: "", studentId: "" });
   const [reschedule, setReschedule] = useState<{ id: string; start: string; end: string } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const { teachers, teachersState } = useTeacherOptions();
+  const single = useSmartSessionForm(viewerTimezone);
+  const seriesForm = useSmartSessionForm(viewerTimezone);
+
   useEffect(() => {
-    Promise.all([fetch("/api/admin/profiles?type=teacher"), fetch("/api/admin/profiles?type=student"), fetch("/api/subjects")])
-      .then(async ([teacherResponse, studentResponse, subjectResponse]) => {
-        const [teacherPayload, studentPayload, subjectPayload] = await Promise.all([teacherResponse.json(), studentResponse.json(), subjectResponse.json()]);
-        setTeachers(teacherPayload.data ?? []);
-        setStudents(studentPayload.data ?? []);
-        setSubjects(subjectPayload.data ?? subjectPayload);
+    fetch("/api/admin/profiles?type=student")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = await response.json();
+        setStudents((payload.data ?? []).map((student: { id: string; displayName: string; studentProfile?: { id: string } | null }) => ({
+          id: student.studentProfile?.id ?? student.id,
+          displayName: student.displayName,
+        })));
       })
-      .catch(() => setMessage("Unable to load session options."));
+      .catch(() => undefined);
   }, []);
 
-  function toggleStudent(id: string) {
-    setForm((current) => ({ ...current, studentIds: current.studentIds.includes(id) ? current.studentIds.filter((item) => item !== id) : [...current.studentIds, id] }));
-  }
-
-  function toggleSeriesStudent(id: string) {
-    setSeriesForm((current) => ({ ...current, studentIds: current.studentIds.includes(id) ? current.studentIds.filter((item) => item !== id) : [...current.studentIds, id] }));
-  }
+  // Keep the timezone fields aligned with the viewer's default.
+  useEffect(() => {
+    single.setTimezone(viewerTimezone);
+    seriesForm.setTimezone(viewerTimezone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerTimezone]);
 
   async function refreshSessions(nextFilters: typeof filters) {
     const params = new URLSearchParams();
     if (nextFilters.status) params.set("status", nextFilters.status);
-    if (nextFilters.from) params.set("from", toIsoInTz(nextFilters.from, viewerTimezone));
-    if (nextFilters.to) params.set("to", toIsoInTz(nextFilters.to, viewerTimezone));
+    if (nextFilters.from) params.set("from", wallClockInputToUtc(nextFilters.from, viewerTimezone).toISOString());
+    if (nextFilters.to) params.set("to", wallClockInputToUtc(nextFilters.to, viewerTimezone).toISOString());
     if (nextFilters.teacherId) params.set("teacherId", nextFilters.teacherId);
     if (nextFilters.studentId) params.set("studentId", nextFilters.studentId);
     const response = await fetch(`/api/sessions?${params.toString()}`);
     const payload = await response.json();
-    if (response.ok) setSessions(payload.data ?? []);
-    else setMessage(payload.error?.message ?? "Unable to filter sessions.");
+    if (response.ok) {
+      setSessions(payload.data ?? []);
+      setMessage("");
+    } else {
+      setMessage(payload.error?.message ?? t("errors.load"));
+    }
   }
 
-  async function createSession(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitSmartForm(
+    form: ReturnType<typeof useSmartSessionForm>,
+    endpoint: string,
+    isSeries: boolean,
+    successMessage: (generated: number, planned: number) => string,
+  ) {
+    const scheduledStart = form.toUtcIso(form.scheduledStart);
+    const scheduledEnd = form.toUtcIso(form.scheduledEnd);
+    if (!scheduledStart || !scheduledEnd) {
+      setMessage(t("errors.invalidTime"));
+      return;
+    }
     setBusy(true);
     setMessage("");
-    const response = await fetch("/api/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...form, scheduledStart: toIsoInTz(form.scheduledStart, form.timezone), scheduledEnd: toIsoInTz(form.scheduledEnd, form.timezone), zoomHostUrl: form.zoomHostUrl || undefined }) });
-    const payload = await response.json();
+    const body: Record<string, unknown> = {
+      teacherId: form.teacherId,
+      subjectId: form.subjectId,
+      sessionType: form.sessionType,
+      scheduledStart,
+      scheduledEnd,
+      timezone: form.timezone,
+      zoomJoinUrl: form.zoomJoinUrl.trim(),
+      zoomHostUrl: form.zoomHostUrl.trim() || undefined,
+      studentIds: form.studentIds,
+    };
+    if (isSeries) body.weekCount = form.weekCount;
+    const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setMessage(payload.error?.message ?? "Unable to create session.");
+      setMessage(payload.error?.message ?? t("errors.submit"));
       setBusy(false);
       return;
     }
-    setMessage("Session created and student credit reserved.");
-    window.location.reload();
-  }
-
-  async function createSeries(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    const response = await fetch("/api/sessions/recurrences", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...seriesForm, scheduledStart: toIsoInTz(seriesForm.scheduledStart, seriesForm.timezone), scheduledEnd: toIsoInTz(seriesForm.scheduledEnd, seriesForm.timezone), zoomHostUrl: seriesForm.zoomHostUrl || undefined }) });
-    const payload = await response.json();
-    if (!response.ok) {
-      setMessage(payload.error?.message ?? "Unable to create the series.");
-      setBusy(false);
-      return;
-    }
-    const generated = payload.data?.sessions?.length ?? 0;
-    setMessage(`Series created: ${generated} of ${seriesForm.weekCount} weeks generated now; the worker continues the rest when credit is available.`);
+    const generated = payload.data?.sessions?.length ?? 1;
+    setMessage(successMessage(generated, isSeries ? form.weekCount : 1));
+    setBusy(false);
     window.location.reload();
   }
 
   async function cancelSession(id: string) {
-    if (!window.confirm("Cancel this session and release its reserved credits?")) return;
+    if (!window.confirm(t("confirmCancel"))) return;
     setBusy(true);
     const response = await fetch(`/api/sessions/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "CANCELLED", cancellationReason: "Cancelled by operations" }) });
-    const payload = await response.json();
-    setMessage(response.ok ? "Session cancelled, reservations released, and reminders stopped." : payload.error?.message ?? "Unable to cancel session.");
+    const payload = await response.json().catch(() => ({}));
+    setMessage(response.ok ? t("messages.cancelled") : payload.error?.message ?? t("errors.submit"));
     if (response.ok) setSessions((current) => current.map((session) => session.id === id ? { ...session, status: "CANCELLED" } : session));
     setBusy(false);
   }
@@ -108,12 +124,15 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
     if (!reschedule) return;
     setBusy(true);
     const target = sessions.find((session) => session.id === reschedule.id);
-    if (!target) return;
-    const response = await fetch(`/api/sessions/${reschedule.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ scheduledStart: toIsoInTz(reschedule.start, target.timezone), scheduledEnd: toIsoInTz(reschedule.end, target.timezone) }) });
-    const payload = await response.json();
-    setMessage(response.ok ? "Session rescheduled and reminders moved." : payload.error?.message ?? "Unable to reschedule session.");
+    if (!target) {
+      setBusy(false);
+      return;
+    }
+    const response = await fetch(`/api/sessions/${reschedule.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ scheduledStart: wallClockInputToUtc(reschedule.start, target.timezone).toISOString(), scheduledEnd: wallClockInputToUtc(reschedule.end, target.timezone).toISOString() }) });
+    const payload = await response.json().catch(() => ({}));
+    setMessage(response.ok ? t("messages.rescheduled") : payload.error?.message ?? t("errors.submit"));
     if (response.ok) {
-      setSessions((current) => current.map((session) => session.id === reschedule.id ? { ...session, scheduledStart: toIsoInTz(reschedule.start, target.timezone), scheduledEnd: toIsoInTz(reschedule.end, target.timezone) } : session));
+      setSessions((current) => current.map((session) => session.id === reschedule.id ? { ...session, scheduledStart: wallClockInputToUtc(reschedule.start, target.timezone).toISOString(), scheduledEnd: wallClockInputToUtc(reschedule.end, target.timezone).toISOString() } : session));
       setReschedule(null);
     }
     setBusy(false);
@@ -122,24 +141,30 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
   async function reviewChangeRequest(id: string, status: "APPROVED" | "REJECTED") {
     setBusy(true);
     const response = await fetch(`/api/session-change-requests/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) });
-    const payload = await response.json();
-    setMessage(response.ok ? `Change request ${status.toLowerCase()}.` : payload.error?.message ?? "Unable to review the request.");
+    const payload = await response.json().catch(() => ({}));
+    setMessage(response.ok ? t("messages.requestReviewed", { status: status === "APPROVED" ? t("words.approved") : t("words.rejected") }) : payload.error?.message ?? t("errors.submit"));
     setBusy(false);
   }
 
   return (
     <div className="mt-6 space-y-6">
+      <p className="text-sm">
+        <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">
+          {t("link.assignments")}
+        </Link>
+      </p>
+
       {changeRequests.length ? (
         <section className="dashboard-card space-y-3 p-5">
-          <h2 className="text-lg font-bold text-[var(--navy)]">Teacher change requests</h2>
+          <h2 className="text-lg font-bold text-[var(--navy)]">{t("changeRequests.title")}</h2>
           {changeRequests.map((changeRequest) => (
             <article key={changeRequest.id} className="rounded-xl border border-[var(--line)] p-4">
               <p className="text-sm font-semibold text-[var(--navy)]">{changeRequest.teacher.user.displayName} · {changeRequest.session.subject.nameEn} · {formatSessionDateTime(changeRequest.session.scheduledStart, viewerTimezone, locale)}</p>
-              <p className="mt-1 text-sm opacity-75">Reason: {changeRequest.reason}</p>
-              <p className="text-sm opacity-75">Proposed change: {changeRequest.proposedChange}</p>
+              <p className="mt-1 text-sm opacity-75">{t("changeRequests.reason")}: {changeRequest.reason}</p>
+              <p className="text-sm opacity-75">{t("changeRequests.proposed")}: {changeRequest.proposedChange}</p>
               <div className="mt-2 flex gap-2">
-                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "APPROVED")} className="rounded-xl bg-[var(--emerald)] px-3 py-2 text-sm font-semibold text-white">Approve</button>
-                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "REJECTED")} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">Reject</button>
+                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "APPROVED")} className="rounded-xl bg-[var(--emerald)] px-3 py-2 text-sm font-semibold text-white">{t("words.approve")}</button>
+                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "REJECTED")} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("words.reject")}</button>
               </div>
             </article>
           ))}
@@ -148,12 +173,12 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
 
       {series.length ? (
         <section className="dashboard-card space-y-3 p-5">
-          <h2 className="text-lg font-bold text-[var(--navy)]">Recurring series</h2>
+          <h2 className="text-lg font-bold text-[var(--navy)]">{t("series.title")}</h2>
           {series.map((item) => (
             <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4">
               <div>
                 <p className="font-semibold text-[var(--navy)]">{item.subject.nameEn} · {item.teacher.user.displayName} · {item.sessionType}</p>
-                <p className="mt-1 text-sm opacity-70">{item.generatedThroughWeek + 1} of {item.totalWeeks} weeks generated · times shown in {item.timezone}</p>
+                <p className="mt-1 text-sm opacity-70">{t("series.progress", { generated: item.generatedThroughWeek + 1, total: item.totalWeeks })}</p>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs ${item.status === "PAUSED" ? "bg-[var(--gold)]/25" : "bg-[var(--emerald)]/10 text-[var(--emerald)]"}`}>{item.status}</span>
             </article>
@@ -162,57 +187,62 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       ) : null}
 
       <section className="dashboard-card space-y-3 p-5">
-        <h2 className="text-lg font-bold text-[var(--navy)]">Filters</h2>
+        <h2 className="text-lg font-bold text-[var(--navy)]">{t("filters.title")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className={inputClass}>
-            <option value="">Any status</option>
+            <option value="">{t("filters.anyStatus")}</option>
             {["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
-          <label className="text-sm">From<input type="datetime-local" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">To<input type="datetime-local" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className={inputClass} /></label>
+          <label className="text-sm">{t("filters.from")}<input type="datetime-local" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className={inputClass} /></label>
+          <label className="text-sm">{t("filters.to")}<input type="datetime-local" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className={inputClass} /></label>
           <select value={filters.teacherId} onChange={(event) => setFilters({ ...filters, teacherId: event.target.value })} className={inputClass}>
-            <option value="">Any teacher</option>
-            {teachers.map((teacher) => <option key={teacher.teacherProfile?.id ?? teacher.id} value={teacher.teacherProfile?.id}>{teacher.displayName}</option>)}
+            <option value="">{t("filters.anyTeacher")}</option>
+            {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
           </select>
           <select value={filters.studentId} onChange={(event) => setFilters({ ...filters, studentId: event.target.value })} className={inputClass}>
-            <option value="">Any student</option>
+            <option value="">{t("filters.anyStudent")}</option>
             {students.map((student) => <option key={student.id} value={student.id}>{student.displayName}</option>)}
           </select>
         </div>
-        <button disabled={busy} onClick={() => void refreshSessions(filters)} className="cta-primary rounded-xl px-4 py-2 text-sm">Apply filters</button>
+        <button disabled={busy} onClick={() => void refreshSessions(filters)} className="cta-primary rounded-xl px-4 py-2 text-sm">{t("filters.apply")}</button>
       </section>
 
       <details className="dashboard-card p-5">
-        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">New weekly series</summary>
-        <form onSubmit={createSeries} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <select required value={seriesForm.teacherId} onChange={(event) => setSeriesForm({ ...seriesForm, teacherId: event.target.value })} className={inputClass}><option value="">Choose teacher</option>{teachers.map((teacher) => <option key={teacher.teacherProfile?.id ?? teacher.id} value={teacher.teacherProfile?.id}>{teacher.displayName}</option>)}</select>
-          <select required value={seriesForm.subjectId} onChange={(event) => setSeriesForm({ ...seriesForm, subjectId: event.target.value })} className={inputClass}><option value="">Choose subject</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.nameEn} / {subject.nameAr}</option>)}</select>
-          <select value={seriesForm.sessionType} onChange={(event) => setSeriesForm({ ...seriesForm, sessionType: event.target.value })} className={inputClass}><option value="PRIVATE">Private</option><option value="GROUP">Group</option></select>
-          <label className="text-sm">First session (local time)<input required type="datetime-local" value={seriesForm.scheduledStart} onChange={(event) => setSeriesForm({ ...seriesForm, scheduledStart: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">First session end<input required type="datetime-local" value={seriesForm.scheduledEnd} onChange={(event) => setSeriesForm({ ...seriesForm, scheduledEnd: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">Timezone<select value={seriesForm.timezone} onChange={(event) => setSeriesForm({ ...seriesForm, timezone: event.target.value })} className={inputClass}>{TIMEZONES.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone}</option>)}</select></label>
-          <input required type="url" pattern="https://.*" placeholder="Zoom join link (https)" value={seriesForm.zoomJoinUrl} onChange={(event) => setSeriesForm({ ...seriesForm, zoomJoinUrl: event.target.value })} className={inputClass} />
-          <input type="url" pattern="https://.*" placeholder="Zoom host link (optional)" value={seriesForm.zoomHostUrl} onChange={(event) => setSeriesForm({ ...seriesForm, zoomHostUrl: event.target.value })} className={inputClass} />
-          <label className="text-sm">Total weeks<input required type="number" min={1} max={52} value={seriesForm.weekCount} onChange={(event) => setSeriesForm({ ...seriesForm, weekCount: Number(event.target.value) })} className={inputClass} /></label>
-          <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3"><p className="text-sm font-semibold text-[var(--navy)]">Students (a week is generated only when every student has credit)</p><div className="mt-2 flex flex-wrap gap-2">{students.map((student) => <button type="button" key={student.id} onClick={() => toggleSeriesStudent(student.id)} className={`rounded-full border px-3 py-1 text-sm ${seriesForm.studentIds.includes(student.id) ? "border-[var(--emerald)] bg-[var(--emerald)]/10 text-[var(--emerald)]" : "border-[var(--line)]"}`}>{student.displayName}</button>)}</div></div>
-          <button disabled={busy} className="cta-primary rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3">Create series</button>
-        </form>
+        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">{t("seriesForm.title")}</summary>
+        <SmartFormFields
+          form={seriesForm}
+          teachers={teachers}
+          teachersState={teachersState}
+          busyTitle={(day) => t("busy.title", { day })}
+        />
+        <label className="mt-3 block text-sm">{t("seriesForm.totalWeeks")}
+          <input required type="number" min={1} max={52} value={seriesForm.weekCount} onChange={(event) => seriesForm.setWeekCount(Number(event.target.value))} className={inputClass} />
+        </label>
+        <button
+          disabled={busy || !seriesForm.teacherId || !seriesForm.subjectId || seriesForm.studentIds.length === 0 || !seriesForm.selectedRange || seriesForm.zoomJoinCheck?.ok !== true || seriesForm.conflictSlots.length > 0}
+          onClick={() => void submitSmartForm(seriesForm, "/api/sessions/recurrences", true, (generated, planned) => t("messages.seriesCreated", { generated, total: planned }))}
+          className="cta-primary mt-4 rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
+        >
+          {t("seriesForm.create")}
+        </button>
+        <p className="mt-2 text-xs opacity-60">{t("seriesForm.creditNote")}</p>
       </details>
 
       <details className="dashboard-card p-5">
-        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">New single session</summary>
-        <form onSubmit={createSession} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <select required value={form.teacherId} onChange={(event) => setForm({ ...form, teacherId: event.target.value })} className={inputClass}><option value="">Choose teacher</option>{teachers.map((teacher) => <option key={teacher.teacherProfile?.id ?? teacher.id} value={teacher.teacherProfile?.id}>{teacher.displayName}</option>)}</select>
-          <select required value={form.subjectId} onChange={(event) => setForm({ ...form, subjectId: event.target.value })} className={inputClass}><option value="">Choose subject</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.nameEn} / {subject.nameAr}</option>)}</select>
-          <select value={form.sessionType} onChange={(event) => setForm({ ...form, sessionType: event.target.value })} className={inputClass}><option value="PRIVATE">Private</option><option value="GROUP">Group</option></select>
-          <label className="text-sm">Starts<input required type="datetime-local" value={form.scheduledStart} onChange={(event) => setForm({ ...form, scheduledStart: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">Ends<input required type="datetime-local" value={form.scheduledEnd} onChange={(event) => setForm({ ...form, scheduledEnd: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">Timezone<select value={form.timezone} onChange={(event) => setForm({ ...form, timezone: event.target.value })} className={inputClass}>{TIMEZONES.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone}</option>)}</select></label>
-          <input required type="url" pattern="https://.*" placeholder="Zoom join link (https)" value={form.zoomJoinUrl} onChange={(event) => setForm({ ...form, zoomJoinUrl: event.target.value })} className={inputClass} />
-          <input type="url" pattern="https://.*" placeholder="Zoom host link (optional)" value={form.zoomHostUrl} onChange={(event) => setForm({ ...form, zoomHostUrl: event.target.value })} className={inputClass} />
-          <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3"><p className="text-sm font-semibold text-[var(--navy)]">Students</p><div className="mt-2 flex flex-wrap gap-2">{students.map((student) => <button type="button" key={student.id} onClick={() => toggleStudent(student.id)} className={`rounded-full border px-3 py-1 text-sm ${form.studentIds.includes(student.id) ? "border-[var(--emerald)] bg-[var(--emerald)]/10 text-[var(--emerald)]" : "border-[var(--line)]"}`}>{student.displayName}</button>)}</div></div>
-          <button disabled={busy} className="cta-primary rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3">Create session</button>
-        </form>
+        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">{t("single.title")}</summary>
+        <SmartFormFields
+          form={single}
+          teachers={teachers}
+          teachersState={teachersState}
+          busyTitle={(day) => t("busy.title", { day })}
+        />
+        <button
+          disabled={busy || !single.teacherId || !single.subjectId || single.studentIds.length === 0 || !single.selectedRange || single.zoomJoinCheck?.ok !== true || single.conflictSlots.length > 0}
+          onClick={() => void submitSmartForm(single, "/api/sessions", false, () => t("messages.created"))}
+          className="cta-primary mt-4 rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
+        >
+          {t("single.create")}
+        </button>
       </details>
 
       {message ? <p role="status" className="text-sm opacity-75">{message}</p> : null}
@@ -229,23 +259,175 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                 <span className="rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs">{session.status}</span>
                 {session.status === "SCHEDULED" ? (
                   <>
-                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, start: "", end: "" })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">Reschedule</button>
-                    <button disabled={busy} onClick={() => void cancelSession(session.id)} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">Cancel</button>
+                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, start: "", end: "" })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>
+                    <button disabled={busy} onClick={() => void cancelSession(session.id)} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.cancel")}</button>
                   </>
                 ) : null}
               </div>
             </div>
             {reschedule?.id === session.id ? (
               <form onSubmit={applyReschedule} className="mt-3 grid gap-3 border-t border-[var(--line)] pt-3 sm:grid-cols-3">
-                <label className="text-sm">New start ({session.timezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
-                <label className="text-sm">New end ({session.timezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
-                <button disabled={busy} className="cta-primary mt-6 h-10 rounded-xl px-4">Save new time</button>
+                <label className="text-sm">{t("reschedule.newStart")} ({session.timezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
+                <label className="text-sm">{t("reschedule.newEnd")} ({session.timezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
+                <button disabled={busy} className="cta-primary mt-6 h-10 rounded-xl px-4">{t("reschedule.save")}</button>
               </form>
             ) : null}
           </article>
         ))}
-        {!sessions.length ? <p className="dashboard-card p-5 text-sm opacity-70">No sessions match the current filters.</p> : null}
+        {!sessions.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("states.listEmpty")}</p> : null}
       </section>
     </div>
+  );
+}
+
+function SmartFormFields({
+  form,
+  teachers,
+  teachersState,
+  busyTitle,
+}: {
+  form: ReturnType<typeof useSmartSessionForm>;
+  teachers: { id: string; displayName: string }[];
+  teachersState: "loading" | "ready" | "error";
+  busyTitle: (day: string) => string;
+}) {
+  const t = useTranslations("sessionsAdmin");
+
+  return (
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <label className="text-sm">{t("labels.teacher")}
+        <select required value={form.teacherId} onChange={(event) => form.selectTeacher(event.target.value)} className={inputClass}>
+          <option value="">{teachersState === "loading" ? t("states.teachersLoading") : t("labels.chooseTeacher")}</option>
+          {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
+        </select>
+      </label>
+      {teachersState === "error" ? <p role="alert" className="text-sm text-red-700 sm:col-span-2">{t("states.teachersError")}</p> : null}
+      {teachersState === "ready" && teachers.length === 0 ? <p className="text-sm opacity-70 sm:col-span-2">{t("states.teachersEmpty")}</p> : null}
+
+      <label className="text-sm">{t("labels.subject")}
+        <select required value={form.subjectId} onChange={(event) => form.selectSubject(event.target.value)} disabled={!form.teacherId || form.contextState === "loading"} className={inputClass}>
+          <option value="">{form.contextState === "loading" ? t("states.contextLoading") : t("labels.chooseSubject")}</option>
+          {form.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.nameEn} / {subject.nameAr}</option>)}
+        </select>
+      </label>
+      {form.contextState === "error" ? (
+        <p role="alert" className="text-sm text-red-700 sm:col-span-2">{t("states.contextError")}</p>
+      ) : null}
+      {form.contextState === "ready" && form.subjects.length === 0 ? (
+        <p className="text-sm opacity-70 sm:col-span-2">
+          {t("states.subjectsEmpty")} <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">{t("states.subjectsEmptyLink")}</Link>
+        </p>
+      ) : null}
+
+      <label className="text-sm">{t("labels.sessionType")}
+        <select value={form.sessionType} onChange={(event) => form.setSessionType(event.target.value)} className={inputClass}>
+          <option value="PRIVATE">{t("labels.private")}</option>
+          <option value="GROUP">{t("labels.group")}</option>
+        </select>
+      </label>
+
+      <label className="text-sm">{t("labels.starts")}
+        <input required type="datetime-local" value={form.scheduledStart} onChange={(event) => form.setScheduledStart(event.target.value)} className={inputClass} />
+      </label>
+      <label className="text-sm">{t("labels.ends")}
+        <input required type="datetime-local" value={form.scheduledEnd} onChange={(event) => form.setScheduledEnd(event.target.value)} className={inputClass} />
+      </label>
+      <label className="text-sm">{t("labels.timezone")}
+        <select value={form.timezone} onChange={(event) => form.setTimezone(event.target.value)} className={inputClass}>
+          {TIMEZONES.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone}</option>)}
+        </select>
+      </label>
+
+      <div className="sm:col-span-2">
+        <ZoomField
+          label={t("labels.zoomJoin")}
+          value={form.zoomJoinUrl}
+          onChange={form.setZoomJoinUrl}
+          check={form.zoomJoinCheck}
+          required
+        />
+      </div>
+      <ZoomField
+        label={t("labels.zoomHost")}
+        value={form.zoomHostUrl}
+        onChange={form.setZoomHostUrl}
+        check={form.zoomHostCheck}
+      />
+
+      <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3">
+        <p className="text-sm font-semibold text-[var(--navy)]">{t("labels.students")}</p>
+        {form.contextState === "ready" && form.subjectId && form.assignedStudents.length === 0 ? (
+          <p className="mt-2 text-sm opacity-70">
+            {t("states.studentsEmpty")} <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">{t("states.studentsEmptyLink")}</Link>
+          </p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {form.assignedStudents.map((student) => (
+              <button type="button" key={student.studentId} onClick={() => form.toggleStudent(student.studentId)} className={`rounded-full border px-3 py-1 text-sm ${form.studentIds.includes(student.studentId) ? "border-[var(--emerald)] bg-[var(--emerald)]/10 text-[var(--emerald)]" : "border-[var(--line)]"}`}>
+                {student.displayName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {form.scheduledStart ? (
+        <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3">
+          <p className="text-sm font-semibold text-[var(--navy)]">{busyTitle(form.scheduledStart.slice(0, 10))}</p>
+          {form.busySlotsForDay.length === 0 ? (
+            <p className="mt-2 text-sm opacity-70">{t("busy.none")}</p>
+          ) : (
+            <ul className="mt-2 space-y-1 text-sm">
+              {form.busySlotsForDay.map((slot) => {
+                const conflicting = form.conflictSlots.some((item) => item.id === slot.id);
+                return (
+                  <li key={slot.id} className={conflicting ? "font-semibold text-red-700" : "opacity-80"}>
+                    {formatSessionDateTime(slot.scheduledStart, form.timezone, "en")} – {formatSessionDateTime(slot.scheduledEnd, form.timezone, "en")} · {slot.subject.nameEn} · {slot.sessionType}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {form.conflictSlots.length > 0 ? (
+            <p role="alert" className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{t("busy.conflict")}</p>
+          ) : null}
+          <p className="mt-2 text-xs opacity-60">{t("busy.note")}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ZoomField({ label, value, onChange, check, required: isRequired = false }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  check: { ok: true } | { ok: false; reason: ZoomUrlInvalidReason } | null;
+  required?: boolean;
+}) {
+  const t = useTranslations("sessionsAdmin");
+  return (
+    <label className="block text-sm">
+      {label}
+      <input
+        required={isRequired}
+        type="url"
+        placeholder={t("labels.zoomPlaceholder")}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass}
+      />
+      {check ? (
+        check.ok ? (
+          <span className="mt-1 block text-xs font-semibold text-[var(--emerald)]">{t("zoom.valid")}</span>
+        ) : (
+          <span role="alert" className="mt-1 block text-xs font-semibold text-red-700">
+            {t(`zoom.reasons.${check.reason}`)}
+          </span>
+        )
+      ) : (
+        <span className="mt-1 block text-xs opacity-60">{t("zoom.formatNote")}</span>
+      )}
+    </label>
   );
 }

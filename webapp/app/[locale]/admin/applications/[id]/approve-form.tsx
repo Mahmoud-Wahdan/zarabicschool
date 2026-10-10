@@ -8,12 +8,34 @@ type Body = {
   existingGuardianId?: string;
   createGuardian?: { full_name: string; phone_whatsapp: string; relationship: "father" | "mother" };
   accounts?: { key: string; username: string }[];
+  teachers?: Record<string, Record<string, string>>;
 };
+
+function subjectsOfAccount(
+  applicationType: "GUARDIAN" | "STUDENT" | "TEACHER",
+  details: Record<string, unknown>,
+  key: string
+): string[] {
+  if (applicationType === "TEACHER") return [];
+  if (key === "student") {
+    return Array.isArray(details.subjects) ? details.subjects.filter((item): item is string => typeof item === "string") : [];
+  }
+  if (key.startsWith("child-")) {
+    const index = Number(key.slice("child-".length));
+    const children = Array.isArray(details.children) ? details.children : [];
+    const child = children[index];
+    if (child && typeof child === "object" && Array.isArray((child as { subjects?: unknown }).subjects)) {
+      return ((child as { subjects: unknown[] }).subjects).filter((item): item is string => typeof item === "string");
+    }
+  }
+  return [];
+}
 
 export default function ApproveForm({
   applicationType,
   details,
   childCount,
+  subjectTeachersByEntry,
   busy,
   onSubmit,
   onError,
@@ -21,6 +43,7 @@ export default function ApproveForm({
   applicationType: "GUARDIAN" | "STUDENT" | "TEACHER";
   details: Record<string, unknown>;
   childCount: number;
+  subjectTeachersByEntry: Record<string, { teacherId: string; displayName: string }[]>;
   busy: boolean;
   onSubmit: (body: Body) => Promise<void>;
   onError: (message: string) => void;
@@ -38,6 +61,11 @@ export default function ApproveForm({
     return [applicationType === "TEACHER" ? "teacher" : "student"];
   }, [applicationType, childCount, details.date_of_birth]);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [teacherSelections, setTeacherSelections] = useState<Record<string, Record<string, string>>>({});
+
+  const accountSubjectEntries = useMemo(() => {
+    return Object.fromEntries(keys.map((key) => [key, subjectsOfAccount(applicationType, details, key)]));
+  }, [applicationType, details, keys]);
 
   async function submit() {
     const body: Body = { accounts: keys.map((key) => ({ key, username: usernames[key] ?? "" })).filter((item) => item.username) };
@@ -50,6 +78,16 @@ export default function ApproveForm({
         if (!guardianName.trim() || !guardianPhone.trim()) return onError(t("approveForm.guardianRequired"));
         body.createGuardian = { full_name: guardianName.trim(), phone_whatsapp: guardianPhone.trim(), relationship };
       }
+    }
+    if (applicationType !== "TEACHER") {
+      const teachers: Record<string, Record<string, string>> = {};
+      for (const [key, selections] of Object.entries(teacherSelections)) {
+        for (const [entry, teacherId] of Object.entries(selections)) {
+          if (!teacherId) continue;
+          (teachers[key] ??= {})[entry] = teacherId;
+        }
+      }
+      if (Object.keys(teachers).length > 0) body.teachers = teachers;
     }
     await onSubmit(body);
   }
@@ -88,6 +126,38 @@ export default function ApproveForm({
             ))}
             <p className="text-xs opacity-70">{t("approveForm.usernameHint")}</p>
           </div>
+          {applicationType !== "TEACHER" && keys.some((key) => (accountSubjectEntries[key] ?? []).some((entry) => (subjectTeachersByEntry[entry] ?? []).length > 0)) ? (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm font-semibold">{t("approveForm.teachers.title")}</p>
+              <p className="text-xs opacity-70">{t("approveForm.teachers.optional")}</p>
+              {keys.map((key) => {
+                const entries = (accountSubjectEntries[key] ?? []).filter((entry) => (subjectTeachersByEntry[entry] ?? []).length > 0);
+                if (!entries.length) return null;
+                return (
+                  <div key={key} className="rounded-lg border border-[var(--line)] p-3">
+                    <p className="text-xs font-semibold opacity-70">{accountLabel(t, key, Number(key.startsWith("child-") ? key.slice("child-".length) : 0))}</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {entries.map((entry) => (
+                        <label key={entry} className="block text-sm">
+                          {entry}
+                          <select
+                            value={teacherSelections[key]?.[entry] ?? ""}
+                            onChange={(event) => setTeacherSelections((current) => ({ ...current, [key]: { ...(current[key] ?? {}), [entry]: event.target.value } }))}
+                            className="mt-1 w-full rounded-lg border p-2 text-sm"
+                          >
+                            <option value="">{t("approveForm.teachers.noTeacher")}</option>
+                            {(subjectTeachersByEntry[entry] ?? []).map((teacher) => (
+                              <option key={teacher.teacherId} value={teacher.teacherId}>{teacher.displayName}</option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-lg bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {busy ? t("actions.submitting") : t("approveForm.confirm")}
           </button>

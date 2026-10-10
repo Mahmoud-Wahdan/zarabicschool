@@ -32,10 +32,22 @@
   },
   "features": {
     "items": [
-      { "title": "Live classes", "text": "Learn face to face with your teacher" },
-      { "title": "Specialized teachers", "text": "A teacher who knows each subject" },
-      { "title": "A report after every class", "text": "Summary, homework and notes" },
-      { "title": "One account to follow up", "text": "For guardians and all their children" }
+      {
+        "title": "Live classes",
+        "text": "Learn face to face with your teacher"
+      },
+      {
+        "title": "Specialized teachers",
+        "text": "A teacher who knows each subject"
+      },
+      {
+        "title": "A report after every class",
+        "text": "Summary, homework and notes"
+      },
+      {
+        "title": "One account to follow up",
+        "text": "For guardians and all their children"
+      }
     ]
   },
   "subjects": {
@@ -49,22 +61,52 @@
     "title": "Why Zarabicschool?",
     "subtitle": "Everything a student and a guardian need, in one place.",
     "items": [
-      { "title": "Specialized teachers", "text": "Each subject is taught by a specialized teacher who explains it clearly." },
-      { "title": "Private or group", "text": "Pick what suits your child: a private class or a group." },
-      { "title": "Flexible schedule", "text": "A timetable that fits your time zone and your family." },
-      { "title": "A report after every class", "text": "The class summary, homework and teacher's notes reach the guardian." },
-      { "title": "Prepaid session packages", "text": "Buy the number of sessions that suits you. Sessions never expire." },
-      { "title": "Follow every child", "text": "Schedule, attendance, reports and remaining sessions from one account." }
+      {
+        "title": "Specialized teachers",
+        "text": "Each subject is taught by a specialized teacher who explains it clearly."
+      },
+      {
+        "title": "Private or group",
+        "text": "Pick what suits your child: a private class or a group."
+      },
+      {
+        "title": "Flexible schedule",
+        "text": "A timetable that fits your time zone and your family."
+      },
+      {
+        "title": "A report after every class",
+        "text": "The class summary, homework and teacher's notes reach the guardian."
+      },
+      {
+        "title": "Prepaid session packages",
+        "text": "Buy the number of sessions that suits you. Sessions never expire."
+      },
+      {
+        "title": "Follow every child",
+        "text": "Schedule, attendance, reports and remaining sessions from one account."
+      }
     ]
   },
   "steps": {
     "title": "How to start",
     "subtitle": "Four simple steps between your application and your first class.",
     "items": [
-      { "title": "Apply", "text": "Fill in the form that fits you: guardian, student or teacher." },
-      { "title": "We review", "text": "The administration reviews your details and accepts the application." },
-      { "title": "Receive your login", "text": "We send your username and password on WhatsApp." },
-      { "title": "Log in and start", "text": "Log in to follow your schedule and your class link." }
+      {
+        "title": "Apply",
+        "text": "Fill in the form that fits you: guardian, student or teacher."
+      },
+      {
+        "title": "We review",
+        "text": "The administration reviews your details and accepts the application."
+      },
+      {
+        "title": "Receive your login",
+        "text": "We send your username and password on WhatsApp."
+      },
+      {
+        "title": "Log in and start",
+        "text": "Log in to follow your schedule and your class link."
+      }
     ]
   },
   "apply": {
@@ -104,12 +146,30 @@
   "faq": {
     "title": "Frequently asked questions",
     "items": [
-      { "q": "How do I register?", "a": "Through the application form. The administration reviews it, and once accepted your login details arrive on WhatsApp." },
-      { "q": "Are the classes live?", "a": "Yes, classes are live on Zoom, and the class link appears in your account." },
-      { "q": "Are classes private or group?", "a": "Both are available, and you can choose what suits you." },
-      { "q": "Do package sessions expire?", "a": "No, package sessions never expire, and you use them over whatever period you like." },
-      { "q": "How does a guardian follow the children?", "a": "From their own dashboard: schedule, attendance, teacher reports and remaining sessions." },
-      { "q": "What are the prices and payment methods?", "a": "[PLACEHOLDER: set by the administration]" }
+      {
+        "q": "How do I register?",
+        "a": "Through the application form. The administration reviews it, and once accepted your login details arrive on WhatsApp."
+      },
+      {
+        "q": "Are the classes live?",
+        "a": "Yes, classes are live on Zoom, and the class link appears in your account."
+      },
+      {
+        "q": "Are classes private or group?",
+        "a": "Both are available, and you can choose what suits you."
+      },
+      {
+        "q": "Do package sessions expire?",
+        "a": "No, package sessions never expire, and you use them over whatever period you like."
+      },
+      {
+        "q": "How does a guardian follow the children?",
+        "a": "From their own dashboard: schedule, attendance, teacher reports and remaining sessions."
+      },
+      {
+        "q": "What are the prices and payment methods?",
+        "a": "[PLACEHOLDER: set by the administration]"
+      }
     ]
   },
   "closing": {
@@ -302,8 +362,7 @@
       "title": "Session reports",
       "description": "The report review queue will be connected in Phase 5."
     },
-    "restricted": "Supervisor access does not include financial data or Admin/Supervisor management."
-    ,
+    "restricted": "Supervisor access does not include financial data or Admin/Supervisor management.",
     "operations": {
       "sessions": "Sessions",
       "activeSessions": "active",
@@ -320,8 +379,7 @@
       "subjectsDescription": "Keep the academy subject catalogue organized.",
       "enrollments": "Session enrollments",
       "enrollmentsDescription": "Assign students to the right scheduled sessions."
-    }
-    ,
+    },
     "metrics": {
       "pending": "New applications",
       "reviewed": "Reviewed",
@@ -490,7 +548,12 @@
       },
       "childDeliveryNote": "Children's credentials will be delivered to the guardian's WhatsApp number.",
       "minorGuardianRequired": "Student is under 18: a guardian link or a new guardian is required.",
-      "confirm": "Confirm approval"
+      "confirm": "Confirm approval",
+      "teachers": {
+        "title": "Assign a teacher (optional)",
+        "optional": "Choose a teacher per subject, or leave empty and assign later from the assignments page.",
+        "noTeacher": "No teacher yet"
+      }
     },
     "credentials": {
       "title": "Temporary credentials",
@@ -511,5 +574,165 @@
     "title": "Page not found",
     "description": "The page you requested could not be found.",
     "backHome": "Back to home"
+  },
+  "sessionsAdmin": {
+    "link": {
+      "assignments": "Manage student/teacher assignments"
+    },
+    "words": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "approved",
+      "rejected": "rejected"
+    },
+    "changeRequests": {
+      "title": "Teacher change requests",
+      "reason": "Reason",
+      "proposed": "Proposed change"
+    },
+    "series": {
+      "title": "Recurring series",
+      "progress": "{generated} of {total} weeks generated"
+    },
+    "filters": {
+      "title": "Filters",
+      "anyStatus": "Any status",
+      "anyTeacher": "Any teacher",
+      "anyStudent": "Any student",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply filters"
+    },
+    "single": {
+      "title": "New single session",
+      "create": "Create session"
+    },
+    "seriesForm": {
+      "title": "New weekly series",
+      "totalWeeks": "Total weeks",
+      "create": "Create series",
+      "creditNote": "A week is generated only when every selected student has an available credit; otherwise the series pauses and Admin is notified."
+    },
+    "labels": {
+      "teacher": "Teacher",
+      "subject": "Subject",
+      "sessionType": "Session type",
+      "private": "Private",
+      "group": "Group",
+      "starts": "Starts",
+      "ends": "Ends",
+      "timezone": "Timezone",
+      "students": "Students",
+      "chooseTeacher": "Choose teacher",
+      "chooseSubject": "Choose subject",
+      "zoomJoin": "Zoom join link (https)",
+      "zoomHost": "Zoom host link (optional)",
+      "zoomPlaceholder": "https://zoom.us/j/123456789"
+    },
+    "states": {
+      "teachersLoading": "Loading teachers…",
+      "teachersEmpty": "No teachers found in this academy.",
+      "teachersError": "Unable to load teachers. Retry or refresh.",
+      "contextLoading": "Loading the teacher's subjects…",
+      "contextError": "Unable to load this teacher's subjects. Try another teacher or refresh.",
+      "subjectsEmpty": "This teacher has no subjects yet.",
+      "subjectsEmptyLink": "Assign a subject to this teacher",
+      "studentsEmpty": "No students are assigned to this teacher for this subject yet.",
+      "studentsEmptyLink": "Assign students",
+      "listEmpty": "No sessions match the current filters."
+    },
+    "busy": {
+      "title": "This teacher's busy slots on {day}",
+      "none": "The teacher is free all day (only SCHEDULED sessions block a slot).",
+      "conflict": "The chosen time overlaps a busy slot — pick another time or another teacher.",
+      "note": "Busy slots come from SCHEDULED sessions only; cancelled and missed sessions never block. Times shown in the selected timezone."
+    },
+    "zoom": {
+      "valid": "Valid Zoom link format.",
+      "formatNote": "Format check only — the link is not verified against Zoom; the API remains the final authority.",
+      "reasons": {
+        "ZOOM_URL_REQUIRED": "A Zoom link is required.",
+        "ZOOM_URL_TOO_LONG": "The Zoom link is too long (max 2000 characters).",
+        "ZOOM_URL_MALFORMED": "This is not a valid URL.",
+        "ZOOM_URL_NOT_HTTPS": "Zoom links must use https.",
+        "ZOOM_URL_INVALID_HOST": "The link must point to zoom.us or a subdomain of zoom.us.",
+        "ZOOM_URL_CREDENTIALS": "The link must not contain a username or password.",
+        "ZOOM_URL_NON_DEFAULT_PORT": "The link must not contain a port.",
+        "ZOOM_URL_INVALID_PATH": "Only meeting join (/j/), webinar (/s/), and web-client (/wc/) links are accepted.",
+        "ZOOM_URL_INVALID_MEETING_ID": "The meeting ID must be 9 to 13 digits."
+      }
+    },
+    "actions": {
+      "reschedule": "Reschedule",
+      "cancel": "Cancel"
+    },
+    "reschedule": {
+      "newStart": "New start",
+      "newEnd": "New end",
+      "save": "Save new time"
+    },
+    "confirmCancel": "Cancel this session and release its reserved credits?",
+    "messages": {
+      "created": "Session created and student credit reserved.",
+      "seriesCreated": "Series created: {generated} of {total} weeks generated now; the worker continues the rest when credit is available.",
+      "cancelled": "Session cancelled, reservations released, and reminders stopped.",
+      "rescheduled": "Session rescheduled and reminders moved.",
+      "requestReviewed": "Change request {status}."
+    },
+    "errors": {
+      "load": "Unable to filter sessions.",
+      "submit": "Unable to save. Please try again.",
+      "invalidTime": "Please choose a valid start and end time."
+    }
+  },
+  "assignmentsAdmin": {
+    "labels": {
+      "chooseTeacher": "Choose teacher",
+      "chooseSubject": "Choose subject",
+      "chooseStudent": "Choose student",
+      "chooseTeacherFirst": "Choose a teacher first"
+    },
+    "create": {
+      "title": "Assign a student to a teacher",
+      "teacher": "Teacher",
+      "subject": "Subject",
+      "student": "Student",
+      "submit": "Create assignment",
+      "subjectHint": "Only the subjects this teacher already teaches are listed; student scheduling requires this assignment to be ACTIVE."
+    },
+    "needsTeacher": {
+      "title": "Students needing a teacher",
+      "empty": "Every enrolled student already has an active teacher for each of their subjects.",
+      "assign": "Assign a teacher",
+      "hint": "Students appear here after their application is approved with a subject but without a teacher. Assigning one does not reopen the application."
+    },
+    "list": {
+      "title": "Student–teacher assignments",
+      "filterTeacher": "Filter by teacher",
+      "filterStatus": "Filter by status",
+      "anyTeacher": "Any teacher",
+      "anyStatus": "Any status",
+      "empty": "No assignments match the current filters.",
+      "active": "ACTIVE",
+      "ended": "ENDED",
+      "end": "End",
+      "changeTeacher": "Change teacher",
+      "newTeacher": "New teacher",
+      "confirmChange": "Apply change",
+      "changeHint": "Changing the teacher ends the current assignment and creates the new one in one transaction; the old one is kept as history."
+    },
+    "prompts": {
+      "endReason": "Optional reason for ending this assignment:"
+    },
+    "messages": {
+      "created": "Assignment created.",
+      "ended": "Assignment ended.",
+      "changed": "Teacher changed: the old assignment was ended and a new one created."
+    },
+    "states": {
+      "loading": "Loading…",
+      "loadError": "Unable to load assignments. Please refresh.",
+      "submitError": "Unable to save. Please try again."
+    }
   }
 }
