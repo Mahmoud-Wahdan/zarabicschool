@@ -7,12 +7,29 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../generated/prisma/client";
 import { addMonthsUtc } from "../lib/credits/period";
-import { reserveCredit } from "../lib/credits/reservation";
+import { reserveCredit } from "../lib/credits/reserve-credit";
 import { enqueueSessionJobs } from "../lib/notifications/session-jobs";
 import { wallClockToUtc } from "../lib/schedules/recurrence";
 import bcrypt from "bcrypt";
 
 const academyName = "Zarabicschool";
+const demoTimezone = "Africa/Cairo";
+
+/** Wall-clock instant at `hour:00` on the Cairo calendar date offset by `dayDelta` days. */
+function cairoWallClock(dayDelta: number, hour: number): Date {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: demoTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+  // Date arithmetic on the CAIRO local calendar (not the UTC date), so "tomorrow"
+  // stays correct around Cairo midnight.
+  const base = new Date(Date.UTC(get("year"), get("month") - 1, get("day") + dayDelta, hour, 0, 0));
+  return wallClockToUtc(base, demoTimezone);
+}
 
 const demoSubjects = [
   {
@@ -317,7 +334,7 @@ async function main() {
         scheduledEnd: sessionEnd,
         durationMinutes: 60,
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "https://zoom.us/j/demo-session",
+        zoomJoinUrl: "https://zoom.us/j/7000000603",
         createdById: admin.id,
         status: "SCHEDULED",
       },
@@ -331,7 +348,7 @@ async function main() {
         scheduledEnd: sessionEnd,
         durationMinutes: 60,
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "https://zoom.us/j/demo-session",
+        zoomJoinUrl: "https://zoom.us/j/7000000603",
         createdById: admin.id,
         status: "SCHEDULED",
       },
@@ -651,23 +668,11 @@ async function main() {
       }
     }
 
-    const dayOffset = (days: number) => {
-      const date = new Date();
-      date.setUTCDate(date.getUTCDate() + days);
-      return date;
-    };
-    const tomorrow18 = wallClockToUtc(
-      new Date(Date.UTC(dayOffset(1).getUTCFullYear(), dayOffset(1).getUTCMonth(), dayOffset(1).getUTCDate(), 18, 0, 0)),
-      "Africa/Cairo"
-    );
-    const yesterday18 = wallClockToUtc(
-      new Date(Date.UTC(dayOffset(-1).getUTCFullYear(), dayOffset(-1).getUTCMonth(), dayOffset(-1).getUTCDate(), 18, 0, 0)),
-      "Africa/Cairo"
-    );
-    const yesterday16 = wallClockToUtc(
-      new Date(Date.UTC(dayOffset(-1).getUTCFullYear(), dayOffset(-1).getUTCMonth(), dayOffset(-1).getUTCDate(), 16, 0, 0)),
-      "Africa/Cairo"
-    );
+    // Day offsets are computed on the Cairo local calendar (see cairoWallClock), so
+    // "tomorrow/yesterday 18:00 Cairo" is correct even when Cairo's date differs from the UTC date.
+    const tomorrow18 = cairoWallClock(1, 18);
+    const yesterday18 = cairoWallClock(-1, 18);
+    const yesterday16 = cairoWallClock(-1, 16);
 
     // Future SCHEDULED session for demo_teacher_quran: tomorrow 18:00-19:00 Cairo (E2E conflict anchor).
     const futureSessionId = "00000000-0000-0000-0000-000000000606";

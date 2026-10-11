@@ -689,41 +689,47 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
   });
 
   it("blocks teacher time conflicts and allows boundary touch, cancelled and missed sessions", async () => {
+    // Day 12: the scenario-3 series anchors at now+2h and its week 1 lands on day+7 at the
+    // anchor hour, so day-7 slots collide with it whenever the suite runs between 08:00 and
+    // 09:59 UTC. The series pauses after two weeks and can never reach day 12.
     await grantCredit(fx.studentProfileIds.student6, 8);
-    const { status: firstStatus } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10 });
+    const { status: firstStatus } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 10 });
     expect(firstStatus).toBe(201);
 
-    const exact = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10 });
+    const exact = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 10 });
     expect(exact.status).toBe(409);
     expect(exact.body.error?.code).toBe("TEACHER_TIME_CONFLICT");
 
-    const partial = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 10, minutes: 30 });
+    const partial = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 10, minutes: 30 });
     expect(partial.status).toBe(409);
     expect(partial.body.error?.code).toBe("TEACHER_TIME_CONFLICT");
 
-    const boundary = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 11 });
+    const boundary = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 11 });
     expect(boundary.status).toBe(201);
 
+    // Standalone safety: student9 normally has credit from scenario 9, but a filtered
+    // single-test run skips it; an extra grant keeps the test self-sufficient.
+    await grantCredit(fx.studentProfileIds.student9, 2);
     const differentTeacher = await createSession(
       fx.adminUserId,
       { teacherId: fx.teacher2ProfileId, studentIds: [fx.studentProfileIds.student9] },
-      { day: 7, hour: 10 },
+      { day: 12, hour: 10 },
     );
     expect(differentTeacher.status).toBe(201);
 
-    const cancellable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 14 });
+    const cancellable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 14 });
     expect(cancellable.status).toBe(201);
     asActor(fx.adminUserId);
     await updateSessionRoute(
       apiRequest(`/api/sessions/${cancellable.body.data.id}`, "PATCH", { status: "CANCELLED", cancellationReason: "test" }),
       routeParams(cancellable.body.data.id as string),
     );
-    const afterCancel = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 14 });
+    const afterCancel = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 14 });
     expect(afterCancel.status).toBe(201);
 
-    const missable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 16 });
+    const missable = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 16 });
     await prisma.session.update({ where: { id: missable.body.data.id as string }, data: { status: "MISSED" } });
-    const afterMiss = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 7, hour: 16 });
+    const afterMiss = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 12, hour: 16 });
     expect(afterMiss.status).toBe(201);
   });
 

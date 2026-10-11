@@ -163,21 +163,23 @@ beforeAll(async () => {
     await prisma.applicationRecord.deleteMany({ where: { applicationId: { in: staleApplicationIds } } });
     await prisma.application.deleteMany({ where: { id: { in: staleApplicationIds } } });
   }
-  if (allStaleUserIds.length > 0) {
-    await prisma.sessionJoinClick.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-    await prisma.notificationJob.deleteMany({ where: { recipientUserId: { in: allStaleUserIds } } });
-    await prisma.sessionReservation.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-    await prisma.sessionStudent.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-    await prisma.student.updateMany({
-      where: { guardian: { user: { id: { in: allStaleUserIds } } } },
-      data: { guardianId: null },
-    });
-    await prisma.student.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-    await prisma.guardian.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-    await prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: allStaleUserIds } } } } });
-    await prisma.teacher.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-    await prisma.user.deleteMany({ where: { id: { in: allStaleUserIds } } });
-  }
+    if (allStaleUserIds.length > 0) {
+      await prisma.sessionJoinClick.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+      await prisma.notificationJob.deleteMany({ where: { recipientUserId: { in: allStaleUserIds } } });
+      await prisma.sessionReservation.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
+      await prisma.sessionStudent.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
+      await prisma.studentTeacherAssignment.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
+      await prisma.studentSubject.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
+      await prisma.student.updateMany({
+        where: { guardian: { user: { id: { in: allStaleUserIds } } } },
+        data: { guardianId: null },
+      });
+      await prisma.student.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+      await prisma.guardian.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+      await prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: allStaleUserIds } } } } });
+      await prisma.teacher.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
+      await prisma.user.deleteMany({ where: { id: { in: allStaleUserIds } } });
+    }
   const runId = randomUUID().slice(0, 8);
 
   const passwordHash = await bcrypt.hash(randomUUID(), 12);
@@ -247,12 +249,20 @@ afterAll(async () => {
       },
       select: { id: true },
     });
-    const allTestUserIds = [...new Set([...userIds, ...testUsers.map((user) => user.id)])];
+    // Include accounts recorded in applicationRecords (child usernames derive from the
+    // child's display name, e.g. omar901, and never match the demo_test_ prefixes).
     const allTestApplicationIds = await prisma.application.findMany({
       where: { academyId, contactPhone: testPhone },
       select: { id: true },
     });
     const allTestAppIds = [...new Set([...appIds, ...allTestApplicationIds.map((app) => app.id)])];
+    const recordUsers = allTestAppIds.length > 0
+      ? await prisma.applicationRecord.findMany({
+        where: { applicationId: { in: allTestAppIds } },
+        select: { userId: true },
+      })
+      : [];
+    const allTestUserIds = [...new Set([...userIds, ...testUsers.map((user) => user.id), ...recordUsers.map((record) => record.userId)])];
     await quiet(() =>
       allTestAppIds.length > 0
         ? prisma.applicationRecord.deleteMany({ where: { applicationId: { in: allTestAppIds } } })
