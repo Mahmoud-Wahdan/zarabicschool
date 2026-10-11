@@ -2,17 +2,20 @@
  * Phase 1-3 E2E (Playwright) - Zarabicschool
  *
  * Covers: public pages, auth gate, Admin login, Admin creates a session through the UI,
- * role-scoped access, Zoom join redirect (+ click audit), cancel + idempotent cancel.
+ * role-scoped access, Zoom join redirect (+ click audit), cancel + idempotent cancel,
+ * and the Batch-2 scheduling rules (assignments, credits, conflicts, Zoom format checks)
+ * against the seeded demo data.
  *
- * ASSUMPTIONS (verify once, then adjust the selectors/env):
+ * ASSUMPTIONS (verified against the implementation):
  *  - Login form has labels matching /username/i and /password/i and a submit button /sign in|log in/i.
- *  - Seed has: Demo Teacher (Quran), Demo Student (with credit), assigned together.
- *  - Credentials come from env (never hardcode): E2E_ADMIN_USERNAME / E2E_ADMIN_PASSWORD,
+ *  - Seed has demo accounts (npm run db:seed:demo); all demo users share DEMO_PASSWORD and
+ *    must_change_password = false.
+ *  - Credentials come from env (never hardcode): E2E_ADMIN_USERNAME / E2E_ADMIN_PASSWORD
+ *    (the demo SUPERVISOR may be used: session flows are Admin/Supervisor),
  *    E2E_TEACHER_USERNAME / E2E_TEACHER_PASSWORD, E2E_OTHER_STUDENT_USERNAME / E2E_OTHER_STUDENT_PASSWORD.
- *  - Accounts must NOT have must_change_password = true (log in once manually first).
  *
- * Run (from webapp/, dev server on :3000, dev DB only):
- *   npx playwright test phase3.e2e.spec.ts
+ * Run (from webapp/, dev DB only):
+ *   npx playwright test
  */
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
 
@@ -27,7 +30,7 @@ async function login(page: Page, username: string, password: string) {
   await page.getByLabel(/username/i).fill(username);
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole("button", { name: /sign in|log in/i }).click();
-  await page.waitForURL(/\/(admin|teacher|student|guardian|supervisor)/);
+  await page.waitForURL(/\/(admin|supervisor|teacher|student|guardian)/);
 }
 
 // datetime-local value (YYYY-MM-DDTHH:mm), a unique future slot to avoid collisions between runs
@@ -41,6 +44,48 @@ function futureSlot() {
 }
 
 const ZOOM_URL = `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`;
+
+const SEED_ANCHOR_ZOOM = "https://zoom.us/j/7001112233"; // future SCHEDULED session for demo_teacher_quran
+
+async function teacherProfileId(request: APIRequestContext, username: string) {
+  const res = await request.get("/api/admin/profiles?type=teacher");
+  const body = await res.json();
+  const match = body.data.find((p: { username: string }) => p.username === username);
+  if (!match) throw new Error(`teacher profile ${username} not found`);
+  return (match.teacherProfile?.id ?? match.id) as string;
+}
+
+async function studentProfileId(request: APIRequestContext, username: string) {
+  const res = await request.get("/api/admin/profiles?type=student");
+  const body = await res.json();
+  const match = body.data.find((p: { username: string }) => p.username === username);
+  if (!match) throw new Error(`student profile ${username} not found`);
+  return (match.studentProfile?.id ?? match.id) as string;
+}
+
+async function subjectIdBySlug(request: APIRequestContext, slug: string) {
+  const res = await request.get("/api/subjects");
+  const subjects = await res.json();
+  const match = subjects.find((s: { slug: string }) => s.slug === slug);
+  if (!match) throw new Error(`subject ${slug} not found`);
+  return match.id as string;
+}
+
+async function seededAnchorSession(request: APIRequestContext) {
+  const res = await request.get("/api/sessions");
+  const body = await res.json();
+  const anchor = body.data.find((s: { zoomJoinUrl: string; status: string }) =>
+    s.status === "SCHEDULED" && s.zoomJoinUrl === SEED_ANCHOR_ZOOM);
+  if (!anchor) throw new Error("seeded anchor session not found");
+  return anchor as { id: string; scheduledStart: string; scheduledEnd: string };
+}
+
+async function bookSession(
+  request: APIRequestContext,
+  data: Record<string, unknown>
+) {
+  return request.post("/api/sessions", { data });
+}
 
 test.describe.configure({ mode: "serial" });
 
@@ -83,8 +128,10 @@ test.describe("Admin: create a session (UI)", () => {
     await form.locator("summary").click();
 
     const selects = form.locator("select");
-    // order in the panel: teacher, subject, type, timezone
+    // order in the smart form: teacher, subject, type, timezone
     await selects.nth(0).selectOption({ label: "Demo Teacher" });
+    // the subject list loads from the teacher context endpoint — wait for it
+    await expect(selects.nth(1).locator("option", { hasText: "Quran /" })).toHaveCount(1);
     await selects.nth(1).selectOption({ label: "Quran / القرآن الكريم" });
     await selects.nth(2).selectOption("PRIVATE");
 
@@ -93,7 +140,11 @@ test.describe("Admin: create a session (UI)", () => {
     await dateInputs.nth(0).fill(slot.start);
     await dateInputs.nth(1).fill(slot.end);
     await form.locator('input[type="url"]').first().fill(ZOOM_URL);
-    await form.getByRole("button", { name: "Demo Student" }).click();
+
+    // the student chips load from the assignment-aware context — wait for them
+    const studentChip = form.getByRole("button", { name: "Demo Student" });
+    await studentChip.waitFor();
+    await studentChip.click();
 
     await form.getByRole("button", { name: "Create session" }).click();
     // the panel reloads the page after success
@@ -131,10 +182,155 @@ test.describe("Admin: create a session (UI)", () => {
     expect([400, 409]).toContain(res.status());
   });
 
-  // Planned in the approved Phase 3 plan, NOT implemented yet -> remove .fixme when built.
-  test.fixme("lookalike host zoom.us.evil.com is rejected with INVALID_ZOOM_URL", async () => {});
-  test.fixme("overlapping teacher session returns TEACHER_TIME_CONFLICT; end==start is allowed", async () => {});
-  test.fixme("student without an ACTIVE assignment returns STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT", async () => {});
+  test("lookalike host zoom.us.evil.com is rejected with INVALID_ZOOM_URL", async ({ page }) => {
+    await login(page, env("E2E_ADMIN_USERNAME"), env("E2E_ADMIN_PASSWORD"));
+    const res = await page.request.post("/api/sessions", {
+      data: {
+        teacherId: await teacherProfileId(page.request, "demo_teacher_quran"),
+        subjectId: await subjectIdBySlug(page.request, "demo-quran"),
+        sessionType: "PRIVATE",
+        scheduledStart: new Date(Date.now() + 86_400_000).toISOString(),
+        scheduledEnd: new Date(Date.now() + 90_000_000).toISOString(),
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us.evil.com/j/123456789",
+        studentIds: [await studentProfileId(page.request, "demo_student_credit_many")],
+      },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_ZOOM_URL");
+  });
+
+  test("overlapping teacher session returns TEACHER_TIME_CONFLICT; end==start is allowed", async ({ page }) => {
+    await login(page, env("E2E_ADMIN_USERNAME"), env("E2E_ADMIN_PASSWORD"));
+    const anchor = await seededAnchorSession(page.request);
+    const anchorStart = new Date(anchor.scheduledStart);
+    const teacherId = await teacherProfileId(page.request, "demo_teacher_quran");
+    const subjectId = await subjectIdBySlug(page.request, "demo-quran");
+    const studentId = await studentProfileId(page.request, "demo_student_credit_many");
+
+    // partial overlap: +30m .. +90m
+    const partial = await bookSession(page.request, {
+      teacherId,
+      subjectId,
+      sessionType: "PRIVATE",
+      scheduledStart: new Date(anchorStart.getTime() + 30 * 60_000).toISOString(),
+      scheduledEnd: new Date(anchorStart.getTime() + 90 * 60_000).toISOString(),
+      timezone: "Africa/Cairo",
+      zoomJoinUrl: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`,
+      studentIds: [studentId],
+    });
+    expect(partial.status()).toBe(409);
+    const partialBody = await partial.json();
+    expect(partialBody.error.code).toBe("TEACHER_TIME_CONFLICT");
+
+    // boundary touch: the slot starting exactly when the anchor ends is allowed
+    const anchorEnd = new Date(anchor.scheduledEnd);
+    const boundary = await bookSession(page.request, {
+      teacherId,
+      subjectId,
+      sessionType: "PRIVATE",
+      scheduledStart: anchorEnd.toISOString(),
+      scheduledEnd: new Date(anchorEnd.getTime() + 60 * 60_000).toISOString(),
+      timezone: "Africa/Cairo",
+      zoomJoinUrl: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`,
+      studentIds: [studentId],
+    });
+    expect(boundary.status()).toBe(201);
+    // cleanup so later scenarios and other runs are not blocked by this booking
+    const cancel = await page.request.patch(`/api/sessions/${(await boundary.json()).data.id}`, {
+      data: { status: "CANCELLED", cancellationReason: "e2e boundary check" },
+    });
+    expect(cancel.ok()).toBeTruthy();
+  });
+
+  test("student without an ACTIVE assignment returns STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT", async ({ page }) => {
+    await login(page, env("E2E_ADMIN_USERNAME"), env("E2E_ADMIN_PASSWORD"));
+    const res = await bookSession(page.request, {
+      teacherId: await teacherProfileId(page.request, "demo_teacher_quran"),
+      subjectId: await subjectIdBySlug(page.request, "demo-quran"),
+      sessionType: "PRIVATE",
+      scheduledStart: new Date(Date.now() + 86_400_000).toISOString(),
+      scheduledEnd: new Date(Date.now() + 90_000_000).toISOString(),
+      timezone: "Africa/Cairo",
+      zoomJoinUrl: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`,
+      studentIds: [await studentProfileId(page.request, "demo_student_unassigned")],
+    });
+    expect(res.status()).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT");
+    expect(body.error.studentIds).toContain(await studentProfileId(page.request, "demo_student_unassigned"));
+  });
+
+  test("credit_one books once, then INSUFFICIENT_SESSION_CREDIT; zero and nosub are always insufficient", async ({ page }) => {
+    await login(page, env("E2E_ADMIN_USERNAME"), env("E2E_ADMIN_PASSWORD"));
+    const teacherId = await teacherProfileId(page.request, "demo_teacher_quran");
+    const subjectId = await subjectIdBySlug(page.request, "demo-quran");
+    const creditOne = await studentProfileId(page.request, "demo_student_credit_one");
+    const zoom = () => `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`;
+
+    const first = await bookSession(page.request, {
+      teacherId, subjectId, sessionType: "PRIVATE",
+      scheduledStart: new Date(Date.now() + 4 * 86_400_000).toISOString(),
+      scheduledEnd: new Date(Date.now() + 4 * 86_400_000 + 60 * 60_000).toISOString(),
+      timezone: "Africa/Cairo", zoomJoinUrl: zoom(), studentIds: [creditOne],
+    });
+    expect(first.status()).toBe(201);
+    const createdId = (await first.json()).data.id as string;
+
+    const second = await bookSession(page.request, {
+      teacherId, subjectId, sessionType: "PRIVATE",
+      scheduledStart: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      scheduledEnd: new Date(Date.now() + 5 * 86_400_000 + 60 * 60_000).toISOString(),
+      timezone: "Africa/Cairo", zoomJoinUrl: zoom(), studentIds: [creditOne],
+    });
+    expect(second.status()).toBe(409);
+    const secondBody = await second.json();
+    expect(secondBody.error.code).toBe("INSUFFICIENT_SESSION_CREDIT");
+    expect(secondBody.error.studentIds).toContain(creditOne);
+
+    for (const username of ["demo_student_zero", "demo_student_nosub"]) {
+      const res = await bookSession(page.request, {
+        teacherId, subjectId, sessionType: "PRIVATE",
+        scheduledStart: new Date(Date.now() + 6 * 86_400_000).toISOString(),
+        scheduledEnd: new Date(Date.now() + 6 * 86_400_000 + 60 * 60_000).toISOString(),
+        timezone: "Africa/Cairo", zoomJoinUrl: zoom(),
+        studentIds: [await studentProfileId(page.request, username)],
+      });
+      expect(res.status()).toBe(409);
+      expect((await res.json()).error.code).toBe("INSUFFICIENT_SESSION_CREDIT");
+    }
+
+    // cleanup the created session so its credit returns for later runs
+    const cancel = await page.request.patch(`/api/sessions/${createdId}`, {
+      data: { status: "CANCELLED", cancellationReason: "e2e credit check" },
+    });
+    expect(cancel.ok()).toBeTruthy();
+  });
+
+  test("group session with group_a and group_b succeeds", async ({ page }) => {
+    await login(page, env("E2E_ADMIN_USERNAME"), env("E2E_ADMIN_PASSWORD"));
+    const slot = futureSlot();
+    const res = await bookSession(page.request, {
+      teacherId: await teacherProfileId(page.request, "demo_teacher_quran"),
+      subjectId: await subjectIdBySlug(page.request, "demo-quran"),
+      sessionType: "GROUP",
+      scheduledStart: new Date(`${slot.start}:00Z`).toISOString(),
+      scheduledEnd: new Date(`${slot.end}:00Z`).toISOString(),
+      timezone: "Africa/Cairo",
+      zoomJoinUrl: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 899999999)}`,
+      studentIds: [
+        await studentProfileId(page.request, "demo_student_group_a"),
+        await studentProfileId(page.request, "demo_student_group_b"),
+      ],
+    });
+    expect(res.status()).toBe(201);
+    const createdId = (await res.json()).data.id as string;
+    const cancel = await page.request.patch(`/api/sessions/${createdId}`, {
+      data: { status: "CANCELLED", cancellationReason: "e2e group check" },
+    });
+    expect(cancel.ok()).toBeTruthy();
+  });
 
   test("zoom join redirect works for admin and logs a click", async ({ page }) => {
     test.skip(!createdSessionId, "session was not created");

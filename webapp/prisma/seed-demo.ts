@@ -234,11 +234,14 @@ async function main() {
         status: "ACTIVE",
       },
     });
-    await prisma.$transaction([
-      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
-      prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
-      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
-    ]);
+    await prisma.$transaction(
+      [
+        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
+        prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
+        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
+      ],
+      { timeout: 30_000, maxWait: 15_000 }
+    );
     await prisma.subscriptionLedger.create({
       data: {
         academyId: academy.id,
@@ -533,11 +536,14 @@ async function main() {
           status: "ACTIVE",
         },
       });
-      await prisma.$transaction([
-        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
-        prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
-        prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
-      ]);
+      await prisma.$transaction(
+        [
+          prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
+          prisma.subscriptionLedger.deleteMany({ where: { subscriptionId: subscription.id } }),
+          prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
+        ],
+        { timeout: 30_000, maxWait: 15_000 }
+      );
       if (sessionsDelta !== 0) {
         await prisma.subscriptionLedger.create({
           data: {
@@ -566,8 +572,17 @@ async function main() {
         select: { id: true, teacherId: true },
       });
       if (conflicting) {
-        console.log(`  (skipping assignment: student already has an ACTIVE teacher for this subject)`);
-        return conflicting.id;
+        // Realign to the documented scenario: end the drifted assignment (change-teacher
+        // flow) and create the canonical one, so the seeded cases stay deterministic.
+        await prisma.studentTeacherAssignment.update({
+          where: { id: conflicting.id },
+          data: {
+            status: "ENDED",
+            endedAt: new Date(),
+            endedReason: "Demo seed: realigned to the documented scenario teacher",
+          },
+        });
+        console.log(`  (realigned assignment: previous ACTIVE teacher replaced by the scenario teacher)`);
       }
       const created = await prisma.studentTeacherAssignment.create({
         data: {
@@ -596,16 +611,19 @@ async function main() {
       });
       if (existing && existing.status === "RESERVED" && !options.released) return;
       if (existing && existing.status === "RELEASED" && options.released) return;
-      await prisma.$transaction(async (tx) => {
-        const ok = await reserveCredit(tx, academy.id, studentId, sessionId, sessionDate);
-        if (!ok) throw new Error(`Seed reservation failed (no credit) for student ${studentId} in session ${sessionId}`);
-        if (options.released) {
-          await tx.sessionReservation.updateMany({
-            where: { sessionId, studentId, status: "RESERVED" },
-            data: { status: "RELEASED", releasedAt: new Date() },
-          });
-        }
-      });
+      await prisma.$transaction(
+        async (tx) => {
+          const ok = await reserveCredit(tx, academy.id, studentId, sessionId, sessionDate);
+          if (!ok) throw new Error(`Seed reservation failed (no credit) for student ${studentId} in session ${sessionId}`);
+          if (options.released) {
+            await tx.sessionReservation.updateMany({
+              where: { sessionId, studentId, status: "RESERVED" },
+              data: { status: "RELEASED", releasedAt: new Date() },
+            });
+          }
+        },
+        { timeout: 30_000, maxWait: 15_000 }
+      );
       void subscriptionId;
     }
 
@@ -830,7 +848,7 @@ async function main() {
       });
       const balance = ledgers.reduce((total, entry2) => total + entry2.sessionsDelta, 0) - reservations;
       const assignment = await prisma.studentTeacherAssignment.findFirst({
-        where: { studentId: studentProfile.id, status: "ACTIVE" },
+        where: { studentId: studentProfile.id, subjectId: quran.id, status: "ACTIVE" },
         select: { teacher: { select: { user: { select: { displayName: true } } } }, subject: { select: { nameEn: true } } },
       });
       const activeAssignment = assignment

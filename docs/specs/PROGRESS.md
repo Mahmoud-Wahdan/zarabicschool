@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-06
+> Last updated: 2026-10-11
 
 ## Phase Status
 
@@ -10,16 +10,16 @@
 |---|-------|--------|--------------|------|
 | 1 | Foundation | Complete | 2026-10-06 | Auth/RBAC, username login, forced-password and Supervisor boundaries verified; development DB seeded; 40 tests, clean handle exit, static checks, and build pass |
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
-| 3 | Schedules & Sessions | In Progress | 2026-10-07 | Series/reservation model, migrations, worker, timezone display, and DB-backed tests implemented and verified; settlement handoff (Phase 5/6) remains |
+| 3 | Schedules & Sessions | In Progress | 2026-10-11 | Batches 1-4 complete (schema/migration applied by owner, backend APIs + checks, smart-form UI + assignments hub + approval teachers, demo seed, E2E setup); awaiting the owner's manual test to close the phase |
 | 4 | Live Learning (Zoom links) | Not Started | 2026-09-30 | Reduced to manual links and authorized redirect |
-| 5 | Session Reports & Attendance | In Progress | 2026-09-30 | Teacher per-student submission and review API/UI are implemented; queue, tests, and settlement handoff remain |
+| 5 | Session Reports & Attendance | In Progress | 2026-10-11 | Teacher per-student submission and review API/UI implemented; late-report reminders + LATE_REPORT red mark were built early in Phase 3 and are NOT yet reviewed as Phase 5 work; queue, tests, and settlement handoff remain |
 | 6 | Financial Management | In Progress | 2026-10-06 | Paymob EGP checkout/webhook and initial subscription settlement slice verified; reports/payroll and migration remain |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
-| 8 | Testing & Launch | Not Started | 2026-09-28 | — |
+| 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 
 ## Current Active Task
 
-Current work is the schema-first implementation and payment-gateway slice on branch `feature/phase-1-foundation`. Phase 1 is closed. The public application forms/API and Admin review/provisioning slice remain in the working tree. Paymob EGP checkout/webhook code and the USD provider abstraction are implemented and verified with focused tests. Implementation target is `webapp/`; root `docs/` contains project documentation.
+Current work is the Phase 3 scheduling-assignment completion on branch `feature/phase-3`, implemented in 4 owner-approved batches and committed through `fix(phase3): batch 4 closure` (migration `20261010120000_scheduling_assignments` applied by the owner; `StudentSubject` + `StudentTeacherAssignment` with one ACTIVE teacher per student+subject; detailed scheduling error codes with offending ids; shared Zoom format validation incl. join-redirect 409 for legacy links; smart `/admin/sessions` forms + `/admin/assignments` hub + optional approval-time teachers; demo seed run 4× idempotent with the scenario table; clear-demo verified with `--confirm` and the append-only trigger never disabled globally; E2E spec at `e2e/phase3.e2e.spec.ts` with the owner's three planned tests enabled). Phase 3 remains **In Progress** until the owner closes it after the manual test. Final verification on 2026-10-11 from `webapp/`: `prisma validate` valid; `typecheck` clean; `lint` clean; `npm test` 10 suites / 111 tests passing; `npm run build` succeeds.
 
 Verification on 2026-10-05: `webapp` typecheck and ESLint pass. The initial Jest run exposed a concurrent approval timeout, two application tests receiving `400` instead of the expected honeypot/rate-limit success, and an empty `lib/request.test.ts`; these were recorded as integration/test follow-ups.
 

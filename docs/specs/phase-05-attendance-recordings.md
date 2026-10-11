@@ -108,3 +108,7 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - Phase 5 is In Progress. Reports, migration, teacher submission, student visibility, and Admin/Supervisor review APIs are implemented. Attachments, outage requests, review queue UI, archival after settlement, and atomic financial settlement remain.
 - The required lifecycle is `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; submission has no financial effect.
 - Student visibility follows Context: students see homework, notes, and attachments; guardians and Admin see the teacher report; evaluations remain Admin-only.
+
+### 2026-10-11 note — built early, not yet reviewed as Phase 5 work
+
+- The late-report reminder chain (T+0 notification, T+15 follow-up, `LATE_REPORT` TeacherFlag at T+30) and the per-student report attendance write in the report-approval route (`SessionStudents.attendanceStatus` from the approved report's outcome) were built EARLY during the Phase 3 worker/scheduling work. They are recorded here but are **NOT yet reviewed as part of Phase 5**; Phase 5 must re-review their behavior, timing, recipients, and tests before this phase closes. The scheduling side never writes attendance status (verified: only the report-approval route and seed defaults do).
