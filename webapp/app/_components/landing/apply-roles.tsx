@@ -1,36 +1,25 @@
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "../../../i18n/navigation";
-
-const roles = ["guardian", "student", "teacher"] as const;
+import ApplyRoleCards from "./apply-role-cards";
+import Icon from "../ui/icon";
 
 export default async function ApplyRoles() {
-  const t = await getTranslations("apply");
+  const t = await getTranslations("landing.admissions");
 
   return (
-    <section id="apply" className="section-anchor bg-[var(--navy)] text-white">
-      <div className="mx-auto max-w-6xl px-4 py-16">
-        <h2 className="text-center text-2xl font-bold sm:text-3xl">{t("title")}</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-white/85">{t("subtitle")}</p>
-        <ul className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {roles.map((role) => {
-            const points = t.raw(`${role}.points`) as string[];
-            return (
-              <li key={role} className="lift-card rounded-2xl border border-white/15 bg-white/5 p-6">
-                <p className="text-sm font-semibold text-[var(--gold)]">{t(`${role}.title`)}</p>
-                <h3 className="mt-2 text-xl font-bold">{t(`${role}.headline`)}</h3>
-                <ul className="mt-4 space-y-2 text-sm text-white/85">
-                  {points.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
-                <Link href={`/apply?type=${role}`} className="cta-primary mt-6 w-full">
-                  {t(`${role}.cta`)}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+    <section className="section-anchor w-full bg-surface-container-low py-16" id="admissions-form">
+      <div className="mx-auto max-w-[1600px] px-4 lg:px-8">
+        <div className="space-y-8 rounded-2xl bg-surface-container-lowest p-8 shadow-[var(--elev-2)] lg:p-12">
+          <div className="space-y-3 text-start">
+            <div className="inline-flex items-center gap-2 text-label-md font-bold text-secondary">
+              <Icon name="edit_calendar" size={18} />
+              <span>{t("eyebrow")}</span>
+            </div>
+            <h2 className="text-headline-lg font-bold text-primary">{t("title")}</h2>
+            <p className="max-w-2xl text-body-md leading-relaxed text-on-surface-variant">{t("subtitle")}</p>
+          </div>
+          <ApplyRoleCards />
+        </div>
       </div>
     </section>
   );

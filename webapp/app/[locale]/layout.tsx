@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Cairo, Montserrat, Tajawal } from "next/font/google";
+import { Cairo, Inter, Montserrat, Tajawal } from "next/font/google";
+import 'material-symbols/outlined.css';
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -21,6 +22,11 @@ const tajawal = Tajawal({
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
+  subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -48,7 +54,7 @@ export default async function RootLayout({ children, params }: Props) {
     <html
       lang={locale}
       dir={locale === "ar" ? "rtl" : "ltr"}
-      className={`${cairo.variable} ${tajawal.variable} ${montserrat.variable}`}
+      className={`${cairo.variable} ${tajawal.variable} ${montserrat.variable} ${inter.variable}`}
     >
       <body>
         <NextIntlClientProvider>{children}</NextIntlClientProvider>

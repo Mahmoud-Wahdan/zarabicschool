@@ -3,16 +3,16 @@
 import { useLocale, useTranslations } from "next-intl";
 import { signOut } from "next-auth/react";
 
-export default function SignOutButton() {
+export default function SignOutButton({
+  className = "rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--foreground)] transition hover:border-[var(--emerald)] hover:text-[var(--emerald)]",
+}: {
+  className?: string;
+}) {
   const t = useTranslations();
   const locale = useLocale();
 
   return (
-    <button
-      type="button"
-      onClick={() => signOut({ callbackUrl: `/${locale}/login` })}
-      className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--foreground)] transition hover:border-[var(--emerald)] hover:text-[var(--emerald)]"
-    >
+    <button type="button" onClick={() => signOut({ callbackUrl: `/${locale}/login` })} className={className}>
       {t("signOut")}
     </button>
   );

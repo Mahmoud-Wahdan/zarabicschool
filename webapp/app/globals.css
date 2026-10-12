@@ -1,8 +1,15 @@
+/* Material Symbols Outlined — the icon font used by the approved Stitch exports.
+   It is not in next/font's Google catalog, so it loads via the Google Fonts
+   stylesheet (same URL the Stitch exports use). `display=block` prevents the
+   raw ligature text (e.g. "calendar_month") from flashing before the font loads.
+   This @import must be the first rule so it survives CSS optimization. */
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block");
+
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8f6;
-  --foreground: #17202a;
+  --background: #f8f9ff;
+  --foreground: #121c2a;
   --navy: #1b365d;
   --emerald: #00897b;
   --gold: #d4af37;
@@ -17,12 +24,181 @@
   --brand-neutral-ratio: 60%;
   --brand-primary-ratio: 30%;
   --brand-accent-ratio: 10%;
+
+  /* Stitch "Academic Precision" design-system palette (M3 tokens) */
+  --primary: #002046;
+  --on-primary: #ffffff;
+  --primary-container: #1b365d;
+  --on-primary-container: #87a0cd;
+  --primary-fixed: #d6e3ff;
+  --primary-fixed-dim: #aec7f7;
+  --on-primary-fixed: #001b3d;
+  --on-primary-fixed-variant: #2e476f;
+  --inverse-primary: #aec7f7;
+  --secondary: #006b5f;
+  --on-secondary: #ffffff;
+  --secondary-container: #8df5e4;
+  --on-secondary-container: #007165;
+  --secondary-fixed: #8df5e4;
+  --secondary-fixed-dim: #70d8c8;
+  --on-secondary-fixed: #00201c;
+  --on-secondary-fixed-variant: #005048;
+  --tertiary: #735c00;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #cba72f;
+  --on-tertiary-container: #4e3d00;
+  --tertiary-fixed: #ffe088;
+  --tertiary-fixed-dim: #e9c349;
+  --on-tertiary-fixed: #241a00;
+  --on-tertiary-fixed-variant: #574500;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+  --on-background: #121c2a;
+  --surface-variant: #d9e3f6;
+  --surface-dim: #d0dbed;
+  --surface-bright: #f8f9ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff4ff;
+  --surface-container: #e6eeff;
+  --surface-container-high: #dee9fc;
+  --surface-container-highest: #d9e3f6;
+  --on-surface-variant: #44474e;
+  --inverse-surface: #27313f;
+  --inverse-on-surface: #eaf1ff;
+  --outline: #74777f;
+  --outline-variant: #c4c6cf;
+  --surface-tint: #465f88;
+
+  /* Semantic signals (DESIGN.md) */
+  --success: #059669;
+  --success-surface: #ecfdf5;
+  --warning: #b45309;
+  --warning-surface: #fffbeb;
+  --danger: #dc2626;
+  --danger-surface: #fef2f2;
+  --system-info: #2563eb;
+  --system-info-surface: #eff6ff;
+  --canvas: #f7f9fc;
+  --inset: #f1f5f9;
+  --hairline: #e2e8f0;
+  --content: #1f2937;
+  --content-secondary: #64748b;
+  --content-disabled: #94a3b8;
+
+  /* Elevation (DESIGN.md) */
+  --elev-1: 0 1px 3px rgb(27 54 93 / 0.04);
+  --elev-2: 0 4px 12px -2px rgb(27 54 93 / 0.08), 0 2px 4px -1px rgb(27 54 93 / 0.04);
+  --elev-3: 0 20px 25px -5px rgb(27 54 93 / 0.16), 0 8px 10px -6px rgb(27 54 93 / 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-tajawal);
+}
+
+@theme {
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+  --color-inverse-primary: var(--inverse-primary);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-on-tertiary-fixed: var(--on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+  --color-on-background: var(--on-background);
+  --color-surface: var(--surface-bright);
+  --color-on-surface: var(--on-background);
+  --color-surface-variant: var(--surface-variant);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-surface-tint: var(--surface-tint);
+
+  /* Typography scale (DESIGN.md) */
+  --text-display-hero: 40px;
+  --text-display-hero--line-height: 48px;
+  --text-display-hero--letter-spacing: -0.02em;
+  --text-display-hero--font-weight: 700;
+  --text-display-hero-mobile: 30px;
+  --text-display-hero-mobile--line-height: 38px;
+  --text-display-hero-mobile--letter-spacing: -0.01em;
+  --text-display-hero-mobile--font-weight: 700;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.015em;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--letter-spacing: -0.01em;
+  --text-headline-lg-mobile--font-weight: 600;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 20px;
+  --text-headline-sm--line-height: 28px;
+  --text-headline-sm--font-weight: 600;
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 22px;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--letter-spacing: 0.02em;
+  --text-label-md--font-weight: 600;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--letter-spacing: 0.03em;
+  --text-label-sm--font-weight: 600;
+
+  --font-display: var(--display-font);
+  --font-icons: "Material Symbols Outlined";
+}
+
+:root {
+  --display-font: var(--font-cairo);
+}
+
+html[lang="en"] {
+  --display-font: var(--font-montserrat);
 }
 
 body {
@@ -32,7 +208,7 @@ body {
 }
 
 html[lang="en"] body {
-  font-family: var(--font-montserrat), sans-serif;
+  font-family: var(--font-inter), var(--font-montserrat), sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -45,7 +221,7 @@ html[lang="en"] h3,
 html[lang="en"] h4,
 html[lang="en"] h5,
 html[lang="en"] h6 {
-  font-family: var(--font-cairo), var(--font-montserrat), sans-serif;
+  font-family: var(--font-montserrat), var(--font-cairo), sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -56,6 +232,23 @@ button, input, select, textarea { font: inherit; }
   outline: 3px solid var(--emerald);
   outline-offset: 2px;
 }
+
+/* Material Symbols (loaded via stylesheet; ligature-based icon font) */
+/* .ms-icon {
+  font-family: var(--font-material-symbols);
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+} */
 
 .cta-primary {
   display: inline-flex;
@@ -118,6 +311,213 @@ button, input, select, textarea { font: inherit; }
 .lift-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 14px 32px rgb(27 54 93 / 0.1);
+}
+
+/* ---- Stitch "Academic Precision" component classes ---- */
+
+/* Buttons (DESIGN.md: primary emerald, administrative outline, destructive ghost) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--emerald);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) { background: #007367; }
+.btn-primary:active:not(:disabled) { background: #005c53; }
+
+.btn-outline {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--primary-container);
+  color: var(--primary-container);
+}
+
+.btn-outline:hover:not(:disabled) { background: var(--inset); }
+
+.btn-soft {
+  background: var(--surface-container-high);
+  color: var(--content);
+}
+
+.btn-soft:hover:not(:disabled) { background: var(--surface-container-highest); }
+
+.btn-ghost-danger {
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn-ghost-danger:hover:not(:disabled) { background: var(--danger-surface); }
+
+/* Cards / elevation levels (DESIGN.md) */
+.z-card {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--hairline);
+  border-radius: 0.5rem;
+  box-shadow: var(--elev-1);
+}
+
+.z-card-raised {
+  background: var(--surface-container-lowest);
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  box-shadow: var(--elev-2);
+}
+
+/* Status & role badges (DESIGN.md) — pill height 22px */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 22px;
+  padding-inline: 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.badge--live { background: var(--success-surface); color: var(--success); }
+.badge--pending { background: var(--warning-surface); color: var(--warning); }
+.badge--honor { background: #fefce8; color: #854d0e; border: 1px solid var(--gold); }
+.badge--info { background: var(--system-info-surface); color: #1d4ed8; }
+.badge--danger { background: var(--danger-surface); color: var(--danger); }
+.badge--neutral { background: var(--inset); color: #475569; }
+.badge--role { background: var(--system-info-surface); color: #1d4ed8; }
+.badge--success { background: var(--success-surface); color: var(--success); }
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-dot--pulse {
+  animation: badge-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+/* Form inputs (DESIGN.md: h-40px, #CBD5E1 border, emerald focus ring) */
+.z-input,
+.z-select,
+.z-textarea {
+  width: 100%;
+  min-height: 40px;
+  background: var(--surface-container-lowest);
+  border: 1px solid #cbd5e1;
+  border-radius: 0.25rem;
+  padding: 0 0.75rem;
+  color: var(--content);
+  font-size: 0.875rem;
+}
+
+.z-select { padding-inline-end: 2rem; }
+
+.z-textarea { padding-block: 0.5rem; min-height: 88px; resize: vertical; }
+
+.z-input::placeholder,
+.z-textarea::placeholder {
+  color: var(--content-disabled);
+}
+
+.z-input:focus-visible,
+.z-select:focus-visible,
+.z-textarea:focus-visible {
+  outline: none;
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgb(0 137 123 / 0.15);
+}
+
+.z-input[aria-invalid="true"],
+.z-select[aria-invalid="true"],
+.z-textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.z-input[aria-invalid="true"]:focus-visible,
+.z-select[aria-invalid="true"]:focus-visible,
+.z-textarea[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.15);
+}
+
+/* Administrative data tables (DESIGN.md) */
+.z-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--content);
+}
+
+.z-table thead th {
+  background: var(--inset);
+  color: var(--content-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: start;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+
+.z-table tbody td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+
+.z-table tbody tr:last-child td { border-bottom: none; }
+
+@media (hover: hover) {
+  .z-table tbody tr:hover { background: #f8fafc; }
+}
+
+/* Sidebar links (Stitch app shell) */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.25rem;
+  color: var(--on-primary-container);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-link:hover {
+  background: rgb(217 227 246 / 0.2);
+  color: var(--on-primary);
+}
+
+.sidebar-link--active,
+.sidebar-link--active:hover {
+  background: var(--secondary);
+  color: var(--on-secondary);
 }
 
 .section-anchor {
