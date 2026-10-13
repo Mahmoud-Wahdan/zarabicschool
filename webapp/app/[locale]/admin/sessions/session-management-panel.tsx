@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "../../../../i18n/navigation";
+import Icon from "../../../_components/ui/icon";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
-import type { ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
+import { validateZoomUrl, type ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
 import {
   useSmartSessionForm,
   useTeacherOptions,
 } from "./use-smart-session-form";
 
-type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[] };
+type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; zoomJoinUrl: string; zoomHostUrl: string | null; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[] };
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
@@ -20,14 +21,19 @@ const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai", "Europe/London",
 
 const inputClass = "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2";
 
-export default function SessionManagementPanel({ viewerTimezone, locale, sessions: initialSessions, series, changeRequests }: { viewerTimezone: string; locale: string; sessions: Session[]; series: Series[]; changeRequests: ChangeRequest[] }) {
+export default function SessionManagementPanel({ viewerTimezone, locale, sessions: initialSessions, series, changeRequests, linkOverlap }: { viewerTimezone: string; locale: string; sessions: Session[]; series: Series[]; changeRequests: ChangeRequest[]; linkOverlap: string[] }) {
   const t = useTranslations("sessionsAdmin");
   const [sessions, setSessions] = useState(initialSessions);
   const [students, setStudents] = useState<{ id: string; displayName: string }[]>([]);
   const [filters, setFilters] = useState({ status: "", from: "", to: "", teacherId: "", studentId: "" });
   const [reschedule, setReschedule] = useState<{ id: string; start: string; end: string } | null>(null);
+  const [linkEdit, setLinkEdit] = useState<{ id: string; joinUrl: string; hostUrl: string } | null>(null);
+  const [seriesLinkEdit, setSeriesLinkEdit] = useState<{ id: string; joinUrl: string; hostUrl: string } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const subjectLabel = (subject: { nameEn: string; nameAr: string }) => (locale === "ar" ? subject.nameAr : subject.nameEn);
+  const typeLabel = (sessionType: string) => (sessionType === "PRIVATE" ? t("labels.private") : t("labels.group"));
 
   const { teachers, teachersState } = useTeacherOptions();
   const single = useSmartSessionForm(viewerTimezone);
@@ -146,6 +152,51 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
     setBusy(false);
   }
 
+  async function saveSessionLinks(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!linkEdit) return;
+    setBusy(true);
+    const response = await fetch(`/api/sessions/${linkEdit.id}/link`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ zoomJoinUrl: linkEdit.joinUrl.trim(), zoomHostUrl: linkEdit.hostUrl.trim() }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(payload.error?.message ?? t("errors.submit"));
+    } else {
+      const hasOverlapWarning = (payload.data?.warnings ?? []).length > 0;
+      setMessage(hasOverlapWarning ? t("overlap.savedWithWarning") : t("messages.linkUpdated"));
+      setSessions((current) => current.map((session) => session.id === linkEdit.id
+        ? { ...session, zoomJoinUrl: linkEdit.joinUrl.trim(), zoomHostUrl: linkEdit.hostUrl.trim() || null }
+        : session));
+      setLinkEdit(null);
+    }
+    setBusy(false);
+  }
+
+  async function applySeriesLinks(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!seriesLinkEdit) return;
+    setBusy(true);
+    const response = await fetch(`/api/sessions/recurrences/${seriesLinkEdit.id}/link`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ zoomJoinUrl: seriesLinkEdit.joinUrl.trim(), zoomHostUrl: seriesLinkEdit.hostUrl.trim() }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(payload.error?.message ?? t("errors.submit"));
+    } else {
+      const hasOverlapWarning = (payload.data?.warnings ?? []).length > 0;
+      setMessage(hasOverlapWarning
+        ? t("overlap.savedWithWarning")
+        : t("messages.seriesLinkApplied", { count: payload.data?.updatedSessions ?? 0 }));
+      setSeriesLinkEdit(null);
+    }
+    setBusy(false);
+  }
+
   return (
     <div className="mt-6 space-y-6">
       <p className="text-sm">
@@ -159,7 +210,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
           <h2 className="text-lg font-bold text-[var(--navy)]">{t("changeRequests.title")}</h2>
           {changeRequests.map((changeRequest) => (
             <article key={changeRequest.id} className="rounded-xl border border-[var(--line)] p-4">
-              <p className="text-sm font-semibold text-[var(--navy)]">{changeRequest.teacher.user.displayName} · {changeRequest.session.subject.nameEn} · {formatSessionDateTime(changeRequest.session.scheduledStart, viewerTimezone, locale)}</p>
+              <p className="text-sm font-semibold text-[var(--navy)]">{changeRequest.teacher.user.displayName} · {subjectLabel(changeRequest.session.subject)} · {formatSessionDateTime(changeRequest.session.scheduledStart, viewerTimezone, locale)}</p>
               <p className="mt-1 text-sm opacity-75">{t("changeRequests.reason")}: {changeRequest.reason}</p>
               <p className="text-sm opacity-75">{t("changeRequests.proposed")}: {changeRequest.proposedChange}</p>
               <div className="mt-2 flex gap-2">
@@ -175,12 +226,50 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <section className="dashboard-card space-y-3 p-5">
           <h2 className="text-lg font-bold text-[var(--navy)]">{t("series.title")}</h2>
           {series.map((item) => (
-            <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4">
-              <div>
-                <p className="font-semibold text-[var(--navy)]">{item.subject.nameEn} · {item.teacher.user.displayName} · {item.sessionType}</p>
-                <p className="mt-1 text-sm opacity-70">{t("series.progress", { generated: item.generatedThroughWeek + 1, total: item.totalWeeks })}</p>
+            <article key={item.id} className="rounded-xl border border-[var(--line)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-[var(--navy)]">{subjectLabel(item.subject)} · {item.teacher.user.displayName} · {typeLabel(item.sessionType)}</p>
+                  <p className="mt-1 text-sm opacity-70">{t("series.progress", { generated: item.generatedThroughWeek + 1, total: item.totalWeeks })}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs ${item.status === "PAUSED" ? "bg-[var(--gold)]/25" : "bg-[var(--emerald)]/10 text-[var(--emerald)]"}`}>{t(`series.statuses.${item.status}`)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSeriesLinkEdit(seriesLinkEdit?.id === item.id ? null : { id: item.id, joinUrl: "", hostUrl: "" })}
+                    className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm"
+                  >
+                    {t("actions.applySeriesLink")}
+                  </button>
+                </div>
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs ${item.status === "PAUSED" ? "bg-[var(--gold)]/25" : "bg-[var(--emerald)]/10 text-[var(--emerald)]"}`}>{item.status}</span>
+              {seriesLinkEdit?.id === item.id ? (
+                <form onSubmit={applySeriesLinks} className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
+                  <p className="text-sm font-semibold text-[var(--navy)]">{t("seriesLink.title")}</p>
+                  <p className="text-xs opacity-70">{t("seriesLink.note")}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ZoomField
+                      label={t("editLink.join")}
+                      value={seriesLinkEdit.joinUrl}
+                      onChange={(value) => setSeriesLinkEdit({ ...seriesLinkEdit, joinUrl: value })}
+                      check={seriesLinkEdit.joinUrl ? validateZoomUrl(seriesLinkEdit.joinUrl) : null}
+                      required
+                    />
+                    <ZoomField
+                      label={t("editLink.host")}
+                      value={seriesLinkEdit.hostUrl}
+                      onChange={(value) => setSeriesLinkEdit({ ...seriesLinkEdit, hostUrl: value })}
+                      check={seriesLinkEdit.hostUrl ? validateZoomUrl(seriesLinkEdit.hostUrl) : null}
+                    />
+                  </div>
+                  <button
+                    disabled={busy || validateZoomUrl(seriesLinkEdit.joinUrl).ok !== true}
+                    className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50"
+                  >
+                    {t("seriesLink.save")}
+                  </button>
+                </form>
+              ) : null}
             </article>
           ))}
         </section>
@@ -214,6 +303,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
           teachers={teachers}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
+          locale={locale}
         />
         <label className="mt-3 block text-sm">{t("seriesForm.totalWeeks")}
           <input required type="number" min={1} max={52} value={seriesForm.weekCount} onChange={(event) => seriesForm.setWeekCount(Number(event.target.value))} className={inputClass} />
@@ -252,24 +342,67 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
           <article key={session.id} className="lift-card dashboard-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="font-bold text-[var(--navy)]">{session.subject.nameEn} · {session.teacher.user.displayName}</p>
-                <p className="mt-1 text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, viewerTimezone, locale)} · {session.sessionType} · {session.students.map((item) => item.student.user.displayName).join(", ")}</p>
+                <p className="font-bold text-[var(--navy)]">{subjectLabel(session.subject)} · {session.teacher.user.displayName}</p>
+                <p className="mt-1 text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, viewerTimezone, locale)} · {typeLabel(session.sessionType)} · {session.students.map((item) => item.student.user.displayName).join(", ")}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs">{session.status}</span>
+                <span className={`rounded-full px-3 py-1 text-xs ${
+                  session.status === "SCHEDULED"
+                    ? "bg-[var(--emerald)]/10 text-[var(--emerald)]"
+                    : session.status === "CANCELLED" || session.status === "MISSED"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-[var(--gold)]/15"
+                }`}>{t(`statuses.${session.status}`)}</span>
                 {session.status === "SCHEDULED" ? (
                   <>
                     <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, start: "", end: "" })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>
+                    <button
+                      type="button"
+                      onClick={() => setLinkEdit(linkEdit?.id === session.id ? null : { id: session.id, joinUrl: session.zoomJoinUrl, hostUrl: session.zoomHostUrl ?? "" })}
+                      className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm"
+                    >
+                      {t("actions.editLink")}
+                    </button>
                     <button disabled={busy} onClick={() => void cancelSession(session.id)} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.cancel")}</button>
                   </>
                 ) : null}
               </div>
             </div>
+            {linkOverlap.includes(session.id) ? (
+              <p role="status" className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--gold)]/15 p-2 text-xs text-[#8a6d1a]">
+                <Icon name="warning" size={16} className="shrink-0" />
+                <span>{t("overlap.warning")}</span>
+              </p>
+            ) : null}
             {reschedule?.id === session.id ? (
               <form onSubmit={applyReschedule} className="mt-3 grid gap-3 border-t border-[var(--line)] pt-3 sm:grid-cols-3">
                 <label className="text-sm">{t("reschedule.newStart")} ({session.timezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
                 <label className="text-sm">{t("reschedule.newEnd")} ({session.timezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
                 <button disabled={busy} className="cta-primary mt-6 h-10 rounded-xl px-4">{t("reschedule.save")}</button>
+              </form>
+            ) : null}
+            {linkEdit?.id === session.id ? (
+              <form onSubmit={saveSessionLinks} className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
+                <p className="text-sm font-semibold text-[var(--navy)]">{t("editLink.title")}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ZoomField
+                    label={t("editLink.join")}
+                    value={linkEdit.joinUrl}
+                    onChange={(value) => setLinkEdit({ ...linkEdit, joinUrl: value })}
+                    check={validateZoomUrl(linkEdit.joinUrl)}
+                    required
+                  />
+                  <ZoomField
+                    label={t("editLink.host")}
+                    value={linkEdit.hostUrl}
+                    onChange={(value) => setLinkEdit({ ...linkEdit, hostUrl: value })}
+                    check={linkEdit.hostUrl ? validateZoomUrl(linkEdit.hostUrl) : null}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button disabled={busy || validateZoomUrl(linkEdit.joinUrl).ok !== true} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50">{t("editLink.save")}</button>
+                  <button type="button" onClick={() => setLinkEdit(null)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm">{t("editLink.hide")}</button>
+                </div>
               </form>
             ) : null}
           </article>
@@ -285,11 +418,13 @@ function SmartFormFields({
   teachers,
   teachersState,
   busyTitle,
+  locale,
 }: {
   form: ReturnType<typeof useSmartSessionForm>;
   teachers: { id: string; displayName: string }[];
   teachersState: "loading" | "ready" | "error";
   busyTitle: (day: string) => string;
+  locale: string;
 }) {
   const t = useTranslations("sessionsAdmin");
 
@@ -382,7 +517,7 @@ function SmartFormFields({
                 const conflicting = form.conflictSlots.some((item) => item.id === slot.id);
                 return (
                   <li key={slot.id} className={conflicting ? "font-semibold text-red-700" : "opacity-80"}>
-                    {formatSessionDateTime(slot.scheduledStart, form.timezone, "en")} – {formatSessionDateTime(slot.scheduledEnd, form.timezone, "en")} · {slot.subject.nameEn} · {slot.sessionType}
+                    {formatSessionDateTime(slot.scheduledStart, form.timezone, locale)} – {formatSessionDateTime(slot.scheduledEnd, form.timezone, locale)} · {locale === "ar" ? slot.subject.nameAr : slot.subject.nameEn} · {slot.sessionType === "PRIVATE" ? t("labels.private") : t("labels.group")}
                   </li>
                 );
               })}

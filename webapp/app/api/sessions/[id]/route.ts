@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
+import { writeLinkAudit } from "../../../../lib/scheduling/link-audit";
 import { sessionUpdateSchema } from "../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
 
@@ -34,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const hostError = zoomUrlErrorResponse(data.zoomHostUrl);
     if (hostError) return hostError;
   }
-  const existing = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, status: true, scheduledStart: true, scheduledEnd: true } });
+  const existing = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, status: true, scheduledStart: true, scheduledEnd: true, zoomJoinUrl: true, zoomHostUrl: true } });
   if (!existing) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
   if (existing.status === "COMPLETED" || existing.status === "MISSED") {
     return NextResponse.json({ error: { code: "CONFLICT", message: "Completed or missed sessions are immutable." } }, { status: 409 });
@@ -49,6 +50,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const end = data.scheduledEnd ? new Date(data.scheduledEnd) : existing.scheduledEnd;
   if (end <= start) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Session end must be after its start." } }, { status: 400 });
   const isCancellationTransition = data.status === "CANCELLED" && existing.status !== "CANCELLED";
+  // Phase 4: link changes through the general update get the same audit entry as the
+  // dedicated link endpoint — computed before the transaction so it can be written atomically.
+  const nextHostUrl = data.zoomHostUrl === "" ? null : data.zoomHostUrl ?? existing.zoomHostUrl;
+  const nextJoinUrl = data.zoomJoinUrl ?? existing.zoomJoinUrl;
+  const joinUrlChanged = data.zoomJoinUrl !== undefined && nextJoinUrl !== existing.zoomJoinUrl;
+  const hostUrlChanged = data.zoomHostUrl !== undefined && nextHostUrl !== existing.zoomHostUrl;
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.session.update({
       where: { id },
@@ -62,6 +69,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         cancelledById: isCancellationTransition ? user.id : undefined,
       },
     });
+    if (joinUrlChanged || hostUrlChanged) {
+      // Audit entry WITHOUT the link value.
+      await writeLinkAudit(tx, {
+        academyId: user.academyId,
+        changedById: user.id,
+        source: "SESSION",
+        joinUrlChanged,
+        hostUrlChanged,
+        sessionId: id,
+      });
+    }
     if (isCancellationTransition) {
       await tx.sessionReservation.updateMany({
         where: { sessionId: id, status: "RESERVED" },

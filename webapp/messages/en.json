@@ -7,7 +7,8 @@
     "login": "Log in",
     "applyNow": "Apply now",
     "langSwitch": "العربية",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "retry": "Retry"
   },
   "signOut": "Sign out",
   "appShell": {
@@ -1081,7 +1082,52 @@
     "description": "The page you requested could not be found.",
     "backHome": "Back to home"
   },
+  "sessions": {
+    "teacher": {
+      "title": "My sessions",
+      "subtitle": "Your assigned sessions, today's classes, and a Zoom button beside each student.",
+      "today": "Today's classes",
+      "todayEmpty": "No classes today — your full schedule is below.",
+      "upcoming": "All sessions",
+      "students": "Students",
+      "zoom": "Zoom",
+      "startHost": "Start (host)",
+      "hostNote": "The host link is visible only to you and the operations team."
+    },
+    "student": {
+      "title": "My sessions",
+      "subtitle": "Your schedule, teacher, and session status."
+    },
+    "guardian": {
+      "title": "Family schedule",
+      "subtitle": "A consolidated view of your children's sessions.",
+      "noSessions": "No sessions scheduled for {name} yet."
+    },
+    "openZoom": "Open Zoom",
+    "window": {
+      "notYetOpen": "Opens {minutes} minutes before the session",
+      "closed": "The join window has ended"
+    },
+    "statuses": {
+      "SCHEDULED": "Scheduled",
+      "COMPLETED": "Completed",
+      "MISSED": "Missed",
+      "CANCELLED": "Cancelled"
+    },
+    "types": {
+      "PRIVATE": "Private",
+      "GROUP": "Group"
+    },
+    "empty": "No sessions scheduled yet.",
+    "loading": "Loading sessions…",
+    "error": "Unable to load sessions. Please retry."
+  },
   "sessionsAdmin": {
+    "page": {
+      "kicker": "Schedules & Sessions",
+      "title": "Manage academy sessions",
+      "subtitle": "Create private or group classes, run weekly series that respect student credit, edit every Zoom link per session, and keep the whole timeline in one operational view."
+    },
     "link": {
       "assignments": "Manage student/teacher assignments"
     },
@@ -1098,7 +1144,13 @@
     },
     "series": {
       "title": "Recurring series",
-      "progress": "{generated} of {total} weeks generated"
+      "progress": "{generated} of {total} weeks generated",
+      "statuses": {
+        "ACTIVE": "Active",
+        "PAUSED": "Paused",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled"
+      }
     },
     "filters": {
       "title": "Filters",
@@ -1170,12 +1222,36 @@
     },
     "actions": {
       "reschedule": "Reschedule",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "editLink": "Edit Zoom link",
+      "applySeriesLink": "Apply link to upcoming"
     },
     "reschedule": {
       "newStart": "New start",
       "newEnd": "New end",
       "save": "Save new time"
+    },
+    "editLink": {
+      "title": "Session Zoom links",
+      "join": "Join link (students and guardians use this)",
+      "host": "Host link (optional — Admin, Supervisor, and this session's teacher only)",
+      "save": "Save links",
+      "hide": "Close"
+    },
+    "seriesLink": {
+      "title": "Apply Zoom links to upcoming sessions",
+      "note": "Updates every future, non-cancelled session of this series. Worker-generated weeks inherit the new links too.",
+      "save": "Apply to upcoming"
+    },
+    "overlap": {
+      "warning": "This Zoom link is also used by another scheduled session with an overlapping time. Free Zoom accounts can run only one meeting at a time.",
+      "savedWithWarning": "Links saved, but the same link is used by overlapping sessions — free Zoom allows only one meeting at a time."
+    },
+    "statuses": {
+      "SCHEDULED": "Scheduled",
+      "COMPLETED": "Completed",
+      "MISSED": "Missed",
+      "CANCELLED": "Cancelled"
     },
     "confirmCancel": "Cancel this session and release its reserved credits?",
     "messages": {
@@ -1183,7 +1259,9 @@
       "seriesCreated": "Series created: {generated} of {total} weeks generated now; the worker continues the rest when credit is available.",
       "cancelled": "Session cancelled, reservations released, and reminders stopped.",
       "rescheduled": "Session rescheduled and reminders moved.",
-      "requestReviewed": "Change request {status}."
+      "requestReviewed": "Change request {status}.",
+      "linkUpdated": "Session links updated.",
+      "seriesLinkApplied": "New links applied to {count} upcoming session(s)."
     },
     "errors": {
       "load": "Unable to filter sessions.",

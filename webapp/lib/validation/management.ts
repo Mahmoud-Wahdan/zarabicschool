@@ -133,6 +133,14 @@ export const sessionUpdateSchema = z.object({
   cancellationReason: z.string().trim().max(1000).optional().or(z.literal("")),
 }).refine((value) => Object.keys(value).length > 0, "At least one update is required.");
 
+// Phase 4 — dedicated per-session / series link editing. The join link is required
+// (Sessions.zoom_join_url is NOT NULL); the host link is optional and may be cleared
+// with "" or null. Format validation happens with the shared lib/validation/zoom-url.
+export const sessionLinkUpdateSchema = z.object({
+  zoomJoinUrl: zoomUrlField,
+  zoomHostUrl: optionalZoomUrlField,
+});
+
 export const replacementSessionSchema = sessionCreateSchema;
 
 export const sessionChangeRequestSchema = z.object({

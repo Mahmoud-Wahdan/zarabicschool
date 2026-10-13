@@ -231,8 +231,9 @@ model Academy {
   notificationJobs NotificationJob[]
   sessionChangeRequests SessionChangeRequest[]
   teacherFlags TeacherFlag[]
-  studentSubjects StudentSubject[] @relation("StudentSubjectAcademy")
-  studentTeacherAssignments StudentTeacherAssignment[] @relation("StudentTeacherAssignmentAcademy")
+    studentSubjects StudentSubject[] @relation("StudentSubjectAcademy")
+    studentTeacherAssignments StudentTeacherAssignment[] @relation("StudentTeacherAssignmentAcademy")
+    sessionLinkAudits SessionLinkAudit[]
 
   @@map("academies")
 }
@@ -271,8 +272,9 @@ model User {
   reviewedSessionChangeRequests SessionChangeRequest[] @relation("SessionChangeRequestReviewer")
   createdSessions         Session[] @relation("SessionCreatedBy")
   cancelledSessions       Session[] @relation("SessionCancelledBy")
-  createdAssignments      StudentTeacherAssignment[] @relation("AssignmentCreatedBy")
-  assignmentOverriddenSessions Session[] @relation("SessionAssignmentOverriddenBy")
+    createdAssignments      StudentTeacherAssignment[] @relation("AssignmentCreatedBy")
+    assignmentOverriddenSessions Session[] @relation("SessionAssignmentOverriddenBy")
+    sessionLinkAudits       SessionLinkAudit[] @relation("SessionLinkAuditChangedBy")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -425,8 +427,9 @@ model Session {
   createdBy               User          @relation("SessionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   cancelledBy             User?         @relation("SessionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   assignmentOverriddenBy  User?         @relation("SessionAssignmentOverriddenBy", fields: [assignmentOverriddenById], references: [id], onDelete: Restrict)
-  students              SessionStudent[]
-  joinClicks             SessionJoinClick[]
+    students              SessionStudent[]
+    joinClicks             SessionJoinClick[]
+    linkAudits             SessionLinkAudit[]
   reports              Report[]
   reservations        SessionReservation[]
   notificationJobs     NotificationJob[]
@@ -469,7 +472,28 @@ model SessionJoinClick {
 
   @@index([sessionId, clickedAt])
   @@map("session_join_clicks")
-}
+  }
+
+  model SessionLinkAudit {
+    id             String   @id @default(uuid()) @db.Uuid
+    academyId      String   @map("academy_id") @db.Uuid
+    seriesId       String?  @map("series_id") @db.Uuid
+    sessionId      String?  @map("session_id") @db.Uuid
+    changedById    String   @map("changed_by_id") @db.Uuid
+    source         String
+    joinUrlChanged Boolean  @default(false) @map("join_url_changed")
+    hostUrlChanged Boolean  @default(false) @map("host_url_changed")
+    createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+    academy        Academy          @relation(fields: [academyId], references: [id], onDelete: Restrict)
+    series         RecurrenceSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+    session        Session?         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+    changedBy      User             @relation("SessionLinkAuditChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+
+    @@index([academyId, createdAt])
+    @@index([sessionId, createdAt])
+    @@index([seriesId, createdAt])
+    @@map("session_link_audits")
+  }
 
 model Invoice {
   id                 String             @id @default(uuid()) @db.Uuid
@@ -555,8 +579,9 @@ model RecurrenceSeries {
   academy             Academy              @relation(fields: [academyId], references: [id], onDelete: Restrict)
   teacher             Teacher              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   subject             Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  createdBy           User                 @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  sessions            Session[]
+    createdBy           User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+    sessions            Session[]
+    linkAudits          SessionLinkAudit[]
 
   @@index([academyId, status])
   @@index([teacherId, status])
