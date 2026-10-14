@@ -84,7 +84,8 @@
     "metricOvertime": "Overtime claimed",
     "metricOvertimeNote": "Admin decision required",
     "metricApprovedToday": "Approved today",
-    "metricApprovedNote": "Reviewed"
+    "metricApprovedNote": "Reviewed",
+    "operationalEvents": "Operational events (evidence only — never decides attendance)"
   },
   "financialsAdmin": {
     "title": "Revenue Operations & Subscriptions",

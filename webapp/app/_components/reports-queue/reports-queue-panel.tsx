@@ -22,6 +22,7 @@ export type QueueReport = {
   notes: string | null;
   extraTimeMinutes: number;
   extraTimeStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  operationalEvents: Record<string, unknown> | null;
   hasLateFlag: boolean;
 };
 
@@ -321,6 +322,21 @@ export default function ReportsQueuePanel({
                         {t("notes")}
                       </p>
                       <p className="text-body-md text-on-surface">{selected.notes}</p>
+                    </div>
+                  ) : null}
+                  {selected.operationalEvents && Object.keys(selected.operationalEvents).length > 0 ? (
+                    <div>
+                      <p className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
+                        {t("operationalEvents")}
+                      </p>
+                      <ul className="flex flex-col gap-1 text-body-sm text-on-surface">
+                        {Object.entries(selected.operationalEvents).map(([key, value]) => (
+                          <li key={key} className="rounded bg-surface-container px-2 py-1">
+                            <span className="font-semibold">{key}</span>
+                            {value !== null && value !== undefined && value !== "" ? `: ${String(value)}` : ""}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ) : null}
                 </div>

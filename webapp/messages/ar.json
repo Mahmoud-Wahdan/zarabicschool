@@ -84,7 +84,8 @@
     "metricOvertime": "وقت إضافي مطالب",
     "metricOvertimeNote": "قرار الإدارة مطلوب",
     "metricApprovedToday": "معتمدة اليوم",
-    "metricApprovedNote": "تمت المراجعة"
+    "metricApprovedNote": "تمت المراجعة",
+    "operationalEvents": "أحداث تشغيلية (للاطلاع فقط — لا تحدد الحضور تلقائياً)"
   },
   "financialsAdmin": {
     "title": "الرقابة المالية والاشتراكات",

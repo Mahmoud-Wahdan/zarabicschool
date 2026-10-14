@@ -68,6 +68,7 @@ export default async function ReportsQueuePage({ role }: { role: "ADMIN" | "SUPE
     notes: report.notes,
     extraTimeMinutes: report.extraTimeMinutes,
     extraTimeStatus: report.extraTimeStatus,
+    operationalEvents: (report.operationalEvents as Record<string, unknown> | null) ?? null,
     hasLateFlag: flaggedSessionIds.has(report.sessionId),
   }));
 
