@@ -12,7 +12,7 @@
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
 | 3 | Schedules & Sessions | Complete | 2026-10-11 | Closed by the owner after the manual test. Batches 1-4 verified: scheduling-assignments schema/migration (owner-applied), detailed error codes with offending ids, shared Zoom format validation, smart session forms, assignments hub, approval-time teachers, worker, demo seed (4× idempotent), clear-demo verified, E2E spec staged; final checks green (validate/typecheck/lint 10 suites / 111 tests/build) |
 | 4 | Live Learning (Zoom links) | Complete | 2026-10-14 | Closed by the owner on 2026-10-14. Implementation + tests complete (12 suites / 149 tests green; gap review in review-before-phase-04.md). Reminder: migration `20261012000000_phase4_link_audit` must be applied if not yet (it activates link-change audit writes + their test assertions) |
-| 5 | Session Reports & Attendance | In Progress | 2026-10-11 | Teacher per-student submission and review API/UI implemented; late-report reminders + LATE_REPORT red mark were built early in Phase 3 and are NOT yet reviewed as Phase 5 work; queue, tests, and settlement handoff remain |
+| 5 | Session Reports & Attendance | In Progress | 2026-10-14 | Step 1 review done (21 findings F-01..F-21 + 8 owner MCQ decisions in phase-05 spec); fixes + Batches A–D in progress on `feature/phase-5` |
 | 6 | Financial Management | In Progress | 2026-10-06 | Paymob EGP checkout/webhook and initial subscription settlement slice verified; reports/payroll and migration remain |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
@@ -21,6 +21,8 @@
 ## Current Active Task (2026-10-14)
 
 Phase 4 closed by the owner. Next: **Phase 5 (reports & attendance) together with Phase 6 (finance settlement)** — they share one boundary: report approval → atomic settlement. Phase 9 is a documented backlog only.
+
+**Phase 5 execution started (2026-10-14, branch `feature/phase-5`):** Step 1 review of the early-built reminder chain + report routes is complete — 21 findings and 8 owner decisions recorded in `phase-05-attendance-recordings.md`. Now fixing High/Medium findings in small commits with one test per fix, then Batches A (attachments, settings-backed remark list, visibility data layer, teacher UI), B (approval queue + settlement seam), C (outage requests + replacement), D (attendance views + notifications). Stop after each batch for owner review.
 
 (Older entry follows.)
 
