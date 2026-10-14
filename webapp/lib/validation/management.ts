@@ -156,7 +156,8 @@ export const sessionReportSchema = z.object({
   attendanceOutcome: z.enum(["ATTENDED", "STUDENT_ABSENT"]),
   classRemark: z.string().trim().min(2).max(200),
   summary: z.string().trim().min(2).max(5000),
-  homework: z.string().trim().max(5000),
+  // Homework is a required field (CONTEXT §6 teacher experience / §9); empty strings fail.
+  homework: z.string().trim().min(1).max(5000),
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   operationalEvents: z.record(z.string(), z.unknown()).optional(),
   extraTimeMinutes: z.number().int().min(0).max(600).default(0),
