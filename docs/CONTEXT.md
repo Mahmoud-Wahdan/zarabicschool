@@ -175,6 +175,7 @@ If the report says the student did not attend, that student's attendance becomes
 6. Whether the teacher sees "pending approval" earnings separately from approved ones (PROPOSAL: yes) — owner said "ok", treated as accepted.
 7. **Student evaluation is MANDATORY** (owner, 2026-10-07): **the student fills it** (an adult or a minor; a guardian may add an optional one). Fields: opinion of the teacher and of the session in general, whether they benefited (yes/no), a teacher rating, a quality rating, and suggestions/problems. If it is not submitted: reminders + a flag visible to Admin; it **never blocks sessions and never affects teacher pay** (owner). Visible to Admin only.
 8. How a wrongly settled report is reversed — PROPOSAL accepted (one Admin action writing the reversing entries).
+9. **Phase 6 decisions CONFIRMED (owner, 2026-10-14):** rounding half-up to the minor unit with `INTEGER` entries (revisit BIGINT at SaaS time); reversal = one Admin-only action (reversing ledger entries, reason mandatory, report stays ARCHIVED; in a group session the teacher credit is reversed only if no other attended report remains); zero-session mechanism = the Phase 3 reservation + block + audited override, Phase 6 adds the `CONSUMED` conversion and the negative-balance flag; one currency per teacher, pay is by the HOUR (not per group or per student); "على كيفك" min 1 / max 16; grace period 3 days. USD gateway: Dodo vs Xpay still being evaluated (Xpay's USD acceptance/settlement could not be verified from public pages); OpenWA number switch happens before real data/launch.
 
 *Resolved:* prepaid credits; hourly pay independent of price; approval (Admin/Supervisor) triggers the pay; reports per student also in groups, the teacher's credit once per session; overtime decided by Admin; outage/absence form in the MVP; red mark for late reports only; no trial-session type; no Zoom API / recordings / embedded interface; monthly payout; scheduling blocked at zero with audited override; class-remark list; attachments rule (Section 9).
 
@@ -251,6 +252,7 @@ Online payment through payment gateways, with automatic monthly renewal (full de
    - **6b. Online payments & automatic renewal (Section 20)** — Paymob (EGP) + USD gateway behind `PaymentProvider`, provider-managed subscriptions, webhooks, and failed-renewal grace.
 7. **Admin & reports** — admin/supervisor dashboards, review queues, evaluations, announcements, complaints.
 8. **Testing & launch.**
+9. **Refinements & UI/UX polish (owner, 2026-10-14 — documented only, starts after the system is complete)** — richer Admin home, teachers/students/guardians management pages, notifications inbox, teacher performance page, calendar views for all roles, deductions & bonuses page, assignments fixes. Details: `docs/specs/phase-09-refinements.md`. PROPOSAL until confirmed; nothing is built early.
 
 **Dashboards UI/UX (Section 21)** is a cross-cutting track: it starts right after Phase 0 and each role's screens are built on the seeded real data, in parallel with the backend phases.
 
@@ -305,6 +307,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Supabase (Postgres + private Storage) | CONFIRMED |
 | Delivery to the client in stages | CONFIRMED (boundaries OPEN) |
 | Hosting | OPEN until deployment |
+| **Free trial session** (owner, 2026-10-14) — reverses the earlier "no trial-session type"; scheduled for Phase 9, NOT in Phases 5–6; teacher pay/limits for trials OPEN | CONFIRMED direction, details OPEN |
 | Scheduler for timed jobs = database-polling worker (no Redis) | CONFIRMED (2026-10-06) |
 | Reports per student (also in groups); teacher report visible to guardian + Admin; student evaluation visible to Admin only; no trial sessions | CONFIRMED |
 | Report availability timing | PROPOSAL (after scheduled end) |
@@ -334,7 +337,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 `DATABASE_URL`, `DIRECT_URL`, `OPENWA_URL`, `OPENWA_API_KEY`, `OPENWA_SESSION_ID`, `NEXTAUTH_SECRET`.
 - Proposed by the coding agent for the first seed (names only): `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` (the code uses `SEED_ADMIN_USERNAME`, matching the username login).
 - **Gap:** `.env.example` does not yet list `OPENWA_URL`, `OPENWA_API_KEY`, `OPENWA_SESSION_ID` — add them (names only) when the OpenWA provider is built.
-- Gateway variables (names to confirm when the provider is chosen): `PAYMOB_API_KEY`, `PAYMOB_HMAC_SECRET`, `PAYMOB_INTEGRATION_ID` (names to confirm from the Paymob docs), and for the USD gateway `USD_GATEWAY_API_KEY`, `USD_GATEWAY_WEBHOOK_SECRET` (placeholders until the provider is chosen).
+- Gateway variables (names to confirm when the provider is chosen): `PAYMOB_API_URL`, `PAYMOB_API_KEY`, `PAYMOB_PUBLICKEY`, `PAYMOB_SECRETKEY`, `PAYMOB_HMAC`, `PAYMOB_INTEGRATION_ID` (names set by the owner 2026-10-14 in `.env.example`; which of them the code really uses is verified against the Paymob docs in Phase 6; test-mode integration = EGP card/VPC, online), and for the USD gateway `USD_GATEWAY_API_KEY`, `USD_GATEWAY_WEBHOOK_SECRET` (placeholders until the provider is chosen).
 - **Removed:** all `ZOOM_*` variables (no Zoom API any more — delete them from `.env` too), `JWT_SECRET`, official-WhatsApp variables, webhook secret.
 - To be added when their phase starts (names to confirm then): Supabase Storage credentials (Phase 5/6). No Redis (database-polling worker is confirmed).
 - `.env` is never committed; `.env.example` contains names only.
