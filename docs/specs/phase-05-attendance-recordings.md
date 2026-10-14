@@ -140,7 +140,7 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - [ ] REMOVED — 25% duration absence threshold timer; attendance comes from the teacher report.
 - [x] Write explicit attendance only from approved report outcomes or audited Admin override
 - [ ] Build Teacher mobile UI for mandatory post-session report submission with student selection for group sessions — reopened 2026-10-14 (F-16: hardcoded English, no gating/prefill; Batch A rebuild)
-- [ ] Step 1: fix review findings F-01…F-21 with one test per fix
+- [x] Step 1: fix review findings F-01…F-21 with one test per fix (F-05→Batch D, F-06/F-17→Batch A, F-12→Batch C, F-16→Batch A; F-18/F-19/F-20 documented) + Phase 3 composite-FK regression repaired
 - [ ] Batch A: attachments (model, migration, StorageProvider REST + fake, magic bytes, signed URLs, 400/413)
 - [ ] Batch A: AcademySettings class-remark list (Admin-only) + submit-time validation
 - [ ] Batch A: role-shaped report visibility data layer (APPROVED gate) + visibility-matrix tests
@@ -174,3 +174,12 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - Full Step 1 review executed (submit/review routes, worker reminder chain, messaging, schema, UIs, tests): findings F-01…F-21 recorded above; verified-good list recorded. 8 owner decisions locked via MCQ (recorded above).
 - This spec's stale Zoom-era notification items removed (F-20); tasks restructured to the Step 1 + Batches A–D plan.
 - Owner steps generated later this phase: migrations (report attachments, academy settings, session requests), env names (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), private bucket creation.
+
+### 2026-10-14 — Step 1 fixes implemented and verified
+
+- **Phase 3 regression found and repaired:** the owner-applied migration `20261014081933_phase4` silently DROPPED the owner-reviewed composite FK `student_teacher_assignments(teacher_id, subject_id) → teacher_subjects` (database-schema §8.2 invariant #4) because the Prisma schema never modeled the relation — `migrate dev` treated it as drift. Consequences: teacher-subject removal succeeded while assignment history existed (the DELETE route relied on the DB P2003). Repair (d322b54): the relation is now modeled in `schema.prisma` (Prisma owns the FK from now on), migration `20261014183952_phase5_restore_assignment_composite_fk` re-creates it (OWNER APPLIES), and the DELETE route gained an application-level guard so the invariant holds even before the migration lands. **This is why the assignments suite was red at Step-1 start — not a Phase 5 change.**
+- [fixed+tested] F-01 submit blocked for CANCELLED/MISSED (409 `SESSION_NOT_REPORTABLE`) · F-02 rejection metadata preserved on resubmit · F-03 strict freeze of `attendanceOutcome`/`extraTimeMinutes` (owner decision) + homework required · F-04 conditional-update approval, concurrent approve → one winner + clean `alreadyHandled`, approve-vs-reject race resolved · F-07 submit cancels pending nudges (fully-reported session) + sender guard · F-08 nudges render scheduled END time · F-09 nudges fire for COMPLETED sessions (session reminders still cancelled) · F-10 24h scan window · F-11 concurrent first submit → P2002 caught → 409 `ALREADY_SUBMITTED` · F-13 one re-arm of FAILED nudges (attempts < 2) · F-14 UUID path validation → 400 · F-15 distinct `REPORT_IMMUTABLE` code · F-21 operational events visible in the queue (evidence only).
+- [deferred to batches] F-05 approval notices (Batch D) · F-06/F-17 visibility data layer (Batch A) · F-12 replacement jobs (Batch C) · F-16 teacher UI rebuild (Batch A).
+- [verified 2026-10-14, from `webapp/`] `npx prisma validate` valid; `prisma generate` clean; `npm run typecheck` clean; `npm run lint` clean; `npm test` **14 suites / 170 tests green** (baseline 12/149 → +21, nothing reduced); `npm run build` succeeds.
+- Commits: d322b54 (regression repair), c6e4cc6 (submit/review hardening + tests), 7bbaf92 (worker chain + tests), 3ee5a70 (queue evidence).
+- **Owner step added:** apply migration `20261014183952_phase5_restore_assignment_composite_fk` (`npx prisma migrate deploy`, DIRECT_URL).
