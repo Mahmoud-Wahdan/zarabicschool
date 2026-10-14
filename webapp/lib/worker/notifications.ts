@@ -10,9 +10,16 @@ import { generateSeriesWeek, type SeriesForGeneration, type SeriesRecurrenceRule
 
 const POLL_BATCH = 50;
 const EXTENSION_HORIZON_MS = 14 * 24 * 60 * 60 * 1000;
-const LATE_REPORT_WINDOW_MS = 90 * 60 * 1000;
+// 24h scan window (owner decision 2026-10-14, Phase 5 review F-10): a worker outage no
+// longer silently drops reminders and the red flag; unique dedup keys still guarantee
+// each nudge/flag happens exactly once.
+const LATE_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LATE_REPORT_FOLLOWUP_MS = 15 * 60 * 1000;
 const LATE_REPORT_FLAG_MS = 30 * 60 * 1000;
+
+function isReportNudgeKind(kind: string) {
+  return kind === "REPORT_REMINDER" || kind === "REPORT_REMINDER_FOLLOWUP";
+}
 
 function formatSessionTime(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("ar-EG", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(instant);
@@ -30,10 +37,14 @@ type JobWithRelations = NotificationJob & {
   } | null;
 };
 
-function composeJobMessage(job: JobWithRelations): string {
+// Exported for the late-report chain unit tests (message/time assertions).
+export function composeJobMessage(job: JobWithRelations): string {
   if (job.session) {
     const subject = job.session.subject.nameAr;
-    const time = formatSessionTime(job.session.scheduledStart, job.session.timezone);
+    // Late-report nudges reference the scheduled END ("the session that ended at …");
+    // session reminders reference the start (Phase 5 review F-08).
+    const anchor = isReportNudgeKind(job.kind) ? job.session.scheduledEnd : job.session.scheduledStart;
+    const time = formatSessionTime(anchor, job.session.timezone);
     if (job.kind === "SESSION_START") {
       return `حصتك (${subject}) بدأت الآن. رابط الحضور: ${job.session.zoomJoinUrl}`;
     }
@@ -49,6 +60,14 @@ function composeJobMessage(job: JobWithRelations): string {
     return "توقّف جدول حصص متكرر مؤقتاً لعدم توفر رصيد أحد الطلاب، وسيُستكمل تلقائياً عند توفر الرصيد.";
   }
   return "لديك إشعار من الأكاديمية.";
+}
+
+async function sessionFullyReported(sessionId: string): Promise<boolean> {
+  const [rosterCount, reportCount] = await Promise.all([
+    prisma.sessionStudent.count({ where: { sessionId } }),
+    prisma.report.count({ where: { sessionId, reportType: "SESSION_COMPLETION_REPORT" } }),
+  ]);
+  return rosterCount > 0 && reportCount >= rosterCount;
 }
 
 export async function processDueNotificationJobs(now = new Date(), academyId?: string) {
@@ -82,9 +101,27 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
       data: { status: "PROCESSING", attempts: { increment: 1 } },
     });
     if (claimed.count !== 1) continue;
-    if (job.sessionId && (!job.session || job.session.status !== "SCHEDULED")) {
+    if (job.sessionId && !job.session) {
       await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" } });
       continue;
+    }
+    if (job.session) {
+      // Session nudges only fire while the session is SCHEDULED; late-report nudges also
+      // fire for COMPLETED sessions because a completed session still owes its reports
+      // (Phase 5 review F-09). Cancelled and missed sessions never owe reports.
+      const sessionEligible =
+        job.session.status === "SCHEDULED" ||
+        (isReportNudgeKind(job.kind) && job.session.status === "COMPLETED");
+      if (!sessionEligible) {
+        await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" } });
+        continue;
+      }
+      if (isReportNudgeKind(job.kind) && job.sessionId && (await sessionFullyReported(job.sessionId))) {
+        // Every roster student already has a report — cancel instead of sending
+        // (Phase 5 review F-07; backstop for the submit-route cancellation).
+        await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" } });
+        continue;
+      }
     }
     if (!job.recipientUser.isActive) {
       await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" } });
@@ -102,6 +139,20 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
 }
 
 export async function processLateReportNotifications(now = new Date(), academyId?: string) {
+  // Re-arm report nudges that failed once (transient provider outage) so a single
+  // failure never permanently silences the chain — exactly ONE retry (attempts < 2;
+  // owner decision 2026-10-14, Phase 5 review F-13). The sender re-checks session
+  // and report state before sending, so re-armed jobs for handled sessions are
+  // cancelled, never mis-sent.
+  await prisma.notificationJob.updateMany({
+    where: {
+      kind: { in: ["REPORT_REMINDER", "REPORT_REMINDER_FOLLOWUP"] },
+      status: "FAILED",
+      attempts: { lt: 2 },
+      ...(academyId ? { academyId } : {}),
+    },
+    data: { status: "PENDING", scheduledFor: now, lastError: null },
+  });
   const windowStart = new Date(now.getTime() - LATE_REPORT_WINDOW_MS);
   const sessions = await prisma.session.findMany({
     where: {
