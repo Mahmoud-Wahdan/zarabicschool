@@ -22,13 +22,11 @@ function overlaps(a: LinkOverlapInput, b: LinkOverlapInput): boolean {
 /**
  * Pure helper for the CONFIRMED same-link overlap warning (CONTEXT §17: the free Zoom
  * account can run one meeting at a time, so two SCHEDULED sessions sharing a join link
- * with overlapping time ranges produce a WARNING — never a block).
- * `excludeId` is used by the per-session link editor to report only the OTHER sessions.
+ * with overlapping time ranges produce a WARNING — never a block). Reports every session
+ * involved in any same-link overlap pair.
  */
-export function findLinkOverlaps(sessions: LinkOverlapInput[], excludeId?: string): LinkOverlapWarning | null {
-  const active = sessions.filter(
-    (session) => session.status === "SCHEDULED" && session.id !== excludeId,
-  );
+export function findLinkOverlaps(sessions: LinkOverlapInput[]): LinkOverlapWarning | null {
+  const active = sessions.filter((session) => session.status === "SCHEDULED");
   const byLink = new Map<string, LinkOverlapInput[]>();
   for (const session of active) {
     const key = session.zoomJoinUrl.trim();

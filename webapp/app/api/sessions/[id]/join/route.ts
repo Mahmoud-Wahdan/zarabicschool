@@ -29,12 +29,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       id,
       academyId: user.academyId,
       status: "SCHEDULED",
-      OR: [
-        ...(isOperator ? [{}] : []),
-        ...(user.role === "TEACHER" ? [{ teacher: { userId: user.id } }] : []),
-        ...(user.role === "STUDENT" ? [{ students: { some: { student: { userId: user.id } } } }] : []),
-        ...(user.role === "GUARDIAN" ? [{ students: { some: { student: { guardian: { userId: user.id } } } } }] : []),
-      ],
+      // Role scoping mirrors the list route (top-level conditional spreads): the empty
+      // OR entry used previously (`OR: [...(operator ? [{}] : [])]`) matches nothing in
+      // Prisma's query compiler, which silently broke Admin/Supervisor joins.
+      ...(user.role === "TEACHER" ? { teacher: { userId: user.id } } : {}),
+      ...(user.role === "STUDENT" ? { students: { some: { student: { userId: user.id } } } } : {}),
+      ...(user.role === "GUARDIAN" ? { students: { some: { student: { guardian: { userId: user.id } } } } } : {}),
     },
     select: { id: true, zoomJoinUrl: true, zoomHostUrl: true, scheduledStart: true, scheduledEnd: true },
   });

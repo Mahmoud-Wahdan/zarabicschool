@@ -64,3 +64,15 @@ not as a silent closed-work fix).
 - Branch `feature/stitch-ui` at `9570618` (the owner's UI commit landed during this review;
   the tree was clean at review time). Phase 4 work branches from here as `feature/phase-4`.
 - Baseline to protect: 10 suites / 111 tests (recorded 2026-10-11, Phase 3 closure).
+
+## Addendum (2026-10-13) — what the review missed
+
+This review classified admin/supervisor joins as merely "untested" and concluded "No High
+findings". The Phase 4 test matrix later proved the operator join path had been silently
+broken since Phase 3: the closed route's `OR: [...(operator ? [{}] : [])]` matches nothing in
+Prisma's query compiler, so every Admin/Supervisor join returned 404. A code-level review
+could not see it because the pattern *looks* equivalent to the working list route (which uses
+top-level conditional spreads instead of an empty OR entry). Recorded as the review's
+limitation: untested authorization branches are presumptively broken until a test exercises
+them. Fixed and covered in `__tests__/api/phase4-live-links.test.ts`; details in the
+phase-04 execution log.

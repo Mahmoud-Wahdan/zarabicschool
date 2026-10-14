@@ -325,6 +325,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
           teachers={teachers}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
+          locale={locale}
         />
         <button
           disabled={busy || !single.teacherId || !single.subjectId || single.studentIds.length === 0 || !single.selectedRange || single.zoomJoinCheck?.ok !== true || single.conflictSlots.length > 0}

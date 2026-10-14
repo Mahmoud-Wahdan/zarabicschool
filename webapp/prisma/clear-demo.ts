@@ -118,6 +118,32 @@ async function main() {
     await prisma.sessionJoinClick.deleteMany({
       where: { OR: [{ userId: { in: demoUserIds } }, { sessionId: { in: demoSessionIds } }] },
     });
+    // Phase 4: link-audit rows reference sessions/series/users with ON DELETE RESTRICT —
+    // remove the demo ones before the referenced rows. Gated on the owner-applied
+    // migration 20261012000000_phase4_link_audit (no URL values are ever stored there).
+    const linkAuditTable = (await prisma.$queryRawUnsafe(
+      "SELECT to_regclass('session_link_audits') AS regclass",
+    )) as { regclass: string | null }[];
+    if (linkAuditTable[0]?.regclass) {
+      const demoSeriesIds = demoTeacherIds.length
+        ? (
+            await prisma.recurrenceSeries.findMany({
+              where: { teacherId: { in: demoTeacherIds } },
+              select: { id: true },
+            })
+          ).map((series) => series.id)
+        : [];
+      await prisma.sessionLinkAudit.deleteMany({
+        where: {
+          OR: [
+            { sessionId: { in: demoSessionIds } },
+            { seriesId: { in: demoSeriesIds } },
+            { changedById: { in: demoUserIds } },
+            { academyId: { in: scopedAcademyIds } },
+          ],
+        },
+      });
+    }
     await prisma.sessionChangeRequest.deleteMany({
       where: { OR: [{ teacherId: { in: demoTeacherIds } }, { sessionId: { in: demoSessionIds } }] },
     });

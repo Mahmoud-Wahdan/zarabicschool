@@ -8,12 +8,16 @@ Implement the small manual-link experience: Admin edits the pasted Zoom link, an
 
 ## Status
 
-**In Progress (2026-10-12).** The core redirect, URL validation, and host-link filtering were
-built and tested inside Phase 3 (see `review-before-phase-04.md`). This phase builds ONLY the
-verified gaps: join time window, click-log failure isolation, join rate limiting, per-session
-audited link editing (API + UI), series "apply link to upcoming" action with audit, same-link
-overlap warning, and the role session UIs completed against the checklist (i18n, no raw enums,
-window-aware buttons, teacher today-view with per-student Zoom button, loading/error states).
+**Implementation complete (2026-10-13) — pending owner steps.** All gap items are built and
+verified (validate/typecheck/lint/12 suites × 149 tests/build green; baseline 10/111 protected).
+The core redirect, URL validation, and host-link filtering were built and tested inside Phase 3
+(see `review-before-phase-04.md`); this phase added the join time window, click-log failure
+isolation, join rate limiting, per-session audited link editing (API + UI), series
+"apply link to upcoming" with audit, the same-link overlap warning, and the role session UIs
+completed against the checklist (i18n, no raw enums, window-aware buttons, teacher today-view
+with per-student Zoom button, loading/error states). CLOSING BLOCKERS (owner): apply migration
+`20261012000000_phase4_link_audit`, then run the manual test — the audit assertions and audit
+writes activate only after the migration lands.
 
 ## Proposed approach
 
@@ -102,12 +106,18 @@ console output / `lastError`. Unit: the pure overlap helper.
 
 - ~~Merge this small phase into Phase 3 or Phase 5.~~ Decided: standalone closure now.
 - ~~Store host link and retain optional click logging.~~ CONFIRMED: host link stored (Admin/Supervisor/assigned teacher only), click logging KEPT.
-- OPEN (for the owner, 2026-10-12): migration `20261012_phase4_link_audit` (SessionLinkAudits
-  table + append-only trigger) is generated but NOT applied — apply with
-  `npx prisma migrate deploy` (or `db:migrate`); until then the audit tests self-skip.
+- OPEN (for the owner, 2026-10-12): migration `20261012000000_phase4_link_audit`
+  (SessionLinkAudits table, raw-SQL `source` CHECK, ON DELETE RESTRICT — deliberately NO
+  append-only trigger; see database-schema.md §11) is generated but NOT applied — apply with
+  `npx prisma migrate deploy` from `webapp/` (DIRECT_URL). Until then, `lib/scheduling/link-audit.ts`
+  skips audit writes with a visible warning, and the audit test assertions deactivate with a
+  `[phase4-test] PENDING MIGRATION` console notice (Jest cannot skip dynamically mid-test).
 - OPEN (for the owner, 2026-10-12): creation-time overlap warnings (POST /api/sessions,
   recurrences) were NOT added to avoid touching closed Phase 3 routes; the warning appears at
   link-save time and in the admin list. Extend to creation in a later phase if wanted.
+- RESOLVED (2026-10-13, by tests): the review classified admin/supervisor joins as untested;
+  the new matrix proved they had been silently broken since Phase 3 (`OR: [{}]` matches nothing
+  in Prisma's query compiler). Fixed with the list route's top-level conditional-spread pattern.
 
 ## Deferred / Post-MVP
 
@@ -120,14 +130,14 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 ## Tasks
 
 - [x] [exists, Phase 3] Authorized join redirect + click logging + host-link filtering + shared Zoom validation (tests: scenario 11, zoom-url suite, e2e)
-- [ ] Join time window (15-minute config constant, Admin/Supervisor exempt) in the redirect + window-aware UI buttons
-- [ ] Click-log failure isolation (failed insert never blocks the redirect) + per-user join rate limit
-- [ ] Host-link join variant (`?host=1`) for the assigned teacher/Admin/Supervisor (server-enforced)
-- [ ] Dedicated per-session link endpoint `PATCH /api/sessions/:id/link` (audited; general PATCH audited too)
-- [ ] Series action "apply link to all upcoming sessions" (future, non-cancelled only; rule JSON updated so worker weeks inherit) + per-session audit entries
-- [ ] Overlap warning at link-save time + in the admin list (warn, never block)
-- [ ] Role session UIs: teacher today's classes with Zoom button beside each student; student/guardian window-aware join; admin/supervisor link fields + series apply + localized statuses; loading/error states; i18n (ar/en), RTL, mobile
-- [ ] Tests for every gap item; suites re-run (count must not drop below the 10/111 baseline)
+- [x] Join time window (15-minute config constant, Admin/Supervisor exempt) in the redirect + window-aware UI buttons
+- [x] Click-log failure isolation (failed insert never blocks the redirect) + per-user join rate limit
+- [x] Host-link join variant (`?host=1`) for the assigned teacher/Admin/Supervisor (server-enforced)
+- [x] Dedicated per-session link endpoint `PATCH /api/sessions/:id/link` (audited; general PATCH audited too)
+- [x] Series action "apply link to all upcoming sessions" (future, non-cancelled only; rule JSON updated so worker weeks inherit) + per-session audit entries
+- [x] Overlap warning at link-save time + in the admin list (warn, never block)
+- [x] Role session UIs: teacher today's classes with Zoom button beside each student; student/guardian window-aware join; admin/supervisor link fields + series apply + localized statuses; loading/error states; i18n (ar/en), RTL, mobile
+- [x] Tests for every gap item; suites re-run (10/111 baseline → 12 suites / 149 tests green)
 
 ## Execution log (updated as soon as real work happens)
 
@@ -144,17 +154,49 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
   series apply-link + audit, overlap warning, role-UI checklist items. No High findings.
 - Plan recorded above; audit table requires a migration (owner applies — OPEN).
 
-### 2026-10-12 implementation (in progress — results recorded below when verified)
+### 2026-10-12/13 implementation — built and verified
 
-- [planned] `lib/config/session-join.ts` (JOIN window constant), `lib/scheduling/link-overlap.ts`
-  (pure overlap helper), `lib/scheduling/link-audit.ts` (audit writer + migration gate).
-- [planned] Join route: window + per-user rate limit + click try/catch + `?host=1` variant.
-- [planned] `PATCH /api/sessions/[id]/link` and `PATCH /api/sessions/recurrences/[id]/link`
-  (both audited in the same transaction; overlap warnings returned, never blocking).
-- [planned] Admin sessions UI: per-session link editor, series apply-link, overlap warnings,
-  localized statuses; role session pages rebuilt (i18n, window-aware buttons, teacher
-  today-view with per-student Zoom buttons, per-child guardian view, loading/error routes).
-- [planned] `SessionLinkAudit` model + migration (append-only trigger, ON DELETE RESTRICT) —
-  NOT applied by the agent; audit tests self-skip until the owner applies it.
-- [planned] `__tests__/api/phase4-live-links.test.ts` (DB-backed) + unit test for the overlap
-  helper; full suite re-run.
+- [built] `lib/config/session-join.ts` (15-minute window constant + `joinWindowState`),
+  `lib/scheduling/link-overlap.ts` (pure pairwise same-link overlap helper),
+  `lib/scheduling/link-audit.ts` (URL-less audit writer + pending-migration gate).
+- [built] Join route: 15-minute window (operators exempt), 30/min per-user rate limit,
+  click-insert try/catch (failure logged without the link, never blocks), `?host=1` variant
+  (assigned teacher/Admin/Supervisor; students/guardians get the generic 404).
+- [built] `PATCH /api/sessions/[id]/link` and `PATCH /api/sessions/recurrences/[id]/link`
+  (both validate with the shared validator, audit in the same transaction, and return
+  `ZOOM_LINK_OVERLAP` warnings without blocking; the series route updates only future,
+  non-cancelled sessions and the recurrence rule so worker weeks inherit the new links).
+- [built] General `PATCH /api/sessions/[id]` now writes the same audit entry for link changes.
+- [built] Admin sessions UI: localized hero/statuses/types, per-session link editor,
+  series apply-link form, overlap warning chips (server-computed `findLinkOverlaps`).
+- [built] Role session pages rebuilt with next-intl: teacher today's classes (viewer-timezone
+  day via `wallClockInputToUtc`) with a Zoom button beside each student + host-start button;
+  student and per-child guardian views; `SessionJoinLink` renders a disabled control with a
+  localized hint outside the window so users never land on the JSON 403; loading.tsx +
+  error.tsx for all three routes; `common.retry` key added.
+- [built] `SessionLinkAudit` model + migration `20261012000000_phase4_link_audit`
+  (raw-SQL `source` CHECK, ON DELETE RESTRICT, NO append-only trigger — database-schema.md
+  §11) — NOT applied by the agent; the owner applies it.
+- [built] Gated audit cleanup in `__tests__/helpers/session-fixtures.ts` and
+  `prisma/clear-demo.ts` so audit rows stop blocking demo/session deletes once applied,
+  without breaking pre-migration runs.
+- [tested] `__tests__/api/phase4-live-links.test.ts` (31 DB-backed tests: redirect matrix
+  incl. anonymous/foreign-academy/other-guardian, window before/inside/after + operator
+  exemption, click row-per-click with URL-absence assertions, click-insert failure isolation,
+  30/min rate limit, javascript:/overlong stored-link 409s, full host-variant matrix, link-PATCH
+  permissions/validation/immutability/audit, series apply-to-upcoming + rule inheritance +
+  past/cancelled exclusion, overlap warning non-blocking, worker lastError link-absence) and
+  `__tests__/scheduling/link-overlap.test.ts` (7 unit tests).
+- [found+fixed by tests] The new admin/supervisor join assertions exposed a latent Phase 3
+  bug: `OR: [...(operator ? [{}] : [])]` matches nothing in Prisma's query compiler, so
+  operator joins had always returned 404. Fixed in the join route with the list route's
+  top-level conditional-spread scoping; the dead `excludeId` param was removed from
+  `findLinkOverlaps` at the same time.
+- [reconciled] `sessions.test.ts` scenario 11 moved its join-eligible sessions into the
+  window (direct DB start/end updates, commented) so the scenario keeps testing the
+  authorization matrix under the CONFIRMED window contract; window behavior itself is covered
+  by the Phase 4 suite.
+- [verified 2026-10-13, from `webapp/`] `npx prisma validate` valid; `npm run typecheck`
+  clean; `npm run lint` clean; `npm test` 12 suites / 149 tests green (baseline 10/111 —
+  +38 tests); `npm run build` compiles successfully with the new routes in the manifest.
+  Migration intentionally NOT applied (`prisma migrate status` shows it pending — owner step).

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import bcrypt from "bcrypt";
 
 import { disconnectPrisma, prisma } from "../../lib/prisma";
+import { isLinkAuditReady } from "../../lib/scheduling/link-audit";
 
 export type SessionFixtures = Awaited<ReturnType<typeof createSessionFixtures>>;
 
@@ -181,6 +182,11 @@ export async function createSessionFixtures() {
 }
 
 export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
+  // The link-audit table arrives with migration 20261012000000_phase4_link_audit
+  // (owner-applied). Cleanup is gated the same way as the audit writes so suites stay
+  // green before the migration lands, and audit rows (FK RESTRICT) stop blocking
+  // session/series/user deletes once it does.
+  const linkAuditReady = await isLinkAuditReady();
   for (const academyId of [fixtures.academyId, fixtures.foreignAcademyId]) {
     const invoices = await prisma.invoice.findMany({ where: { academyId }, select: { id: true } });
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: invoices.map((invoice) => invoice.id) } } });
@@ -190,6 +196,9 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
       prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
     ]);
     await prisma.invoice.deleteMany({ where: { academyId } });
+    if (linkAuditReady) {
+      await prisma.sessionLinkAudit.deleteMany({ where: { academyId } });
+    }
     await prisma.sessionJoinClick.deleteMany({ where: { session: { academyId } } });
     await prisma.notificationJob.deleteMany({ where: { academyId } });
     await prisma.sessionReservation.deleteMany({ where: { academyId } });

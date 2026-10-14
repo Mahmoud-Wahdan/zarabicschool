@@ -339,6 +339,17 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
       studentIds: [fx.studentProfileIds.student1],
     }, { day: 4, hour: 12 });
     const sessionId = body.data.id as string;
+    // Phase 4 (CONFIRMED): the join redirect opens only 15 minutes before the scheduled
+    // start. Move the session into the window so this scenario keeps testing the
+    // authorization matrix (307/404/409), not the window itself (covered in
+    // __tests__/api/phase4-live-links.test.ts).
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        scheduledStart: new Date(Date.now() + 10 * 60_000),
+        scheduledEnd: new Date(Date.now() + 70 * 60_000),
+      },
+    });
 
     asActor(fx.adminUserId);
     const adminList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
@@ -389,8 +400,10 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
         teacherId: fx.teacherProfileId,
         subjectId: fx.subjectId,
         sessionType: "PRIVATE",
-        scheduledStart: futureDate(4, 9),
-        scheduledEnd: futureDate(4, 10),
+        // In-window so the 409 invalid-link guard is what this block exercises
+        // (the window check runs first and would otherwise answer with 403).
+        scheduledStart: new Date(Date.now() + 9 * 60_000),
+        scheduledEnd: new Date(Date.now() + 69 * 60_000),
         durationMinutes: 60,
         timezone: "Africa/Cairo",
         zoomJoinUrl: "http://zoom.us/j/123456789",

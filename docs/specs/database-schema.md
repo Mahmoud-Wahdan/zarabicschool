@@ -263,9 +263,28 @@ Junction mapping students to sessions. Attendance is a report result, not a Zoom
 
 > **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. Evaluation existence never dynamically determines this value. An approved `STUDENT_ABSENT` report does not create a deduction or credit; an approved `ATTENDED` report updates this state and can trigger settlement. **2026-10-10 clarification (CONFIRMED):** `SessionStudents` tracks only **who is booked** for the session (the roster); attendance data comes exclusively from the approved report — the scheduler never writes `attendance_status` (new rows are created with the `PENDING` default).
 
-### Optional SessionJoinClicks (PROPOSAL / OPTIONAL)
+### SessionJoinClicks (CONFIRMED, Phase 4 — KEPT)
 
-If retained, the redirect behind the Zoom button writes `(session_id, user_id, clicked_at)`. It is soft evidence for Admin, never proof of attendance, and must not store or log the URL.
+The redirect behind the Zoom button writes `(session_id, user_id, clicked_at)`. It is soft evidence for Admin, never proof of attendance, and must not store or log the URL. A failed insert never blocks the redirect.
+
+### SessionLinkAudits (NEW, 2026-10-12 — pending owner-applied migration `20261012000000_phase4_link_audit`)
+
+Append-by-code audit rows for Zoom link changes. The URL value is NEVER stored — only which link kind changed, by whom, when, and whether the change came from a per-session edit (`source = 'SESSION'`) or the series "apply link to upcoming" action (`source = 'SERIES'`; one row per touched session, or a series-only row when only the recurrence rule was updated).
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
+| `series_id` | UUID | FK → RecurrenceSeries, nullable | set for `source = 'SERIES'` rows |
+| `session_id` | UUID | FK → Sessions, nullable | null only for the rule-only series row |
+| `changed_by_id` | UUID | FK → Users, NOT NULL | the Admin/Supervisor who saved the change |
+| `source` | TEXT | NOT NULL, CHECK IN ('SESSION','SERIES') | raw-SQL domain CHECK (Prisma cannot express it) |
+| `join_url_changed` | BOOLEAN | NOT NULL DEFAULT false | flag only — never the URL |
+| `host_url_changed` | BOOLEAN | NOT NULL DEFAULT false | flag only — never the URL |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+| | | INDEX (academy_id, created_at), (session_id, created_at), (series_id, created_at) | |
+
+> **Constraint reason:** every FK uses `ON DELETE RESTRICT` (delete-policy §27). No append-only trigger (unlike the ledgers): this is an operational audit, not money; application code only ever INSERTs, and demo/test cleanup must remain possible (`db:clear:demo` and the test fixtures delete these rows under the documented demo-only guards). Until the owner applies the migration, `lib/scheduling/link-audit.ts` detects the missing table and skips audit writes with a visible warning; the audit tests self-deactivate the same way and activate once applied.
 
 ---
 
@@ -597,7 +616,8 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `CHECK (scheduled_end > scheduled_start)` and a duration consistency check on `sessions`.
    - `CHECK (length(currency) = 3)` on financial tables.
    - `CHECK ((status = 'ACTIVE' AND ended_at IS NULL) OR (status = 'ENDED' AND ended_at IS NOT NULL))` on `student_teacher_assignments` (NEW, 2026-10-10).
-   - `sessions_assignment_override_audit_check` on `sessions`: the override reason is mandatory and non-blank exactly when `assignment_overridden_by_id` is set (NEW, 2026-10-10).
+    - `sessions_assignment_override_audit_check` on `sessions`: the override reason is mandatory and non-blank exactly when `assignment_overridden_by_id` is set (NEW, 2026-10-10).
+    - `CHECK (source IN ('SESSION','SERIES'))` on `session_link_audits` (NEW, 2026-10-12, migration pending owner apply).
 
 The duration expression, partial indexes, append-only triggers, and conditional checks are raw SQL because Prisma cannot express them completely.
 
@@ -651,3 +671,4 @@ Supervisor approval is confirmed, but Supervisor permissions remain operational 
 - **S27:** Added corrected contents, Prisma notes, and delete policy.
 - **S28:** Added SaaS hygiene and the open-decisions list.
 - **S29 (2026-10-10 plan, pending migration approval):** Added `StudentSubjects` (§8.1) and `StudentTeacherAssignments` (§8.2) with partial-unique/unique/composite-FK invariants, the roster-only clarification for `SessionStudents`, and assignment-override audit columns on `Sessions`.
+- **S30 (2026-10-12, Phase 4 — migration pending owner apply):** Confirmed `SessionJoinClicks` as kept evidence and added `SessionLinkAudits` (§11) — URL-less link-change audit rows with a raw-SQL `source` domain CHECK, RESTRICT foreign keys, and no append-only trigger (operational audit, not money).
