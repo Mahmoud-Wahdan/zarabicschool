@@ -680,6 +680,7 @@ model TeacherSubject {
   teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   academy    Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  studentTeacherAssignments StudentTeacherAssignment[] @relation("StudentTeacherAssignmentTeacherSubject")
 
   @@unique([teacherId, subjectId])
   @@index([academyId])
@@ -716,6 +717,7 @@ model StudentTeacherAssignment {
   student     Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
   teacher     Teacher          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacherSubject TeacherSubject @relation("StudentTeacherAssignmentTeacherSubject", fields: [teacherId, subjectId], references: [teacherId, subjectId], onDelete: Restrict)
   createdBy   User             @relation("AssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   academy     Academy          @relation("StudentTeacherAssignmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
 
