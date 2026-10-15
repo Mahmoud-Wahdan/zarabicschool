@@ -4,6 +4,8 @@ import { Prisma } from "../../../../../../../generated/prisma/client";
 
 import { requireApiRole, requireApiRoles } from "../../../../../../../lib/dal";
 import { prisma } from "../../../../../../../lib/prisma";
+import { getClassRemarks } from "../../../../../../../lib/reports/class-remarks";
+import { getReportForViewer } from "../../../../../../../lib/reports/visibility";
 import { sessionReportSchema } from "../../../../../../../lib/validation/management";
 
 const REPORT_NUDGE_KINDS = ["REPORT_REMINDER", "REPORT_REMINDER_FOLLOWUP"] as const;
@@ -25,23 +27,15 @@ export async function GET(
       { status: 400 },
     );
   }
-  const report = await prisma.report.findFirst({
-    where: { sessionId, studentId, academyId: user.academyId },
-    include: {
-      student: { select: { userId: true, guardianId: true } },
-      teacher: { select: { userId: true } },
-    },
-  });
-  if (!report) return NextResponse.json({ data: null });
-  const allowed =
-    user.role === "ADMIN" ||
-    user.role === "SUPERVISOR" ||
-    (user.role === "TEACHER" && report.teacher.userId === user.id) ||
-    (user.role === "STUDENT" && report.student.userId === user.id && report.status === "ARCHIVED") ||
-    (user.role === "GUARDIAN" && report.status === "ARCHIVED" && report.student.guardianId !== null &&
-      Boolean(await prisma.guardian.findFirst({ where: { userId: user.id, id: report.student.guardianId }, select: { id: true } })));
-  if (!allowed) return NextResponse.json({ error: { code: "FORBIDDEN", message: "You do not have access to this report." } }, { status: 403 });
-  return NextResponse.json({ data: report });
+  // Role-shaped, field-restricted read through the data layer (CONTEXT §9; Phase 5
+  // review F-06/F-17). Null for missing OR unauthorized — generic 404, no existence leak.
+  const view = await getReportForViewer(
+    { userId: user.id, academyId: user.academyId, role: user.role },
+    sessionId,
+    studentId,
+  );
+  if (!view) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Report not found." } }, { status: 404 });
+  return NextResponse.json({ data: view });
 }
 
 export async function POST(
@@ -60,6 +54,14 @@ export async function POST(
   const parsed = sessionReportSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Please complete the session report.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
+  }
+  // The class remark must come from the academy's editable list (CONTEXT §9, Batch A).
+  const remarks = await getClassRemarks(user.academyId);
+  if (!remarks.includes(parsed.data.classRemark)) {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: "Class remark must be one of the academy's list.", fields: { classRemark: ["Invalid class remark."] } } },
+      { status: 400 },
+    );
   }
   const sessionStudent = await prisma.sessionStudent.findFirst({
     where: {
