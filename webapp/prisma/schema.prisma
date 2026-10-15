@@ -44,12 +44,42 @@ model Report {
   approvedBy            User?            @relation("ReportApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   rejectedBy            User?            @relation("ReportRejectedBy", fields: [rejectedById], references: [id], onDelete: Restrict)
   extraTimeReviewedBy   User?            @relation("ReportExtraTimeReviewer", fields: [extraTimeReviewedById], references: [id], onDelete: Restrict)
+  attachments           ReportAttachment[] @relation("ReportAttachment")
   subscriptionDeductions SubscriptionLedger[] @relation("LedgerReport")
 
   @@unique([sessionId, studentId, reportType])
   @@index([academyId, status, submittedAt])
   @@index([teacherId, status])
   @@map("reports")
+}
+
+model ReportAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  academyId    String   @map("academy_id") @db.Uuid
+  reportId     String   @map("report_id") @db.Uuid
+  filePath     String   @map("file_path")
+  mimeType     String   @map("mime_type")
+  sizeBytes    BigInt   @map("size_bytes")
+  originalName String   @map("original_name")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy      Academy  @relation("ReportAttachmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  report       Report   @relation("ReportAttachment", fields: [reportId], references: [id], onDelete: Restrict)
+
+  @@index([reportId])
+  @@index([academyId, createdAt])
+  @@map("report_attachments")
+}
+
+model AcademySetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  academyId String   @map("academy_id") @db.Uuid
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy   Academy  @relation("AcademySettingAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+
+  @@unique([academyId, key])
+  @@map("academy_settings")
 }
 
 model SessionReservation {
@@ -234,6 +264,8 @@ model Academy {
     studentSubjects StudentSubject[] @relation("StudentSubjectAcademy")
     studentTeacherAssignments StudentTeacherAssignment[] @relation("StudentTeacherAssignmentAcademy")
     sessionLinkAudits SessionLinkAudit[]
+  reportAttachments ReportAttachment[] @relation("ReportAttachmentAcademy")
+  academySettings AcademySetting[] @relation("AcademySettingAcademy")
 
   @@map("academies")
 }

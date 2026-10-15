@@ -149,6 +149,19 @@ async function main() {
     });
     await prisma.teacherFlag.deleteMany({ where: { teacherId: { in: demoTeacherIds } } });
 
+    // Phase 5: report attachments reference reports with ON DELETE RESTRICT — remove
+    // them (and the demo academy settings) before the reports, gated on the
+    // owner-applied migration 20261015093512_phase5_attachments_and_settings.
+    const phase5Tables = (await prisma.$queryRawUnsafe(
+      "SELECT to_regclass('report_attachments') AS attachments, to_regclass('academy_settings') AS settings",
+    )) as { attachments: string | null; settings: string | null }[];
+    if (phase5Tables[0]?.attachments) {
+      await prisma.reportAttachment.deleteMany({ where: { report: { sessionId: { in: demoSessionIds } } } });
+    }
+    if (phase5Tables[0]?.settings) {
+      await prisma.academySetting.deleteMany({ where: { academyId: { in: scopedAcademyIds } } });
+    }
+
     await prisma.report.deleteMany({ where: { sessionId: { in: demoSessionIds } } });
     await prisma.sessionReservation.deleteMany({ where: { sessionId: { in: demoSessionIds } } });
     await prisma.sessionStudent.deleteMany({ where: { sessionId: { in: demoSessionIds } } });

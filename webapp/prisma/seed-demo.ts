@@ -818,6 +818,168 @@ async function main() {
     });
     await ensureReservation(pastSessionId, studentGroupA.id, subGroupA.id, yesterday18);
 
+    // --- Phase 5 demo reports (real rows for the queue/visibility screens) ---
+    // APPROVED report with attendance written from the approved outcome (settled_at and
+    // archived_at stay NULL — Phase 6 settlement owns them).
+    const approvedSessionId = "00000000-0000-0000-0000-000000000609";
+    const yesterday15 = cairoWallClock(-1, 15);
+    const approvedReport = {
+      status: "APPROVED" as const,
+      attendanceOutcome: "ATTENDED" as const,
+      classRemark: "excellent",
+      summary: "تمت مراجعة سورة البقرة مع تحسين المخارج والتجويد.",
+      homework: "حفظ الصفحة 12 ومراجعتها يومياً.",
+      notes: null,
+      operationalEvents: { late_entry_minutes: 3 },
+      submittedAt: new Date(yesterday15.getTime() + 90 * 60 * 1000),
+      rejectionReason: null,
+      rejectedById: null,
+      rejectedAt: null,
+      approvedById: admin.id,
+      approvedAt: new Date(yesterday15.getTime() + 150 * 60 * 1000),
+      settledAt: null,
+      archivedAt: null,
+    };
+    await prisma.session.upsert({
+      where: { id: approvedSessionId },
+      update: {
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday15,
+        scheduledEnd: new Date(yesterday15.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112266", createdById: admin.id, status: "SCHEDULED",
+      },
+      create: {
+        id: approvedSessionId,
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday15,
+        scheduledEnd: new Date(yesterday15.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112266", createdById: admin.id, status: "SCHEDULED",
+        students: { create: [{ studentId: studentGroupB.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: approvedSessionId, studentId: studentGroupB.id } },
+      update: { attendanceStatus: "ATTENDED" },
+      create: { sessionId: approvedSessionId, studentId: studentGroupB.id, attendanceStatus: "ATTENDED" },
+    });
+    await ensureReservation(approvedSessionId, studentGroupB.id, subGroupB.id, yesterday15);
+    await prisma.report.upsert({
+      where: { sessionId_studentId_reportType: { sessionId: approvedSessionId, studentId: studentGroupB.id, reportType: "SESSION_COMPLETION_REPORT" } },
+      update: approvedReport,
+      create: {
+        academyId: academy.id, sessionId: approvedSessionId, studentId: studentGroupB.id, teacherId: teacherQuran.id,
+        reportType: "SESSION_COMPLETION_REPORT", ...approvedReport,
+      },
+    });
+
+    // REJECTED report — returns to the teacher; rejection metadata stays on the row.
+    const rejectedSessionId = "00000000-0000-0000-0000-00000000060a";
+    const yesterday10 = cairoWallClock(-1, 10);
+    const rejectedReport = {
+      status: "REJECTED" as const,
+      attendanceOutcome: "ATTENDED" as const,
+      classRemark: "good",
+      summary: "مراجعة أحكام التجويد.",
+      homework: "تسميع الصفحة 10.",
+      notes: null,
+      submittedAt: new Date(yesterday10.getTime() + 60 * 60 * 1000),
+      rejectionReason: "يرجى توضيح ما أُنجز في الحصة بالتفصيل قبل إعادة الإرسال.",
+      rejectedById: admin.id,
+      rejectedAt: new Date(yesterday10.getTime() + 120 * 60 * 1000),
+      approvedById: null,
+      approvedAt: null,
+      settledAt: null,
+      archivedAt: null,
+    };
+    await prisma.session.upsert({
+      where: { id: rejectedSessionId },
+      update: {
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday10,
+        scheduledEnd: new Date(yesterday10.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112277", createdById: admin.id, status: "SCHEDULED",
+      },
+      create: {
+        id: rejectedSessionId,
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday10,
+        scheduledEnd: new Date(yesterday10.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112277", createdById: admin.id, status: "SCHEDULED",
+        students: { create: [{ studentId: studentCreditMany.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: rejectedSessionId, studentId: studentCreditMany.id } },
+      update: { attendanceStatus: "PENDING" },
+      create: { sessionId: rejectedSessionId, studentId: studentCreditMany.id, attendanceStatus: "PENDING" },
+    });
+    await ensureReservation(rejectedSessionId, studentCreditMany.id, subCreditMany.id, yesterday10);
+    await prisma.report.upsert({
+      where: { sessionId_studentId_reportType: { sessionId: rejectedSessionId, studentId: studentCreditMany.id, reportType: "SESSION_COMPLETION_REPORT" } },
+      update: rejectedReport,
+      create: {
+        academyId: academy.id, sessionId: rejectedSessionId, studentId: studentCreditMany.id, teacherId: teacherQuran.id,
+        reportType: "SESSION_COMPLETION_REPORT", ...rejectedReport,
+      },
+    });
+
+    // SUBMITTED report awaiting Admin/Supervisor review (queue demo data).
+    const submittedSessionId = "00000000-0000-0000-0000-00000000060b";
+    const yesterday12 = cairoWallClock(-1, 12);
+    const submittedReport = {
+      status: "SUBMITTED" as const,
+      attendanceOutcome: "ATTENDED" as const,
+      classRemark: "good",
+      summary: "حصة تجويد وتلاوة مع تصحيح الأخطاء.",
+      homework: "تسميع الصفحة 14 وتسجيلها.",
+      notes: "الطالب متحمس ويحتاج تمارين إضافية على المدود.",
+      submittedAt: new Date(yesterday12.getTime() + 45 * 60 * 1000),
+      rejectionReason: null,
+      rejectedById: null,
+      rejectedAt: null,
+      approvedById: null,
+      approvedAt: null,
+      settledAt: null,
+      archivedAt: null,
+    };
+    await prisma.session.upsert({
+      where: { id: submittedSessionId },
+      update: {
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday12,
+        scheduledEnd: new Date(yesterday12.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112288", createdById: admin.id, status: "SCHEDULED",
+      },
+      create: {
+        id: submittedSessionId,
+        academyId: academy.id, teacherId: teacherQuran.id, subjectId: quran.id,
+        sessionType: "PRIVATE", scheduledStart: yesterday12,
+        scheduledEnd: new Date(yesterday12.getTime() + 60 * 60 * 1000),
+        durationMinutes: 60, timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/7001112288", createdById: admin.id, status: "SCHEDULED",
+        students: { create: [{ studentId: studentGroupA.id }] },
+      },
+    });
+    await prisma.sessionStudent.upsert({
+      where: { sessionId_studentId: { sessionId: submittedSessionId, studentId: studentGroupA.id } },
+      update: { attendanceStatus: "PENDING" },
+      create: { sessionId: submittedSessionId, studentId: studentGroupA.id, attendanceStatus: "PENDING" },
+    });
+    await ensureReservation(submittedSessionId, studentGroupA.id, subGroupA.id, yesterday12);
+    await prisma.report.upsert({
+      where: { sessionId_studentId_reportType: { sessionId: submittedSessionId, studentId: studentGroupA.id, reportType: "SESSION_COMPLETION_REPORT" } },
+      update: submittedReport,
+      create: {
+        academyId: academy.id, sessionId: submittedSessionId, studentId: studentGroupA.id, teacherId: teacherQuran.id,
+        reportType: "SESSION_COMPLETION_REPORT", ...submittedReport,
+      },
+    });
+
     // Final scenario table (username -> role -> available credit -> teacher/subject -> case).
     const demoStudentCases: { username: string; caseName: string }[] = [
       { username: "demo_student", caseName: "base student (has session 603 with demo_teacher)" },
@@ -857,7 +1019,8 @@ async function main() {
       console.log(`${entry.username.padEnd(26)} | ${user.role.padEnd(7)} | credit: ${String(balance).padStart(3)} | ${activeAssignment.padEnd(34)} | ${entry.caseName}`);
     }
     console.log(`\nTeachers: demo_teacher_quran (Quran), demo_teacher_lang (English+Arabic), demo_teacher_multi (Quran+English)`);
-    console.log(`Sessions: ${futureSessionId} SCHEDULED tomorrow 18:00 Cairo; ${cancelledSessionId} CANCELLED yesterday 16:00; ${pastSessionId} SCHEDULED yesterday 18:00 (no report)`);
+    console.log(`Sessions: ${futureSessionId} SCHEDULED tomorrow 18:00 Cairo; ${cancelledSessionId} CANCELLED yesterday 16:00; ${pastSessionId} SCHEDULED yesterday 18:00 (no report — Phase 5 missing-report view)`);
+    console.log(`Phase 5 reports: ${approvedSessionId} APPROVED (attendance ATTENDED); ${rejectedSessionId} REJECTED (returns to teacher); ${submittedSessionId} SUBMITTED (in the review queue)`);
     console.log(`Seed admin id: ${admin.id}`);
     console.log(`Demo login password (all demo users): ${demoPassword}`);
   } finally {

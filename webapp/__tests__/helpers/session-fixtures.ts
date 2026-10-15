@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 
 import { disconnectPrisma, prisma } from "../../lib/prisma";
 import { isLinkAuditReady } from "../../lib/scheduling/link-audit";
+import { isAttachmentsReady } from "../../lib/storage/attachment-ready";
 
 export type SessionFixtures = Awaited<ReturnType<typeof createSessionFixtures>>;
 
@@ -204,6 +205,10 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     await prisma.sessionReservation.deleteMany({ where: { academyId } });
     await prisma.sessionChangeRequest.deleteMany({ where: { academyId } });
     await prisma.teacherFlag.deleteMany({ where: { academyId } });
+    if (await isAttachmentsReady()) {
+      await prisma.reportAttachment.deleteMany({ where: { academyId } });
+      await prisma.academySetting.deleteMany({ where: { academyId } });
+    }
     await prisma.report.deleteMany({ where: { academyId } });
     await prisma.sessionStudent.deleteMany({ where: { session: { academyId } } });
     await prisma.session.deleteMany({ where: { academyId } });
