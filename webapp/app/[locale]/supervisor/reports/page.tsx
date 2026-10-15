@@ -2,6 +2,6 @@ import ReportsQueuePage from "../../../_components/reports-queue/reports-queue-p
 
 export const metadata = { title: "تقارير الحصص | Zarabicschool" };
 
-export default function SupervisorReportsPage() {
-  return <ReportsQueuePage role="SUPERVISOR" />;
+export default async function SupervisorReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  return <ReportsQueuePage role="SUPERVISOR" searchParams={await searchParams} />;
 }

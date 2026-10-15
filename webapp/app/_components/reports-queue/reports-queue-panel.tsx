@@ -1,17 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import Icon from "../ui/icon";
 import StatusBadge from "../ui/status-badge";
 
+export type QueueFilter = { teacher?: string; type?: "GROUP" | "PRIVATE"; from?: string; to?: string };
+
+export type QueueAttachment = { id: string; originalName: string; mimeType: string; sizeBytes: number };
+
 export type QueueReport = {
   id: string;
+  teacherId: string;
   teacherName: string;
   studentName: string;
   subjectName: string;
+  sessionType: "PRIVATE" | "GROUP";
   scheduledStart: string;
   scheduledEnd: string;
   submittedAt: string;
@@ -24,6 +30,7 @@ export type QueueReport = {
   extraTimeStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
   operationalEvents: Record<string, unknown> | null;
   hasLateFlag: boolean;
+  attachments: QueueAttachment[];
 };
 
 export type QueueMetrics = {
@@ -42,14 +49,19 @@ function initials(name: string) {
 export default function ReportsQueuePanel({
   reports,
   metrics,
+  teachers,
+  filters,
   locale,
 }: {
   reports: QueueReport[];
   metrics: QueueMetrics;
+  teachers: { id: string; name: string }[];
+  filters: QueueFilter;
   locale: string;
 }) {
   const t = useTranslations("reportsQueue");
   const router = useRouter();
+  const pathname = usePathname();
   const [items, setItems] = useState(reports);
   const [selectedId, setSelectedId] = useState(reports[0]?.id ?? null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -74,6 +86,27 @@ export default function ReportsQueuePanel({
   }, [items, filter, search]);
 
   const selected = items.find((report) => report.id === selectedId) ?? null;
+
+  // Server-side filters (Batch B): updating any of them reloads the page data.
+  function applyServerFilters(next: QueueFilter) {
+    const query = new URLSearchParams();
+    if (next.teacher) query.set("teacher", next.teacher);
+    if (next.type) query.set("type", next.type);
+    if (next.from) query.set("from", next.from);
+    if (next.to) query.set("to", next.to);
+    router.push(`${pathname}${query.toString() ? `?${query.toString()}` : ""}`);
+  }
+
+  async function openAttachment(attachmentId: string) {
+    setError("");
+    const response = await fetch(`/api/reports/${selected!.id}/attachments/${attachmentId}`);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.data?.url) {
+      setError(payload?.error?.message ?? t("actionError"));
+      return;
+    }
+    window.open(payload.data.url, "_blank", "noopener,noreferrer");
+  }
 
   const dateTime = (iso: string, withTime = true) =>
     new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
@@ -109,7 +142,7 @@ export default function ReportsQueuePanel({
     router.refresh();
   }
 
-  const filters: { key: Filter; label: string; count: number }[] = [
+  const tabFilters: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: t("filterAll"), count: items.length },
     { key: "flagged", label: t("filterFlagged"), count: items.filter((r) => r.hasLateFlag).length },
     { key: "overtime", label: t("filterOvertime"), count: items.filter((r) => r.extraTimeStatus === "PENDING").length },
@@ -176,7 +209,7 @@ export default function ReportsQueuePanel({
               role="tablist"
               aria-label={t("filterLabel")}
             >
-              {filters.map((item) => (
+              {tabFilters.map((item) => (
                 <button
                   key={item.key}
                   type="button"
@@ -192,6 +225,54 @@ export default function ReportsQueuePanel({
                   {item.label} ({item.count})
                 </button>
               ))}
+            </div>
+
+            <div className="z-card grid grid-cols-2 gap-2 rounded-xl p-3 lg:grid-cols-1">
+              <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
+                {t("filterTeacher")}
+                <select
+                  value={filters.teacher ?? ""}
+                  onChange={(event) => applyServerFilters({ ...filters, teacher: event.target.value || undefined })}
+                  className="z-input w-full"
+                >
+                  <option value="">{t("filterAll")}</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
+                {t("filterType")}
+                <select
+                  value={filters.type ?? ""}
+                  onChange={(event) => applyServerFilters({ ...filters, type: (event.target.value || undefined) as QueueFilter["type"] })}
+                  className="z-input w-full"
+                >
+                  <option value="">{t("filterAll")}</option>
+                  <option value="PRIVATE">{t("filterTypePrivate")}</option>
+                  <option value="GROUP">{t("filterTypeGroup")}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
+                {t("filterFrom")}
+                <input
+                  type="date"
+                  value={filters.from ?? ""}
+                  onChange={(event) => applyServerFilters({ ...filters, from: event.target.value || undefined })}
+                  className="z-input w-full"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
+                {t("filterTo")}
+                <input
+                  type="date"
+                  value={filters.to ?? ""}
+                  onChange={(event) => applyServerFilters({ ...filters, to: event.target.value || undefined })}
+                  className="z-input w-full"
+                />
+              </label>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -339,6 +420,30 @@ export default function ReportsQueuePanel({
                       </ul>
                     </div>
                   ) : null}
+                  <div>
+                    <p className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
+                      {t("attachmentsLabel")}
+                    </p>
+                    {selected.attachments.length === 0 ? (
+                      <p className="text-body-sm text-on-surface-variant">{t("attachmentsEmpty")}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-col gap-1">
+                        {selected.attachments.map((attachment) => (
+                          <li key={attachment.id} className="flex items-center justify-between rounded bg-surface-container px-2 py-1 text-body-sm">
+                            <span className="min-w-0 truncate">{attachment.originalName}</span>
+                            <button
+                              type="button"
+                              onClick={() => openAttachment(attachment.id)}
+                              className="btn btn-soft px-2 py-0.5 text-xs"
+                            >
+                              <Icon name="open_in_new" size={14} />
+                              {t("attachmentsOpen")}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
 
                 {error ? (

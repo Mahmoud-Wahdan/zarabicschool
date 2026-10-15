@@ -12,6 +12,7 @@ import { getServerSession } from "next-auth";
 
 import { prisma } from "../../lib/prisma";
 import { processLateReportNotifications } from "../../lib/worker/notifications";
+import { settleApprovedReport } from "../../lib/reports/settlement-seam";
 import { POST as submitReportRoute } from "../../app/api/sessions/[id]/students/[studentId]/report/route";
 import { POST as reviewReportRoute } from "../../app/api/reports/[id]/review/route";
 import {
@@ -355,5 +356,18 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     expect(status).toBe(201);
     const job = await prisma.notificationJob.findFirstOrThrow({ where: { sessionId: session.id, kind: "REPORT_REMINDER" } });
     expect(job.status).toBe("CANCELLED");
+  });
+
+  it("keeps the settlement seam a no-op inside the approval transaction (no money rows in Phase 5)", async () => {
+    await prisma.$transaction(async (tx) => {
+      await settleApprovedReport(tx, {
+        id: randomUUID(),
+        sessionId: randomUUID(),
+        studentId: randomUUID(),
+        attendanceOutcome: "ATTENDED",
+      });
+    });
+    const deductions = await prisma.subscriptionLedger.count({ where: { academyId: fx.academyId, entryType: "SESSION_DEDUCTION" } });
+    expect(deductions).toBe(0);
   });
 });

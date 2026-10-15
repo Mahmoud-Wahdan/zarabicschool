@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
+import { settleApprovedReport } from "../../../../../lib/reports/settlement-seam";
 import { reportReviewSchema } from "../../../../../lib/validation/management";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -44,8 +45,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });
   }
   // APPROVE — one transaction: claim the row conditionally (only one concurrent
-  // approval wins), then write attendance from the approved outcome. No money moves
-  // in Phase 5; Phase 6 settlement hooks into the same transaction via the seam.
+  // approval wins), then write attendance from the approved outcome. The settlement
+  // seam is the single hook point where Phase 6 money writes will join THIS
+  // transaction; no money moves in Phase 5.
   const updated = await prisma.$transaction(async (tx) => {
     const claimed = await tx.report.updateMany({
       where: { id, status: "SUBMITTED" },
@@ -55,6 +57,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await tx.sessionStudent.update({
       where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
       data: { attendanceStatus: report.attendanceOutcome === "ATTENDED" ? "ATTENDED" : "STUDENT_ABSENT" },
+    });
+    await settleApprovedReport(tx, {
+      id: report.id,
+      sessionId: report.sessionId,
+      studentId: report.studentId,
+      attendanceOutcome: report.attendanceOutcome,
     });
     return tx.report.findUnique({ where: { id } });
   });
