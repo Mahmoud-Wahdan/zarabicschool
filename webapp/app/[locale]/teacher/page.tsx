@@ -49,28 +49,38 @@ export default async function TeacherDashboard() {
           {teacher?.sessions.length ?? 0} {t("teacher.metrics.upcoming")}
         </p>
         <div className="mt-4 space-y-3">
-          {teacher?.sessions.map((session) => (
-            <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
-              <div className="flex flex-wrap justify-between gap-2">
-                <strong>{currentLocale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
-                <span>{formatDate(session.scheduledStart)}</span>
+          {teacher?.sessions.map((session) => {
+            // The report icon appears only after the scheduled end, and never for
+            // cancelled/missed sessions (CONTEXT §6; Phase 5 review F-16).
+            const reportable =
+              new Date() >= session.scheduledEnd &&
+              session.status !== "CANCELLED" &&
+              session.status !== "MISSED";
+            return (
+              <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <strong>{currentLocale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
+                  <span>{formatDate(session.scheduledStart)}</span>
+                </div>
+                <p className="mt-1 opacity-70">
+                  {session.students.length} {t("teacher.metrics.students")} · {session.sessionType}
+                </p>
+                {reportable ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {session.students.map((student) => (
+                      <Link
+                        key={student.studentId}
+                        href={`/teacher/sessions/${session.id}/report?studentId=${student.studentId}`}
+                        className="cta-primary rounded-lg px-3 py-2 text-xs"
+                      >
+                        {t("teacher.actions.report")} · {student.student.user.displayName}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <p className="mt-1 opacity-70">
-                {session.students.length} {t("teacher.metrics.students")} · {session.sessionType}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {session.students.map((student) => (
-                  <Link
-                    key={student.studentId}
-                    href={`/teacher/sessions/${session.id}/report?studentId=${student.studentId}`}
-                    className="cta-primary rounded-lg px-3 py-2 text-xs"
-                  >
-                    {t("teacher.actions.report")} · {student.student.user.displayName}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
       <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">View full schedule</Link>

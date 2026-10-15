@@ -85,7 +85,14 @@
     "metricOvertimeNote": "Admin decision required",
     "metricApprovedToday": "Approved today",
     "metricApprovedNote": "Reviewed",
-    "operationalEvents": "Operational events (evidence only — never decides attendance)"
+    "operationalEvents": "Operational events (evidence only — never decides attendance)",
+    "remarksTitle": "Class remark list",
+    "remarksHint": "The dropdown teachers choose from when submitting reports. 1–8 items.",
+    "remarksAdd": "Add remark",
+    "remarksRemove": "Remove",
+    "remarksSave": "Save list",
+    "remarksSaved": "List saved — new submissions use it immediately.",
+    "remarksError": "The list could not be saved."
   },
   "financialsAdmin": {
     "title": "Revenue Operations & Subscriptions",
@@ -929,7 +936,44 @@
     "created": "Account created."
   },
   "teacherReport": {
-    "title": "Session report"
+    "title": "Session report",
+    "notFinished": "The report opens after the session ends ({time}).",
+    "notReportable": "Cancelled or missed sessions have no report.",
+    "pickerTitle": "Choose a student to write their report",
+    "reported": "Reported",
+    "missing": "Missing",
+    "attendance": "Student attendance",
+    "attended": "Attended",
+    "absent": "Absent",
+    "frozenHint": "The attendance outcome and extra time are frozen from the first submission.",
+    "classRemark": "Class remark",
+    "summary": "Lesson summary",
+    "homework": "Homework",
+    "homeworkHint": "Required — the student sees it after approval.",
+    "notes": "Notes",
+    "optional": "optional",
+    "extraTime": "Extra time (minutes)",
+    "extraTimeHint": "A claim only — approving it is an Admin decision.",
+    "operationalEvents": "Operational events",
+    "operationalEventsHint": "Review evidence only (late entry, disconnection…) — never decides attendance.",
+    "operationalEventsInvalid": "Operational events must be valid JSON.",
+    "submit": "Submit report",
+    "resubmit": "Resubmit report",
+    "submitting": "Submitting…",
+    "submittedMessage": "Report submitted for review. No payment is posted at submission.",
+    "awaitingReview": "Submitted and awaiting review.",
+    "approvedReadOnly": "Approved — read only.",
+    "rejectedBanner": "Rejection reason:",
+    "rejectedHint": "Edit the text fields and resubmit. The attendance outcome and extra time are frozen from the first submission.",
+    "errorGeneric": "The operation failed. Please try again.",
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments.",
+      "uploadHint": "Images (JPEG/PNG/WebP) or PDF — 10 MB max per file.",
+      "uploading": "Uploading…",
+      "open": "Open",
+      "errorGeneric": "The operation failed. Please try again."
+    }
   },
   "studentReport": {
     "title": "Session report",
@@ -938,7 +982,8 @@
     "summary": "Summary",
     "homework": "Homework",
     "notes": "Notes",
-    "pending": "The report is not available until it is approved and archived."
+    "attachments": "Attachments",
+    "pending": "The report is not available until it is approved."
   },
   "subjectsAdmin": {
     "title": "Subjects",

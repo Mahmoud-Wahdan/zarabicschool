@@ -2,8 +2,10 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { prisma } from "../../../lib/prisma";
 import { requireRoles } from "../../../lib/dal";
+import { getClassRemarks } from "../../../lib/reports/class-remarks";
 import DashboardShell from "../dashboard-shell";
 import PageHeader from "../ui/page-header";
+import ClassRemarksEditor from "./class-remarks-editor";
 import ReportsQueuePanel, { type QueueReport } from "./reports-queue-panel";
 
 export default async function ReportsQueuePage({ role }: { role: "ADMIN" | "SUPERVISOR" }) {
@@ -79,6 +81,10 @@ export default async function ReportsQueuePage({ role }: { role: "ADMIN" | "SUPE
     approvedToday,
   };
 
+  // Admin-only config surface (owner decision 2026-10-14): the class-remark list is a
+  // system setting, so Supervisors never receive the editor.
+  const classRemarks = user.role === "ADMIN" ? await getClassRemarks(user.academyId) : [];
+
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} navBadges={{ reports: metrics.pending }}>
       <PageHeader
@@ -87,6 +93,7 @@ export default async function ReportsQueuePage({ role }: { role: "ADMIN" | "SUPE
         title={t("title")}
         subtitle={t("subtitle")}
       />
+      {user.role === "ADMIN" ? <ClassRemarksEditor initialItems={classRemarks} /> : null}
       <ReportsQueuePanel reports={reports} metrics={metrics} locale={locale} />
     </DashboardShell>
   );
