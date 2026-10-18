@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
-import { reserveCredit, runSerializable } from "../../../../../lib/credits/reservation";
-import { SchedulingValidationError, assertTeacherFree, resolveParticipants } from "../../../../../lib/scheduling/checks";
+import { runSerializable } from "../../../../../lib/credits/reservation";
+import { createReplacementSession, enqueueReplacementJobs } from "../../../../../lib/scheduling/replacement";
+import { SchedulingValidationError } from "../../../../../lib/scheduling/checks";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
 
@@ -41,48 +42,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const replacement = await runSerializable(async (tx) => {
-      const participants = await resolveParticipants(tx, {
+      return createReplacementSession(tx, {
         academyId: user.academyId,
+        actorId: user.id,
+        sourceSessionId,
         teacherId: data.teacherId,
         subjectId: data.subjectId,
+        sessionType: data.sessionType,
+        scheduledStart: start,
+        scheduledEnd: end,
+        timezone: data.timezone,
+        zoomJoinUrl: data.zoomJoinUrl,
+        zoomHostUrl: data.zoomHostUrl || null,
         studentIds: data.studentIds,
         assignmentOverrideReason: data.assignmentOverrideReason,
       });
-      await assertTeacherFree(tx, user.academyId, data.teacherId, start, end);
-      const replacementStudentIds = [...new Set(data.studentIds)];
-      await tx.sessionReservation.updateMany({
-        where: { sessionId: sourceSessionId, studentId: { in: replacementStudentIds }, status: "RESERVED" },
-        data: { status: "RELEASED", releasedAt: new Date() },
-      });
-      const created = await tx.session.create({
-        data: {
-          academyId: user.academyId, teacherId: data.teacherId, subjectId: data.subjectId,
-          sessionType: data.sessionType, scheduledStart: start, scheduledEnd: end,
-          durationMinutes, timezone: data.timezone, zoomJoinUrl: data.zoomJoinUrl,
-          zoomHostUrl: data.zoomHostUrl || null,
-          assignmentOverriddenById: participants.overrodeAssignment ? user.id : null,
-          assignmentOverrideReason: participants.overrodeAssignment ? data.assignmentOverrideReason : null,
-          replacementForSessionId: sourceSessionId,
-          createdById: user.id,
-          students: { create: data.studentIds.map((studentId) => ({ studentId })) },
-        },
-        select: { id: true, replacementForSessionId: true },
-      });
-      const insufficientStudentIds: string[] = [];
-      for (const studentId of new Set(data.studentIds)) {
-        if (!(await reserveCredit(tx, user.academyId, studentId, created.id, start))) {
-          insufficientStudentIds.push(studentId);
-        }
-      }
-      if (insufficientStudentIds.length > 0) {
-        throw new SchedulingValidationError(
-          "INSUFFICIENT_SESSION_CREDIT",
-          "One or more students do not have an available session credit.",
-          insufficientStudentIds,
-        );
-      }
-      return created;
     });
+    // Notification jobs for the replacement's participants (Phase 5 review F-12) —
+    // after commit; a failure here never rolls the replacement back.
+    try {
+      await enqueueReplacementJobs(replacement.id);
+    } catch {
+      // Reminder bookkeeping must never fail the scheduling action (the worker's
+      // own scans remain the safety net for reminders).
+    }
     return NextResponse.json({ data: replacement }, { status: 201 });
   } catch (cause) {
     if (cause instanceof SchedulingValidationError) {

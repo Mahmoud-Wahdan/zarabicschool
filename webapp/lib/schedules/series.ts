@@ -13,6 +13,50 @@ export type SeriesRecurrenceRule = {
   assignmentOverride?: { overriddenById: string; reason: string } | null;
 };
 
+/**
+ * A persisted recurrence rule is unreadable/malformed (missing or invalid
+ * scheduledStart/scheduledEnd, e.g. data written by an older seed). The worker
+ * skips such series with a logged warning instead of throwing "Invalid time
+ * value" from deep inside Intl (Phase 5 completion, 2026-10-18).
+ */
+export class SeriesRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SeriesRuleError";
+  }
+}
+
+function parseRuleInstant(value: unknown, field: string): Date {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new SeriesRuleError(`recurrence rule is missing "${field}"`);
+  }
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) {
+    throw new SeriesRuleError(`recurrence rule has an invalid "${field}"`);
+  }
+  return instant;
+}
+
+export function parseSeriesRule(raw: unknown): { rule: SeriesRecurrenceRule; anchorStart: Date; anchorEnd: Date } {
+  if (!raw || typeof raw !== "object") {
+    throw new SeriesRuleError("recurrence rule is not an object");
+  }
+  const rule = raw as Partial<SeriesRecurrenceRule> & Record<string, unknown>;
+  const anchorStart = parseRuleInstant(rule.scheduledStart, "scheduledStart");
+  const anchorEnd = parseRuleInstant(rule.scheduledEnd, "scheduledEnd");
+  if (!Array.isArray(rule.studentIds) || rule.studentIds.length === 0) {
+    throw new SeriesRuleError("recurrence rule has no students");
+  }
+  if (typeof rule.zoomJoinUrl !== "string" || rule.zoomJoinUrl.length === 0) {
+    throw new SeriesRuleError("recurrence rule is missing the join link");
+  }
+  return {
+    rule: rule as SeriesRecurrenceRule,
+    anchorStart,
+    anchorEnd,
+  };
+}
+
 export type SeriesForGeneration = Pick<
   RecurrenceSeries,
   "id" | "academyId" | "teacherId" | "subjectId" | "sessionType" | "timezone" | "totalWeeks" | "createdById"
@@ -27,12 +71,16 @@ export async function generateSeriesWeek(
   series: SeriesForGeneration,
   weekIndex: number,
 ): Promise<SeriesWeekOutcome> {
-  const rule = series.recurrenceRule;
-  const anchorStart = new Date(rule.scheduledStart);
-  const anchorEnd = new Date(rule.scheduledEnd);
+  const { rule, anchorStart, anchorEnd } = parseSeriesRule(series.recurrenceRule);
   const sessionStart = addWeeksInTimeZone(anchorStart, weekIndex, series.timezone);
   const sessionEnd = addWeeksInTimeZone(anchorEnd, weekIndex, series.timezone);
+  if (Number.isNaN(sessionStart.getTime()) || Number.isNaN(sessionEnd.getTime())) {
+    throw new SeriesRuleError("recurrence rule produces an invalid week start/end");
+  }
   const durationMinutes = Math.round((sessionEnd.getTime() - sessionStart.getTime()) / 60000);
+  if (durationMinutes <= 0) {
+    throw new SeriesRuleError("recurrence rule produces a non-positive duration");
+  }
   const studentIds = rule.studentIds;
 
   const teacherConflicts = await tx.session.findMany({

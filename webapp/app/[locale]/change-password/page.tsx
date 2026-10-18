@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { getAuthSession } from "../../../lib/dal";
 import ChangePasswordForm from "./change-password-form";
 
-export const metadata = { title: "تغيير كلمة المرور | Zarabicschool" };
+export async function generateMetadata() {
+  const t = await getTranslations("changePassword");
+  return { title: `${t("title")} | Zarabicschool` };
+}
 
 export default async function ChangePasswordPage() {
   const user = await getAuthSession();

@@ -118,7 +118,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
   async function cancelSession(id: string) {
     if (!window.confirm(t("confirmCancel"))) return;
     setBusy(true);
-    const response = await fetch(`/api/sessions/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "CANCELLED", cancellationReason: "Cancelled by operations" }) });
+    const response = await fetch(`/api/sessions/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "CANCELLED", cancellationReason: t("cancelReason") }) });
     const payload = await response.json().catch(() => ({}));
     setMessage(response.ok ? t("messages.cancelled") : payload.error?.message ?? t("errors.submit"));
     if (response.ok) setSessions((current) => current.map((session) => session.id === id ? { ...session, status: "CANCELLED" } : session));

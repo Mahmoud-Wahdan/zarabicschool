@@ -6,7 +6,10 @@ import LogoPlaceholder from "../../_components/logo-placeholder";
 import { getAuthSession } from "../../../lib/dal";
 import LoginForm from "./login-form";
 
-export const metadata = { title: "تسجيل الدخول | Zarabicschool" };
+export async function generateMetadata() {
+  const t = await getTranslations("login");
+  return { title: `${t("title")} | Zarabicschool` };
+}
 
 export default async function LoginPage() {
   const user = await getAuthSession();

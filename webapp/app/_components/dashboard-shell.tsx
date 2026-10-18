@@ -11,7 +11,7 @@ type NavItem = {
   key: string;
   icon: string;
   href: string;
-  badgeKey?: "applications" | "reports";
+  badgeKey?: "applications" | "reports" | "requests";
   badgeTone?: "secondary" | "tertiary";
 };
 
@@ -27,7 +27,11 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "enrollments", icon: "how_to_reg", href: "/admin/enrollments" },
     { key: "sessions", icon: "video_camera_front", href: "/admin/sessions" },
     { key: "reports", icon: "fact_check", href: "/admin/reports", badgeKey: "reports", badgeTone: "tertiary" },
+    { key: "sessionRequests", icon: "report_problem", href: "/admin/session-requests", badgeKey: "requests", badgeTone: "secondary" },
     { key: "financials", icon: "receipt_long", href: "/admin/financials" },
+    { key: "invoices", icon: "request_quote", href: "/admin/invoices" },
+    { key: "payroll", icon: "payments", href: "/admin/payroll" },
+    { key: "overtime", icon: "more_time", href: "/admin/overtime" },
     { key: "accounts", icon: "manage_accounts", href: "/admin/users" },
   ],
   SUPERVISOR: [
@@ -40,18 +44,26 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "enrollments", icon: "how_to_reg", href: "/admin/enrollments" },
     { key: "sessions", icon: "video_camera_front", href: "/admin/sessions" },
     { key: "reports", icon: "fact_check", href: "/supervisor/reports", badgeKey: "reports", badgeTone: "tertiary" },
+    { key: "sessionRequests", icon: "report_problem", href: "/supervisor/session-requests", badgeKey: "requests", badgeTone: "secondary" },
   ],
   TEACHER: [
     { key: "dashboard", icon: "dashboard", href: "/teacher" },
     { key: "mySessions", icon: "calendar_month", href: "/teacher/sessions" },
+    { key: "attendance", icon: "fact_check", href: "/teacher/attendance" },
+    { key: "payroll", icon: "payments", href: "/teacher/payroll" },
   ],
   GUARDIAN: [
     { key: "dashboard", icon: "dashboard", href: "/guardian" },
     { key: "familySchedule", icon: "calendar_month", href: "/guardian/sessions" },
+    { key: "attendance", icon: "event_available", href: "/guardian/attendance" },
+    { key: "guardianReports", icon: "menu_book", href: "/guardian/reports" },
+    { key: "invoices", icon: "request_quote", href: "/guardian/invoices" },
   ],
   STUDENT: [
     { key: "dashboard", icon: "dashboard", href: "/student" },
     { key: "mySessions", icon: "calendar_month", href: "/student/sessions" },
+    { key: "attendance", icon: "event_available", href: "/student/attendance" },
+    { key: "invoices", icon: "request_quote", href: "/student/invoices" },
   ],
 };
 
@@ -65,7 +77,7 @@ function SidebarNav({
   onNavigate,
 }: {
   items: NavItem[];
-  badges?: Partial<Record<"applications" | "reports", number>>;
+  badges?: Partial<Record<"applications" | "reports" | "requests", number>>;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -219,7 +231,7 @@ export default function DashboardShell({
   role: string;
   userName: string;
   timezone?: string;
-  navBadges?: Partial<Record<"applications" | "reports", number>>;
+  navBadges?: Partial<Record<"applications" | "reports" | "requests", number>>;
   children: ReactNode;
 }) {
   const t = useTranslations("appShell");

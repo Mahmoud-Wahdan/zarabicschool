@@ -10,7 +10,10 @@ import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 
-export const metadata = { title: "لوحة الإدارة | Zarabicschool" };
+export async function generateMetadata() {
+  const t = await getTranslations("adminDash");
+  return { title: `${t("title")} | Zarabicschool` };
+}
 
 const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
   SCHEDULED: "info",
@@ -188,7 +191,7 @@ export default async function AdminDashboard() {
                     </td>
                     <td>{session.teacher.user.displayName}</td>
                     <td className="max-w-56 truncate">
-                      {session.students.map((item) => item.student.user.displayName).join("، ") || "—"}
+                      {session.students.map((item) => item.student.user.displayName).join(locale === "ar" ? "، " : ", ") || "—"}
                     </td>
                     <td>{session.sessionType === "PRIVATE" ? t("private") : t("group")}</td>
                     <td>

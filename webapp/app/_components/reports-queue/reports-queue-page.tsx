@@ -101,7 +101,6 @@ export default async function ReportsQueuePage({
   ]);
 
   const flaggedSessionIds = new Set(lateFlags.map((flag) => flag.sessionId));
-
   const reports: QueueReport[] = pendingReports.map((report) => ({
     id: report.id,
     teacherId: report.teacherId,
@@ -133,6 +132,22 @@ export default async function ReportsQueuePage({
 
   const teachers = queueTeachers.map((entry) => ({ id: entry.teacher.id, name: entry.teacher.user.displayName }));
 
+  // Red-mark rollup (Batch D item 12): LATE_REPORT flags per teacher, so Admin and
+  // Supervisor see compliance at a glance in the queue (the per-report chips remain).
+  const flaggedTeacherIds = [...new Set(lateFlags.map((flag) => flag.teacherId))];
+  const flaggedTeachers = flaggedTeacherIds.length
+    ? await prisma.teacher.findMany({
+        where: { id: { in: flaggedTeacherIds } },
+        select: { id: true, user: { select: { displayName: true } } },
+      })
+    : [];
+  const redMarks = flaggedTeachers
+    .map((teacher) => ({
+      name: teacher.user.displayName,
+      count: lateFlags.filter((flag) => flag.teacherId === teacher.id).length,
+    }))
+    .sort((a, b) => b.count - a.count);
+
   const metrics = {
     pending: reports.length,
     flagged: reports.filter((report) => report.hasLateFlag).length,
@@ -153,6 +168,19 @@ export default async function ReportsQueuePage({
         subtitle={t("subtitle")}
       />
       <ReportsQueuePanel reports={reports} metrics={metrics} teachers={teachers} filters={filters} locale={locale} />
+      {redMarks.length > 0 ? (
+        <section className="z-card rounded-xl p-4">
+          <h2 className="text-title-md font-bold text-primary">{t("redMarksTitle")}</h2>
+          <p className="text-body-sm text-on-surface-variant">{t("redMarksHint")}</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {redMarks.map((entry) => (
+              <li key={entry.name} className="rounded bg-error-container px-2 py-1 text-body-sm text-on-error-container">
+                {entry.name} · {t("redMarksCount", { count: entry.count })}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {user.role === "ADMIN" ? <ClassRemarksEditor initialItems={classRemarks} /> : null}
     </DashboardShell>
   );

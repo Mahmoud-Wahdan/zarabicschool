@@ -8,7 +8,10 @@ import PageHeader from "../../../_components/ui/page-header";
 import EmptyState from "../../../_components/ui/empty-state";
 import StatusBadge, { type BadgeTone } from "../../../_components/ui/status-badge";
 
-export const metadata = { title: "المالية والاشتراكات | Zarabicschool" };
+export async function generateMetadata() {
+  const t = await getTranslations("financialsAdmin");
+  return { title: `${t("title")} | Zarabicschool` };
+}
 
 const INVOICE_STATUS_TONE: Record<string, BadgeTone> = {
   PENDING: "pending",
@@ -78,10 +81,10 @@ export default async function AdminFinancialsPage() {
 
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
-  const providerLabel = (provider: string) => (provider === "PAYMOB" ? "Paymob (EGP)" : t("usdGateway"));
+  const providerLabel = (provider: string) => (provider === "PAYMOB" ? t("providerPaymob") : t("usdGateway"));
 
   return (
-    <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} navBadges={{ applications: pendingInvoices.length }}>
+    <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
       <PageHeader
         eyebrow={t("eyebrow")}
         eyebrowMeta={t("eyebrowMeta")}

@@ -158,6 +158,14 @@ async function main() {
     if (phase5Tables[0]?.attachments) {
       await prisma.reportAttachment.deleteMany({ where: { report: { sessionId: { in: demoSessionIds } } } });
     }
+    const sessionRequestsTable = (await prisma.$queryRawUnsafe(
+      "SELECT to_regclass('session_requests') AS regclass",
+    )) as { regclass: string | null }[];
+    if (sessionRequestsTable[0]?.regclass) {
+      await prisma.sessionRequest.deleteMany({
+        where: { OR: [{ sessionId: { in: demoSessionIds } }, { requestedById: { in: demoUserIds } }] },
+      });
+    }
     if (phase5Tables[0]?.settings) {
       await prisma.academySetting.deleteMany({ where: { academyId: { in: scopedAcademyIds } } });
     }

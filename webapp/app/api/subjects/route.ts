@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "../../../lib/prisma";
-import { requireApiRole } from "../../../lib/dal";
+import { requireApiRoles } from "../../../lib/dal";
 import { subjectCreateSchema } from "../../../lib/validation/management";
 
 export const runtime = "nodejs";
@@ -26,7 +26,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user, error } = await requireApiRole("ADMIN");
+  // CONTEXT §4: subjects are an operational surface — Admin AND Supervisor.
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = subjectCreateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

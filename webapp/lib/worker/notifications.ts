@@ -6,7 +6,7 @@ import { runSerializable } from "../credits/reservation";
 import { getMessagingProvider } from "../messaging/provider";
 import { prisma } from "../prisma";
 import { addWeeksInTimeZone } from "../schedules/recurrence";
-import { generateSeriesWeek, type SeriesForGeneration, type SeriesRecurrenceRule } from "../schedules/series";
+import { generateSeriesWeek, parseSeriesRule, SeriesRuleError, type SeriesForGeneration } from "../schedules/series";
 
 const POLL_BATCH = 50;
 const EXTENSION_HORIZON_MS = 14 * 24 * 60 * 60 * 1000;
@@ -21,12 +21,12 @@ function isReportNudgeKind(kind: string) {
   return kind === "REPORT_REMINDER" || kind === "REPORT_REMINDER_FOLLOWUP";
 }
 
-function formatSessionTime(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("ar-EG", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(instant);
+function formatSessionTime(instant: Date, timeZone: string, language: "ar" | "en"): string {
+  return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "ar-EG", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(instant);
 }
 
 type JobWithRelations = NotificationJob & {
-  recipientUser: { id: string; phone: string | null; isActive: boolean };
+  recipientUser: { id: string; phone: string | null; isActive: boolean; preferredLanguage: string; timezone: string };
   session: {
     scheduledStart: Date;
     scheduledEnd: Date;
@@ -39,27 +39,75 @@ type JobWithRelations = NotificationJob & {
 
 // Exported for the late-report chain unit tests (message/time assertions).
 export function composeJobMessage(job: JobWithRelations): string {
+  // Templates in Arabic + English by the RECIPIENT's language; times rendered in the
+  // RECIPIENT's IANA timezone when known, falling back to the session's (Batch D).
+  const language: "ar" | "en" = job.recipientUser.preferredLanguage === "en" ? "en" : "ar";
   if (job.session) {
-    const subject = job.session.subject.nameAr;
+    const subject = language === "en" ? job.session.subject.nameEn : job.session.subject.nameAr;
+    const timeZone = job.recipientUser.timezone || job.session.timezone;
     // Late-report nudges reference the scheduled END ("the session that ended at …");
     // session reminders reference the start (Phase 5 review F-08).
     const anchor = isReportNudgeKind(job.kind) ? job.session.scheduledEnd : job.session.scheduledStart;
-    const time = formatSessionTime(anchor, job.session.timezone);
+    const time = formatSessionTime(anchor, timeZone, language);
+    if (language === "en") {
+      if (job.kind === "SESSION_START") {
+        return `Your session (${subject}) has started. Join link: ${job.session.zoomJoinUrl}`;
+      }
+      if (job.kind === "REPORT_REMINDER") {
+        return `The report for ${subject} (ended ${time}, ${timeZone}) is still missing. Please submit it.`;
+      }
+      if (job.kind === "REPORT_REMINDER_FOLLOWUP") {
+        return `Reminder: the report for ${subject} (ended ${time}) is still missing.`;
+      }
+      return `Reminder: your session (${subject}) starts at ${time} (${timeZone}).`;
+    }
     if (job.kind === "SESSION_START") {
       return `حصتك (${subject}) بدأت الآن. رابط الحضور: ${job.session.zoomJoinUrl}`;
     }
     if (job.kind === "REPORT_REMINDER") {
-      return `لديك تقرير غير مسجل لحصة ${subject} التي انتهت في ${time} (${job.session.timezone}).`;
+      return `لديك تقرير غير مسجل لحصة ${subject} التي انتهت في ${time} (${timeZone}).`;
     }
     if (job.kind === "REPORT_REMINDER_FOLLOWUP") {
       return `التقرير ما زال ناقصاً لحصة ${subject} المنتهية في ${time}. يرجى تسجيله.`;
     }
-    return `تذكير: حصتك (${subject}) تبدأ في ${time} (${job.session.timezone}).`;
+    return `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}).`;
+  }
+  if (job.kind === "SESSION_REQUEST") {
+    // Outage/absence requests land in the Admin/Supervisor queue (CONTEXT §6);
+    // these jobs carry no session link, so no join URL or schedule is involved.
+    return language === "en"
+      ? "A new outage/absence request is waiting for review."
+      : "طلب غياب/عطل جديد في انتظار مراجعة الإدارة.";
+  }
+  if (job.kind === "BALANCE_NEGATIVE") {
+    // Admin-only flag (Phase 6): a settlement drove a subscription negative.
+    // No amounts are included — the Admin reviews the ledger in the dashboard.
+    return language === "en"
+      ? "A student package balance went negative after a session settlement. Please review it in the payroll dashboard."
+      : "أصبح رصيد باقة أحد الطلاب سالبًا بعد تسوية حصة. يرجى مراجعته من لوحة الرواتب.";
+  }
+  if (job.kind === "OVERTIME_DECISION") {
+    // Teacher notice after the Admin reviews an overtime claim — no amounts.
+    return language === "en"
+      ? "Your overtime claim was reviewed by the Admin. See the payroll page for your updated earnings."
+      : "تمت مراجعة طلب الوقت الإضافي من قبل الإدارة. يمكنك مراجعة أرباحك المحدثة في صفحة الرواتب.";
+  }
+  if (job.kind === "REPORT_APPROVED") {
+    return language === "en"
+      ? "The session report has been approved. You can review the homework and attachments on the dashboard."
+      : "تم اعتماد تقرير الحصة. يمكنك مراجعة الواجب والمرفقات من لوحة التحكم.";
+  }
+  if (job.kind === "REPORT_REJECTED") {
+    return language === "en"
+      ? "Your session report was rejected. Please edit it and resubmit."
+      : "تم رفض تقرير الحصة. يرجى تعديله وإعادة إرساله.";
   }
   if (job.kind === "SERIES_PAUSED") {
-    return "توقّف جدول حصص متكرر مؤقتاً لعدم توفر رصيد أحد الطلاب، وسيُستكمل تلقائياً عند توفر الرصيد.";
+    return language === "en"
+      ? "A recurring schedule paused temporarily because a student ran out of credit; it resumes automatically when credit is available."
+      : "توقّف جدول حصص متكرر مؤقتاً لعدم توفر رصيد أحد الطلاب، وسيُستكمل تلقائياً عند توفر الرصيد.";
   }
-  return "لديك إشعار من الأكاديمية.";
+  return language === "en" ? "You have a notification from the academy." : "لديك إشعار من الأكاديمية.";
 }
 
 async function sessionFullyReported(sessionId: string): Promise<boolean> {
@@ -80,7 +128,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
     orderBy: { scheduledFor: "asc" },
     take: POLL_BATCH,
     include: {
-      recipientUser: { select: { id: true, phone: true, isActive: true } },
+      recipientUser: { select: { id: true, phone: true, isActive: true, preferredLanguage: true, timezone: true } },
       session: {
         select: {
           scheduledStart: true,
@@ -222,12 +270,17 @@ export async function extendDueSeries(now = new Date(), academyId?: string) {
     where: { status: { in: ["ACTIVE", "PAUSED"] }, ...(academyId ? { academyId } : {}) },
   });
   for (const series of seriesList) {
-    const nextWeekIndex = series.generatedThroughWeek + 1;
-    if (nextWeekIndex >= series.totalWeeks) continue;
-    const rule = series.recurrenceRule as unknown as SeriesRecurrenceRule;
-    const nextStart = addWeeksInTimeZone(new Date(rule.scheduledStart), nextWeekIndex, series.timezone);
-    if (nextStart.getTime() > now.getTime() + EXTENSION_HORIZON_MS) continue;
     try {
+      const nextWeekIndex = series.generatedThroughWeek + 1;
+      if (nextWeekIndex >= series.totalWeeks) continue;
+      // Validate BEFORE touching the database: a persisted rule with missing or
+      // malformed scheduledStart/scheduledEnd (e.g. legacy seed data) is skipped
+      // with a specific warning instead of killing the whole loop with
+      // "Invalid time value" from Intl (Phase 5 completion, 2026-10-18).
+      const parsed = parseSeriesRule(series.recurrenceRule);
+      const nextStart = addWeeksInTimeZone(parsed.anchorStart, nextWeekIndex, series.timezone);
+      if (Number.isNaN(nextStart.getTime())) continue;
+      if (nextStart.getTime() > now.getTime() + EXTENSION_HORIZON_MS) continue;
       await runSerializable(async (tx) => {
         const fresh = await tx.recurrenceSeries.findUnique({ where: { id: series.id } });
         if (
@@ -247,11 +300,15 @@ export async function extendDueSeries(now = new Date(), academyId?: string) {
           timezone: fresh.timezone,
           totalWeeks: fresh.totalWeeks,
           createdById: fresh.createdById,
-          recurrenceRule: rule,
+          recurrenceRule: parsed.rule,
         };
         return generateSeriesWeek(tx, seriesRecord, nextWeekIndex);
       });
-    } catch {
+    } catch (cause) {
+      if (cause instanceof SeriesRuleError) {
+        console.error(`[worker] recurring series ${series.id} has a malformed rule and was skipped (${cause.message}).`);
+        continue;
+      }
       console.error("[worker] a recurring series extension attempt failed.");
     }
   }

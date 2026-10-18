@@ -124,6 +124,7 @@ describe("Phase 5 — late-report chain hardening (database-backed)", () => {
     const job = {
       id: "job",
       kind: "REPORT_REMINDER",
+      recipientUser: { id: "teacher", phone: "+201000000003", isActive: true, preferredLanguage: "ar", timezone: "Africa/Cairo" },
       session: {
         scheduledStart: start,
         scheduledEnd: end,
@@ -143,6 +144,17 @@ describe("Phase 5 — late-report chain hardening (database-backed)", () => {
     } as unknown as Parameters<typeof composeJobMessage>[0];
     const sessionMessage = composeJobMessage(sessionJob);
     expect(sessionMessage).toContain(formatCairo(start));
+
+    // English recipients get the English template with the same END-time anchor,
+    // rendered in the RECIPIENT's timezone (Batch D).
+    const englishJob = {
+      ...job,
+      recipientUser: { ...job.recipientUser, preferredLanguage: "en", timezone: "Europe/London" },
+    } as unknown as Parameters<typeof composeJobMessage>[0];
+    const englishMessage = composeJobMessage(englishJob);
+    expect(englishMessage).toMatch(/report .* still missing/i);
+    const expectedEnd = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }).format(end);
+    expect(englishMessage).toContain(expectedEnd);
   });
 
   it("sends nudges for a COMPLETED session instead of cancelling them, while session nudges stay cancelled (F-09)", async () => {

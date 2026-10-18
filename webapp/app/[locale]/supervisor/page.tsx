@@ -173,7 +173,7 @@ export default async function SupervisorDashboard() {
                     </td>
                     <td>{session.teacher.user.displayName}</td>
                     <td className="max-w-56 truncate">
-                      {session.students.map((item) => item.student.user.displayName).join("، ") || "—"}
+                      {session.students.map((item) => item.student.user.displayName).join(locale === "ar" ? "، " : ", ") || "—"}
                     </td>
                     <td>{session.sessionType === "PRIVATE" ? t("private") : t("group")}</td>
                     <td>

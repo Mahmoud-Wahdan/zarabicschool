@@ -5,11 +5,14 @@ import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { Link } from "../../../i18n/navigation";
 
-export const metadata = { title: "لوحة المعلمة | Zarabicschool" };
+export async function generateMetadata() {
+  const t = await getTranslations("dashboard");
+  return { title: `${t("teacher.title")} | Zarabicschool` };
+}
 
 export default async function TeacherDashboard() {
   const user = await requireRole("TEACHER");
-  const t = await getTranslations("dashboard");
+  const [t, tShell] = await Promise.all([getTranslations("dashboard"), getTranslations("appShell")]);
   const teacher = await prisma.teacher.findUnique({
     where: { userId: user.id },
     select: {
@@ -83,7 +86,7 @@ export default async function TeacherDashboard() {
           })}
         </div>
       </section>
-      <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">View full schedule</Link>
+      <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">{t("teacher.actions.schedule")}</Link>
       <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.reports")}</h2>
         <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
@@ -100,6 +103,9 @@ export default async function TeacherDashboard() {
       <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.salary")}</h2>
         <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">{t("teacher.metrics.salaryUnavailable")}</p>
+        <Link href="/teacher/payroll" className="cta-primary mt-3 inline-block rounded-lg px-3 py-2 text-xs">
+          {tShell("nav.payroll")}
+        </Link>
       </section>
     </DashboardShell>
   );

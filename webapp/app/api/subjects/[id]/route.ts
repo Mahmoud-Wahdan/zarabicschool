@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { requireApiRole } from "../../../../lib/dal";
+import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { subjectUpdateSchema } from "../../../../lib/validation/management";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = await requireApiRole("ADMIN");
+  // CONTEXT §4: subjects are an operational surface — Admin AND Supervisor.
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
   const parsed = subjectUpdateSchema.safeParse(await request.json().catch(() => null));

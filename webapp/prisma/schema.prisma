@@ -46,6 +46,7 @@ model Report {
   extraTimeReviewedBy   User?            @relation("ReportExtraTimeReviewer", fields: [extraTimeReviewedById], references: [id], onDelete: Restrict)
   attachments           ReportAttachment[] @relation("ReportAttachment")
   subscriptionDeductions SubscriptionLedger[] @relation("LedgerReport")
+  payrollEntries        PayrollLedger[] @relation("PayrollLedgerReport")
 
   @@unique([sessionId, studentId, reportType])
   @@index([academyId, status, submittedAt])
@@ -187,13 +188,19 @@ enum NotificationJobStatus {
   CANCELLED
 }
 
-enum SessionChangeRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
+  enum SessionChangeRequestStatus {
+    PENDING
+    APPROVED
+    REJECTED
+  }
 
-enum SessionStatus {
+  enum SessionRequestStatus {
+    PENDING
+    APPROVED
+    REJECTED
+  }
+
+  enum SessionStatus {
   SCHEDULED
   COMPLETED
   MISSED
@@ -239,6 +246,18 @@ enum ExtraTimeStatus {
   REJECTED
 }
 
+enum PayrollLedgerEntryType {
+  SESSION_CREDIT
+  ADMIN_ADJUSTMENT
+  DISBURSEMENT
+}
+
+enum PaymentProofStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 model Academy {
   id           String        @id @default(uuid()) @db.Uuid
   name         String        @unique
@@ -266,6 +285,10 @@ model Academy {
     sessionLinkAudits SessionLinkAudit[]
   reportAttachments ReportAttachment[] @relation("ReportAttachmentAcademy")
   academySettings AcademySetting[] @relation("AcademySettingAcademy")
+  sessionRequests SessionRequest[] @relation("SessionRequestAcademy")
+  teacherRates TeacherRate[] @relation("TeacherRateAcademy")
+  payrollLedger PayrollLedger[] @relation("PayrollLedgerAcademy")
+  paymentProofs PaymentProof[] @relation("PaymentProofAcademy")
 
   @@map("academies")
 }
@@ -307,6 +330,12 @@ model User {
     createdAssignments      StudentTeacherAssignment[] @relation("AssignmentCreatedBy")
     assignmentOverriddenSessions Session[] @relation("SessionAssignmentOverriddenBy")
     sessionLinkAudits       SessionLinkAudit[] @relation("SessionLinkAuditChangedBy")
+  sessionRequests         SessionRequest[] @relation("SessionRequestRequestedBy")
+  reviewedSessionRequests SessionRequest[] @relation("SessionRequestReviewedBy")
+  createdTeacherRates     TeacherRate[]    @relation("TeacherRateCreatedBy")
+  createdPayrollEntries   PayrollLedger[]  @relation("PayrollLedgerCreatedBy")
+  uploadedPaymentProofs   PaymentProof[]   @relation("PaymentProofUploadedBy")
+  reviewedPaymentProofs   PaymentProof[]   @relation("PaymentProofReviewedBy")
 
   @@index([academyId])
   @@unique([academyId, username])
@@ -468,6 +497,9 @@ model Session {
   subscriptionDeductions SubscriptionLedger[] @relation("LedgerSession")
   changeRequests       SessionChangeRequest[]
   teacherFlags         TeacherFlag[]
+  sessionRequests      SessionRequest[] @relation("SessionRequestSession")
+  replacementSessionRequests SessionRequest[] @relation("SessionRequestReplacement")
+  payrollEntries       PayrollLedger[] @relation("PayrollLedgerSession")
 
   @@index([academyId, scheduledStart, status])
   @@index([teacherId, scheduledStart])
@@ -548,6 +580,7 @@ model Invoice {
   subscription       Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
   attempts           PaymentAttempt[]
   ledgerEntries      SubscriptionLedger[]
+  paymentProofs      PaymentProof[]
 
   @@index([academyId, status, createdAt])
   @@index([provider, providerReference])
@@ -642,6 +675,28 @@ model NotificationJob {
   @@map("notification_jobs")
 }
 
+model SessionRequest {
+  id                   String               @id @default(uuid()) @db.Uuid
+  academyId            String               @map("academy_id") @db.Uuid
+  sessionId            String               @map("session_id") @db.Uuid
+  requestedById        String               @map("requested_by") @db.Uuid
+  reason               String
+  status               SessionRequestStatus @default(PENDING)
+  reviewedById         String?              @map("reviewed_by") @db.Uuid
+  reviewedAt           DateTime?            @map("reviewed_at") @db.Timestamptz(6)
+  replacementSessionId String?              @map("replacement_session_id") @db.Uuid
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy              Academy              @relation("SessionRequestAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session              Session              @relation("SessionRequestSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  requestedBy          User                 @relation("SessionRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy           User?                @relation("SessionRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  replacementSession   Session?             @relation("SessionRequestReplacement", fields: [replacementSessionId], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status, createdAt])
+  @@index([sessionId])
+  @@map("session_requests")
+}
+
 model SessionChangeRequest {
   id                String                    @id @default(uuid()) @db.Uuid
   academyId         String                    @map("academy_id") @db.Uuid
@@ -678,6 +733,8 @@ model Teacher {
   changeRequests SessionChangeRequest[]
   teacherFlags TeacherFlag[]
   assignments StudentTeacherAssignment[]
+  rates TeacherRate[] @relation("TeacherRateTeacher")
+  payrollEntries PayrollLedger[] @relation("PayrollLedgerTeacher")
 
   @@index([academyId])
   @@map("teachers")
@@ -772,4 +829,78 @@ model ApplicationRecord {
   @@unique([applicationId, userId])
   @@index([applicationId])
   @@map("application_created_records")
+}
+
+model TeacherRate {
+  id              String   @id @default(uuid()) @db.Uuid
+  academyId       String   @map("academy_id") @db.Uuid
+  teacherId       String   @map("teacher_id") @db.Uuid
+  hourlyRateMinor Int      @map("hourly_rate_minor")
+  currency        String   @db.VarChar(3)
+  effectiveFrom   DateTime @map("effective_from") @db.Timestamptz(6)
+  createdById     String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy         Academy  @relation("TeacherRateAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  teacher         Teacher  @relation("TeacherRateTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  createdBy       User     @relation("TeacherRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  payrollEntries  PayrollLedger[]
+
+  @@index([teacherId, effectiveFrom])
+  @@map("teacher_rates")
+}
+
+model PayrollLedger {
+  id                      String                 @id @default(uuid()) @db.Uuid
+  academyId               String                 @map("academy_id") @db.Uuid
+  teacherId               String                 @map("teacher_id") @db.Uuid
+  sessionId               String?                @map("session_id") @db.Uuid
+  reportId                String?                @map("report_id") @db.Uuid
+  teacherRateId           String?                @map("teacher_rate_id") @db.Uuid
+  entryType               PayrollLedgerEntryType @map("entry_type")
+  // SESSION_CREDIT > 0; ADMIN_ADJUSTMENT may be signed (bonus/fine); DISBURSEMENT < 0
+  // (money leaving the balance). CHECK constraints in the migration enforce this.
+  amountMinor             Int                    @map("amount_minor")
+  currency                String                 @db.VarChar(3)
+  minutesCredited         Int?                   @map("minutes_credited")
+  hourlyRateSnapshotMinor Int?                   @map("hourly_rate_snapshot_minor")
+  reason                  String?
+  // NULL = system-generated (settlement); NOT NULL = Admin-created (audit).
+  createdById             String?                @map("created_by") @db.Uuid
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy                 Academy                @relation("PayrollLedgerAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  teacher                 Teacher                @relation("PayrollLedgerTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  session                 Session?               @relation("PayrollLedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  report                  Report?                @relation("PayrollLedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
+  teacherRate             TeacherRate?           @relation(fields: [teacherRateId], references: [id], onDelete: Restrict)
+  createdBy               User?                  @relation("PayrollLedgerCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([teacherId, currency, createdAt])
+  @@index([sessionId])
+  @@index([academyId, createdAt])
+  @@map("payroll_ledger")
+}
+
+model PaymentProof {
+  id           String             @id @default(uuid()) @db.Uuid
+  academyId    String             @map("academy_id") @db.Uuid
+  invoiceId    String             @map("invoice_id") @db.Uuid
+  uploadedById String             @map("uploaded_by") @db.Uuid
+  filePath     String             @map("file_path")
+  mimeType     String             @map("mime_type")
+  sizeBytes    BigInt             @map("size_bytes")
+  originalName String             @map("original_name")
+  status       PaymentProofStatus @default(PENDING)
+  reference    String?
+  reviewedById String?            @map("reviewed_by") @db.Uuid
+  reviewedAt   DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote   String?            @map("review_note")
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy      Academy            @relation("PaymentProofAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  invoice      Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  uploadedBy   User               @relation("PaymentProofUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  reviewedBy   User?              @relation("PaymentProofReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, createdAt])
+  @@index([academyId, status])
+  @@map("payment_proofs")
 }

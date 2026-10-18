@@ -8,7 +8,10 @@
     "applyNow": "قدّم الآن",
     "langSwitch": "English",
     "skipToContent": "تخطَّ إلى المحتوى",
-    "retry": "إعادة المحاولة"
+    "retry": "إعادة المحاولة",
+    "loading": "جارٍ التحميل…",
+    "errorTitle": "حدث خطأ ما",
+    "errorBody": "حدث خطأ غير متوقع. حاول مرة أخرى، وإذا استمرت المشكلة تواصل مع الإدارة."
   },
   "signOut": "تسجيل الخروج",
   "appShell": {
@@ -36,10 +39,16 @@
       "enrollments": "التسجيلات",
       "sessions": "الحصص والجداول",
       "reports": "طابور اعتماد التقارير",
+      "sessionRequests": "طلبات العطل والغياب",
       "financials": "المالية والاشتراكات",
       "accounts": "حسابات الإدارة",
       "mySessions": "جدول حصصي",
-      "familySchedule": "جدول العائلة"
+      "attendance": "سجل الحضور",
+      "guardianReports": "تقارير الأبناء",
+      "familySchedule": "جدول العائلة",
+      "invoices": "الفواتير والمدفوعات",
+      "payroll": "الرواتب",
+      "overtime": "مراجعة الوقت الإضافي"
     }
   },
   "reportsQueue": {
@@ -101,7 +110,108 @@
     "remarksRemove": "إزالة",
     "remarksSave": "حفظ القائمة",
     "remarksSaved": "تم الحفظ — تُستخدم القائمة في التقارير الجديدة فوراً.",
-    "remarksError": "تعذر حفظ القائمة."
+    "remarksError": "تعذر حفظ القائمة.",
+    "redMarksTitle": "النقاط الحمراء للتقارير المتأخرة",
+    "redMarksHint": "معلمات لديهنّ LATE_REPORT على حصص انتهت دون اكتمال تقاريرها.",
+    "redMarksCount": "{count, plural, one {نقطة حمراء واحدة} other {# نقاط حمراء}}"
+  },
+  "attendance": {
+    "teacher": {
+      "title": "سجل الحضور",
+      "subtitle": "الحصص السابقة مع الحضور المثبّت من التقارير المعتمدة — التقرير الناقص لا يغيّر حالة الحصة.",
+      "empty": "لا توجد حصص سابقة بعد."
+    },
+    "student": {
+      "title": "سجل حصصي",
+      "subtitle": "حضورك في كل حصة، مثبّت من التقارير المعتمدة.",
+      "viewReport": "عرض التقرير",
+      "empty": "لا توجد حصص سابقة بعد."
+    },
+    "guardian": {
+      "title": "حضور الأبناء",
+      "subtitle": "حضور كل ابن مثبّت من التقارير المعتمدة.",
+      "empty": "لا توجد حصص سابقة لـ{name} بعد.",
+      "noChildren": "لا يوجد أبناء مرتبطون."
+    },
+    "noStudents": "لا يوجد طلاب محجوزون.",
+    "sessionStatuses": {
+      "SCHEDULED": "انتهت (بانتظار الاكتمال)",
+      "COMPLETED": "مكتملة",
+      "MISSED": "لم تقم",
+      "CANCELLED": "ملغاة"
+    },
+    "attendanceStatuses": {
+      "PENDING": "الحضور قيد التحديد",
+      "ATTENDED": "حضر",
+      "STUDENT_ABSENT": "غائب"
+    },
+    "reportStatuses": {
+      "MISSING": "التقرير ناقص",
+      "SUBMITTED": "التقرير بانتظار المراجعة",
+      "REJECTED": "التقرير مُعاد للتصحيح",
+      "APPROVED": "التقرير معتمد",
+      "ARCHIVED": "التقرير مؤرشف"
+    }
+  },
+  "guardianReports": {
+    "title": "تقارير الأبناء",
+    "subtitle": "تقارير الحصص المعتمدة لكل الأبناء المرتبطين.",
+    "remark": "تقييم الحصة",
+    "summary": "الملخص",
+    "homework": "الواجب",
+    "notes": "ملاحظات",
+    "attachmentsCount": "{count, plural, one {مرفق واحد} other {# مرفقات}}",
+    "empty": "لا توجد تقارير معتمدة لـ{name} بعد.",
+    "noChildren": "لا يوجد أبناء مرتبطون."
+  },
+  "sessionRequest": {
+    "open": "أبلغ عن عطل / غياب",
+    "reasonLabel": "ما الذي حدث؟",
+    "reasonPlaceholder": "انقطاع إنترنت، انقطاع كهرباء، تعطل زووم…",
+    "send": "إرسال الطلب",
+    "sending": "جارٍ الإرسال…",
+    "cancel": "إلغاء",
+    "submitted": "تم إرسال الطلب — سيتم مراجعته في قائمة الإدارة/المشرف.",
+    "errorGeneric": "تعذر إرسال الطلب. حاول مرة أخرى."
+  },
+  "sessionRequests": {
+    "title": "طلبات العطل والغياب",
+    "subtitle": "طلبات \"أبلغ عن عطل\" من الطلاب وأولياء الأمور والمعلمات — اعتماد أو رفض مع جدولة حصة بديلة مرتبطة بالأصلية.",
+    "queueTitle": "قائمة الطلبات",
+    "pendingCount": "{count} في الانتظار",
+    "emptyTitle": "لا توجد طلبات",
+    "emptyText": "تظهر هنا الطلبات المرسلة من صفحات الحصص.",
+    "selectTitle": "اختر طلباً لمراجعته",
+    "migrationPendingTitle": "طلبات العطل غير مفعّلة بعد",
+    "migrationPendingText": "لم يقم المالك بتطبيق ترحيل session_requests بعد. شغّل npx prisma migrate deploy من مجلد webapp لتفعيل القائمة.",
+    "sessionLabel": "الحصة",
+    "replacementLinked": "الحصة البديلة مرتبطة بهذا الطلب.",
+    "scopeLabel": "نطاق البديل",
+    "scopeSession": "الحصة كلها (الأصلية تصير MISSED + بديل كامل)",
+    "scopeStudent": "طالب واحد فقط (الحصة الجماعية تستمر + بديل خاص)",
+    "absentStudentLabel": "الطالب الغائب",
+    "requesterMark": "مُرسل الطلب",
+    "startLabel": "بداية الحصة البديلة",
+    "durationLabel": "المدة (دقائق)",
+    "zoomLabel": "رابط الانضمام للحصة البديلة",
+    "creditNote": "تحجز الحصة البديلة رصيداً لكل طالب مشمول وتُفرج عن حجوزات الحصة الأصلية وفق قواعد المرحلة الثالثة.",
+    "approve": "اعتماد وجدولة البديل",
+    "reject": "رفض",
+    "saving": "جارٍ الحفظ…",
+    "actionError": "تعذر حفظ القرار.",
+    "invalidStart": "وقت بداية الحصة البديلة غير صالح.",
+    "roles": {
+      "ADMIN": "إدارة",
+      "SUPERVISOR": "مشرف",
+      "TEACHER": "معلمة",
+      "STUDENT": "طالب",
+      "GUARDIAN": "ولي أمر"
+    },
+    "statuses": {
+      "PENDING": "قيد الانتظار",
+      "APPROVED": "معتمد",
+      "REJECTED": "مرفوض"
+    }
   },
   "financialsAdmin": {
     "title": "الرقابة المالية والاشتراكات",
@@ -149,7 +259,8 @@
     "emptyInvoicesText": "ستظهر الفواتير هنا عند شراء الطلاب للاشتراكات عبر بوابة الدفع.",
     "emptySubscriptions": "لا اشتراكات بعد",
     "emptySubscriptionsText": "ستظهر اشتراكات الطلاب هنا بعد أول عملية شراء معتمدة.",
-    "renewalsNote": "التجديد الشهري التلقائي تديره بوابة الدفع؛ تُسجَّل كل عملية كفاتورة جديدة هنا عند تأكيدها عبر الإشعار (webhook)."
+    "renewalsNote": "التجديد الشهري التلقائي تديره بوابة الدفع؛ تُسجَّل كل عملية كفاتورة جديدة هنا عند تأكيدها عبر الإشعار (webhook).",
+    "providerPaymob": "باي موب (جنيه)"
   },
   "adminDash": {
     "eyebrow": "غرفة القيادة التشغيلية",
@@ -831,7 +942,7 @@
         "upcoming": "حصص قادمة",
         "students": "طلاب",
         "subjects": "مواد مكلّفة",
-        "salaryUnavailable": "سجل الراتب سيظهر بعد اعتماد تقارير الجلسات في المرحلة المالية."
+        "salaryUnavailable": "الأرباح المعتمدة وسجل الصرف في صفحة الرواتب."
       },
       "actions": {
         "report": "التقرير",
@@ -848,7 +959,11 @@
       },
       "metrics": {
         "attendanceFromReports": "سيظهر الحضور بعد اعتماد تقارير الجلسات.",
-        "notAvailable": "لا يوجد نموذج واجبات في قاعدة البيانات الحالية."
+        "notAvailable": "سيظهر الواجب هنا بعد اعتماد تقرير المعلم."
+      },
+      "actions": {
+        "session": "تقرير الحصة",
+        "schedule": "عرض الجدول الكامل"
       }
     },
     "guardian": {
@@ -864,6 +979,10 @@
         "remaining": "حصة متبقية",
         "reportsUnavailable": "التقارير ستظهر بعد تنفيذ نموذج تقارير الجلسات.",
         "remainingFromSubscriptions": "الرصيد محسوب من الاشتراكات النشطة وسجل الحركات."
+      },
+      "actions": {
+        "schedule": "عرض جدول العائلة",
+        "reports": "فتح التقارير"
       }
     },
     "supervisor": {
@@ -1322,7 +1441,8 @@
       "load": "تعذر تطبيق الفلاتر.",
       "submit": "تعذر الحفظ. حاول مرة أخرى.",
       "invalidTime": "اختر وقت بداية ونهاية صحيحين."
-    }
+    },
+    "cancelReason": "إلغاء إداري"
   },
   "assignmentsAdmin": {
     "labels": {
@@ -1373,5 +1493,190 @@
       "loadError": "تعذر تحميل التعيينات. حدّث الصفحة.",
       "submitError": "تعذر الحفظ. حاول مرة أخرى."
     }
+  },
+  "management": {
+    "students": {
+      "title": "الطلاب",
+      "subtitle": "إنشاء حسابات الطلاب وربط أولياء الأمور والتحكم في الوصول."
+    },
+    "teachers": {
+      "title": "المعلمون",
+      "subtitle": "إنشاء حسابات المعلمين والتحكم في الوصول."
+    },
+    "guardians": {
+      "title": "أولياء الأمور",
+      "subtitle": "إنشاء حسابات أولياء الأمور والتحكم في الوصول."
+    },
+    "assignments": {
+      "title": "الإسناد",
+      "intro": "اربط المعلمين بالموضوعات والطلاب بالموضوعات وكل طالب بالمعلم الذي يدرّسه. الإدارة والمشرفون فقط يديرون هذه الروابط؛ وتتطلب الجدولة إسنادًا نشطًا بين الطالب والمعلم.",
+      "note": "ملاحظة: لا يمكن إزالة رابط المعلم بالموضوع ما دام هناك سجل إسناد للطلاب (نشط أو منتهٍ) يشير إليه — يبقى الرابط محفوظًا لسجل الإسناد."
+    },
+    "enrollments": {
+      "title": "التسجيل في الحصص",
+      "subtitle": "إدارة الطلاب المسجلين في كل حصة.",
+      "chooseSession": "اختر الحصة",
+      "chooseStudent": "اختر الطالب",
+      "enroll": "تسجيل",
+      "remove": "إزالة",
+      "added": "تمت إضافة التسجيل.",
+      "removed": "تمت إزالة التسجيل.",
+      "failure": "تعذر تحديث التسجيل.",
+      "current": "التسجيلات الحالية",
+      "noStudents": "لا يوجد طلاب مسجلون",
+      "noSessions": "لا توجد حصص."
+    },
+    "form": {
+      "username": "اسم المستخدم",
+      "displayName": "الاسم الظاهر",
+      "temporaryPassword": "كلمة مرور مؤقتة",
+      "password": "كلمة المرور (12+ حرفًا)",
+      "relationshipFather": "أب",
+      "relationshipMother": "أم",
+      "noGuardian": "بدون ولي أمر / بالغ",
+      "create": "إنشاء",
+      "supervisorRole": "مشرف",
+      "adminRole": "مدير عام",
+      "name": "الاسم",
+      "usernameCol": "اسم المستخدم",
+      "role": "الدور",
+      "status": "الحالة",
+      "action": "إجراء",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "activate": "تنشيط",
+      "deactivate": "إيقاف",
+      "accountCreated": "تم إنشاء الحساب.",
+      "profileCreated": "تم إنشاء الملف.",
+      "slug": "المعرّف (arabic-quran)",
+      "arabicName": "الاسم بالعربية",
+      "englishName": "الاسم بالإنجليزية",
+      "order": "الترتيب",
+      "loadFailed": "تعذر تحميل القائمة.",
+      "createFailed": "تعذر إنشاء الملف.",
+      "updateFailed": "تعذر تحديث الملف.",
+      "addFailed": "تعذر إنشاء الحساب.",
+      "updateAccountFailed": "تعذر تحديث الحساب."
+    }
+  },
+  "invoices": {
+    "title": "الفواتير والمدفوعات",
+    "subtitle": "الباقات والفواتير وحالة الدفع.",
+    "colStudent": "الطالب",
+    "colPackage": "الباقة",
+    "colSessions": "الحصص",
+    "colAmount": "المبلغ",
+    "colProvider": "المزود",
+    "colStatus": "الحالة",
+    "colDate": "التاريخ",
+    "colActions": "إجراءات",
+    "status": {
+      "PENDING": "معلقة",
+      "PAID": "مدفوعة",
+      "FAILED": "فاشلة",
+      "CANCELLED": "ملغاة"
+    },
+    "packageMonthly": "خطة شهرية",
+    "packageAnnual": "خطة سنوية",
+    "packagePayPerSession": "الدفع بالحصة",
+    "providerPaymob": "باي موب (جنيه)",
+    "providerUsd": "بوابة الدولار",
+    "payNow": "ادفع الآن",
+    "redirecting": "جارٍ التحويل إلى صفحة الدفع…",
+    "payFailed": "تعذر بدء الدفع. حاول مرة أخرى.",
+    "usdUnavailable": "الدفع بالدولار غير متاح بعد — يمكن دفع فواتير الجنيه فقط إلكترونيًا.",
+    "proofsTitle": "إثباتات الدفع",
+    "uploadProof": "رفع إثبات دفع",
+    "proofReference": "رقم عملية الدفع (اختياري)",
+    "proofUploaded": "تم رفع الإثبات. سيراجعه المسؤول.",
+    "proofPending": "بانتظار المراجعة",
+    "proofConfirmed": "مؤكد",
+    "proofRejected": "مرفوض",
+    "proofNone": "لم يتم رفع أي إثباتات دفع بعد.",
+    "proofFileLabel": "ملف الإثبات (صورة أو PDF)",
+    "paidNote": "هذه الفورة مدفوعة.",
+    "empty": "لا توجد فواتير بعد.",
+    "emptyText": "ستظهر الفواتير هنا بعد إنشاء الأكاديمية لأي فاتورة.",
+    "loadFailed": "تعذر تحميل الفواتير.",
+    "actionFailed": "فشل الإجراء. حاول مرة أخرى.",
+    "payNote": "يكتمل الدفع في صفحة المزود؛ وتأكّده الأكاديمية تلقائيًا عبر إشعار المزود الموقّع.",
+    "remaining": "الحصص المتبقية",
+    "createTitle": "إنشاء فاتورة",
+    "createHint": "المبلغ الذي تُدخله هنا هو المبلغ الذي سيُحصَّل من الدافع في صفحة الدفع.",
+    "createInvoice": "إنشاء الفاتورة",
+    "amountMinorLabel": "المبلغ (بالوحدة الصغرى، مثال: 50000 = 500.00)",
+    "created": "تم إنشاء الفاتورة.",
+    "confirmInvoice": "تأكيد الدفع",
+    "confirmHint": "يُعلّم الفاتورة كمدفوعة وينشئ الاشتراك ويمنح الحصص — خطوة واحدة ذرية.",
+    "referenceLabel": "مرجع الدفع (اختياري)",
+    "proofToConfirm": "إثبات مرتبط",
+    "confirmed": "تم تأكيد الدفع.",
+    "alreadyPaid": "هذه الفاتورة مدفوعة بالفعل.",
+    "selectProof": "الإثبات",
+    "noProof": "بدون إثبات"
+  },
+  "payroll": {
+    "teacherTitle": "راتبي",
+    "teacherSubtitle": "أرباح الحصص المعتمدة وسجل المدفوعات، بكل عملة.",
+    "earningsByCurrency": "الأرباح بكل عملة",
+    "balanceLabel": "الرصيد",
+    "pendingLabel": "بانتظار الاعتماد",
+    "ledgerTitle": "سجل الراتب",
+    "colDate": "التاريخ",
+    "colType": "النوع",
+    "colAmount": "المبلغ",
+    "colSession": "الحصة",
+    "colMinutes": "الدقائق",
+    "colRate": "المعامل",
+    "colReason": "السبب",
+    "colCreated": "أنشئ بواسطة",
+    "emptyLedger": "لا توجد قيود بعد — تظهر الأرباح عند اعتماد تقارير الحصص.",
+    "entryType": {
+      "SESSION_CREDIT": "رصيد حصة",
+      "ADMIN_ADJUSTMENT": "تعديل إداري",
+      "DISBURSEMENT": "صرف"
+    },
+    "system": "النظام",
+    "adminTitle": "إدارة الرواتب",
+    "adminSubtitle": "أرصدة المعلمين بكل عملة والتعديلات اليدوية وسجلات الصرف.",
+    "balancesTitle": "أرصدة المعلمين",
+    "ratesTitle": "أسعار ساعات المعلمين",
+    "addRate": "إضافة سعر",
+    "rateCreated": "تم حفظ السعر.",
+    "rateAmountLabel": "سعر الساعة (بالوحدة الصغرى)",
+    "rateEffectiveLabel": "يسري من",
+    "adjustmentsTitle": "تعديلات يدوية",
+    "submitAdjustment": "تسجيل التعديل",
+    "adjustmentCreated": "تم تسجيل التعديل.",
+    "disbursementsTitle": "سجلات الصرف",
+    "submitDisbursement": "تسجيل صرف",
+    "disbursementCreated": "تم تسجيل الصرف.",
+    "reasonLabel": "السبب (مطلوب)",
+    "amountSignedHint": "مبلغ بإشارة: مكافأة موجبة، غرامة سالبة.",
+    "amountPositiveHint": "المبلغ المصروف؛ ويُسجل كقيد سالب في السجل.",
+    "consistencyTitle": "فحوصات الاتساق",
+    "consistencyOk": "لا توجد اختلافات.",
+    "consistencyMissingCredit": "تقارير حضور معتمدة دون رصيد حصة للمعلم",
+    "consistencyOrphanCredit": "أرصدة حصص دون تقرير مُسوّى",
+    "consistencyMissingDeduction": "تقارير حضور دون خصم من الطالب",
+    "teacherLabel": "المعلم",
+    "subjectLabel": "الموضوع",
+    "minutesLabel": "دقيقة",
+    "payoutNote": "سجل الصرف قيد داخلي في السجل — وليس دليلًا على إتمام تحويل خارجي."
+  },
+  "overtime": {
+    "title": "مراجعة الوقت الإضافي",
+    "subtitle": "المسؤول يقرر مطالبات الوقت الإضافي التي تضيفها المعلمة في تقاريرها.",
+    "colTeacher": "المعلم",
+    "colStudent": "الطالب",
+    "colSession": "الحصة",
+    "colMinutes": "الدقائق المطلوبة",
+    "colOutcome": "الحضور",
+    "colActions": "إجراءات",
+    "approve": "اعتماد وصرف",
+    "reject": "رفض",
+    "empty": "لا توجد مطالبات وقت إضافي بانتظار المراجعة.",
+    "done": "تم حفظ القرار.",
+    "doneNote": "يُصرف الوقت الإضافي المعتمد كتعديل بنفس سعر الدقيقة — ولا يغيّر أبدًا رصيد الحصة المُسوّى."
   }
 }

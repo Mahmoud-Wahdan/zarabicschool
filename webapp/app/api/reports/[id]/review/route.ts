@@ -3,7 +3,9 @@ import { z } from "zod";
 
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
+import { enqueueReportDecisionNotifications } from "../../../../../lib/reports/notifications";
 import { settleApprovedReport } from "../../../../../lib/reports/settlement-seam";
+import { SettlementError } from "../../../../../lib/payroll/rates";
 import { reportReviewSchema } from "../../../../../lib/validation/management";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!z.string().uuid().safeParse(id).success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid report identifier." } }, { status: 400 });
   }
-  const report = await prisma.report.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, status: true, attendanceOutcome: true, studentId: true, sessionId: true } });
+  const report = await prisma.report.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, academyId: true, status: true, attendanceOutcome: true, studentId: true, sessionId: true, teacherId: true } });
   if (!report) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Report not found." } }, { status: 404 });
   if (report.status !== "SUBMITTED") {
     // Repeating the same decision is a clean no-op, not an error (Phase 5 review F-04):
@@ -30,13 +32,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });
   }
   if (parsed.data.action === "REJECT") {
+    const rejectedAt = new Date();
     // Conditional update: exactly one reviewer wins a concurrent review; the loser
     // re-reads and reports "already handled" or a clean conflict.
     const claimed = await prisma.report.updateMany({
       where: { id, status: "SUBMITTED" },
-      data: { status: "REJECTED", rejectionReason: parsed.data.rejectionReason, rejectedById: user.id, rejectedAt: new Date() },
+      data: { status: "REJECTED", rejectionReason: parsed.data.rejectionReason, rejectedById: user.id, rejectedAt },
     });
     if (claimed.count === 1) {
+      // Rejection notice to the teacher (Batch D) — after commit, never rolls back.
+      try {
+        await enqueueReportDecisionNotifications({ reportId: id, action: "REJECT", rejectedAt });
+      } catch {
+        // Notification bookkeeping must never fail the review decision.
+      }
       const updated = await prisma.report.findUniqueOrThrow({ where: { id } });
       return NextResponse.json({ data: updated });
     }
@@ -46,27 +55,47 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   // APPROVE — one transaction: claim the row conditionally (only one concurrent
   // approval wins), then write attendance from the approved outcome. The settlement
-  // seam is the single hook point where Phase 6 money writes will join THIS
-  // transaction; no money moves in Phase 5.
-  const updated = await prisma.$transaction(async (tx) => {
-    const claimed = await tx.report.updateMany({
-      where: { id, status: "SUBMITTED" },
-      data: { status: "APPROVED", approvedById: user.id, approvedAt: new Date() },
+  // seam writes the deduction, the once-per-session teacher credit, and the
+  // settled/archived markers in THIS transaction (Phase 6); any failure rolls
+  // everything back.
+  let updated: Awaited<ReturnType<typeof prisma.report.findUnique>> = null;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.report.updateMany({
+        where: { id, status: "SUBMITTED" },
+        data: { status: "APPROVED", approvedById: user.id, approvedAt: new Date() },
+      });
+      if (claimed.count === 0) return null;
+      await tx.sessionStudent.update({
+        where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
+        data: { attendanceStatus: report.attendanceOutcome === "ATTENDED" ? "ATTENDED" : "STUDENT_ABSENT" },
+      });
+      await settleApprovedReport(tx, {
+        id: report.id,
+        academyId: report.academyId,
+        sessionId: report.sessionId,
+        studentId: report.studentId,
+        teacherId: report.teacherId,
+        attendanceOutcome: report.attendanceOutcome,
+      });
+      return tx.report.findUnique({ where: { id } });
     });
-    if (claimed.count === 0) return null;
-    await tx.sessionStudent.update({
-      where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
-      data: { attendanceStatus: report.attendanceOutcome === "ATTENDED" ? "ATTENDED" : "STUDENT_ABSENT" },
-    });
-    await settleApprovedReport(tx, {
-      id: report.id,
-      sessionId: report.sessionId,
-      studentId: report.studentId,
-      attendanceOutcome: report.attendanceOutcome,
-    });
-    return tx.report.findUnique({ where: { id } });
-  });
-  if (updated) return NextResponse.json({ data: updated });
+  } catch (cause) {
+    if (cause instanceof SettlementError) {
+      return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: cause.status });
+    }
+    throw cause;
+  }
+  if (updated) {
+    // Guardian/adult-student approval notice (Batch D, decision 7) — after commit,
+    // never rolls the approval back.
+    try {
+      await enqueueReportDecisionNotifications({ reportId: id, action: "APPROVE" });
+    } catch {
+      // Notification bookkeeping must never fail the review decision.
+    }
+    return NextResponse.json({ data: updated });
+  }
   const current = await prisma.report.findUniqueOrThrow({ where: { id } });
   if (current.status === "APPROVED") return NextResponse.json({ data: current, alreadyHandled: true });
   return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });

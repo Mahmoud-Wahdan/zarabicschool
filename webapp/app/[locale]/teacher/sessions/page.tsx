@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
 import SessionJoinLink from "../../../_components/session-join-link";
+import SessionRequestForm from "../../../_components/session-request-form";
 import Icon from "../../../_components/ui/icon";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
@@ -102,6 +103,7 @@ export default async function TeacherSessionsPage() {
                   ) : null}
                 </div>
               ) : null}
+              {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
             </article>
           );
         })}

@@ -8,7 +8,10 @@
     "applyNow": "Apply now",
     "langSwitch": "العربية",
     "skipToContent": "Skip to content",
-    "retry": "Retry"
+    "retry": "Retry",
+    "loading": "Loading…",
+    "errorTitle": "Something went wrong",
+    "errorBody": "An unexpected error occurred. Try again, and contact the academy if it persists."
   },
   "signOut": "Sign out",
   "appShell": {
@@ -36,10 +39,16 @@
       "enrollments": "Enrollments",
       "sessions": "Schedule & Live Sessions",
       "reports": "Report Approval Queue",
+      "sessionRequests": "Outage & Absence Requests",
       "financials": "Financials & Subscriptions",
       "accounts": "Admin Accounts",
       "mySessions": "My Sessions",
-      "familySchedule": "Family Schedule"
+      "attendance": "Attendance",
+      "guardianReports": "Children's Reports",
+      "familySchedule": "Family Schedule",
+      "invoices": "Invoices & Payments",
+      "payroll": "Payroll",
+      "overtime": "Overtime Review"
     }
   },
   "reportsQueue": {
@@ -101,7 +110,108 @@
     "remarksRemove": "Remove",
     "remarksSave": "Save list",
     "remarksSaved": "List saved — new submissions use it immediately.",
-    "remarksError": "The list could not be saved."
+    "remarksError": "The list could not be saved.",
+    "redMarksTitle": "Late-report red marks",
+    "redMarksHint": "Teachers with LATE_REPORT flags on sessions that ended without a full set of reports.",
+    "redMarksCount": "{count, plural, one {1 red mark} other {# red marks}}"
+  },
+  "attendance": {
+    "teacher": {
+      "title": "Attendance record",
+      "subtitle": "Past sessions with attendance written from approved reports — a missing report never changes the session status.",
+      "empty": "No past sessions yet."
+    },
+    "student": {
+      "title": "My sessions record",
+      "subtitle": "Your attendance per session, written from the approved reports.",
+      "viewReport": "View report",
+      "empty": "No past sessions yet."
+    },
+    "guardian": {
+      "title": "Children's attendance",
+      "subtitle": "Attendance per child, written from approved reports.",
+      "empty": "No past sessions for {name} yet.",
+      "noChildren": "No linked children."
+    },
+    "noStudents": "No students booked.",
+    "sessionStatuses": {
+      "SCHEDULED": "Ended (awaiting completion)",
+      "COMPLETED": "Completed",
+      "MISSED": "Missed",
+      "CANCELLED": "Cancelled"
+    },
+    "attendanceStatuses": {
+      "PENDING": "Attendance pending",
+      "ATTENDED": "Attended",
+      "STUDENT_ABSENT": "Absent"
+    },
+    "reportStatuses": {
+      "MISSING": "Report missing",
+      "SUBMITTED": "Report awaiting review",
+      "REJECTED": "Report returned for fixes",
+      "APPROVED": "Report approved",
+      "ARCHIVED": "Report archived"
+    }
+  },
+  "guardianReports": {
+    "title": "Children's reports",
+    "subtitle": "Approved session reports for all linked children.",
+    "remark": "Class remark",
+    "summary": "Summary",
+    "homework": "Homework",
+    "notes": "Notes",
+    "attachmentsCount": "{count, plural, one {1 attachment} other {# attachments}}",
+    "empty": "No approved reports for {name} yet.",
+    "noChildren": "No linked children."
+  },
+  "sessionRequest": {
+    "open": "Report an outage / absence",
+    "reasonLabel": "What happened?",
+    "reasonPlaceholder": "Internet outage, power cut, Zoom crash…",
+    "send": "Send request",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "submitted": "Request sent — the Admin/Supervisor queue will review it.",
+    "errorGeneric": "The request could not be sent. Please try again."
+  },
+  "sessionRequests": {
+    "title": "Outage & Absence Requests",
+    "subtitle": "\"Report an outage\" requests from students, guardians and teachers — approve or reject and schedule a replacement session linked to the original.",
+    "queueTitle": "Requests queue",
+    "pendingCount": "{count} pending",
+    "emptyTitle": "No requests",
+    "emptyText": "Outage and absence requests submitted from session pages appear here.",
+    "selectTitle": "Select a request to review it",
+    "migrationPendingTitle": "Outage requests are not applied yet",
+    "migrationPendingText": "The session_requests migration has not been applied by the owner yet. Run npx prisma migrate deploy from webapp/ to activate this queue.",
+    "sessionLabel": "Session",
+    "replacementLinked": "A replacement session is linked to this request.",
+    "scopeLabel": "Replacement scope",
+    "scopeSession": "Whole session (original becomes MISSED + full replacement)",
+    "scopeStudent": "One student only (group session continues; private replacement)",
+    "absentStudentLabel": "Absent student",
+    "requesterMark": "requester",
+    "startLabel": "Replacement start",
+    "durationLabel": "Duration (minutes)",
+    "zoomLabel": "Replacement Zoom join link",
+    "creditNote": "The replacement reserves one credit per included student and releases the original reservations, following the Phase 3 rules.",
+    "approve": "Approve & schedule replacement",
+    "reject": "Reject",
+    "saving": "Saving…",
+    "actionError": "The decision could not be saved.",
+    "invalidStart": "The replacement start time is invalid.",
+    "roles": {
+      "ADMIN": "Admin",
+      "SUPERVISOR": "Supervisor",
+      "TEACHER": "Teacher",
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    },
+    "statuses": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    }
   },
   "financialsAdmin": {
     "title": "Revenue Operations & Subscriptions",
@@ -149,7 +259,8 @@
     "emptyInvoicesText": "Invoices appear here when students purchase subscriptions through the payment gateway.",
     "emptySubscriptions": "No subscriptions yet",
     "emptySubscriptionsText": "Student subscriptions will appear here after the first confirmed purchase.",
-    "renewalsNote": "Automatic monthly renewals are managed by the payment gateway; every confirmed charge lands here as a new invoice via the webhook."
+    "renewalsNote": "Automatic monthly renewals are managed by the payment gateway; every confirmed charge lands here as a new invoice via the webhook.",
+    "providerPaymob": "Paymob (EGP)"
   },
   "adminDash": {
     "eyebrow": "Operational command",
@@ -831,7 +942,7 @@
         "upcoming": "upcoming classes",
         "students": "students",
         "subjects": "assigned subjects",
-        "salaryUnavailable": "Salary history will appear after session reports are approved in the financial phase."
+        "salaryUnavailable": "Approved earnings and payout history live on the payroll page."
       },
       "actions": {
         "report": "Report",
@@ -848,7 +959,11 @@
       },
       "metrics": {
         "attendanceFromReports": "Attendance will appear after session reports are approved.",
-        "notAvailable": "No homework model exists in the current database schema."
+        "notAvailable": "Homework appears here once your teacher's report is approved."
+      },
+      "actions": {
+        "session": "Session report",
+        "schedule": "View full schedule"
       }
     },
     "guardian": {
@@ -862,8 +977,12 @@
       "metrics": {
         "upcoming": "upcoming classes",
         "remaining": "sessions remaining",
-        "reportsUnavailable": "Reports will appear after the session-report model is implemented.",
+        "reportsUnavailable": "Approved reports appear on the reports page.",
         "remainingFromSubscriptions": "Balance is calculated from active subscriptions and ledger entries."
+      },
+      "actions": {
+        "schedule": "View family schedule",
+        "reports": "Open reports"
       }
     },
     "supervisor": {
@@ -1322,7 +1441,8 @@
       "load": "Unable to filter sessions.",
       "submit": "Unable to save. Please try again.",
       "invalidTime": "Please choose a valid start and end time."
-    }
+    },
+    "cancelReason": "Cancelled by operations"
   },
   "assignmentsAdmin": {
     "labels": {
@@ -1373,5 +1493,190 @@
       "loadError": "Unable to load assignments. Please refresh.",
       "submitError": "Unable to save. Please try again."
     }
+  },
+  "management": {
+    "students": {
+      "title": "Students",
+      "subtitle": "Create student accounts, link guardians, and control access."
+    },
+    "teachers": {
+      "title": "Teachers",
+      "subtitle": "Create teacher accounts and control access."
+    },
+    "guardians": {
+      "title": "Guardians",
+      "subtitle": "Create guardian accounts and control access."
+    },
+    "assignments": {
+      "title": "Assignments",
+      "intro": "Link teachers to subjects, students to subjects, and students to the teacher who teaches them. Only Admins and Supervisors manage these links; scheduling requires an ACTIVE student–teacher assignment.",
+      "note": "Note: a teacher–subject link cannot be removed while any student assignment history (ACTIVE or ENDED) references it — the link stays for the assignment history."
+    },
+    "enrollments": {
+      "title": "Session enrollments",
+      "subtitle": "Manage which students are enrolled in each session.",
+      "chooseSession": "Choose session",
+      "chooseStudent": "Choose student",
+      "enroll": "Enroll",
+      "remove": "Remove",
+      "added": "Enrollment added.",
+      "removed": "Enrollment removed.",
+      "failure": "Unable to update enrollment.",
+      "current": "Current enrollments",
+      "noStudents": "No students enrolled",
+      "noSessions": "No sessions found."
+    },
+    "form": {
+      "username": "Username",
+      "displayName": "Display name",
+      "temporaryPassword": "Temporary password",
+      "password": "Password (12+ chars)",
+      "relationshipFather": "Father",
+      "relationshipMother": "Mother",
+      "noGuardian": "No guardian / adult",
+      "create": "Create",
+      "supervisorRole": "Supervisor",
+      "adminRole": "SuperAdmin",
+      "name": "Name",
+      "usernameCol": "Username",
+      "role": "Role",
+      "status": "Status",
+      "action": "Action",
+      "active": "Active",
+      "inactive": "Inactive",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "accountCreated": "Account created.",
+      "profileCreated": "Profile created.",
+      "slug": "Slug (arabic-quran)",
+      "arabicName": "Arabic name",
+      "englishName": "English name",
+      "order": "Order",
+      "loadFailed": "Unable to load the list.",
+      "createFailed": "Unable to create the profile.",
+      "updateFailed": "Unable to update the profile.",
+      "addFailed": "Unable to create the account.",
+      "updateAccountFailed": "Unable to update the account."
+    }
+  },
+  "invoices": {
+    "title": "Invoices & payments",
+    "subtitle": "Packages, invoices, and payment status.",
+    "colStudent": "Student",
+    "colPackage": "Package",
+    "colSessions": "Sessions",
+    "colAmount": "Amount",
+    "colProvider": "Provider",
+    "colStatus": "Status",
+    "colDate": "Date",
+    "colActions": "Actions",
+    "status": {
+      "PENDING": "Pending",
+      "PAID": "Paid",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
+    },
+    "packageMonthly": "Monthly plan",
+    "packageAnnual": "Annual plan",
+    "packagePayPerSession": "Pay per session",
+    "providerPaymob": "Paymob (EGP)",
+    "providerUsd": "USD gateway",
+    "payNow": "Pay now",
+    "redirecting": "Redirecting to the payment page…",
+    "payFailed": "The payment could not be started. Try again.",
+    "usdUnavailable": "USD payments are not available yet — only EGP invoices can be paid online.",
+    "proofsTitle": "Payment proofs",
+    "uploadProof": "Upload payment proof",
+    "proofReference": "Transaction reference (optional)",
+    "proofUploaded": "Proof uploaded. The Admin will review it.",
+    "proofPending": "Pending review",
+    "proofConfirmed": "Confirmed",
+    "proofRejected": "Rejected",
+    "proofNone": "No payment proofs uploaded yet.",
+    "proofFileLabel": "Proof file (image or PDF)",
+    "paidNote": "This invoice is paid.",
+    "empty": "No invoices yet.",
+    "emptyText": "Invoices appear here once the academy creates one.",
+    "loadFailed": "Could not load the invoices.",
+    "actionFailed": "The action failed. Try again.",
+    "payNote": "Payment is completed on the provider page; the academy confirms it automatically through the provider's signed notification.",
+    "remaining": "Remaining sessions",
+    "createTitle": "Create invoice",
+    "createHint": "The amount you enter here is the amount the payer is charged at checkout.",
+    "createInvoice": "Create invoice",
+    "amountMinorLabel": "Amount (minor units, e.g. 50000 = 500.00)",
+    "created": "Invoice created.",
+    "confirmInvoice": "Confirm payment",
+    "confirmHint": "Marks the invoice paid, creates the subscription, and grants the sessions — one atomic step.",
+    "referenceLabel": "Payment reference (optional)",
+    "proofToConfirm": "Linked proof",
+    "confirmed": "Payment confirmed.",
+    "alreadyPaid": "This invoice is already paid.",
+    "selectProof": "Proof",
+    "noProof": "No proof"
+  },
+  "payroll": {
+    "teacherTitle": "My payroll",
+    "teacherSubtitle": "Approved session earnings and payout history, per currency.",
+    "earningsByCurrency": "Earnings by currency",
+    "balanceLabel": "Balance",
+    "pendingLabel": "Pending approval",
+    "ledgerTitle": "Payroll history",
+    "colDate": "Date",
+    "colType": "Type",
+    "colAmount": "Amount",
+    "colSession": "Session",
+    "colMinutes": "Minutes",
+    "colRate": "Rate/minor",
+    "colReason": "Reason",
+    "colCreated": "Created by",
+    "emptyLedger": "No payroll entries yet — earnings appear when session reports are approved.",
+    "entryType": {
+      "SESSION_CREDIT": "Session credit",
+      "ADMIN_ADJUSTMENT": "Adjustment",
+      "DISBURSEMENT": "Payout"
+    },
+    "system": "System",
+    "adminTitle": "Payroll management",
+    "adminSubtitle": "Teacher balances per currency, manual adjustments, and payout records.",
+    "balancesTitle": "Teacher balances",
+    "ratesTitle": "Teacher hourly rates",
+    "addRate": "Add rate",
+    "rateCreated": "Rate saved.",
+    "rateAmountLabel": "Hourly rate (minor units)",
+    "rateEffectiveLabel": "Effective from",
+    "adjustmentsTitle": "Manual adjustments",
+    "submitAdjustment": "Record adjustment",
+    "adjustmentCreated": "Adjustment recorded.",
+    "disbursementsTitle": "Payout records",
+    "submitDisbursement": "Record payout",
+    "disbursementCreated": "Payout recorded.",
+    "reasonLabel": "Reason (required)",
+    "amountSignedHint": "Signed amount: bonus positive, fine negative.",
+    "amountPositiveHint": "The paid-out amount; recorded as a negative ledger entry.",
+    "consistencyTitle": "Consistency checks",
+    "consistencyOk": "No inconsistencies found.",
+    "consistencyMissingCredit": "Approved attended reports without a session credit",
+    "consistencyOrphanCredit": "Session credits without a settled report",
+    "consistencyMissingDeduction": "Attended reports without a student deduction",
+    "teacherLabel": "Teacher",
+    "subjectLabel": "Subject",
+    "minutesLabel": "min",
+    "payoutNote": "A payout record is an internal ledger entry — it does not prove an external transfer was completed."
+  },
+  "overtime": {
+    "title": "Overtime review",
+    "subtitle": "Admin decides the overtime claims teachers include in their reports (CONTEXT §7).",
+    "colTeacher": "Teacher",
+    "colStudent": "Student",
+    "colSession": "Session",
+    "colMinutes": "Claimed minutes",
+    "colOutcome": "Attendance",
+    "colActions": "Actions",
+    "approve": "Approve & pay",
+    "reject": "Reject",
+    "empty": "No overtime claims are waiting for review.",
+    "done": "Decision saved.",
+    "doneNote": "Approved overtime is paid as an adjustment at the same per-minute rate — it never changes the settled session credit."
   }
 }

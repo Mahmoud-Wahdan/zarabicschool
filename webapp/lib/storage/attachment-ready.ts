@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 
-let attachmentsTableReady: boolean | null = null;
+let attachmentsTableReady = false;
 let warnedMissing = false;
 
 /**
@@ -9,9 +9,12 @@ let warnedMissing = false;
  * (Phase 3/4 pattern). Until then, attachment routes answer with a clean
  * "pending migration" conflict and the attachment tests self-deactivate the
  * same way the link-audit tests do.
+ *
+ * Only the POSITIVE result is cached (self-healing after the migration lands
+ * — no dev-server restart needed); a negative result is re-checked per call.
  */
 export async function isAttachmentsReady(): Promise<boolean> {
-  if (attachmentsTableReady !== null) return attachmentsTableReady;
+  if (attachmentsTableReady) return true;
   try {
     const rows = (await prisma.$queryRawUnsafe(
       "SELECT to_regclass('report_attachments') AS regclass",

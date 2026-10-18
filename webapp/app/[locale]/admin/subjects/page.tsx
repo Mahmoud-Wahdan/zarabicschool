@@ -1,12 +1,18 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
-import { requireRole } from "../../../../lib/dal";
+import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import SubjectsPanel from "./subjects-panel";
 
+export async function generateMetadata() {
+  const t = await getTranslations("subjectsAdmin");
+  return { title: `${t("title")} | Zarabicschool` };
+}
+
 export default async function SubjectsPage() {
-  const user = await requireRole("ADMIN");
+  // CONTEXT §4: subjects/relationships are operational surfaces — Admin AND Supervisor.
+  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
   const t = await getTranslations("subjectsAdmin");
   const subjects = await prisma.subject.findMany({
     where: { academyId: user.academyId },

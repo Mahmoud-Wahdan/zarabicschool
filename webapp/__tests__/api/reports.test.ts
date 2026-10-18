@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { getServerSession } from "next-auth";
 
 import { prisma } from "../../lib/prisma";
-import { processLateReportNotifications } from "../../lib/worker/notifications";
+import { processDueNotificationJobs, processLateReportNotifications } from "../../lib/worker/notifications";
 import { settleApprovedReport } from "../../lib/reports/settlement-seam";
 import { POST as submitReportRoute } from "../../app/api/sessions/[id]/students/[studentId]/report/route";
 import { POST as reviewReportRoute } from "../../app/api/reports/[id]/review/route";
@@ -119,6 +119,28 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
   await prisma.subscriptionLedger.create({
     data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
   });
+  return subscription;
+}
+
+async function withProviderUnconfigured(run: () => Promise<void>) {
+  const previous = {
+    provider: process.env.MESSAGING_PROVIDER,
+    url: process.env.OPENWA_URL,
+    apiKey: process.env.OPENWA_API_KEY,
+    sessionId: process.env.OPENWA_SESSION_ID,
+  };
+  process.env.MESSAGING_PROVIDER = "openwa";
+  delete process.env.OPENWA_URL;
+  delete process.env.OPENWA_API_KEY;
+  delete process.env.OPENWA_SESSION_ID;
+  try {
+    await run();
+  } finally {
+    if (previous.provider === undefined) delete process.env.MESSAGING_PROVIDER; else process.env.MESSAGING_PROVIDER = previous.provider;
+    if (previous.url === undefined) delete process.env.OPENWA_URL; else process.env.OPENWA_URL = previous.url;
+    if (previous.apiKey === undefined) delete process.env.OPENWA_API_KEY; else process.env.OPENWA_API_KEY = previous.apiKey;
+    if (previous.sessionId === undefined) delete process.env.OPENWA_SESSION_ID; else process.env.OPENWA_SESSION_ID = previous.sessionId;
+  }
 }
 
 beforeAll(async () => {
@@ -358,16 +380,184 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     expect(job.status).toBe("CANCELLED");
   });
 
-  it("keeps the settlement seam a no-op inside the approval transaction (no money rows in Phase 5)", async () => {
-    await prisma.$transaction(async (tx) => {
-      await settleApprovedReport(tx, {
-        id: randomUUID(),
-        sessionId: randomUUID(),
-        studentId: randomUUID(),
-        attendanceOutcome: "ATTENDED",
-      });
+  it("settlement with no teacher rate fails cleanly and writes no money rows", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
+    const subscription = await grantCredit(fx.studentProfileIds.student3, 4);
+    await prisma.sessionReservation.create({
+      data: { academyId: fx.academyId, sessionId: session.id, studentId: fx.studentProfileIds.student3, subscriptionId: subscription.id },
     });
-    const deductions = await prisma.subscriptionLedger.count({ where: { academyId: fx.academyId, entryType: "SESSION_DEDUCTION" } });
+    // No TeacherRates row exists for the fixture teacher — the settlement must
+    // refuse (NO_TEACHER_RATE) instead of inventing a rate.
+    await expect(
+      prisma.$transaction(async (tx) =>
+        settleApprovedReport(tx, {
+          id: randomUUID(),
+          academyId: fx.academyId,
+          sessionId: session.id,
+          studentId: fx.studentProfileIds.student3,
+          teacherId: fx.teacherProfileId,
+          attendanceOutcome: "ATTENDED",
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "NO_TEACHER_RATE" });
+    const deductions = await prisma.subscriptionLedger.count({ where: { academyId: fx.academyId, sessionId: session.id, entryType: "SESSION_DEDUCTION" } });
     expect(deductions).toBe(0);
+    const credits = await prisma.payrollLedger.count({ where: { academyId: fx.academyId, sessionId: session.id, entryType: "SESSION_CREDIT" } });
+    expect(credits).toBe(0);
+  });
+
+  it("settles an attended report atomically: deduction + one credit + markers + consumed reservation", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student4] });
+    const subscription = await grantCredit(fx.studentProfileIds.student4, 4);
+    await prisma.sessionReservation.create({
+      data: { academyId: fx.academyId, sessionId: session.id, studentId: fx.studentProfileIds.student4, subscriptionId: subscription.id },
+    });
+    const rate = await prisma.teacherRate.create({
+      data: {
+        academyId: fx.academyId,
+        teacherId: fx.teacherProfileId,
+        hourlyRateMinor: 6000, // 60 EGP/hour → 60-minute session credits 6000 minor
+        currency: "EGP",
+        effectiveFrom: new Date(Date.now() - 90 * 24 * 3600 * 1000),
+        createdById: fx.adminUserId,
+      },
+      select: { id: true },
+    });
+    const reportId = randomUUID();
+    await prisma.$transaction(async (tx) =>
+      settleApprovedReport(tx, {
+        id: reportId,
+        academyId: fx.academyId,
+        sessionId: session.id,
+        studentId: fx.studentProfileIds.student4,
+        teacherId: fx.teacherProfileId,
+        attendanceOutcome: "ATTENDED",
+      }),
+    );
+    const deduction = await prisma.subscriptionLedger.findFirstOrThrow({ where: { sessionId: session.id, entryType: "SESSION_DEDUCTION" } });
+    expect(deduction.sessionsDelta).toBe(-1);
+    expect(deduction.subscriptionId).toBe(subscription.id);
+    const credit = await prisma.payrollLedger.findFirstOrThrow({ where: { sessionId: session.id, entryType: "SESSION_CREDIT" } });
+    expect(credit.amountMinor).toBe(6000);
+    expect(credit.minutesCredited).toBe(60);
+    expect(credit.hourlyRateSnapshotMinor).toBe(6000);
+    expect(credit.teacherRateId).toBe(rate.id);
+    expect(credit.createdById).toBeNull();
+    const reservation = await prisma.sessionReservation.findUniqueOrThrow({
+      where: { sessionId_studentId: { sessionId: session.id, studentId: fx.studentProfileIds.student4 } },
+    });
+    expect(reservation.status).toBe("CONSUMED");
+  });
+
+  it("absent reports settle with zero money and release the reservation", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student5] });
+    const subscription = await grantCredit(fx.studentProfileIds.student5, 4);
+    await prisma.sessionReservation.create({
+      data: { academyId: fx.academyId, sessionId: session.id, studentId: fx.studentProfileIds.student5, subscriptionId: subscription.id },
+    });
+    await prisma.teacherRate.create({
+      data: {
+        academyId: fx.academyId,
+        teacherId: fx.teacherProfileId,
+        hourlyRateMinor: 6000,
+        currency: "EGP",
+        effectiveFrom: new Date(Date.now() - 90 * 24 * 3600 * 1000),
+        createdById: fx.adminUserId,
+      },
+    });
+    const reportId = randomUUID();
+    await prisma.$transaction(async (tx) =>
+      settleApprovedReport(tx, {
+        id: reportId,
+        academyId: fx.academyId,
+        sessionId: session.id,
+        studentId: fx.studentProfileIds.student5,
+        teacherId: fx.teacherProfileId,
+        attendanceOutcome: "STUDENT_ABSENT",
+      }),
+    );
+    const deductions = await prisma.subscriptionLedger.count({ where: { sessionId: session.id, entryType: "SESSION_DEDUCTION" } });
+    expect(deductions).toBe(0);
+    const credits = await prisma.payrollLedger.count({ where: { sessionId: session.id, entryType: "SESSION_CREDIT" } });
+    expect(credits).toBe(0);
+    const reservation = await prisma.sessionReservation.findUniqueOrThrow({
+      where: { sessionId_studentId: { sessionId: session.id, studentId: fx.studentProfileIds.student5 } },
+    });
+    expect(reservation.status).toBe("RELEASED");
+    expect(reservation.releasedAt).not.toBeNull();
+  });
+
+  it("queues the guardian approval notice and the teacher rejection notice after commit (Batch D)", async () => {
+    const approvedSession = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student1] });
+    const submitted = await submitReport(approvedSession.id, fx.studentProfileIds.student1);
+    const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
+    expect(approved.status).toBe(200);
+    // The student has a linked guardian → the guardian is the approval recipient (decision 7).
+    const approveJob = await prisma.notificationJob.findFirstOrThrow({
+      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+    });
+    expect(approveJob.recipientUserId).toBe(fx.guardianUserId);
+    await processDueNotificationJobs(new Date(), fx.academyId);
+    const sent = await prisma.notificationJob.findUniqueOrThrow({ where: { id: approveJob.id } });
+    expect(sent.status).toBe("SENT");
+
+    const rejectedSession = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student2] });
+    const submitted2 = await submitReport(rejectedSession.id, fx.studentProfileIds.student2);
+    const rejected = await reviewReport(submitted2.body.data.id, "REJECT", fx.adminUserId, "Fix the summary.");
+    expect(rejected.status).toBe(200);
+    const rejectJob = await prisma.notificationJob.findFirstOrThrow({
+      where: { kind: "REPORT_REJECTED", dedupKey: { startsWith: `REPORT_REJECTED:${submitted2.body.data.id}:` } },
+    });
+    expect(rejectJob.recipientUserId).toBe(fx.teacherUserId);
+  });
+
+  it("an adult student without a guardian receives the approval notice (decision 7)", async () => {
+    const adultUser = await prisma.user.create({
+      data: {
+        academyId: fx.academyId,
+        username: `demo_test_adult2_${fx.suffix}`,
+        displayName: "Demo Test Adult Two",
+        passwordHash: "x".repeat(60),
+        role: "STUDENT",
+        timezone: "Africa/Cairo",
+        isActive: true,
+        mustChangePassword: false,
+      },
+      select: { id: true },
+    });
+    const adultStudent = await prisma.student.create({
+      data: { userId: adultUser.id, academyId: fx.academyId, isAdult: true, enrollmentDate: new Date() },
+      select: { id: true },
+    });
+    const session = await createPastSession({ studentProfileIds: [adultStudent.id] });
+    const submitted = await submitReport(session.id, adultStudent.id);
+    const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
+    expect(approved.status).toBe(200);
+    const job = await prisma.notificationJob.findFirstOrThrow({
+      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+    });
+    expect(job.recipientUserId).toBe(adultUser.id);
+  });
+
+  it("a failed approval notice never rolls the approval back and stores no secrets (Batch D)", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
+    const submitted = await submitReport(session.id, fx.studentProfileIds.student3);
+    const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
+    expect(approved.status).toBe(200);
+    const row = await prisma.report.findUniqueOrThrow({ where: { id: submitted.body.data.id } });
+    expect(row.status).toBe("APPROVED");
+
+    await withProviderUnconfigured(async () => {
+      await processDueNotificationJobs(new Date(), fx.academyId);
+    });
+    const failed = await prisma.notificationJob.findFirstOrThrow({
+      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+    });
+    expect(failed.status).toBe("FAILED");
+    expect(failed.lastError).toBe("OpenWA is not configured.");
+    expect(failed.lastError).not.toContain("zoom.us");
+    // The decision stands regardless of the messaging failure.
+    const stillApproved = await prisma.report.findUniqueOrThrow({ where: { id: submitted.body.data.id } });
+    expect(stillApproved.status).toBe("APPROVED");
   });
 });
