@@ -10,15 +10,14 @@ let settingsTableReady: boolean | null = null;
 
 /** Same owner-applied migration as report_attachments (20261015093512). */
 export async function isAcademySettingsReady(): Promise<boolean> {
-  if (settingsTableReady !== null) return settingsTableReady;
-  try {
-    const rows = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('academy_settings') AS regclass",
-    )) as { regclass: string | null }[];
-    settingsTableReady = Boolean(rows[0]?.regclass);
-  } catch {
-    settingsTableReady = false;
-  }
+  if (settingsTableReady === true) return true;
+  // information_schema instead of to_regclass — the regclass OID column
+  // intermittently fails to deserialize through the transaction-mode pooler
+  // (see lib/scheduling/session-requests.ts).
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'academy_settings'",
+  )) as { count: number }[];
+  settingsTableReady = rows[0]?.count === 1;
   return settingsTableReady;
 }
 

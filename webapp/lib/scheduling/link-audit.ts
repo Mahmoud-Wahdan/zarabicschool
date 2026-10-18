@@ -11,15 +11,14 @@ let warnedMissing = false;
  * audit write is skipped with one visible warning; the audit tests self-skip the same way.
  */
 export async function isLinkAuditReady(): Promise<boolean> {
-  if (auditTableReady !== null) return auditTableReady;
-  try {
-    const rows = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('session_link_audits') AS regclass",
-    )) as { regclass: string | null }[];
-    auditTableReady = Boolean(rows[0]?.regclass);
-  } catch {
-    auditTableReady = false;
-  }
+  if (auditTableReady === true) return true;
+  // information_schema instead of to_regclass — the regclass OID column
+  // intermittently fails to deserialize through the transaction-mode pooler
+  // (see lib/scheduling/session-requests.ts).
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'session_link_audits'",
+  )) as { count: number }[];
+  auditTableReady = rows[0]?.count === 1;
   if (!auditTableReady && !warnedMissing) {
     warnedMissing = true;
     console.warn(

@@ -17,14 +17,15 @@ let warnedMissing = false;
  */
 export async function isSessionRequestsReady(): Promise<boolean> {
   if (requestsTableReady) return true;
-  try {
-    const rows = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('session_requests') AS regclass",
-    )) as { regclass: string | null }[];
-    requestsTableReady = Boolean(rows[0]?.regclass);
-  } catch {
-    requestsTableReady = false;
-  }
+  // information_schema (not to_regclass): the regclass OID column intermittently
+  // fails to deserialize through the transaction-mode pooler with @prisma/adapter-pg
+  // ("Failed to deserialize column of type 'regclass'") — that swallowed failure was
+  // the real cause of the SESSION_REQUESTS_MIGRATION_PENDING 409s after the
+  // migration was applied. COUNT over information_schema returns a plain int.
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'session_requests'",
+  )) as { count: number }[];
+  requestsTableReady = rows[0]?.count === 1;
   if (!requestsTableReady && !warnedMissing) {
     warnedMissing = true;
     console.warn(

@@ -128,7 +128,7 @@ export async function POST(request: Request) {
           createdById: user.id,
           students: { create: uniqueStudentIds.map((studentId) => ({ studentId })) },
         },
-        select: { id: true },
+        select: { id: true, scheduledStart: true, scheduledEnd: true, timezone: true, sessionType: true },
       });
       const recipients = await tx.session.findUniqueOrThrow({
         where: { id: created.id },

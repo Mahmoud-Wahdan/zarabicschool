@@ -9,6 +9,14 @@ import { isSessionRequestsReady } from "../../lib/scheduling/session-requests";
 
 export type SessionFixtures = Awaited<ReturnType<typeof createSessionFixtures>>;
 
+/** Phase 6 payroll tables gate (same pattern as the other capability gates). */
+async function isPayrollReady(): Promise<boolean> {
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payroll_ledger'",
+  )) as { count: number }[];
+  return rows[0]?.count === 1;
+}
+
 export async function createSessionFixtures() {
   const suffix = randomUUID().slice(0, 8);
   const passwordHash = await bcrypt.hash("Demo-Test-Pass-1!", 4);
@@ -99,6 +107,23 @@ export async function createSessionFixtures() {
   const foreignTeacher = await prisma.teacher.create({
     data: { userId: users.foreignTeacher.id, academyId: foreignAcademy.id },
     select: { id: true },
+  });
+
+  // Phase 6: effective-dated rates so report approval settles instead of failing
+  // with NO_TEACHER_RATE. 120 days ago keeps them older than any test-created rate.
+  await prisma.teacherRate.createMany({
+    data: [
+      { profileId: teacher.id, academyId: academy.id, createdById: users.admin.id },
+      { profileId: teacher2.id, academyId: academy.id, createdById: users.admin.id },
+      { profileId: foreignTeacher.id, academyId: foreignAcademy.id, createdById: users.foreignAdmin.id },
+    ].map((entry) => ({
+      academyId: entry.academyId,
+      teacherId: entry.profileId,
+      hourlyRateMinor: 6000,
+      currency: "EGP",
+      effectiveFrom: new Date(Date.now() - 120 * 24 * 3600 * 1000),
+      createdById: entry.createdById,
+    })),
   });
 
   const subject = await prisma.subject.create({
@@ -209,6 +234,17 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
       await prisma.sessionRequest.deleteMany({ where: { academyId } });
     }
     await prisma.teacherFlag.deleteMany({ where: { academyId } });
+    // payroll_ledger is append-only: cleanup uses the transaction-scoped trigger
+    // disable (the documented pattern — never disabled globally) because the
+    // RESTRICT FKs would otherwise block session/report/teacher deletes.
+    if (await isPayrollReady()) {
+      await prisma.$transaction([
+        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger DISABLE TRIGGER payroll_ledger_append_only"),
+        prisma.payrollLedger.deleteMany({ where: { academyId } }),
+        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger ENABLE TRIGGER payroll_ledger_append_only"),
+      ]);
+      await prisma.teacherRate.deleteMany({ where: { academyId } });
+    }
     if (await isAttachmentsReady()) {
       await prisma.reportAttachment.deleteMany({ where: { academyId } });
       await prisma.academySetting.deleteMany({ where: { academyId } });

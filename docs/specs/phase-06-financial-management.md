@@ -125,6 +125,13 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 - [VERIFIED] Reviewed the current payment implementation and ran `npm run typecheck`, `npm run lint`, `npx prisma validate`, `npm run build`, and the focused Paymob Jest suite (3/3) from `webapp`.
 - [OPEN] Reports, SessionStudents attendance settlement, PayrollLedger, TeacherRates, invoice UI, raw SQL ledger constraints/triggers, and real-Postgres transaction tests remain before Phase 6 can be marked complete.
 
+### 2026-10-18 — Verification complete
+
+- `npm test` 16 suites / 192 tests green — including the new direct-seam settlement tests (NO_TEACHER_RATE refusal with zero money rows; attended settlement = deduction + first credit + markers + consumed reservation; absent settlement = released reservation + zero money), the approval-route settlement integration, and the outage-request matrix (SESSION vs STUDENT scope, replacement jobs, concurrent approval race).
+- `prisma migrate status`: 15 migrations, up to date (phase6_financials applied to the dev DB).
+- typecheck / lint / build clean. Demo seed re-run: 5 teacher rates, 14 session credits, 1 bonus, 1 payout (existence-guarded; append-only trigger untouched).
+- Remaining owner steps: add `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (+ private bucket) to enable attachment/proof uploads; create an EGP Paymob test-mode integration and fill the `PAYMOB_*` env names; USD gateway decision (Dodo vs Xpay) still open; Playwright E2E (`npx playwright test`) needs a dev server + credentials.
+
 ### 2026-10-18 — Implementation executed
 
 - **Schema + migration `20261018000000_phase6_financials` (APPLIED to the dev DB, additive only):** `teacher_rates`, `payroll_ledger`, `payment_proofs`; enums `PayrollLedgerEntryType`/`PaymentProofStatus`; partial unique `payroll_ledger(session_id) WHERE entry_type='SESSION_CREDIT'`; sign CHECKs (credit > 0, adjustment ≠ 0, disbursement < 0), credit-snapshot CHECK (minutes + rate), manual-reason + creator CHECKs (system rows = SESSION_CREDIT with `created_by NULL`), proof review-state CHECK; append-only trigger reusing `prevent_ledger_mutation()`; RESTRICT FKs. The `(session_id, subscription_id) WHERE 'SESSION_DEDUCTION'` partial unique already existed (phase3_integrity).

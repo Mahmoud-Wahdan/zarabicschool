@@ -79,13 +79,14 @@ async function createPastSession(options: {
   studentProfileIds: string[];
   minutesAgoEnded?: number;
   status?: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "MISSED";
+  teacherProfileId?: string;
 }) {
   const end = new Date(Date.now() - (options.minutesAgoEnded ?? 10) * 60 * 1000);
   const start = new Date(end.getTime() - 60 * 60 * 1000);
   return prisma.session.create({
     data: {
       academyId: fx.academyId,
-      teacherId: fx.teacherProfileId,
+      teacherId: options.teacherProfileId ?? fx.teacherProfileId,
       subjectId: fx.subjectId,
       sessionType: options.studentProfileIds.length > 1 ? "GROUP" : "PRIVATE",
       scheduledStart: start,
@@ -120,6 +121,28 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
     data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
   });
   return subscription;
+}
+
+/** The seam finalizes a real Reports row — direct-seam tests create one first. */
+async function createApprovedReportRow(sessionId: string, studentId: string, teacherProfileId = fx.teacherProfileId) {
+  const report = await prisma.report.create({
+    data: {
+      academyId: fx.academyId,
+      sessionId,
+      studentId,
+      teacherId: teacherProfileId,
+      reportType: "SESSION_COMPLETION_REPORT",
+      status: "APPROVED",
+      attendanceOutcome: "ATTENDED",
+      classRemark: "good",
+      summary: "Settlement test report.",
+      homework: "Do the exercises.",
+      approvedById: fx.adminUserId,
+      approvedAt: new Date(),
+    },
+    select: { id: true },
+  });
+  return report.id;
 }
 
 async function withProviderUnconfigured(run: () => Promise<void>) {
@@ -279,8 +302,20 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     });
     expect(absentRow.attendanceStatus).toBe("STUDENT_ABSENT");
 
-    const deductions = await prisma.subscriptionLedger.count({ where: { academyId: fx.academyId, entryType: "SESSION_DEDUCTION" } });
-    expect(deductions).toBe(0);
+    // Phase 6: the attended approval settles (one deduction for its session); the
+    // absent approval writes ZERO ledger rows for its own session.
+    const attendedDeductions = await prisma.subscriptionLedger.count({
+      where: { academyId: fx.academyId, sessionId: attended.id, entryType: "SESSION_DEDUCTION" },
+    });
+    expect(attendedDeductions).toBe(1);
+    const absentDeductions = await prisma.subscriptionLedger.count({
+      where: { academyId: fx.academyId, sessionId: absent.id, entryType: "SESSION_DEDUCTION" },
+    });
+    expect(absentDeductions).toBe(0);
+    const absentCredits = await prisma.payrollLedger.count({
+      where: { academyId: fx.academyId, sessionId: absent.id, entryType: "SESSION_CREDIT" },
+    });
+    expect(absentCredits).toBe(0);
   });
 
   it("treats a repeated approval as a clean no-op with alreadyHandled", async () => {
@@ -381,21 +416,41 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
   });
 
   it("settlement with no teacher rate fails cleanly and writes no money rows", async () => {
-    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
+    // A dedicated teacher WITHOUT any rate row: deleting the fixture rate is not
+    // possible (settled credits from earlier tests reference it, RESTRICT FK).
+    const suffix = randomUUID().slice(0, 8);
+    const noRateUser = await prisma.user.create({
+      data: {
+        academyId: fx.academyId,
+        username: `demo_test_norate_${suffix}`,
+        displayName: "Demo Test No-Rate Teacher",
+        passwordHash: "x".repeat(60),
+        role: "TEACHER",
+        phone: "+201000000099",
+        timezone: "Africa/Cairo",
+        isActive: true,
+        mustChangePassword: false,
+      },
+      select: { id: true },
+    });
+    const noRateTeacher = await prisma.teacher.create({
+      data: { userId: noRateUser.id, academyId: fx.academyId },
+      select: { id: true },
+    });
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3], teacherProfileId: noRateTeacher.id });
     const subscription = await grantCredit(fx.studentProfileIds.student3, 4);
     await prisma.sessionReservation.create({
       data: { academyId: fx.academyId, sessionId: session.id, studentId: fx.studentProfileIds.student3, subscriptionId: subscription.id },
     });
-    // No TeacherRates row exists for the fixture teacher — the settlement must
-    // refuse (NO_TEACHER_RATE) instead of inventing a rate.
+    const reportId = await createApprovedReportRow(session.id, fx.studentProfileIds.student3, noRateTeacher.id);
     await expect(
       prisma.$transaction(async (tx) =>
         settleApprovedReport(tx, {
-          id: randomUUID(),
+          id: reportId,
           academyId: fx.academyId,
           sessionId: session.id,
           studentId: fx.studentProfileIds.student3,
-          teacherId: fx.teacherProfileId,
+          teacherId: noRateTeacher.id,
           attendanceOutcome: "ATTENDED",
         }),
       ),
@@ -423,7 +478,7 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
       },
       select: { id: true },
     });
-    const reportId = randomUUID();
+    const reportId = await createApprovedReportRow(session.id, fx.studentProfileIds.student4);
     await prisma.$transaction(async (tx) =>
       settleApprovedReport(tx, {
         id: reportId,
@@ -465,7 +520,7 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
         createdById: fx.adminUserId,
       },
     });
-    const reportId = randomUUID();
+    const reportId = await createApprovedReportRow(session.id, fx.studentProfileIds.student5);
     await prisma.$transaction(async (tx) =>
       settleApprovedReport(tx, {
         id: reportId,

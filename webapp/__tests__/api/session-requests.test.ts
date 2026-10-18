@@ -358,13 +358,15 @@ describe("Phase 5 Batch C — outage/absence requests (database-backed)", () => 
         return;
       }
       resetRateLimits();
-      await grantCredit(fx.studentProfileIds.student9, 3);
-      const session = await createSessionViaApi(fx.adminUserId, fx.studentProfileIds.student9);
-      const request = await submitRequest(session.id, fx.studentUserIds.student9);
+      // student4 is assigned to the fixture teacher (students 1-8 → teacher); the
+      // session creation enforces the student–teacher–subject assignment.
+      await grantCredit(fx.studentProfileIds.student4, 3);
+      const session = await createSessionViaApi(fx.adminUserId, fx.studentProfileIds.student4);
+      const request = await submitRequest(session.id, fx.studentUserIds.student4);
       const requestId = request.body.data.id;
 
       const [first, second] = await Promise.all([
-        reviewRequest(requestId, fx.adminUserId, { action: "APPROVE", replacement: replacementBody(session, { studentIds: [fx.studentProfileIds.student9] }) }),
+        reviewRequest(requestId, fx.adminUserId, { action: "APPROVE", replacement: replacementBody(session, { studentIds: [fx.studentProfileIds.student4] }) }),
         reviewRequest(requestId, fx.supervisorUserId, { action: "REJECT" }),
       ]);
       const statuses = [first.status, second.status].sort((a, b) => a - b);

@@ -104,6 +104,16 @@ async function main() {
           })
         ).map((invoice) => invoice.id)
       : [];
+    // Phase 6: payment proofs reference invoices/users with ON DELETE RESTRICT —
+    // remove them before the invoices, gated on the phase-6 migration.
+    const phase6Tables = (await prisma.$queryRawUnsafe(
+      "SELECT COUNT(*) FILTER (WHERE table_name = 'payroll_ledger')::int AS payroll, COUNT(*) FILTER (WHERE table_name = 'teacher_rates')::int AS rates, COUNT(*) FILTER (WHERE table_name = 'payment_proofs')::int AS proofs FROM information_schema.tables WHERE table_schema = 'public'",
+    )) as { payroll: number; rates: number; proofs: number };
+    if (phase6Tables.proofs === 1) {
+      await prisma.paymentProof.deleteMany({
+        where: { OR: [{ invoiceId: { in: demoInvoiceIds } }, { uploadedById: { in: demoUserIds } }] },
+      });
+    }
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: demoInvoiceIds } } });
     await prisma.invoice.deleteMany({ where: { id: { in: demoInvoiceIds } } });
 
@@ -122,9 +132,9 @@ async function main() {
     // remove the demo ones before the referenced rows. Gated on the owner-applied
     // migration 20261012000000_phase4_link_audit (no URL values are ever stored there).
     const linkAuditTable = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('session_link_audits') AS regclass",
-    )) as { regclass: string | null }[];
-    if (linkAuditTable[0]?.regclass) {
+      "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'session_link_audits'",
+    )) as { count: number }[];
+    if (linkAuditTable[0]?.count === 1) {
       const demoSeriesIds = demoTeacherIds.length
         ? (
             await prisma.recurrenceSeries.findMany({
@@ -149,24 +159,38 @@ async function main() {
     });
     await prisma.teacherFlag.deleteMany({ where: { teacherId: { in: demoTeacherIds } } });
 
+    // Phase 6: payroll_ledger is append-only — cleanup uses the documented
+    // transaction-scoped trigger disable (never global). Teacher rates are
+    // normal rows. Both reference teachers/sessions with RESTRICT.
+    if (phase6Tables.payroll) {
+      await prisma.$transaction([
+        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger DISABLE TRIGGER payroll_ledger_append_only"),
+        prisma.payrollLedger.deleteMany({ where: { academyId: { in: scopedAcademyIds } } }),
+        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger ENABLE TRIGGER payroll_ledger_append_only"),
+      ]);
+    }
+    if (phase6Tables.rates) {
+      await prisma.teacherRate.deleteMany({ where: { academyId: { in: scopedAcademyIds } } });
+    }
+
     // Phase 5: report attachments reference reports with ON DELETE RESTRICT — remove
     // them (and the demo academy settings) before the reports, gated on the
     // owner-applied migration 20261015093512_phase5_attachments_and_settings.
     const phase5Tables = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('report_attachments') AS attachments, to_regclass('academy_settings') AS settings",
-    )) as { attachments: string | null; settings: string | null }[];
-    if (phase5Tables[0]?.attachments) {
+      "SELECT COUNT(*) FILTER (WHERE table_name = 'report_attachments')::int AS attachments, COUNT(*) FILTER (WHERE table_name = 'academy_settings')::int AS settings FROM information_schema.tables WHERE table_schema = 'public'",
+    )) as { attachments: number; settings: number }[];
+    if (phase5Tables[0]?.attachments === 1) {
       await prisma.reportAttachment.deleteMany({ where: { report: { sessionId: { in: demoSessionIds } } } });
     }
     const sessionRequestsTable = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('session_requests') AS regclass",
-    )) as { regclass: string | null }[];
-    if (sessionRequestsTable[0]?.regclass) {
+      "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'session_requests'",
+    )) as { count: number }[];
+    if (sessionRequestsTable[0]?.count === 1) {
       await prisma.sessionRequest.deleteMany({
         where: { OR: [{ sessionId: { in: demoSessionIds } }, { requestedById: { in: demoUserIds } }] },
       });
     }
-    if (phase5Tables[0]?.settings) {
+    if (phase5Tables[0]?.settings === 1) {
       await prisma.academySetting.deleteMany({ where: { academyId: { in: scopedAcademyIds } } });
     }
 

@@ -15,14 +15,13 @@ let warnedMissing = false;
  */
 export async function isAttachmentsReady(): Promise<boolean> {
   if (attachmentsTableReady) return true;
-  try {
-    const rows = (await prisma.$queryRawUnsafe(
-      "SELECT to_regclass('report_attachments') AS regclass",
-    )) as { regclass: string | null }[];
-    attachmentsTableReady = Boolean(rows[0]?.regclass);
-  } catch {
-    attachmentsTableReady = false;
-  }
+  // information_schema instead of to_regclass — the regclass OID column
+  // intermittently fails to deserialize through the transaction-mode pooler
+  // (see lib/scheduling/session-requests.ts).
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'report_attachments'",
+  )) as { count: number }[];
+  attachmentsTableReady = rows[0]?.count === 1;
   if (!attachmentsTableReady && !warnedMissing) {
     warnedMissing = true;
     console.warn(
