@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-13
+> Last updated: 2026-10-18
 
 ## Phase Status
 
@@ -12,17 +12,23 @@
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
 | 3 | Schedules & Sessions | Complete | 2026-10-11 | Closed by the owner after the manual test. Batches 1-4 verified: scheduling-assignments schema/migration (owner-applied), detailed error codes with offending ids, shared Zoom format validation, smart session forms, assignments hub, approval-time teachers, worker, demo seed (4× idempotent), clear-demo verified, E2E spec staged; final checks green (validate/typecheck/lint 10 suites / 111 tests/build) |
 | 4 | Live Learning (Zoom links) | Complete | 2026-10-14 | Closed by the owner on 2026-10-14. Implementation + tests complete (12 suites / 149 tests green; gap review in review-before-phase-04.md). Reminder: migration `20261012000000_phase4_link_audit` must be applied if not yet (it activates link-change audit writes + their test assertions) |
-| 5 | Session Reports & Attendance | In Progress | 2026-10-14 | Step 1 complete on `feature/phase-5`: review (21 findings) fixed + tested (14 suites / 170 green); Phase 3 composite-FK regression repaired (migration `20261014183952` owner-applies); Batches A–D next |
-| 6 | Financial Management | In Progress | 2026-10-06 | Paymob EGP checkout/webhook and initial subscription settlement slice verified; reports/payroll and migration remain |
+| 5 | Session Reports & Attendance | In Progress | 2026-10-18 | Step 1 fixes + Batches A–C implemented; Batch 1 defects fixed (i18n keys, self-healing migration gates, worker series-rule validation + demo-row repair, NEXTAUTH_URL); dashboard localization + supervisor subjects access; awaiting the full test loop + owner browser review |
+| 6 | Financial Management | In Progress | 2026-10-18 | Schema/migration applied (teacher_rates, payroll_ledger, payment_proofs + invariants); settlement seam filled (atomic deduction + first credit + markers; absent = release + zero money; NO_TEACHER_RATE guard); overtime review, teacher/admin payroll, invoices (create/confirm/proofs), consistency checks implemented; demo payroll data seeded; test loop pending |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 | 9 | Refinements & UI/UX Polish | Not Started | 2026-10-14 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
 
-## Current Active Task (2026-10-14)
+## Current Active Task (2026-10-18)
 
-Phase 4 closed by the owner. Next: **Phase 5 (reports & attendance) together with Phase 6 (finance settlement)** — they share one boundary: report approval → atomic settlement. Phase 9 is a documented backlog only.
+Phase 5 completion + Phase 6 implementation executed in one session on `feature/phase-5` (owner-authorized "implement first, test after"). **Next: the test loop** (jest unit + real-Postgres integration suites incl. the new settlement tests, then E2E), then the owner's browser review. See phase-05/06 specs for the detailed 2026-10-18 execution logs.
 
-**Phase 5 execution started (2026-10-14, branch `feature/phase-5`):** Step 1 review of the early-built reminder chain + report routes is complete — 21 findings and 8 owner decisions recorded in `phase-05-attendance-recordings.md`. **Step 1 fixes are implemented and verified** (validate/typecheck/lint clean; `npm test` 14 suites / 170 tests green; build succeeds) — including a **Phase 3 regression repair**: the owner-applied phase-4 migration silently dropped the composite FK `student_teacher_assignments(teacher_id, subject_id) → teacher_subjects`; the relation is now schema-modeled, migration `20261014183952_phase5_restore_assignment_composite_fk` restores it (OWNER APPLIES), and the teacher-subjects DELETE route carries an application-level guard meanwhile. Next: Batch A (attachments + settings + visibility + teacher UI), then B, C, D — stop after each batch for owner review.
+Known-error fixes (verified against the dev DB):
+- Outage requests: migration WAS applied; the 409 came from a forever-cached negative capability check — now self-healing.
+- Worker "Invalid time value": demo seed wrote legacy recurrence-rule keys; seed fixed, 4 demo rows repaired, worker validates + isolates per-series failures.
+- `MISSING_MESSAGE dashboard.student.actions.*`: keys added (ar/en).
+- `NEXTAUTH_URL` added to `.env`/`.env.example`.
+
+Phase 6 money surfaces (all ADMIN-only server-side; supervisor never receives amounts): settlement seam, overtime review, teacher rates, payroll adjustments/disbursements, invoice create/confirm/proof upload/review. Browser redirects never settle an invoice — signed webhook or explicit Admin confirmation only.
 
 (Older entry follows.)
 
