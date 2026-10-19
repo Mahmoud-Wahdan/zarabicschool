@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { Prisma } from "../../../generated/prisma/client";
 
-import { requireApiRole } from "../../../lib/dal";
+import { requireApiRole, requireApiRoles } from "../../../lib/dal";
 import { currentMonthKey, isValidMonthKey } from "../../../lib/reports/month-key";
 import {
   computeRescheduledSessions,
@@ -10,9 +9,107 @@ import {
   isMonthlyReportEditable,
 } from "../../../lib/reports/monthly";
 import { enqueueMonthlyReportSubmittedNotifications } from "../../../lib/reports/notifications";
+import { resolveReportLanguage } from "../../../lib/reports/report-language";
 import { isSession1ReportsReady } from "../../../lib/reports/session1-ready";
 import { prisma } from "../../../lib/prisma";
 import { monthlyReportSchema } from "../../../lib/validation/management";
+
+export async function GET(request: Request) {
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
+  if (error) return error;
+
+  if (!(await isSession1ReportsReady())) {
+    return NextResponse.json({ data: [] });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const monthKey = searchParams.get("monthKey") || searchParams.get("month");
+  const studentId = searchParams.get("studentId");
+  const teacherId = searchParams.get("teacherId");
+
+  const whereClause: Prisma.MonthlyReportWhereInput = {
+    academyId: user.academyId,
+    ...(monthKey && isValidMonthKey(monthKey) ? { monthKey } : {}),
+  };
+
+  if (user.role === "ADMIN" || user.role === "SUPERVISOR") {
+    if (studentId) whereClause.studentId = studentId;
+    if (teacherId) whereClause.teacherId = teacherId;
+  } else if (user.role === "TEACHER") {
+    whereClause.teacher = { userId: user.id };
+    if (studentId) whereClause.studentId = studentId;
+  } else if (user.role === "GUARDIAN") {
+    whereClause.student = { guardian: { userId: user.id } };
+    if (studentId) whereClause.studentId = studentId;
+  } else if (user.role === "STUDENT") {
+    whereClause.student = { userId: user.id };
+  }
+
+  const rows = await prisma.monthlyReport.findMany({
+    where: whereClause,
+    orderBy: [{ monthKey: "desc" }, { submittedAt: "desc" }],
+    select: {
+      id: true,
+      studentId: true,
+      teacherId: true,
+      monthKey: true,
+      achievement: true,
+      learningProgress: true,
+      classFocus: true,
+      homeworkCompletion: true,
+      punctuality: true,
+      rescheduledSessions: true,
+      supportAreas: true,
+      nextMonthObjectives: true,
+      language: true,
+      submittedAt: true,
+      student: {
+        select: {
+          id: true,
+          guardianId: true,
+          isAdult: true,
+          user: { select: { displayName: true } },
+        },
+      },
+      teacher: {
+        select: {
+          id: true,
+          userId: true,
+          user: { select: { displayName: true } },
+        },
+      },
+    },
+  });
+
+  const now = new Date();
+  const reports = rows.map((row) => {
+    const isAdultWithoutGuardian = row.student.guardianId === null;
+    const isStudentViewer = user.role === "STUDENT";
+    const full = !isStudentViewer || isAdultWithoutGuardian;
+
+    return {
+      id: row.id,
+      studentId: row.studentId,
+      studentName: row.student.user.displayName,
+      teacherId: row.teacherId,
+      teacherName: row.teacher.user.displayName,
+      monthKey: row.monthKey,
+      achievement: full ? row.achievement : null,
+      learningProgress: full ? row.learningProgress : null,
+      classFocus: full ? row.classFocus : null,
+      homeworkCompletion: full ? row.homeworkCompletion : null,
+      punctuality: full ? row.punctuality : null,
+      rescheduledSessions: full ? row.rescheduledSessions : 0,
+      supportAreas: full ? row.supportAreas : null,
+      nextMonthObjectives: row.nextMonthObjectives,
+      language: resolveReportLanguage(row.language),
+      submittedAt: row.submittedAt,
+      editable: user.role === "TEACHER" && row.teacher.userId === user.id && isMonthlyReportEditable(row.submittedAt, now),
+    };
+  });
+
+  return NextResponse.json({ data: reports });
+}
 
 /**
  * Teacher monthly report (Session 1 — CONTEXT §9, PROPOSAL until the owner
@@ -145,3 +242,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ data: report }, { status: existing ? 200 : 201 });
 }
+

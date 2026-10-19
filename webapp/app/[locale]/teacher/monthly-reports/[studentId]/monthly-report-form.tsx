@@ -122,7 +122,18 @@ export default function MonthlyReportForm({
       dir={reportDir(language)}
       lang={language}
     >
+      <div className="flex items-center gap-3 border-b border-outline-variant pb-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary">
+          {studentName.trim().slice(0, 1).toUpperCase() || "?"}
+        </span>
+        <div>
+          <p className="text-title-md font-bold text-primary">{studentName}</p>
+          <p className="text-label-sm text-on-surface-variant">{monthKey}</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
         <label className="flex flex-col gap-1 text-body-sm">
           <span className="font-semibold text-on-surface">{content.monthLabel}</span>
           <input value={monthKey} readOnly disabled className={`${selectClass} opacity-70`} />
