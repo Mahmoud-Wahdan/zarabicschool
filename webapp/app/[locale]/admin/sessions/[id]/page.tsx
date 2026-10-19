@@ -1,23 +1,29 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import DashboardShell from "../../../../../../_components/dashboard-shell";
-import Icon from "../../../../../../_components/ui/icon";
-import EmptyState from "../../../../../../_components/ui/empty-state";
-import StatusBadge from "../../../../../../_components/ui/status-badge";
-import { requireRoles } from "../../../../../../lib/dal";
-import { prisma } from "../../../../../../lib/prisma";
-import { formatMoney } from "../../../../../../lib/payments/format";
-import { getClassRemarkOptions } from "../../../../../../lib/reports/class-remarks";
-import { isSession1ReportsReady } from "../../../../../../lib/reports/session1-ready";
-import { classRemarkLabel, reportDir, resolveReportLanguage } from "../../../../../../lib/reports/report-language";
-import { getReportForViewer } from "../../../../../../lib/reports/visibility";
-import { formatSessionDateTime } from "../../../../../../lib/schedules/display";
+import DashboardShell from "@/app/_components/dashboard-shell";
+import Icon from "@/app/_components/ui/icon";
+import EmptyState from "@/app/_components/ui/empty-state";
+import StatusBadge from "@/app/_components/ui/status-badge";
+import { requireRoles } from "@/lib/dal";
+import { prisma } from "@/lib/prisma";
+import { formatMoney } from "@/lib/payments/format";
+import { getClassRemarkOptions } from "@/lib/reports/class-remarks";
+import { isSession1ReportsReady } from "@/lib/reports/session1-ready";
+import { classRemarkLabel, reportDir, resolveReportLanguage } from "@/lib/reports/report-language";
+import { getReportForViewer } from "@/lib/reports/visibility";
+import { formatSessionDateTime } from "@/lib/schedules/display";
 
 export async function generateMetadata() {
   const t = await getTranslations("adminSessionDetail");
   return { title: `${t("title")} | Zarabicschool` };
 }
+
+type ReportExtra = {
+  studentId: string;
+  language: string | null;
+  rejectionCount: number;
+};
 
 /**
  * Admin/Supervisor session-detail page (owner, 2026-10-18 — CONTEXT §9): a
@@ -63,36 +69,37 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
   const classRemarkOptions = await getClassRemarkOptions(user.academyId);
   const viewer = { userId: user.id, academyId: user.academyId, role: user.role } as const;
 
-  const reportExtras = session1Ready
-    ? await prisma.report.findMany({
+  const reportExtras: ReportExtra[] = session1Ready
+    ? await (prisma.report as any).findMany({
         where: { sessionId: session.id, reportType: "SESSION_COMPLETION_REPORT" },
         select: { studentId: true, language: true, rejectionCount: true },
       })
     : [];
-  const extrasByStudent = new Map(reportExtras.map((row) => [row.studentId, row]));
+  const extrasByStudent = new Map<string, ReportExtra>(reportExtras.map((row: ReportExtra) => [row.studentId, row]));
 
   const roster = await Promise.all(
-    session.students.map(async (entry) => ({
+    session.students.map(async (entry: (typeof session.students)[number]) => ({
       ...entry,
       view: await getReportForViewer(viewer, session.id, entry.studentId),
     })),
   );
 
   // Settlement history (ADMIN only — the Supervisor data layer omits money entirely).
-  const settlement = user.role === "ADMIN"
-    ? await prisma.$transaction(async () => ({
-        payroll: await prisma.payrollLedger.findMany({
-          where: { sessionId: session.id },
-          orderBy: { createdAt: "asc" },
-          select: { entryType: true, amountMinor: true, currency: true, minutesCredited: true, hourlyRateSnapshotMinor: true, createdAt: true },
-        }),
-        deductions: await prisma.subscriptionLedger.findMany({
-          where: { sessionId: session.id },
-          orderBy: { createdAt: "asc" },
-          select: { entryType: true, sessionsDelta: true, createdAt: true },
-        }),
-      }))
-    : null;
+  const settlement =
+    user.role === "ADMIN"
+      ? {
+          payroll: await prisma.payrollLedger.findMany({
+            where: { sessionId: session.id },
+            orderBy: { createdAt: "asc" },
+            select: { entryType: true, amountMinor: true, currency: true, minutesCredited: true, hourlyRateSnapshotMinor: true, createdAt: true },
+          }),
+          deductions: await prisma.subscriptionLedger.findMany({
+            where: { sessionId: session.id },
+            orderBy: { createdAt: "asc" },
+            select: { entryType: true, sessionsDelta: true, createdAt: true },
+          }),
+        }
+      : null;
 
   const subjectName = locale === "en" ? session.subject.nameEn : session.subject.nameAr;
 
@@ -196,7 +203,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
             <p className="text-body-sm text-on-surface-variant">{t("settlementEmpty")}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {settlement.payroll.map((entry, index) => (
+              {settlement.payroll.map((entry, index: number) => (
                 <div key={`payroll-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-container-lowest border border-outline-variant px-3 py-2 text-body-sm">
                   <span className="font-semibold text-primary">{t(`payrollType.${entry.entryType}`)}</span>
                   <span className="text-on-surface">
@@ -208,7 +215,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                   </span>
                 </div>
               ))}
-              {settlement.deductions.map((entry, index) => (
+              {settlement.deductions.map((entry, index: number) => (
                 <div key={`deduction-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-container-lowest border border-outline-variant px-3 py-2 text-body-sm">
                   <span className="font-semibold text-primary">{t(`deductionType.${entry.entryType}`)}</span>
                   <span className="text-on-surface">{entry.sessionsDelta > 0 ? `+${entry.sessionsDelta}` : entry.sessionsDelta}</span>
@@ -224,3 +231,4 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
     </DashboardShell>
   );
 }
+

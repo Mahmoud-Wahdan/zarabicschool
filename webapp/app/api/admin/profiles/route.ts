@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     select: {
       id: true, username: true, displayName: true, phone: true, email: true, isActive: true,
       guardianProfile: { select: { id: true, relationship: true, students: { select: { id: true } } } },
-      studentProfile: { select: { id: true, guardianId: true, isAdult: true, enrollmentDate: true } },
+      studentProfile: { select: { id: true, guardianId: true, isAdult: true, enrollmentDate: true, reportLanguage: true } },
       teacherProfile: { select: { id: true, subjects: { select: { subjectId: true } } } },
     },
   });
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
           passwordHash: await bcrypt.hash(input.password, 12), role: config.role,
           phone: input.phone || null, email: input.email || null, mustChangePassword: true,
           ...(guardianInput ? { guardianProfile: { create: { academyId: user.academyId, relationship: guardianInput.relationship } } } : {}),
-          ...(studentInput ? { studentProfile: { create: { academyId: user.academyId, guardianId: studentInput.guardianId ?? null, isAdult: studentInput.isAdult, enrollmentDate: studentInput.enrollmentDate ? new Date(studentInput.enrollmentDate) : null } } } : {}),
+          ...(studentInput ? { studentProfile: { create: { academyId: user.academyId, guardianId: studentInput.guardianId ?? null, isAdult: studentInput.isAdult, enrollmentDate: studentInput.enrollmentDate ? new Date(studentInput.enrollmentDate) : null, ...(studentInput.reportLanguage ? { reportLanguage: studentInput.reportLanguage } : {}) } } } : {}),
           ...(type === "teacher" ? { teacherProfile: { create: { academyId: user.academyId } } } : {}),
         },
         select: { id: true, username: true, displayName: true, role: true, isActive: true },

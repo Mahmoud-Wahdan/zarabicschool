@@ -206,6 +206,18 @@ export const monthlyReportSchema = z.object({
   language: z.enum(["ar", "en", "fr", "de", "tr"]).default("ar"),
 });
 
+export const monthlyReportUpdateSchema = z.object({
+  achievement: z.string().trim().min(2).max(10000).optional(),
+  learningProgress: z.enum(["EXCELLENT", "VERY_GOOD", "GOOD", "VERY_SLOW_PROGRESS"]).optional(),
+  classFocus: z.enum(["ALWAYS", "OFTEN", "SOMETIMES", "RARELY"]).optional(),
+  homeworkCompletion: z.enum(["ALWAYS", "MOST_OF_THE_TIME", "SOMETIMES", "RARELY"]).optional(),
+  punctuality: z.enum(["ALWAYS", "OFTEN", "SOMETIMES", "RARELY"]).optional(),
+  supportAreas: z.string().trim().max(5000).optional().or(z.literal("")),
+  nextMonthObjectives: z.string().trim().max(5000).optional().or(z.literal("")),
+  language: z.enum(["ar", "en", "fr", "de", "tr"]).optional(),
+});
+
+
 /** Class-remark option with a label per report language (Session 1, CONTEXT §9). */
 const classRemarkLabelsSchema = z.object({
   ar: z.string().trim().min(1).max(120),

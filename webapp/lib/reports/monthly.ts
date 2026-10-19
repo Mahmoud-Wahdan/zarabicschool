@@ -199,3 +199,38 @@ export async function getMonthlyReportForViewer(
   if (!linked) return null;
   return toView(row, viewer, true, now);
 }
+
+/**
+ * Fetch a single monthly report by ID for a viewer with appropriate role visibility.
+ */
+export async function getMonthlyReportByIdForViewer(
+  viewer: Viewer,
+  id: string,
+): Promise<MonthlyReportView | null> {
+  const row = (await prisma.monthlyReport.findFirst({
+    where: { id, academyId: viewer.academyId },
+    select: MONTHLY_REPORT_SELECT,
+  })) as MonthlyReportRow | null;
+  if (!row) return null;
+
+  const now = new Date();
+  if (viewer.role === "ADMIN" || viewer.role === "SUPERVISOR") {
+    return toView(row, viewer, true, now);
+  }
+  if (viewer.role === "TEACHER") {
+    if (row.teacher.userId !== viewer.userId) return null;
+    return toView(row, viewer, true, now);
+  }
+  if (viewer.role === "STUDENT") {
+    if (row.student.userId !== viewer.userId) return null;
+    return toView(row, viewer, row.student.guardianId === null, now);
+  }
+  if (row.student.guardianId === null) return null;
+  const linked = await prisma.guardian.findFirst({
+    where: { userId: viewer.userId, id: row.student.guardianId },
+    select: { id: true },
+  });
+  if (!linked) return null;
+  return toView(row, viewer, true, now);
+}
+

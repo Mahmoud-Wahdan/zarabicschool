@@ -28,11 +28,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   };
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { id }, data });
-    if (target.role === "STUDENT" && parsed.data.guardianId !== undefined) {
+    if (target.role === "STUDENT" && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined))) {
       await tx.student.update({
         where: { userId: id },
         data: {
-          guardianId: parsed.data.guardianId,
+          ...(parsed.data.guardianId !== undefined ? { guardianId: parsed.data.guardianId } : {}),
           ...(session1Ready && parsed.data.reportLanguage !== undefined ? { reportLanguage: parsed.data.reportLanguage } : {}),
         },
         select: { id: true },
