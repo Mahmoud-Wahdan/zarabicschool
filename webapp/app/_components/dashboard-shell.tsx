@@ -27,6 +27,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "enrollments", icon: "how_to_reg", href: "/admin/enrollments" },
     { key: "sessions", icon: "video_camera_front", href: "/admin/sessions" },
     { key: "reports", icon: "fact_check", href: "/admin/reports", badgeKey: "reports", badgeTone: "tertiary" },
+    { key: "monthlyReports", icon: "calendar_month", href: "/admin/monthly-reports" },
     { key: "sessionRequests", icon: "report_problem", href: "/admin/session-requests", badgeKey: "requests", badgeTone: "secondary" },
     { key: "financials", icon: "receipt_long", href: "/admin/financials" },
     { key: "invoices", icon: "request_quote", href: "/admin/invoices" },
@@ -44,11 +45,13 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "enrollments", icon: "how_to_reg", href: "/admin/enrollments" },
     { key: "sessions", icon: "video_camera_front", href: "/admin/sessions" },
     { key: "reports", icon: "fact_check", href: "/supervisor/reports", badgeKey: "reports", badgeTone: "tertiary" },
+    { key: "monthlyReports", icon: "calendar_month", href: "/supervisor/monthly-reports" },
     { key: "sessionRequests", icon: "report_problem", href: "/supervisor/session-requests", badgeKey: "requests", badgeTone: "secondary" },
   ],
   TEACHER: [
     { key: "dashboard", icon: "dashboard", href: "/teacher" },
     { key: "mySessions", icon: "calendar_month", href: "/teacher/sessions" },
+    { key: "monthlyReports", icon: "calendar_month", href: "/teacher/monthly-reports" },
     { key: "attendance", icon: "fact_check", href: "/teacher/attendance" },
     { key: "payroll", icon: "payments", href: "/teacher/payroll" },
   ],
@@ -63,6 +66,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "dashboard", icon: "dashboard", href: "/student" },
     { key: "mySessions", icon: "calendar_month", href: "/student/sessions" },
     { key: "attendance", icon: "event_available", href: "/student/attendance" },
+    { key: "monthlyReports", icon: "calendar_month", href: "/student/monthly-reports" },
     { key: "invoices", icon: "request_quote", href: "/student/invoices" },
   ],
 };
@@ -226,12 +230,15 @@ export default function DashboardShell({
   userName,
   timezone,
   navBadges,
+  hideNavKeys,
   children,
 }: {
   role: string;
   userName: string;
   timezone?: string;
   navBadges?: Partial<Record<"applications" | "reports" | "requests", number>>;
+  /** Per-page server-side nav filtering — e.g. a STUDENT with a guardian hides "invoices" (CONTEXT §12 finance wall). */
+  hideNavKeys?: string[];
   children: ReactNode;
 }) {
   const t = useTranslations("appShell");
@@ -241,7 +248,9 @@ export default function DashboardShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  const navItems = NAV_BY_ROLE[role] ?? NAV_BY_ROLE.STUDENT;
+  const navItems = (NAV_BY_ROLE[role] ?? NAV_BY_ROLE.STUDENT).filter(
+    (item) => !hideNavKeys?.includes(item.key),
+  );
   const roleLabel = role === "ADMIN" ? tDashboard("roles.SUPERADMIN") : tDashboard(`roles.${role}`);
   const brandInitial = tBrand("name").trim().slice(0, 1).toUpperCase();
 

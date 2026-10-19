@@ -39,6 +39,7 @@
       "enrollments": "Enrollments",
       "sessions": "Schedule & Live Sessions",
       "reports": "Report Approval Queue",
+      "monthlyReports": "Monthly Reports",
       "sessionRequests": "Outage & Absence Requests",
       "financials": "Financials & Subscriptions",
       "accounts": "Admin Accounts",
@@ -53,7 +54,7 @@
   },
   "reportsQueue": {
     "title": "Report Approval Queue",
-    "subtitle": "Review teacher session reports. Approval finalizes the student attendance record, notifies guardians, and authorizes the teacher payroll settlement.",
+    "subtitle": "Review teacher session reports. Approval finalizes the student attendance record and authorizes the teacher payroll settlement — the family already sees the report from the moment it was submitted.",
     "gateBadge": "Academic audit gate",
     "gateNote": "Session QA • approval gates settlement",
     "queueTitle": "Reports awaiting review",
@@ -105,7 +106,7 @@
     "filterFrom": "From (submission)",
     "filterTo": "To (submission)",
     "remarksTitle": "Class remark list",
-    "remarksHint": "The dropdown teachers choose from when submitting reports. 1–8 items.",
+    "remarksHint": "The dropdown teachers choose from when submitting reports — every option carries a label per report language (ar/en/fr/de/tr). 1–16 items.",
     "remarksAdd": "Add remark",
     "remarksRemove": "Remove",
     "remarksSave": "Save list",
@@ -113,7 +114,13 @@
     "remarksError": "The list could not be saved.",
     "redMarksTitle": "Late-report red marks",
     "redMarksHint": "Teachers with LATE_REPORT flags on sessions that ended without a full set of reports.",
-    "redMarksCount": "{count, plural, one {1 red mark} other {# red marks}}"
+    "redMarksCount": "{count, plural, one {1 red mark} other {# red marks}}",
+    "rejectionsTitle": "Rejection counters",
+    "rejectionsHint": "Informational per-teacher totals of rejected reports. Rejections never create an automatic red mark or penalty.",
+    "rejectionsCount": "{count, plural, one {1 rejection} other {# rejections}}",
+    "rejectionsChip": "{count, plural, one {rejected once before} other {rejected # times before}}",
+    "languageChip": "Report language",
+    "openSessionRecord": "Session record"
   },
   "attendance": {
     "teacher": {
@@ -155,14 +162,15 @@
   },
   "guardianReports": {
     "title": "Children's reports",
-    "subtitle": "Approved session reports for all linked children.",
+    "subtitle": "Session and monthly reports for all linked children — visible from the moment the teacher submits them.",
     "remark": "Class remark",
     "summary": "Summary",
     "homework": "Homework",
     "notes": "Notes",
     "attachmentsCount": "{count, plural, one {1 attachment} other {# attachments}}",
-    "empty": "No approved reports for {name} yet.",
-    "noChildren": "No linked children."
+    "empty": "No session reports for {name} yet.",
+    "noChildren": "No linked children.",
+    "monthlySection": "Monthly reports"
   },
   "sessionRequest": {
     "open": "Report an outage / absence",
@@ -935,6 +943,7 @@
       "welcome": "Welcome, {name}",
       "sections": {
         "today": "Today's classes",
+        "monthly": "Monthly reports",
         "reports": "Reports",
         "salary": "Salary"
       },
@@ -944,8 +953,10 @@
         "subjects": "assigned subjects",
         "salaryUnavailable": "Approved earnings and payout history live on the payroll page."
       },
+      "monthlyHint": "One monthly report per student you taught this month — written in the student's language and visible to the family immediately.",
       "actions": {
         "report": "Report",
+        "monthlyReports": "Open monthly reports",
         "schedule": "View full schedule"
       }
     },
@@ -959,7 +970,7 @@
       },
       "metrics": {
         "attendanceFromReports": "Attendance will appear after session reports are approved.",
-        "notAvailable": "Homework appears here once your teacher's report is approved."
+        "notAvailable": "Homework appears here as soon as your teacher submits the report."
       },
       "actions": {
         "session": "Session report",
@@ -1077,7 +1088,7 @@
     "classRemark": "Class remark",
     "summary": "Lesson summary",
     "homework": "Homework",
-    "homeworkHint": "Required — the student sees it after approval.",
+    "homeworkHint": "Required — the student sees it as soon as you submit.",
     "notes": "Notes",
     "optional": "optional",
     "extraTime": "Extra time (minutes)",
@@ -1085,10 +1096,14 @@
     "operationalEvents": "Operational events",
     "operationalEventsHint": "Review evidence only (late entry, disconnection…) — never decides attendance.",
     "operationalEventsInvalid": "Operational events must be valid JSON.",
+    "languageLabel": "Report language",
+    "languageHint": "Write this report in the student's language. The form labels follow the selected language.",
+    "validationRequired": "This field is required.",
+    "validationTooShort": "The text is too short.",
     "submit": "Submit report",
     "resubmit": "Resubmit report",
     "submitting": "Submitting…",
-    "submittedMessage": "Report submitted for review. No payment is posted at submission.",
+    "submittedMessage": "Report submitted. The student's family can see it now — approval by the administration only authorizes the payroll settlement.",
     "awaitingReview": "Submitted and awaiting review.",
     "approvedReadOnly": "Approved — read only.",
     "rejectedBanner": "Rejection reason:",
@@ -1111,7 +1126,92 @@
     "homework": "Homework",
     "notes": "Notes",
     "attachments": "Attachments",
-    "pending": "The report is not available until it is approved."
+    "pending": "The teacher has not submitted this session's report yet."
+  },
+  "teacherMonthly": {
+    "title": "Monthly reports",
+    "subtitle": "One monthly report per student you taught this month. Written in the student's language; visible to the family immediately — no approval gate.",
+    "formTitle": "Monthly report",
+    "monthLabel": "Month",
+    "filterMonth": "Show month",
+    "missingTitle": "Missing reports ({count})",
+    "missingChip": "Missing report",
+    "listTitle": "Students this month",
+    "submittedOn": "Submitted {time}",
+    "writeReport": "Write report",
+    "viewEdit": "View / edit",
+    "emptyTitle": "No students this month",
+    "emptyText": "Students with at least one session with you in the selected month appear here.",
+    "backToList": "Back to the list",
+    "lockedNotice": "This monthly report is locked — the 7-day edit window after submission has passed.",
+    "pendingTitle": "Monthly reports are arriving",
+    "pendingText": "The pending Session 1 migration adds monthly reports. Ask the owner to apply it, then reload this page.",
+    "languageHint": "The form labels follow the selected language.",
+    "rescheduledComputedHint": "Computed automatically from replacement sessions — read-only.",
+    "optionalChip": "optional",
+    "objectivesVisibilityHint": "A student with a guardian sees only the next-month objectives from this report.",
+    "submittedMessage": "Monthly report saved. The family can see it now.",
+    "errorGeneric": "The operation failed. Please try again."
+  },
+  "studentMonthly": {
+    "title": "Monthly reports",
+    "subtitle": "Your teacher's monthly reports for you.",
+    "noProfile": "No student profile is linked to your account.",
+    "emptyTitle": "No monthly reports yet",
+    "emptyText": "Your teacher's monthly reports appear here as soon as they are submitted."
+  },
+  "adminMonthly": {
+    "title": "All monthly reports",
+    "subtitle": "Every teacher's monthly reports for the selected month — read-only; the monthly stream has no approval gate, no money, and no attendance.",
+    "monthLabel": "Month",
+    "teacherLabel": "Teacher",
+    "allTeachers": "All teachers",
+    "filter": "Filter",
+    "missingTitle": "Missing monthly reports",
+    "missingHint": "Per teacher: eligible students (taught this month) without a submitted monthly report. Teachers also receive WhatsApp reminders on the 1st and 3rd of the month.",
+    "missingCount": "{count, plural, one {1 missing report} other {# missing reports}}",
+    "listTitle": "Submitted reports",
+    "emptyTitle": "No monthly reports this month",
+    "emptyText": "Submitted monthly reports for the selected month appear here.",
+    "pendingTitle": "Monthly reports are arriving",
+    "pendingText": "The pending Session 1 migration adds monthly reports. Ask the owner to apply it, then reload this page."
+  },
+  "adminSessionDetail": {
+    "title": "Session record",
+    "recordingPrinciple": "Recorded evidence, side by side. The system never compares reports against evaluations, never flags conflicts, and never decides — the reviewer does.",
+    "perStudentTitle": "Per student: report, evaluations, attendance",
+    "noStudents": "No students are enrolled in this session.",
+    "attendance": {
+      "PENDING": "Attendance not recorded",
+      "ATTENDED": "Attended",
+      "STUDENT_ABSENT": "Absent"
+    },
+    "rejectionsChip": "{count, plural, one {rejected once before} other {rejected # times before}}",
+    "teacherReportPanel": "Teacher's report",
+    "remark": "Class remark",
+    "summary": "Summary",
+    "homework": "Homework",
+    "notes": "Notes",
+    "attachmentsCount": "{count, plural, one {1 attachment} other {# attachments}}",
+    "languageChip": "Report language",
+    "evaluationsPanel": "Student / guardian evaluations",
+    "evaluationsPending": "Evaluations arrive with Phase 7 and will be shown here, side by side with the report — display only.",
+    "reportMissing": "No report submitted for this student yet.",
+    "settlementTitle": "Settlement history",
+    "settlementHint": "Ledger entries written for this session. Admin-only; a Supervisor never receives amounts.",
+    "settlementEmpty": "No ledger entries for this session yet.",
+    "payrollType": {
+      "SESSION_CREDIT": "Teacher session credit",
+      "ADMIN_ADJUSTMENT": "Admin adjustment",
+      "DISBURSEMENT": "Payout"
+    },
+    "deductionType": {
+      "INITIAL_PURCHASE": "Credit purchase",
+      "SESSION_DEDUCTION": "Session deduction",
+      "EXPIRY": "Expiry",
+      "ADMIN_ADJUSTMENT": "Admin adjustment",
+      "REFUND": "Refund"
+    }
   },
   "subjectsAdmin": {
     "title": "Subjects",
@@ -1677,6 +1777,8 @@
     "reject": "Reject",
     "empty": "No overtime claims are waiting for review.",
     "done": "Decision saved.",
-    "doneNote": "Approved overtime is paid as an adjustment at the same per-minute rate — it never changes the settled session credit."
+    "doneNote": "Approved overtime is paid as an adjustment at the same per-minute rate — it never changes the settled session credit.",
+    "attended": "Attended",
+    "absent": "Absent"
   }
 }

@@ -3,11 +3,11 @@
 > Purpose: stable project facts and decisions. This file is CONTEXT, not behavioral rules (those live in INSTRUCTIONS.md).
 > Owner: Mahmoud Wahdan. Client: Zarabicschool Academy (owned/managed by a woman referred to as "the ZarabicSchool owner" — get her exact name/title before writing it into user-facing docs).
 > Adopted source-of-truth scope document: the official "ZarabicSchool" project overview (24 sections, Arabic) — supersedes earlier informal notes where they conflict.
-> Last revised: 2026-10-07 — **8th revision, RECONCILED**: the 7th-revision decisions remain in force, with provider-managed renewals, fixed subscriber pricing, mandatory student evaluation details, and the Zoom overlap warning now confirmed. Earlier — **7th revision**: decisions from the owner's MCQ rounds — Admin/Supervisor APPROVAL of the report triggers pay; Supervisor = Admin without money and without managing admins; Paymob (EGP) + a USD gateway; monthly 8-session plan with no rollover + pay-per-session credits; monthly payout; DB-polling scheduler; no mock data (schema first, full seed, UI on real data). Earlier — **6th revision**: payment gateway + automatic recurring billing in USD (Section 20), Supervisor role (Section 4), OpenWA credential delivery starts now (Section 5), dashboards UI/UX plan (Section 21), documented conflict on who approves reports (Section 7). Earlier — **5th revision (2026-09-29)**: NO Zoom API (Admin creates meetings in Zoom and pastes the link), teacher pay is triggered by the teacher's REPORT, no recordings, no embedded Zoom, prepaid session packages, hourly teacher pay, staged delivery; plus per-student reports, report visibility, no trial sessions, and the post-delivery SaaS roadmap (Section 19). The 5th-revision submission-triggered pay wording is obsolete.
+> Last revised: 2026-10-18 — **9th revision (Session 1: reports, report languages, role dashboards)**: report visibility/delivery is now on SUBMIT (guardian + student per visibility rules), not on approval — approval concerns teacher pay only; the **monthly report** is a NEW, separate report stream (resolves the old "same stream, confirm in Phase 7" line); **report languages** (ar/en/fr/de/tr on the student, per-report `language`); a rejection counter (PROPOSAL) replaces any automatic red mark on rejections — the red mark stays for LATE reports only; a student WITH a guardian has NO finance access at all (server-enforced); the Stitch design folder is the UI/UX reference; the fake messaging provider is removed. Earlier — 2026-10-07 — **8th revision, RECONCILED**: the 7th-revision decisions remain in force, with provider-managed renewals, fixed subscriber pricing, mandatory student evaluation details, and the Zoom overlap warning now confirmed. Earlier — **7th revision**: decisions from the owner's MCQ rounds — Admin/Supervisor APPROVAL of the report triggers pay; Supervisor = Admin without money and without managing admins; Paymob (EGP) + a USD gateway; monthly 8-session plan with no rollover + pay-per-session credits; monthly payout; DB-polling scheduler; no mock data (schema first, full seed, UI on real data). Earlier — **6th revision**: payment gateway + automatic recurring billing in USD (Section 20), Supervisor role (Section 4), OpenWA credential delivery starts now (Section 5), dashboards UI/UX plan (Section 21), documented conflict on who approves reports (Section 7). Earlier — **5th revision (2026-09-29)**: NO Zoom API (Admin creates meetings in Zoom and pastes the link), teacher pay is triggered by the teacher's REPORT, no recordings, no embedded Zoom, prepaid session packages, hourly teacher pay, staged delivery; plus per-student reports, report visibility, no trial sessions, and the post-delivery SaaS roadmap (Section 19). The 5th-revision submission-triggered pay wording is obsolete.
 >
 > **Labels:** CONFIRMED (owner decided) / PROPOSAL (suggested, not yet accepted) / OPEN (undecided, do not invent) / ASSUMPTION (must be verified).
 > Section numbers are stable — INSTRUCTIONS.md references them. Do not renumber.
-> **Current work mode:** only documentation is being changed. No code is written until the owner says "start implementation".
+> **Current work mode (2026-10-18):** implementation sessions run with "implement first, test after": NO tests are run or written until the owner authorizes the test loop; agents report "implemented, not verified" and never claim done/secure until the owner verifies in the browser.
 
 ---
 
@@ -27,9 +27,10 @@ A live, mature competitor product exists: **madarakeg.com** ("مدارك"), a wo
 ## 2. Domain & Source Material
 
 - **Primary source of truth for scope:** the official ZarabicSchool project document (24 sections).
-- Brand guide PDF (Zarabicschool Logo System v1.0) — see Section 3.
+- Brand guide PDF (Zarabicschool logo system v1.0) — see Section 3.
 - `docs/specs/*` were generated with Gemini (Antigravity) from the owner's answers and are being revised to match this file.
 - **UI reference:** four screenshots of a similar product's teacher app (owner, 2026-09-29) — see Section 6, "Teacher experience". They are a UX reference only; do not copy branding.
+- **UI/UX design reference (owner, 2026-10-18): the Stitch export** — `docs/stitch_zarabicschool_edtech_management_platform/`: 31 screen folders (screenshot + `code.html` each; `zarabicschool_11` has a screenshot only) plus `academic_precision/DESIGN.md`, the "Academic Precision" design system (colors, typography, spacing, radius, elevation, component specs — read it fully before touching any screen). Design reference ONLY: extract tokens and implement them with the existing Tailwind/Next.js components and the shared app shell; do not paste the CDN-based HTML or build parallel components. Screen→role map and the conflict rules live in Section 21.6. Where the Stitch screens conflict with confirmed decisions, the confirmed decisions win.
 
 ---
 
@@ -44,7 +45,7 @@ A live, mature competitor product exists: **madarakeg.com** ("مدارك"), a wo
 
 ## 4. Users & Roles — CONFIRMED
 
-1. **Student** — own data, schedule, upcoming/past sessions, Zoom link per session, attendance history, homework (OPEN: whether the student sees the homework part of the teacher's report — the teacher's report itself goes to the guardian and Admin), announcements.
+1. **Student** — own data, schedule, upcoming/past sessions, Zoom link per session, attendance history, homework (CONFIRMED 2026-10-18: a student WITH a guardian sees the homework, notes and attachments of the teacher's session report; an adult student without a guardian sees the whole report; monthly-report student visibility = Section 9), announcements. A student WITH a guardian has NO finance access at all (Section 12/§21.6).
 2. **Guardian** — centralized view across all linked children: schedules, attendance, financial status (remaining sessions), teacher-written progress reports, updates. Can also apply through the guardian application form.
 3. **Teacher** — own schedule, assigned students, a button beside each student's session that opens Zoom, a report form per session/student, and a dashboard with her sessions and her salary (Section 6, "Teacher experience").
 4. **Admin (SuperAdmin)** — full control, including all money: applications, all accounts, subjects/relationships, schedules and **Zoom links**, reports review, outage requests, replacement sessions, finances, payroll adjustments and payouts, announcements. Admin provisions all accounts. A student sees the **homework, notes and attachments** of the teacher's reports (an adult student without a guardian sees the whole report); see Section 9.
@@ -69,7 +70,7 @@ A live, mature competitor product exists: **madarakeg.com** ("مدارك"), a wo
 - **Login rate limiting** from Phase 1 (in-memory locally; a shared store later).
 - `NotificationLog` never stores password values.
 
-**Credential delivery:** primary WhatsApp via OpenWA — CONFIRMED. **Implementation starts now (owner, 2026-10-06):** replace the fake provider with an `OpenWAProvider` behind `MessagingProvider`, selected by configuration; the approval route must call the provider through that interface, not import the fake directly; the password goes only into the outgoing message and never into logs or `NotificationLog`; a failed send must not roll back the approval and must leave a redacted failure row so Admin can retry; the Admin one-time credentials panel stays as the fallback. **SMS is post-MVP and may never be built** (CONFIRMED). PROPOSAL for the MVP fallback: Admin sees the temporary password once in the admin UI and delivers it manually.
+**Credential delivery:** primary WhatsApp via OpenWA — CONFIRMED. **The fake messaging provider is REMOVED (owner, 2026-10-18):** `OpenWAProvider` is the only production provider behind `MessagingProvider`, selected by configuration; no fake providers are allowed in production code (INSTRUCTIONS.md §10). If the `OPENWA_*` environment variables are missing, nothing crashes and nothing rolls back: the send fails with a redacted `NotificationJob` row (status FAILED; the `notification_jobs` table doubles as the NotificationLog — no separate table exists). A failed send must not roll back the approval; the password goes only into the outgoing message and never into logs or the job row; the Admin one-time credentials panel stays as the fallback. **SMS is post-MVP and may never be built** (CONFIRMED). PROPOSAL for the MVP fallback: Admin sees the temporary password once in the admin UI and delivers it manually.
 
 ---
 
@@ -110,6 +111,7 @@ Pay depends on the teacher's word, so the design adds cheap controls instead of 
 1. Session created → teacher notified.
 2. About 2 hours before → WhatsApp reminder to the **teacher, the student and the guardian** (CONFIRMED). **At the scheduled start → a second WhatsApp message with the Zoom join link** (CONFIRMED, owner, 2026-10-06; recipients as in the reminder). Links are never logged; a failed send is recorded and never rolls back the session.
 3. Scheduled end passed → teacher asked to write the report (mandatory; its approval by Admin/Supervisor triggers her pay); student asked to write an evaluation (**optional**).
+3b. **Report SUBMITTED → the guardian (and the student, per the visibility rules in Section 9) is notified immediately (WhatsApp via `MessagingProvider`) in the report's language (Section 9) — owner decision 2026-10-18.** Admin/Supervisor review has NO effect on visibility or delivery: the report is visible to the guardian/student the moment it is submitted, in every status. Approval concerns teacher pay only. If a report is rejected and corrected it stays the same row: viewers see the latest content, and no second WhatsApp is sent for the same report (PROPOSAL).
 4. Report still missing ~15 minutes later → second notification.
 5. Still missing after that → **red mark** on the teacher, visible to Admin — for a late **report** only. PROPOSAL: T+0 notify, T+15 reminder, T+30 red mark. Timing measured from the scheduled end.
 6. Optional low-balance warning when ~75% of the package is used (Post-MVP candidate).
@@ -126,6 +128,8 @@ Two units, on purpose:
 **Money moves only after Admin or Supervisor APPROVES the teacher's per-student report. Submitting the report moves nothing.** (Supersedes the 5th-revision "submission triggers pay". This matches PROGRESS.md and the phase-05/06 specs.)
 
 **Report lifecycle:** `SUBMITTED → APPROVED → ARCHIVED` (archival happens in the settlement transaction), or `SUBMITTED → REJECTED → SUBMITTED` after the teacher corrects. The same `Reports` row is edited before archive; there is no revision/version table. Reports are per student, also in group sessions.
+
+**Rejection counter (PROPOSAL, 2026-10-18 — instead of any automatic red mark):** reports carry a `rejection_count`, incremented on each Admin/Supervisor rejection; Admin/Supervisor see it on the report and in a per-teacher summary. There is NO automatic red mark and NO automatic penalty from rejections; the red mark stays for LATE reports only (Section 6). The system records, the Admin decides (INSTRUCTIONS.md §6).
 
 **Approval transaction — ONE database transaction, when the report says the student ATTENDED:**
 1. one `SESSION_DEDUCTION` (−1 session) on that student's credits;
@@ -183,7 +187,7 @@ If the report says the student did not attend, that student's attendance becomes
 
 ## 8. WhatsApp — role clarified
 
-WhatsApp is used **only** for: credential delivery, registration/status updates, payment info (receipts, renewal reminders, failed-renewal notices), session reminders (teacher + student + guardian), report notices (the guardian is messaged automatically when a report is approved — CONFIRMED), payroll-related alerts. It is not authentication and not a source of truth.
+WhatsApp is used **only** for: credential delivery, registration/status updates, payment info (receipts, renewal reminders, failed-renewal notices), session reminders (teacher + student + guardian), report notices (**the guardian — and the student, per the visibility rules — is messaged automatically when the teacher SUBMITS a report, NOT on approval — owner decision 2026-10-18, superseding the old "on approval" confirmation**; the notice uses the report's language when a template exists, else the recipient's locale), monthly-report reminders (PROPOSAL, Section 9), payroll-related alerts. It is not authentication and not a source of truth.
 
 **Provider: CONFIRMED — OpenWA** (self-hosted, unofficial, whatsapp-web.js based), because the official Cloud API could not be obtained.
 - Auth: `X-API-Key` header; sending number linked via a QR-scanned session.
@@ -193,13 +197,34 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 
 ---
 
-## 9. Reports & Evaluations — CONFIRMED MVP feature
+## 9. Reports & Evaluations — CONFIRMED MVP feature (rewritten 2026-10-18)
 
-- **Teacher session report (mandatory; its approval by Admin/Supervisor triggers her pay):** class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions (CONFIRMED). **Fields:** class remark (list: excellent / good / acceptable / needs follow-up — editable by Admin in settings), summary (what was covered and how the student did), homework, notes, attachments (**images and PDF only, max 10 MB each, private storage**). **Visibility:** guardian, Admin and Supervisor see the whole report; the **student sees the homework, the notes and the attachments** (an adult student without a guardian sees the whole report). Whether the student also sees the class remark and the summary is PROPOSAL: no.
-- Teacher free-text progress report per student (longer-term) — may be the same report stream; confirm in Phase 7.
-- Student/Guardian can write a report/evaluation about a teacher — **visible to Admin only** (CONFIRMED).
-- Post-session evaluation form to the student/guardian — **mandatory** (owner, 2026-10-07), visible to Admin only; see Section 7 item 7 for the open sub-questions. Teacher pay never depends on it.
-- Teacher lateness with the report is tracked (notifications + red mark).
+**Two separate things, never mixed:**
+- **A) DELIVERY / VISIBILITY — automatic, independent of Admin review:** the teacher submits → the report is **immediately visible** (dashboard + WhatsApp via `MessagingProvider`) to the guardian and the student per the visibility rules below. Admin/Supervisor approval/rejection has NO effect on visibility. If a report is rejected and corrected it is the same row: viewers see the latest content, and no second WhatsApp is sent for the same report (PROPOSAL).
+- **B) PAY — SESSION report only:** Admin/Supervisor approval of the session report triggers the existing atomic settlement (Section 7, unchanged). Rejection returns the report to the teacher (existing flow).
+
+**Report streams (two, separate):**
+1. **Teacher session report** ("End class"; mandatory; its approval by Admin/Supervisor triggers her pay): class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions. Fields: class remark (Admin-managed list in AcademySettings), summary (required), homework (required), notes, attachments (JPEG/PNG/WebP/PDF by signature check, max 10 MB each, private Supabase Storage). Submitting is possible only after the scheduled end, only by the assigned teacher, only once per (session, student).
+2. **Teacher monthly report (NEW, added 2026-10-18 — resolves the old "may be the same stream, confirm in Phase 7" line):** a **separate report stream**, same permission model as the session report (only the assigned teacher, per student). **NO money, NO attendance, NO ledger, NO approval gate** — it is pure communication to the family. Fields: month (default = previous month); achievement over the month (long text, required); learning progress (Excellent / Very Good / Good / Very Slow Progress); active and focused in class (Always / Often / Sometimes / Rarely); completes homework/tasks (Always / Most of the time / Sometimes / Rarely); comes on time (Always / Often / Sometimes / Rarely); sessions rescheduled in the month (None / 1 / 2 / More than 2 — **computed automatically** from replacement sessions / approved outage requests; pre-filled, read-only); areas needing additional support (text); key learning objectives for next month (text). Rules (PROPOSAL until the owner confirms): unique per (teacher, student, month); only for a month that has started; the teacher may edit for 7 days after submission, then it locks; the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports.
+
+**Report languages (client requirement, 2026-10-18):** teachers write in the student's language — `ar / en / fr / de / tr`.
+- `report_language` on the student (default `ar`), editable by Admin/Supervisor (student profile + application mapping). There is no "fusha" field.
+- Separate from the site UI locale: the site stays `ar`/`en`; fr/de/tr as UI languages are OUT of scope.
+- The report form (labels, dropdown options, placeholders, validation messages) renders in the report language. The teacher can change a given report's language via a selector (default = the student's `report_language`); each report row stores its `language`.
+- No machine translation: the teacher writes the free text in that language. Reports are shown in the language they were written, with the correct direction (rtl for ar, ltr otherwise), regardless of the viewer's UI locale; the surrounding chrome stays in the UI locale.
+- Class-remark options: an Admin-managed list in AcademySettings, each with a label per language (ar/en/fr/de/tr). Seed: Excellent, Very Good, Good, Acceptable, Needs Improvement, with translations.
+- WhatsApp report notices use the report's language when a template exists, else the recipient's locale. No hardcoded strings.
+
+**Visibility rules (same for session and monthly reports; CONFIRMED 2026-10-18):**
+- Guardian, Admin, Supervisor: the whole report (Supervisor never receives money fields — there are none in reports, but this holds everywhere).
+- Student WITH a guardian: session report → homework, notes, attachments only; monthly report → only "key learning objectives for next month" (PROPOSAL).
+- Adult student WITHOUT a guardian: the whole report.
+- Teachers never see other teachers' reports.
+- Evaluations (student/guardian → about the teacher) stay **Admin-only** (CONFIRMED).
+
+**Admin as decision-maker (owner, 2026-10-18):** an Admin/Supervisor **session-detail page** shows, side by side and READ-ONLY: the teacher's report, the student's evaluation, the guardian's evaluation (if any — evaluations arrive in Phase 7; the page reserves the panel), recorded attendance, and settlement history (money panels are Admin-only; a Supervisor receives no money fields). **THE SYSTEM RECORDS, THE ADMIN DECIDES:** the system never compares reports against evaluations, never detects conflicts, never flags disagreements, never decides who is right. Corrections happen only through the existing Admin-only reversal / `ADMIN_ADJUSTMENT` actions (reason mandatory, history never edited).
+
+**Other report-related rules kept from earlier revisions:** the student/guardian evaluation of a teacher is visible to Admin only (CONFIRMED); the post-session evaluation form is mandatory (owner, 2026-10-07) and never blocks sessions or pay; teacher lateness with the report is tracked (notifications + red mark — late reports only).
 
 ---
 
@@ -230,6 +255,7 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 ## 12. Payment Model (student-facing) — DECIDED (7th revision)
 
 Online payment through payment gateways, with automatic monthly renewal (full design in Section 20).
+- **Finance wall (owner, 2026-10-18): a student WITH a guardian has NO finance access at all** — no invoices, no prices, no pay actions, no proof uploads, no finance nav item; only the remaining-sessions count may be shown. Enforced SERVER-SIDE in the API/data layer: a direct URL/API call as this student must return 403/404. **An adult student without a guardian pays for himself** and sees invoices/finance.
 - The payer (the guardian, or an adult student without a guardian) **chooses the currency at checkout: EGP → Paymob; USD → a second gateway** (provider OPEN, Section 20.3).
 - The money reaches the academy in the currency that was paid (owner's requirement; whether each provider really settles that way must be verified — Section 20.3).
 - Flow: Invoice `PENDING` → hosted checkout → provider webhook (signature verified) → Invoice `PAID` → `SubscriptionLedger` `INITIAL_PURCHASE` (+N sessions). Money is integer minor units + ISO currency everywhere.
@@ -247,7 +273,7 @@ Online payment through payment gateways, with automatic monthly renewal (full de
 2. **Educational management** — students, guardians, teachers, subjects, relationships, the three applications and their approval/provisioning, Admin CRUD.
 3. **Schedules & sessions** — schedule creation, recurring patterns, Zoom link per session, replacement sessions, session log, scheduling block at zero credits with audited override.
 4. **Live sessions via Zoom links** — the Zoom button (with the small logging redirect), link management, teacher/student session lists. A small phase.
-5. **Session reports & attendance** (the spec file name still says "recordings"; there is no recordings feature) — report form with attachments, **Admin/Supervisor approval queue**, attendance from approved reports, notifications and red mark, outage/absence requests, overtime claims.
+5. **Session reports & attendance** (the spec file name still says "recordings"; there is no recordings feature) — report form with attachments, **Admin/Supervisor approval queue**, attendance from approved reports, notifications and red mark, outage/absence requests, overtime claims. **Added 2026-10-18: the monthly report (Section 9) belongs to this phase's reports stream, plus report languages and the submit-time visibility/delivery change.**
 6. **Financial management** — plans, invoices, ledgers, **approval-triggered hourly settlement (Section 7)**, monthly payroll close and disbursements, exchange rate.
    - **6b. Online payments & automatic renewal (Section 20)** — Paymob (EGP) + USD gateway behind `PaymentProvider`, provider-managed subscriptions, webhooks, and failed-renewal grace.
 7. **Admin & reports** — admin/supervisor dashboards, review queues, evaluations, announcements, complaints.
@@ -317,7 +343,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Zoom cost conversation with Alaa | Done (owner, 2026-10-07). Practical note: free Zoom hosts have a 40-minute meeting limit and one host account cannot run many meetings at once — verify the academy's Zoom plan; the platform will warn when two overlapping sessions share the same join link |
 | Payment gateway added; student payments in USD; automatic monthly/yearly renewal | CONFIRMED (owner, 2026-10-06) |
 | Academy bears all fees, refunds, chargebacks and platform subscriptions | CONFIRMED by owner (agreed with Alaa; get it in writing) |
-| Paymob for EGP; **Dodo Payments for USD** (Merchant of Record) | CONFIRMED approach; Dodo payout/KYC/recurring-charge capability to verify (Section 20.3) |
+| Paymob for EGP; **Dodo Payments for USD** (Merchant of Record) | **CONFLICT (flagged 2026-10-18): §20.3 records Dodo as chosen (owner, 2026-10-07) while §7 item 9 (owner, 2026-10-14) says Dodo vs Xpay is still being evaluated — the owner must resolve this; do not decide it in code**; Dodo payout/KYC/recurring-charge capability to verify (Section 20.3) |
 | Payer picks EGP/USD at checkout; money arrives in the currency paid | CONFIRMED requirement; provider settlement behaviour to verify |
 | Monthly plan 8 sessions, no rollover; tiers; pay-per-session never expires; Admin price in one currency + Admin exchange rate | CONFIRMED |
 | Failed renewal = grace (default 3 days) then block new scheduling only | CONFIRMED |
@@ -332,6 +358,19 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | No mock data: full schema first, full seed, UI on real data | CONFIRMED (Section 13/21) |
 | OpenWA credential delivery implemented now | CONFIRMED (Section 5) |
 | Dashboards UI/UX pass, built on the real seeded database (no mock data) | CONFIRMED as next work; details PROPOSAL (Section 21) |
+| Report visibility/delivery on SUBMIT: guardian + student (per visibility rules) see the report immediately; WhatsApp notice on submit in the report's language; approval/rejection has no effect on visibility; approval concerns teacher pay only | CONFIRMED (owner, 2026-10-18) |
+| No second WhatsApp for the same report after a rejection/correction (same row, latest content) | PROPOSAL |
+| Monthly report = a NEW, separate report stream (fields in Section 9; no money/attendance/ledger/approval gate; unique per teacher/student/month; month must have started) | Stream CONFIRMED (owner, 2026-10-18); edit-window, reminder days and student-visibility rules PROPOSAL |
+| Monthly report teacher edit window = 7 days after submission, then locked | PROPOSAL |
+| Monthly report missing-report reminders on the 1st and 3rd of the month (DB-polling worker) | PROPOSAL |
+| Monthly report student-with-guardian visibility = only "key learning objectives for next month" | PROPOSAL |
+| Report languages ar/en/fr/de/tr on the student (default ar; Admin/Supervisor edit; per-report `language`; form renders in the report language; no machine translation; class-remark list with per-language labels) | CONFIRMED (client requirement, 2026-10-18); fr/de/tr as site UI languages OUT of scope |
+| Rejection counter on reports (increment per rejection; visible to Admin/Supervisor on the report + per-teacher summary); NO automatic red mark, NO automatic penalty; red mark stays for LATE reports only | PROPOSAL (counter); red-mark scope CONFIRMED |
+| Student WITH a guardian has no finance access at all (server-enforced 403/404; remaining-sessions count allowed); adult student without a guardian pays for himself | CONFIRMED (owner, 2026-10-18) |
+| Admin/Supervisor session-detail page: read-only side-by-side report + evaluation(s) + attendance + settlement history; the system never compares/detects conflicts/decides | CONFIRMED (owner, 2026-10-18); evaluations panel arrives with Phase 7 |
+| Stitch design folder (`docs/stitch_zarabicschool_edtech_management_platform/`) = the UI/UX reference; tokens only, never pasted HTML; confirmed decisions beat the screens; no Dean role / no override; join-button minutes come from `lib/config/session-join.ts` | CONFIRMED (owner, 2026-10-18) |
+| Fake messaging provider removed; OpenWA is the only production provider; missing OPENWA_* config = redacted FAILED `notification_jobs` row, no crash, no rollback | CONFIRMED (owner, 2026-10-18) |
+| Phase 9 additions scheduled for Phase 9 (documented in phase-09-refinements.md, NOT built early): 9.9 timezone by country; 9.10 join window 30 minutes before start (changes the Phase 4 constant when its time comes) | Owner decisions 2026-10-18; scheduled for Phase 9 |
 
 ### Environment variable names (names only — never values in docs or Git)
 `DATABASE_URL`, `DIRECT_URL`, `OPENWA_URL`, `OPENWA_API_KEY`, `OPENWA_SESSION_ID`, `NEXTAUTH_SECRET`.
@@ -430,6 +469,31 @@ Four role dashboards exist as shells with empty cards; the only real admin scree
 - **Teacher:** today's classes (student, time, subject, duration, status, Zoom button, report icon only after the end), total/done/remaining sessions, attended %, approved earnings per currency (+ pending-approval amount, PROPOSAL), late-report warnings.
 - **Guardian:** one card per child (next session, remaining sessions, last approved report), subscription status + next renewal date + cancel action, invoices, announcements.
 - **Student:** upcoming sessions with the Zoom button, attendance history, homework and notes from reports, remaining sessions (adult student without guardian also sees invoices).
-
 ### 21.5 Rules for the UI agent
+
 Only UI files (`app/**`, `app/_components/**`, `messages/*.json`). Do not touch `prisma/**`, `lib/auth.ts`, `lib/dal.ts`, `proxy.ts`, or API routes. No new dependencies without asking. Money is shown from integer minor units formatted per currency. Supervisor views must not receive money fields at all (the data layer omits them).
+*(Note, 2026-10-18: this rule governs UI-only agent passes. The Session 1 dashboards pass was explicitly owner-authorized as full-stack, so it also touches server files under the same invariants.)*
+
+### 21.6 Stitch screen → role inventory (verified 2026-10-18)
+
+The Stitch export has 31 screen folders (screenshot + `code.html`; `zarabicschool_11` is screenshot-only) plus `academic_precision/DESIGN.md`. Screens are DESIGN REFERENCE ONLY (Section 2). Map:
+
+| Screens | Role / surface |
+|---|---|
+| `zarabicschool_1, 2, 3, 5, 8` | Landing + applications (public marketing) |
+| `zarabicschool_4, 6, 7` | Guardian / student / teacher application forms |
+| `zarabicschool_9, 10` | Login + forced password change |
+| `admin_operations_dashboard` | Admin dashboard |
+| `applications_account_provisioning` | Admin: applications review + account provisioning |
+| `people_accounts_directory_zarabicschool` | Admin: people/accounts directory |
+| `schedule_live_sessions` | Admin: schedule + live sessions management |
+| `recurring_session_provisioning_zarabicschool` | Admin: recurring session provisioning |
+| `absence_replacement_management_zarabicschool` | Admin: absence/replacement management |
+| `report_approval_queue` | Admin/Supervisor: report approval queue |
+| `billing_plan_configuration_suite`, `financials_subscriptions_invoicing_suite`, `monthly_payroll_closing_treasury_suite`, `teacher_payroll_hourly_rates_suite` | Admin-only finance suites (Supervisor never sees these) |
+| `supervisor_operations_dashboard_zarabicschool` | Supervisor dashboard (money widgets removed) |
+| `zarabicschool_11` (screenshot only), `12`, `13`, `14` | Teacher: dashboard, schedule, End-class report form, earnings |
+| `zarabicschool_15`, `16` | Guardian: children, child report + plan |
+| `zarabicschool_17`, `18`, `19` | Student: session evaluation, dashboard |
+
+Where a feature has no screen (e.g. the monthly-report form, the report-language selector), derive it from the closest screen and the same tokens — do not invent a new style. Conflict rules (confirmed decisions beat the screens): there is **no Dean role and no override** — approval is Admin/Supervisor only (`submitted → approved/rejected`), keep the stepped-progress look but relabel to our states; the "Enter Classroom" T-minus figure comes from `lib/config/session-join.ts` (currently 15; the owner changes it to 30 in Phase 9 item 9.10), never hardcoded in UI text; student screens must not show prices/invoices/balances/pay actions for a student with a guardian (remaining-sessions count allowed); money widgets on Supervisor screens are removed; demo names/numbers are placeholders — render real data.

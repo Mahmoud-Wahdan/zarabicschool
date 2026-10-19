@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { getLocale } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
-import { requireRole } from "../../../lib/dal";
+import { requireRole, studentFinanceBlocked } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { formatSessionDateTime } from "../../../lib/schedules/display";
 import { Link } from "../../../i18n/navigation";
@@ -14,6 +14,8 @@ export async function generateMetadata() {
 
 export default async function StudentDashboard() {
   const user = await requireRole("STUDENT");
+  // Finance wall (CONTEXT §12): a student WITH a guardian sees no finance nav at all.
+  const financeHidden = await studentFinanceBlocked(user.id);
   const [t, locale] = await Promise.all([getTranslations("dashboard"), getLocale()]);
   const student = await prisma.student.findUnique({
     where: { userId: user.id },
@@ -43,10 +45,13 @@ export default async function StudentDashboard() {
         },
       },
       reports: {
-        where: { status: { in: ["APPROVED", "ARCHIVED"] } },
-        orderBy: { approvedAt: "desc" },
+        // Submit-time visibility (owner, 2026-10-18 — CONTEXT §9): the student sees
+        // homework from the moment the teacher SUBMITS the report — approval gates
+        // pay only.
+        where: { status: { in: ["SUBMITTED", "APPROVED", "ARCHIVED"] } },
+        orderBy: { submittedAt: "desc" },
         take: 5,
-        select: { id: true, homework: true, approvedAt: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
+        select: { id: true, homework: true, submittedAt: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
       },
     },
   });
@@ -57,7 +62,7 @@ export default async function StudentDashboard() {
   const latestHomework = student?.reports[0];
 
   return (
-    <DashboardShell role={user.role} userName={user.displayName}>
+    <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("student.title")}</h1>
       <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
         {t("student.welcome", { name: user.displayName })}

@@ -18,9 +18,11 @@
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 | 9 | Refinements & UI/UX Polish | Not Started | 2026-10-14 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
 
-## Current Active Task (2026-10-18)
+## Current Active Task (2026-10-18, Session 1)
 
-Phase 5 completion + Phase 6 implementation executed in one session on `feature/phase-5` (owner-authorized "implement first, test after"). **Next: the test loop** (jest unit + real-Postgres integration suites incl. the new settlement tests, then E2E), then the owner's browser review. See phase-05/06 specs for the detailed 2026-10-18 execution logs.
+**Session 1 — Reports (session + monthly), report languages, role dashboards, UI/UX** (owner mission brief; runs on `feature/phase-5` after the Phase 5/6 completion session). Order: docs → fake-messaging removal → report languages → submit-time visibility/delivery + rejection counter + Admin session-detail page → monthly report → dashboards (Teacher, Guardian, Student, Student-without-guardian) with the Stitch "Academic Precision" UI/UX applied. **NO tests this session** (owner authorizes the test loop separately; plan staged in `docs/specs/test-plan-session1.md`): everything is reported "implemented, not verified"; only the owner verifies in the browser. Finance (Paymob webhook, plans, subscriptions, renewal, expiry) is Session 2 — out of scope here except the student-with-guardian finance wall. Phase 9 items (9.9 timezone-by-country, 9.10 join window 30 minutes) are owner decisions scheduled for Phase 9, NOT built now.
+
+(Preceding entry — same date.) Phase 5 completion + Phase 6 implementation executed in one session on `feature/phase-5` (owner-authorized "implement first, test after"). **Next: the test loop** (jest unit + real-Postgres integration suites incl. the new settlement tests, then E2E), then the owner's browser review. See phase-05/06 specs for the detailed 2026-10-18 execution logs.
 
 Known-error fixes (verified against the dev DB):
 - Outage requests: migration WAS applied; the 409 came from a forever-cached negative capability check — now self-healing.

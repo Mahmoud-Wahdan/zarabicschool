@@ -73,6 +73,7 @@ Unified authentication table. Role-specific details live in profile tables.
 | `is_adult` | BOOLEAN | DEFAULT false | True if student studies without a guardian |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `enrollment_date` | DATE | | |
+| `report_language` | ENUM | NOT NULL, DEFAULT 'ar' | NEW (Session 1, 2026-10-18): language the teacher writes this student's reports in — `ar`, `en`, `fr`, `de`, `tr`; edited by Admin/Supervisor (profile + application mapping); separate from the site UI locale |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -440,6 +441,8 @@ Per-student teacher reports. In a group session there is one report for each stu
 | `approved_by` | UUID | FK → Users, nullable | Admin or Supervisor who approved the report; the actor cannot edit ledger amounts |
 | `settled_at` | TIMESTAMPTZ | nullable | Set in the same transaction as settlement ledger rows; never cleared to retry |
 | `archived_at` | TIMESTAMPTZ | nullable | Set after approved settlement succeeds; archived reports are immutable |
+| `language` | ENUM | NOT NULL, DEFAULT 'ar' | NEW (Session 1, 2026-10-18): the report's language (`ar`, `en`, `fr`, `de`, `tr`); selector default = the student's `report_language`; the report renders in this language with the correct dir |
+| `rejection_count` | INTEGER | NOT NULL, DEFAULT 0 | NEW (Session 1, 2026-10-18, PROPOSAL): incremented on each Admin/Supervisor rejection; visible to Admin/Supervisor on the report + per-teacher summary; NEVER drives an automatic red mark or penalty (red mark = late reports only) |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -452,7 +455,7 @@ WHERE report_type = 'SESSION_COMPLETION_REPORT';
 
 Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin or Supervisor rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher, Supervisor, nor Admin may edit the evidence. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
 
-Archived reports are visible to Admin, the submitting Teacher, the linked Guardian when the student has one, or the Student directly when the student has no Guardian. Student evaluations are separate from Reports and are not inferred from attendance; whether evaluation is mandatory after a completed session is OPEN.
+Reports are visible to the guardian and the student (per the CONTEXT §9 visibility rules) from the moment of SUBMISSION, in every status — approval gates pay only (owner, 2026-10-18). A student with a guardian sees only homework/notes/attachments (session reports); an adult student without a guardian, the guardian, Admin and Supervisor see the whole report; the submitting teacher sees her own report in every state. Teachers never see other teachers's reports. Student evaluations are separate from Reports and are not inferred from attendance; evaluation is mandatory after a completed session (Phase 7).
 
 ## 18. ReportAttachments
 
@@ -468,6 +471,35 @@ Archived reports are visible to Admin, the submitting Teacher, the linked Guardi
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 
 Access uses short-lived signed URLs. Executables are prohibited.
+
+---
+
+## 18b. MonthlyReports (NEW — Session 1, 2026-10-18, PROPOSAL until the owner confirms)
+
+Separate monthly report stream written by the assigned teacher per student. NO money, NO attendance, NO ledger, NO approval gate — pure communication to the family (CONTEXT §9).
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL | Assigned teacher only |
+| `student_id` | UUID | FK → Students, NOT NULL | |
+| `month_key` | VARCHAR(7) | NOT NULL | `'YYYY-MM'`; only months that have started are allowed |
+| `achievement` | TEXT | NOT NULL | Achievement over the month (long text, required) |
+| `learning_progress` | ENUM | NOT NULL | `EXCELLENT`, `VERY_GOOD`, `GOOD`, `VERY_SLOW_PROGRESS` |
+| `class_focus` | ENUM | NOT NULL | `ALWAYS`, `OFTEN`, `SOMETIMES`, `RARELY` (active and focused in class) |
+| `homework_completion` | ENUM | NOT NULL | `ALWAYS`, `MOST_OF_THE_TIME`, `SOMETIMES`, `RARELY` (completes homework/tasks) |
+| `punctuality` | ENUM | NOT NULL | `ALWAYS`, `OFTEN`, `SOMETIMES`, `RARELY` (comes on time) |
+| `rescheduled_sessions` | INTEGER | NOT NULL, DEFAULT 0 | Computed server-side from replacement sessions / approved outage requests in that month; pre-filled, read-only; displayed as None / 1 / 2 / More than 2 |
+| `support_areas` | TEXT | nullable | Areas needing additional support |
+| `next_month_objectives` | TEXT | nullable | Key learning objectives for next month; the ONLY field a student with a guardian sees (PROPOSAL) |
+| `language` | ENUM | NOT NULL, DEFAULT 'ar' | Report language (`ar`,`en`,`fr`,`de`,`tr`); selector default = the student's `report_language` |
+| `submitted_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Start of the 7-day edit window (PROPOSAL) |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | | |
+| | | UNIQUE(teacher_id, student_id, month_key) | One report per teacher/student/month |
+
+Rules: only the assigned teacher may create/edit; unique per (teacher, student, month); only for a month that has started; teacher may edit for 7 days after submission, then locked (PROPOSAL); the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports (PROPOSAL). Visibility mirrors session reports: guardian/Admin/Supervisor whole; student with a guardian → only `next_month_objectives` (PROPOSAL); adult student → whole; teachers never see other teachers' reports. Additive migration, owner applies.
 
 ---
 
@@ -564,6 +596,8 @@ Broadcast notices issued by Admin.
 ## 24. NotificationLog
 
 Auditing log for WhatsApp and SMS communications.
+
+**Implementation note (Session 1, 2026-10-18):** the implemented system has NO separate NotificationLog table — `notification_jobs` doubles as the queue AND the redacted log (Phase 3 accepted design): status (`PENDING`/`PROCESSING`/`SENT`/`FAILED`/`CANCELLED`), `attempts`, `last_error` (short provider error only), `sent_at`; NO message content is ever stored (the worker composes text at send time; credentials/passwords/Zoom links are never persisted). A missing OpenWA configuration produces a FAILED row ("OpenWA is not configured."), never a crash or rollback. The planned columns below describe a future dedicated audit store; the `content` column must remain redacted if ever built.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|

@@ -2,12 +2,15 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import DashboardShell from "../../../../../_components/dashboard-shell";
-import { requireRole } from "../../../../../../lib/dal";
+import { requireRole, studentFinanceBlocked } from "../../../../../../lib/dal";
 import { prisma } from "../../../../../../lib/prisma";
+import { getClassRemarkOptions } from "../../../../../../lib/reports/class-remarks";
+import { classRemarkLabel, reportDir } from "../../../../../../lib/reports/report-language";
 import { getReportForViewer } from "../../../../../../lib/reports/visibility";
 
 export default async function StudentReportPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireRole("STUDENT");
+  const financeHidden = await studentFinanceBlocked(user.id);
   const { id } = await params;
   const locale = await getLocale();
   const t = await getTranslations("studentReport");
@@ -20,24 +23,37 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
 
   // Role-shaped read through the visibility data layer (CONTEXT §9): a student with a
   // guardian sees ONLY homework, notes and attachments; an adult student without a
-  // guardian sees the whole report. Gate: APPROVED/ARCHIVED (owner decision 2026-10-14).
-  const view = await getReportForViewer(
-    { userId: user.id, academyId: user.academyId, role: user.role },
-    id,
-    enrollment.studentId,
-  );
+  // guardian sees the whole report. Visible from SUBMISSION in every status (owner,
+  // 2026-10-18) — approval gates pay only.
+  const [view, classRemarkOptions] = await Promise.all([
+    getReportForViewer(
+      { userId: user.id, academyId: user.academyId, role: user.role },
+      id,
+      enrollment.studentId,
+    ),
+    getClassRemarkOptions(user.academyId),
+  ]);
 
   const attachmentList = view?.attachments ?? [];
   return (
-    <DashboardShell role={user.role} userName={user.displayName}>
+    <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
       <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
       <p className="mt-2 text-body-sm text-on-surface-variant">
         {locale === "en" ? enrollment.session.subject.nameEn : enrollment.session.subject.nameAr}
       </p>
       {view ? (
-        <article className="dashboard-card mt-6 space-y-3 p-5">
+        // The report CONTENT renders in the language it was written (CONTEXT §9),
+        // with its own dir — the surrounding chrome stays in the UI locale.
+        <article
+          className="dashboard-card mt-6 space-y-3 p-5"
+          dir={view.language ? reportDir(view.language) : undefined}
+          lang={view.language ?? undefined}
+        >
           {view.classRemark ? (
-            <p><strong>{t("remark")}:</strong> {view.classRemark}</p>
+            <p>
+              <strong>{t("remark")}:</strong>{" "}
+              {view.language ? classRemarkLabel(classRemarkOptions, view.classRemark, view.language) : view.classRemark}
+            </p>
           ) : null}
           {view.summary ? (
             <p><strong>{t("summary")}:</strong> {view.summary}</p>

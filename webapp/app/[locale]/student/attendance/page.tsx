@@ -4,7 +4,7 @@ import { Link } from "../../../../i18n/navigation";
 import DashboardShell from "../../../_components/dashboard-shell";
 import Icon from "../../../_components/ui/icon";
 import StatusBadge from "../../../_components/ui/status-badge";
-import { requireRole } from "../../../../lib/dal";
+import { requireRole, studentFinanceBlocked } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 
@@ -19,6 +19,7 @@ export async function generateMetadata() {
  */
 export default async function StudentAttendancePage() {
   const user = await requireRole("STUDENT");
+  const financeHidden = await studentFinanceBlocked(user.id);
   const locale = await getLocale();
   const t = await getTranslations("attendance");
   const now = new Date();
@@ -38,7 +39,7 @@ export default async function StudentAttendancePage() {
   const subjectName = (subject: { nameEn: string; nameAr: string }) => (locale === "ar" ? subject.nameAr : subject.nameEn);
 
   return (
-    <DashboardShell role={user.role} userName={user.displayName}>
+    <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
       <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
         <Icon name="event_available" size={32} className="text-[var(--gold)]" />
         <h1 className="mt-3 text-3xl font-bold">{t("student.title")}</h1>

@@ -4,8 +4,20 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { Link } from "../../../i18n/navigation";
+import {
+  classRemarkLabel,
+  REPORT_LANGUAGE_OPTIONS,
+  reportDir,
+  type ClassRemarkOptionLike,
+  type ReportLanguageCode,
+} from "../../../lib/reports/report-language";
 import Icon from "../ui/icon";
 import StatusBadge from "../ui/status-badge";
+
+const REPORT_LANGUAGE_DISPLAY: Record<ReportLanguageCode, string> = Object.fromEntries(
+  REPORT_LANGUAGE_OPTIONS.map((option) => [option.value, option.nativeName]),
+) as Record<ReportLanguageCode, string>;
 
 export type QueueFilter = { teacher?: string; type?: "GROUP" | "PRIVATE"; from?: string; to?: string };
 
@@ -13,6 +25,7 @@ export type QueueAttachment = { id: string; originalName: string; mimeType: stri
 
 export type QueueReport = {
   id: string;
+  sessionId: string;
   teacherId: string;
   teacherName: string;
   studentName: string;
@@ -31,6 +44,11 @@ export type QueueReport = {
   operationalEvents: Record<string, unknown> | null;
   hasLateFlag: boolean;
   attachments: QueueAttachment[];
+  // Session 1 (owner, 2026-10-18): the report's language (content renders with its
+  // dir regardless of the viewer's UI locale) and the rejection counter
+  // (informational only — never an automatic red mark or penalty).
+  language?: ReportLanguageCode;
+  rejectionCount?: number;
 };
 
 export type QueueMetrics = {
@@ -52,12 +70,14 @@ export default function ReportsQueuePanel({
   teachers,
   filters,
   locale,
+  classRemarkOptions = [],
 }: {
   reports: QueueReport[];
   metrics: QueueMetrics;
   teachers: { id: string; name: string }[];
   filters: QueueFilter;
   locale: string;
+  classRemarkOptions?: ClassRemarkOptionLike[];
 }) {
   const t = useTranslations("reportsQueue");
   const router = useRouter();
@@ -321,6 +341,11 @@ export default function ReportsQueuePanel({
                           {t("lateFlag")}
                         </span>
                       ) : null}
+                      {report.rejectionCount && report.rejectionCount > 0 ? (
+                        <span className="rounded bg-surface-container-high px-2 py-0.5 font-semibold text-primary">
+                          {t("rejectionsChip", { count: report.rejectionCount })}
+                        </span>
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -376,14 +401,42 @@ export default function ReportsQueuePanel({
                       {t("lateFlag")}
                     </span>
                   ) : null}
+                  {selected.rejectionCount && selected.rejectionCount > 0 ? (
+                    <span className="rounded bg-surface-container-high px-2 py-1 font-semibold text-primary">
+                      {t("rejectionsChip", { count: selected.rejectionCount })}
+                    </span>
+                  ) : null}
+                  {selected.language ? (
+                    <span className="rounded bg-surface-container px-2 py-1">
+                      {t("languageChip")}: {REPORT_LANGUAGE_DISPLAY[selected.language]}
+                    </span>
+                  ) : null}
+                  <Link
+                    href={`/admin/sessions/${selected.sessionId ?? ""}`}
+                    className="btn btn-soft px-2 py-1"
+                  >
+                    <Icon name="folder_open" size={14} />
+                    {t("openSessionRecord")}
+                  </Link>
                 </div>
 
-                <div className="flex flex-col gap-3">
+                {/* Report CONTENT renders in the language it was written (CONTEXT §9):
+                    its own dir + lang, regardless of the viewer's UI locale. The
+                    surrounding chrome (labels above) stays in the UI locale. */}
+                <div
+                  className="flex flex-col gap-3"
+                  dir={selected.language ? reportDir(selected.language) : undefined}
+                  lang={selected.language ?? undefined}
+                >
                   <div>
                     <p className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
                       {t("classRemark")}
                     </p>
-                    <p className="text-body-md text-on-surface">{selected.classRemark}</p>
+                    <p className="text-body-md text-on-surface">
+                      {selected.language
+                        ? classRemarkLabel(classRemarkOptions, selected.classRemark, selected.language)
+                        : selected.classRemark}
+                    </p>
                   </div>
                   <div>
                     <p className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">

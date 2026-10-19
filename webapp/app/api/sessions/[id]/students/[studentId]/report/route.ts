@@ -5,6 +5,9 @@ import { Prisma } from "../../../../../../../generated/prisma/client";
 import { requireApiRole, requireApiRoles } from "../../../../../../../lib/dal";
 import { prisma } from "../../../../../../../lib/prisma";
 import { getClassRemarks } from "../../../../../../../lib/reports/class-remarks";
+import { enqueueReportSubmittedNotifications } from "../../../../../../../lib/reports/notifications";
+import { reportRowSelect } from "../../../../../../../lib/reports/selects";
+import { isSession1ReportsReady } from "../../../../../../../lib/reports/session1-ready";
 import { getReportForViewer } from "../../../../../../../lib/reports/visibility";
 import { sessionReportSchema } from "../../../../../../../lib/validation/management";
 
@@ -89,6 +92,9 @@ export async function POST(
   // Only evidence/text fields may change on resubmission. The attendance outcome and the
   // claimed extra time are frozen from the first submission (CONTEXT §7 protection 4;
   // owner decision 2026-10-14) — a rejected report returns with its original outcome.
+  // The report language follows the teacher's selector (Session 1, CONTEXT §9); it is
+  // written only once the Session 1 migration is applied (self-healing readiness).
+  const session1Ready = await isSession1ReportsReady();
   const editableData = {
     classRemark: parsed.data.classRemark,
     summary: parsed.data.summary,
@@ -97,12 +103,13 @@ export async function POST(
     operationalEvents: parsed.data.operationalEvents as Prisma.InputJsonValue | undefined,
     submittedAt: new Date(),
     status: "SUBMITTED" as const,
+    ...(session1Ready ? { language: parsed.data.language } : {}),
   };
   let report;
   if (existing) {
     // Rejection reason, actor and timestamp stay on the row as the audit trail
     // (database-schema.md §17) — resubmission never wipes them (Phase 5 review F-02).
-    report = await prisma.report.update({ where: { id: existing.id }, data: editableData });
+    report = await prisma.report.update({ where: { id: existing.id }, data: editableData, select: await reportRowSelect() });
   } else {
     try {
       report = await prisma.report.create({
@@ -117,6 +124,7 @@ export async function POST(
           extraTimeStatus: parsed.data.extraTimeMinutes > 0 ? "PENDING" : "NONE",
           ...editableData,
         },
+        select: await reportRowSelect(),
       });
     } catch (cause) {
       // A concurrent first submission hits the unique (session, student, type) index —
@@ -144,6 +152,16 @@ export async function POST(
     }
   } catch {
     // Nudge bookkeeping must never roll back or fail the report submission.
+  }
+  // SUBMIT-time visibility/delivery (owner, 2026-10-18 — CONTEXT §6 3b/§9): the
+  // guardian and the student are notified the moment the report is submitted,
+  // regardless of Admin/Supervisor review. Deduped per report+recipient, so a
+  // rejection/correction cycle never re-sends (PROPOSAL). Best effort — never
+  // rolls back or fails the accepted submission.
+  try {
+    await enqueueReportSubmittedNotifications({ reportId: report.id });
+  } catch {
+    // Notification bookkeeping must never fail the report submission.
   }
   return NextResponse.json({ data: report }, { status: existing ? 200 : 201 });
 }

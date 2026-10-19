@@ -105,6 +105,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           dedupKey: `OVERTIME_DECISION:${report.id}:${parsed.data.action}`,
           scheduledFor: new Date(),
         },
+        select: { id: true },
       });
     }
   } catch {

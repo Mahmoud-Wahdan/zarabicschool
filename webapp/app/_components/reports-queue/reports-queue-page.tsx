@@ -2,7 +2,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { prisma } from "../../../lib/prisma";
 import { requireRoles } from "../../../lib/dal";
-import { getClassRemarks } from "../../../lib/reports/class-remarks";
+import { getClassRemarkOptions, type ClassRemarkOption } from "../../../lib/reports/class-remarks";
+import { resolveReportLanguage } from "../../../lib/reports/report-language";
+import { isSession1ReportsReady } from "../../../lib/reports/session1-ready";
 import { isAttachmentsReady } from "../../../lib/storage/attachment-ready";
 import DashboardShell from "../dashboard-shell";
 import PageHeader from "../ui/page-header";
@@ -48,7 +50,11 @@ export default async function ReportsQueuePage({
   startOfDay.setHours(0, 0, 0, 0);
 
   const attachmentsReady = await isAttachmentsReady();
-  const [pendingReports, lateFlags, approvedToday, queueTeachers] = await Promise.all([
+  // Session 1 (owner, 2026-10-18): `language` + `rejection_count` only exist after the
+  // owner applies migration 20261018190000 — explicit select keeps pre-migration reads
+  // working and the language/rejection UI self-heals once it lands.
+  const session1Ready = await isSession1ReportsReady();
+  const [pendingReports, lateFlags, approvedToday, queueTeachers, classRemarkOptions, rejectionTotals] = await Promise.all([
     prisma.report.findMany({
       where: {
         academyId: user.academyId,
@@ -60,7 +66,20 @@ export default async function ReportsQueuePage({
         ...(hasRange ? { submittedAt: submittedAtRange } : {}),
       },
       orderBy: { submittedAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        teacherId: true,
+        sessionId: true,
+        submittedAt: true,
+        attendanceOutcome: true,
+        classRemark: true,
+        summary: true,
+        homework: true,
+        notes: true,
+        extraTimeMinutes: true,
+        extraTimeStatus: true,
+        operationalEvents: true,
+        ...(session1Ready ? { language: true, rejectionCount: true } : {}),
         session: {
           select: {
             id: true,
@@ -98,11 +117,24 @@ export default async function ReportsQueuePage({
       select: { teacher: { select: { id: true, user: { select: { displayName: true } } } } },
       distinct: ["teacherId"],
     }),
+    // Class-remark options with per-language labels (Session 1, CONTEXT §9) — the
+    // panel resolves the stored slug to the label in the report's language.
+    getClassRemarkOptions(user.academyId),
+    // Rejection counter rollup (Session 1, PROPOSAL — CONTEXT §6/§7): per-teacher
+    // totals across ALL reports, informational only. Gated on the migration.
+    session1Ready
+      ? prisma.report.groupBy({
+          by: ["teacherId"],
+          where: { academyId: user.academyId, rejectionCount: { gt: 0 } },
+          _sum: { rejectionCount: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const flaggedSessionIds = new Set(lateFlags.map((flag) => flag.sessionId));
   const reports: QueueReport[] = pendingReports.map((report) => ({
     id: report.id,
+    sessionId: report.sessionId,
     teacherId: report.teacherId,
     teacherName: report.teacher.user.displayName,
     studentName: report.student.user.displayName,
@@ -128,6 +160,12 @@ export default async function ReportsQueuePage({
           sizeBytes: Number(attachment.sizeBytes),
         }))
       : [],
+    ...(session1Ready
+      ? {
+          language: resolveReportLanguage(report.language),
+          rejectionCount: report.rejectionCount ?? 0,
+        }
+      : {}),
   }));
 
   const teachers = queueTeachers.map((entry) => ({ id: entry.teacher.id, name: entry.teacher.user.displayName }));
@@ -148,6 +186,27 @@ export default async function ReportsQueuePage({
     }))
     .sort((a, b) => b.count - a.count);
 
+  // Rejection-counter rollup (Session 1, PROPOSAL): per-teacher totals, informational
+  // only — never an automatic red mark or penalty (the red mark stays for LATE reports).
+  const rejectionTeacherIds = rejectionTotals.map((row) => row.teacherId);
+  const rejectionTeachers = rejectionTeacherIds.length
+    ? await prisma.teacher.findMany({
+        where: { id: { in: rejectionTeacherIds } },
+        select: { id: true, user: { select: { displayName: true } } },
+      })
+    : [];
+  const nameByTeacherId = new Map([
+    ...flaggedTeachers.map((teacher) => [teacher.id, teacher.user.displayName] as const),
+    ...rejectionTeachers.map((teacher) => [teacher.id, teacher.user.displayName] as const),
+  ]);
+  const rejections = rejectionTotals
+    .map((row) => ({
+      name: nameByTeacherId.get(row.teacherId) ?? "",
+      count: row._sum.rejectionCount ?? 0,
+    }))
+    .filter((entry) => entry.name && entry.count > 0)
+    .sort((a, b) => b.count - a.count);
+
   const metrics = {
     pending: reports.length,
     flagged: reports.filter((report) => report.hasLateFlag).length,
@@ -157,7 +216,7 @@ export default async function ReportsQueuePage({
 
   // Admin-only config surface (owner decision 2026-10-14): the class-remark list is a
   // system setting, so Supervisors never receive the editor.
-  const classRemarks = user.role === "ADMIN" ? await getClassRemarks(user.academyId) : [];
+  const classRemarks: ClassRemarkOption[] = user.role === "ADMIN" ? classRemarkOptions : [];
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} navBadges={{ reports: metrics.pending }}>
@@ -167,7 +226,14 @@ export default async function ReportsQueuePage({
         title={t("title")}
         subtitle={t("subtitle")}
       />
-      <ReportsQueuePanel reports={reports} metrics={metrics} teachers={teachers} filters={filters} locale={locale} />
+      <ReportsQueuePanel
+        reports={reports}
+        metrics={metrics}
+        teachers={teachers}
+        filters={filters}
+        locale={locale}
+        classRemarkOptions={session1Ready ? classRemarkOptions : []}
+      />
       {redMarks.length > 0 ? (
         <section className="z-card rounded-xl p-4">
           <h2 className="text-title-md font-bold text-primary">{t("redMarksTitle")}</h2>
@@ -176,6 +242,19 @@ export default async function ReportsQueuePage({
             {redMarks.map((entry) => (
               <li key={entry.name} className="rounded bg-error-container px-2 py-1 text-body-sm text-on-error-container">
                 {entry.name} · {t("redMarksCount", { count: entry.count })}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {rejections.length > 0 ? (
+        <section className="z-card rounded-xl p-4">
+          <h2 className="text-title-md font-bold text-primary">{t("rejectionsTitle")}</h2>
+          <p className="text-body-sm text-on-surface-variant">{t("rejectionsHint")}</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {rejections.map((entry) => (
+              <li key={entry.name} className="rounded bg-surface-container-high px-2 py-1 text-body-sm text-primary">
+                {entry.name} · {t("rejectionsCount", { count: entry.count })}
               </li>
             ))}
           </ul>

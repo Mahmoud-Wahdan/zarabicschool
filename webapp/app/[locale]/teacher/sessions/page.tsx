@@ -21,7 +21,7 @@ export default async function TeacherSessionsPage() {
     take: 100,
     include: {
       subject: { select: { nameEn: true, nameAr: true } },
-      students: { include: { student: { include: { user: { select: { displayName: true } } } } } },
+      students: { select: { student: { select: { id: true, user: { select: { displayName: true } } } } } },
     },
   });
 

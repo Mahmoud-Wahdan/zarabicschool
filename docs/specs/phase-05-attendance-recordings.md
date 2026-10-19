@@ -115,6 +115,21 @@ Contradictions with CONTEXT (reported per protocol): F-02, F-03, F-05, F-06 — 
 7. **Approval notice recipients: guardian when the student has one; adult student without a guardian otherwise.**
 8. **Branch setup: `feature/phase-5` from `feature/stitch-ui`; pending doc edits committed first.**
 
+## Session 1 mission (owner, 2026-10-18) — reports, report languages, role dashboards
+
+Scope added to Phase 5 (docs: CONTEXT.md 9th revision; see also `docs/specs/test-plan-session1.md`):
+
+1. **Visibility/delivery on SUBMIT:** the guardian and the student (per CONTEXT §9 visibility rules) see a session report the moment the teacher submits it — approval no longer gates visibility (it gates pay only, unchanged). `getReportForViewer` drops the APPROVED gate; rejection/correction keeps the same row with the latest content; no second WhatsApp for the same report (PROPOSAL).
+2. **REPORT_SUBMITTED notifications:** submit enqueues WhatsApp notices to the guardian + student (per visibility), composed in the report's language; the guardian approval notice (REPORT_APPROVED to guardian/adult student) is REMOVED (approval concerns teacher pay only); teacher rejection notice kept.
+3. **Report languages (ar/en/fr/de/tr):** `Student.reportLanguage` (default ar; Admin/Supervisor edit via profile + application mapping), `Report.language` (selector in the form, default = student's), forms render in the report language (labels/options/placeholders/validation), display keeps the report's dir regardless of viewer locale, class-remark list gets per-language labels (seed: Excellent / Very Good / Good / Acceptable / Needs Improvement).
+4. **Rejection counter (PROPOSAL):** `reports.rejection_count` incremented per rejection; shown in the queue + per-teacher summary; NO automatic red mark/penalty.
+5. **Monthly report (NEW stream; PROPOSAL until confirmed):** `MonthlyReport` per (teacher, student, month) — achievement (required), learning progress, class focus, homework completion, punctuality, rescheduled-sessions count (computed, read-only), support areas, next-month objectives; no money/attendance/ledger/approval gate; unique per (teacher, student, month); month must have started; 7-day edit window (PROPOSAL); worker reminders on the 1st and 3rd (PROPOSAL); teacher list+form+missing UI; Admin/Supervisor all-reports + missing lists; guardian sees the whole report; student with a guardian sees only next-month objectives (PROPOSAL).
+6. **Admin/Supervisor session-detail page (read-only):** report(s) + evaluation panel (Phase 7 placeholder) + attendance + settlement history (Admin-only money); supervisor receives no money fields; the system never compares or flags conflicts.
+7. **Fake messaging provider removed:** OpenWA only behind `MessagingProvider`; missing OPENWA_* config → redacted FAILED `notification_jobs` row, no crash/rollback.
+8. **Dashboards pass (Teacher above all, then Guardian, Student, Student-without-guardian):** real data only; student-with-guardian finance wall (server-side 403/404 + nav); supervisor money-field absence; Stitch "Academic Precision" tokens applied; loading/empty/error states; RTL/LTR; mobile-first.
+
+Out of scope here: all finance work except the student-with-guardian wall (Session 2), Phase 9 items (9.9 timezone-by-country, 9.10 join window 30, calendar, notifications inbox…), tests (owner authorizes separately).
+
 ## Execution plan
 
 - **Step 0** (this commit): branch + docs/spec reconciliation.

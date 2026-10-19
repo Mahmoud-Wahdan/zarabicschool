@@ -42,6 +42,9 @@ const accountFields = {
   email: z.string().trim().email().optional().or(z.literal("")),
 };
 
+/** Student profile create/update: report_language is editable by Admin/Supervisor (Session 1, CONTEXT §9). */
+export const reportLanguageSchema = z.enum(["ar", "en", "fr", "de", "tr"]);
+
 export const guardianCreateSchema = z.object({
   ...accountFields,
   relationship: z.enum(["FATHER", "MOTHER"]),
@@ -52,6 +55,7 @@ export const studentCreateSchema = z.object({
   guardianId: z.string().uuid().nullable().optional(),
   isAdult: z.boolean().default(false),
   enrollmentDate: z.string().date().nullable().optional(),
+  reportLanguage: reportLanguageSchema.optional(),
 });
 
 export const teacherCreateSchema = z.object(accountFields);
@@ -63,6 +67,9 @@ export const profileUpdateSchema = z.object({
   isActive: z.boolean().optional(),
   guardianId: z.string().uuid().nullable().optional(),
   relationship: z.enum(["FATHER", "MOTHER"]).optional(),
+  // Session 1 (owner, 2026-10-18): the language the teacher writes this student's
+  // reports in — editable by Admin/Supervisor on the student profile (CONTEXT §9).
+  reportLanguage: reportLanguageSchema.optional(),
 });
 
 export const teacherSubjectSchema = z.object({
@@ -161,6 +168,9 @@ export const sessionReportSchema = z.object({
   notes: z.string().trim().max(5000).optional().or(z.literal("")),
   operationalEvents: z.record(z.string(), z.unknown()).optional(),
   extraTimeMinutes: z.number().int().min(0).max(600).default(0),
+  // Session 1 (owner, 2026-10-18): the language this report is written in
+  // (default = the student's report_language; the teacher can change it per report).
+  language: z.enum(["ar", "en", "fr", "de", "tr"]).default("ar"),
 });
 
 export const reportReviewSchema = z.object({
@@ -170,4 +180,49 @@ export const reportReviewSchema = z.object({
   if (value.action === "REJECT" && !value.rejectionReason) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rejectionReason"], message: "A rejection reason is required." });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Monthly report (Session 1, owner 2026-10-18 — CONTEXT §9 stream 2; PROPOSAL
+// until the owner confirms). No money, no attendance, no approval gate.
+// ---------------------------------------------------------------------------
+
+/** `'YYYY-MM'`, e.g. `2026-09`. Lexically comparable; no timezone ambiguity. */
+export const monthKeySchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Month must be in YYYY-MM format.");
+
+export const monthlyReportSchema = z.object({
+  monthKey: monthKeySchema,
+  studentId: z.string().uuid(),
+  achievement: z.string().trim().min(2).max(10000),
+  learningProgress: z.enum(["EXCELLENT", "VERY_GOOD", "GOOD", "VERY_SLOW_PROGRESS"]),
+  classFocus: z.enum(["ALWAYS", "OFTEN", "SOMETIMES", "RARELY"]),
+  homeworkCompletion: z.enum(["ALWAYS", "MOST_OF_THE_TIME", "SOMETIMES", "RARELY"]),
+  punctuality: z.enum(["ALWAYS", "OFTEN", "SOMETIMES", "RARELY"]),
+  supportAreas: z.string().trim().max(5000).optional().or(z.literal("")),
+  nextMonthObjectives: z.string().trim().max(5000).optional().or(z.literal("")),
+  language: z.enum(["ar", "en", "fr", "de", "tr"]).default("ar"),
+});
+
+/** Class-remark option with a label per report language (Session 1, CONTEXT §9). */
+const classRemarkLabelsSchema = z.object({
+  ar: z.string().trim().min(1).max(120),
+  en: z.string().trim().min(1).max(120),
+  fr: z.string().trim().min(1).max(120),
+  de: z.string().trim().min(1).max(120),
+  tr: z.string().trim().min(1).max(120),
+});
+
+export const classRemarksUpdateSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9_]+$/, "Slug must be lowercase letters, digits or underscores."),
+        labels: classRemarkLabelsSchema,
+      }),
+    )
+    .min(1)
+    .max(16),
 });

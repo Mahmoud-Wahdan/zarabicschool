@@ -4,6 +4,8 @@ import { z } from "zod";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { enqueueReportDecisionNotifications } from "../../../../../lib/reports/notifications";
+import { reportRowSelect } from "../../../../../lib/reports/selects";
+import { isSession1ReportsReady } from "../../../../../lib/reports/session1-ready";
 import { settleApprovedReport } from "../../../../../lib/reports/settlement-seam";
 import { SettlementError } from "../../../../../lib/payroll/rates";
 import { reportReviewSchema } from "../../../../../lib/validation/management";
@@ -26,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       (parsed.data.action === "APPROVE" && report.status === "APPROVED") ||
       (parsed.data.action === "REJECT" && report.status === "REJECTED");
     if (sameDecision) {
-      const full = await prisma.report.findUniqueOrThrow({ where: { id } });
+      const full = await prisma.report.findUniqueOrThrow({ where: { id }, select: await reportRowSelect() });
       return NextResponse.json({ data: full, alreadyHandled: true });
     }
     return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });
@@ -34,10 +36,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (parsed.data.action === "REJECT") {
     const rejectedAt = new Date();
     // Conditional update: exactly one reviewer wins a concurrent review; the loser
-    // re-reads and reports "already handled" or a clean conflict.
+    // re-reads and reports "already handled" or a clean conflict. The rejection
+    // counter (Session 1, PROPOSAL — CONTEXT §6/§7) increments on each rejection;
+    // it is informational for Admin/Supervisor only — never an automatic red mark
+    // or penalty. It is written only once the Session 1 migration is applied.
+    const session1Ready = await isSession1ReportsReady();
     const claimed = await prisma.report.updateMany({
       where: { id, status: "SUBMITTED" },
-      data: { status: "REJECTED", rejectionReason: parsed.data.rejectionReason, rejectedById: user.id, rejectedAt },
+      data: {
+        status: "REJECTED",
+        rejectionReason: parsed.data.rejectionReason,
+        rejectedById: user.id,
+        rejectedAt,
+        ...(session1Ready ? { rejectionCount: { increment: 1 } } : {}),
+      },
     });
     if (claimed.count === 1) {
       // Rejection notice to the teacher (Batch D) — after commit, never rolls back.
@@ -46,10 +58,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       } catch {
         // Notification bookkeeping must never fail the review decision.
       }
-      const updated = await prisma.report.findUniqueOrThrow({ where: { id } });
+      const updated = await prisma.report.findUniqueOrThrow({ where: { id }, select: await reportRowSelect() });
       return NextResponse.json({ data: updated });
     }
-    const current = await prisma.report.findUniqueOrThrow({ where: { id } });
+    const current = await prisma.report.findUniqueOrThrow({ where: { id }, select: await reportRowSelect() });
     if (current.status === "REJECTED") return NextResponse.json({ data: current, alreadyHandled: true });
     return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });
   }
@@ -78,7 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         teacherId: report.teacherId,
         attendanceOutcome: report.attendanceOutcome,
       });
-      return tx.report.findUnique({ where: { id } });
+      return tx.report.findUnique({ where: { id }, select: await reportRowSelect() });
     });
   } catch (cause) {
     if (cause instanceof SettlementError) {
@@ -87,8 +99,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     throw cause;
   }
   if (updated) {
-    // Guardian/adult-student approval notice (Batch D, decision 7) — after commit,
-    // never rolls the approval back.
+    // Nothing is sent on approval (owner, 2026-10-18): the family was notified on
+    // SUBMIT; approval concerns teacher pay only. The call stays as a no-op guard.
     try {
       await enqueueReportDecisionNotifications({ reportId: id, action: "APPROVE" });
     } catch {
@@ -96,7 +108,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     return NextResponse.json({ data: updated });
   }
-  const current = await prisma.report.findUniqueOrThrow({ where: { id } });
+  const current = await prisma.report.findUniqueOrThrow({ where: { id }, select: await reportRowSelect() });
   if (current.status === "APPROVED") return NextResponse.json({ data: current, alreadyHandled: true });
   return NextResponse.json({ error: { code: "CONFLICT", message: "Only submitted reports can be reviewed." } }, { status: 409 });
 }

@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import DashboardShell from "../../../../../_components/dashboard-shell";
 import { requireRole } from "../../../../../../lib/dal";
 import { prisma } from "../../../../../../lib/prisma";
-import { getClassRemarks } from "../../../../../../lib/reports/class-remarks";
+import { getClassRemarkOptions } from "../../../../../../lib/reports/class-remarks";
+import { resolveReportLanguage } from "../../../../../../lib/reports/report-language";
+import { isSession1ReportsReady } from "../../../../../../lib/reports/session1-ready";
 import { Link } from "../../../../../../i18n/navigation";
 import ReportForm from "./report-form";
 
@@ -20,6 +22,9 @@ export default async function TeacherReportPage({
   const { studentId } = await searchParams;
   const t = await getTranslations("teacherReport");
   const locale = await getLocale();
+  // The report-language selector appears once the Session 1 migration lands
+  // (self-healing; before that the form behaves exactly as before).
+  const session1Ready = await isSession1ReportsReady();
 
   const session = await prisma.session.findFirst({
     where: { id, academyId: user.academyId, teacher: { userId: user.id } },
@@ -30,7 +35,15 @@ export default async function TeacherReportPage({
       sessionType: true,
       subject: { select: { nameAr: true, nameEn: true } },
       students: {
-        select: { studentId: true, student: { select: { user: { select: { displayName: true } } } } },
+        select: {
+          studentId: true,
+          student: {
+            select: {
+              user: { select: { displayName: true } },
+              ...(session1Ready ? { reportLanguage: true } : {}),
+            },
+          },
+        },
       },
     },
   });
@@ -104,7 +117,7 @@ export default async function TeacherReportPage({
   const rosterEntry = session.students.find((student) => student.studentId === activeStudentId);
   if (!rosterEntry) notFound();
 
-  const [existing, classRemarks] = await Promise.all([
+  const [existing, classRemarkOptions] = await Promise.all([
     prisma.report.findFirst({
       where: { sessionId: session.id, studentId: activeStudentId, reportType: "SESSION_COMPLETION_REPORT" },
       select: {
@@ -118,10 +131,11 @@ export default async function TeacherReportPage({
         extraTimeMinutes: true,
         operationalEvents: true,
         rejectionReason: true,
+        ...(session1Ready ? { language: true } : {}),
         attachments: { orderBy: { createdAt: "asc" as const }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
       },
     }),
-    getClassRemarks(user.academyId),
+    getClassRemarkOptions(user.academyId),
   ]);
 
   return (
@@ -133,7 +147,8 @@ export default async function TeacherReportPage({
       <ReportForm
         sessionId={session.id}
         studentId={activeStudentId}
-        classRemarks={classRemarks}
+        classRemarkOptions={classRemarkOptions}
+        defaultLanguage={session1Ready ? resolveReportLanguage(rosterEntry.student.reportLanguage) : undefined}
         initial={
           existing
             ? {
@@ -147,6 +162,7 @@ export default async function TeacherReportPage({
                 extraTimeMinutes: existing.extraTimeMinutes,
                 operationalEvents: existing.operationalEvents === null ? "" : JSON.stringify(existing.operationalEvents, null, 2),
                 rejectionReason: existing.rejectionReason,
+                ...(session1Ready ? { language: resolveReportLanguage(existing.language) } : {}),
               }
             : null
         }

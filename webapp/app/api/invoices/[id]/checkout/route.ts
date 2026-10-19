@@ -52,8 +52,11 @@ export async function POST(
   if (!invoice || invoice.academyId !== user.academyId) {
     return errorResponse(404, "NOT_FOUND", "Invoice was not found.");
   }
+  // Finance wall (owner, 2026-10-18 — CONTEXT §12): a student WITH a guardian has
+  // NO finance access at all — the guardian is the payer; only an ADULT student
+  // without a guardian may pay for himself. Server-side, not only hidden in the UI.
   const isOwner = user.role === "ADMIN"
-    || (user.role === "STUDENT" && invoice.student.userId === user.id)
+    || (user.role === "STUDENT" && invoice.student.userId === user.id && invoice.student.guardianId === null)
     || (user.role === "GUARDIAN" && invoice.student.guardian?.userId === user.id);
   if (!isOwner) return errorResponse(403, "FORBIDDEN", "You do not have access to this invoice.");
   if (invoice.status !== "PENDING") return errorResponse(409, "INVOICE_NOT_PAYABLE", "This invoice is not payable.");

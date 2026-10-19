@@ -3,6 +3,8 @@ import "server-only";
 import type { AttendanceOutcome, ExtraTimeStatus, ReportStatus } from "../../generated/prisma/client";
 
 import { prisma } from "../prisma";
+import { resolveReportLanguage, type ReportLanguageCode } from "./report-language";
+import { isSession1ReportsReady } from "./session1-ready";
 import { isAttachmentsReady } from "../storage/attachment-ready";
 
 export type Viewer = {
@@ -28,10 +30,11 @@ export type ReportView = {
   submittedAt: Date;
   approvedAt: Date | null;
   rejectionReason: string | null;
-  // Field-level visibility (CONTEXT §9, owner decision 2026-10-14): a student WITH a
-  // guardian sees ONLY homework/notes/attachments; an adult student without a guardian,
-  // the guardian, the assigned teacher, and Admin/Supervisor see the full report.
-  // Money-affecting fields (extra time) are teacher/ops-only; none of these are amounts.
+  // Field-level visibility (CONTEXT §9, owner decisions 2026-10-14 + 2026-10-18): a
+  // student WITH a guardian sees ONLY homework/notes/attachments; an adult student
+  // without a guardian, the guardian, the assigned teacher, and Admin/Supervisor see
+  // the full report. Money-affecting fields (extra time) are teacher/ops-only; none
+  // of these are amounts.
   classRemark: string | null;
   summary: string | null;
   homework: string | null;
@@ -40,6 +43,10 @@ export type ReportView = {
   extraTimeMinutes: number | null;
   extraTimeStatus: ExtraTimeStatus | null;
   attachments: ReportAttachmentMeta[];
+  // Session 1 (owner, 2026-10-18): the language this report was written in. Viewers
+  // render the report in this language with the correct dir (rtl for ar), regardless
+  // of their UI locale. Undefined while the Session 1 migration is not applied yet.
+  language?: ReportLanguageCode;
 };
 
 /**
@@ -47,11 +54,17 @@ export type ReportView = {
  * Returns null when the report does not exist OR the viewer may not see it —
  * callers answer with a generic 404 so existence never leaks (Phase 4 pattern).
  *
- * Visibility gate (owner decision 2026-10-14): APPROVED or ARCHIVED — approval is
- * the review gate; archival remains the Phase 6 settlement marker. The teacher sees
- * her own report in every state (she must be able to fix a rejected one).
+ * VISIBILITY ON SUBMIT (owner, 2026-10-18 — CONTEXT §9): the guardian and the
+ * student (per the field-level rules) see the report the moment the teacher
+ * submits it, in EVERY status. Admin/Supervisor review has no effect on
+ * visibility — approval gates pay only. A rejected-and-corrected report stays
+ * the same row and viewers always see the latest content. The teacher sees her
+ * own report in every state (she must be able to fix a rejected one).
  */
 export async function getReportForViewer(viewer: Viewer, sessionId: string, studentId: string): Promise<ReportView | null> {
+  // `language` only exists once the owner applies the Session 1 migration; until
+  // then the view stays exactly the pre-Session-1 shape (self-healing).
+  const session1Ready = await isSession1ReportsReady();
   const report = await prisma.report.findFirst({
     where: { sessionId, studentId, academyId: viewer.academyId },
     select: {
@@ -71,13 +84,13 @@ export async function getReportForViewer(viewer: Viewer, sessionId: string, stud
       operationalEvents: true,
       extraTimeMinutes: true,
       extraTimeStatus: true,
+      ...(session1Ready ? { language: true } : {}),
       student: { select: { userId: true, guardianId: true, isAdult: true } },
       teacher: { select: { userId: true } },
     },
   });
   if (!report) return null;
 
-  const visible = report.status === "APPROVED" || report.status === "ARCHIVED";
   let full: boolean;
   if (viewer.role === "ADMIN" || viewer.role === "SUPERVISOR") {
     full = true;
@@ -85,12 +98,13 @@ export async function getReportForViewer(viewer: Viewer, sessionId: string, stud
     if (report.teacher.userId !== viewer.userId) return null;
     full = true;
   } else if (viewer.role === "STUDENT") {
-    if (report.student.userId !== viewer.userId || !visible) return null;
-    // An adult student without a guardian sees the whole report (CONTEXT §9).
+    if (report.student.userId !== viewer.userId) return null;
+    // An adult student without a guardian sees the whole report (CONTEXT §9);
+    // a student WITH a guardian sees homework/notes/attachments only.
     full = report.student.guardianId === null;
   } else {
-    // GUARDIAN — must be the linked guardian of this student, and the report approved.
-    if (!visible || report.student.guardianId === null) return null;
+    // GUARDIAN — must be the linked guardian of this student.
+    if (report.student.guardianId === null) return null;
     const linked = await prisma.guardian.findFirst({
       where: { userId: viewer.userId, id: report.student.guardianId },
       select: { id: true },
@@ -118,7 +132,7 @@ export async function getReportForViewer(viewer: Viewer, sessionId: string, stud
     attendanceOutcome: report.attendanceOutcome,
     submittedAt: report.submittedAt,
     approvedAt: report.approvedAt,
-    rejectionReason: report.rejectionReason,
+    rejectionReason: full ? report.rejectionReason : null,
     classRemark: full ? report.classRemark : null,
     summary: full ? report.summary : null,
     homework: report.homework,
@@ -132,5 +146,6 @@ export async function getReportForViewer(viewer: Viewer, sessionId: string, stud
       mimeType: row.mimeType,
       sizeBytes: Number(row.sizeBytes),
     })),
+    ...(session1Ready ? { language: resolveReportLanguage(report.language) } : {}),
   };
 }

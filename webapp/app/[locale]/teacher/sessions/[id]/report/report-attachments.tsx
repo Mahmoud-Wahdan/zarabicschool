@@ -27,10 +27,13 @@ export default function ReportAttachments({
   reportId,
   initial,
   editable,
+  title,
 }: {
   reportId: string;
   initial: AttachmentItem[];
   editable: boolean;
+  /** Optional heading override (the report-language label when a report language is active). */
+  title?: string;
 }) {
   const t = useTranslations("teacherReport.attachments");
   const [items, setItems] = useState(initial);
@@ -72,7 +75,7 @@ export default function ReportAttachments({
 
   return (
     <section className="flex flex-col gap-2">
-      <p className="text-label-md font-bold text-primary">{t("title")}</p>
+      <p className="text-label-md font-bold text-primary">{title ?? t("title")}</p>
       {items.length === 0 ? <p className="text-body-sm text-on-surface-variant">{t("empty")}</p> : null}
       <ul className="flex flex-col gap-1">
         {items.map((item) => (

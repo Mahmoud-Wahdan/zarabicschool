@@ -78,17 +78,32 @@ export async function POST(
         { username: account.username, tempPassword: account.tempPassword }
       );
       if (!result.ok) {
-        await prisma.notificationJob.create({
-          data: {
-            academyId: user.academyId,
-            recipientUserId: account.userId,
-            kind: "CREDENTIALS",
-            dedupKey: `CREDENTIALS:${account.userId}:${account.key}`,
-            scheduledFor: new Date(),
-            status: "FAILED",
-            lastError: result.error ?? "Messaging provider failed.",
-          },
-        });
+        // Redacted failure row so Admin can retry when WhatsApp is connected
+        // (the job table doubles as the NotificationLog). Never stores the
+        // password. A dedup-key collision (repeated failure for the same
+        // account+key) refreshes the existing row instead of being lost.
+        const failureData = {
+          status: "FAILED" as const,
+          lastError: result.error ?? "Messaging provider failed.",
+        };
+        try {
+          await prisma.notificationJob.create({
+            data: {
+              academyId: user.academyId,
+              recipientUserId: account.userId,
+              kind: "CREDENTIALS",
+              dedupKey: `CREDENTIALS:${account.userId}:${account.key}`,
+              scheduledFor: new Date(),
+              ...failureData,
+            },
+            select: { id: true },
+          });
+        } catch {
+          await prisma.notificationJob.updateMany({
+            where: { dedupKey: `CREDENTIALS:${account.userId}:${account.key}` },
+            data: failureData,
+          });
+        }
       }
     } catch {
       // Delivery failure must not roll back the approval nor reveal passwords.

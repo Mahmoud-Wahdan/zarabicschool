@@ -101,6 +101,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           await tx.notificationJob.update({
             where: { id: job.id },
             data: { scheduledFor: new Date(job.scheduledFor.getTime() + deltaMs) },
+            select: { id: true },
           });
         }
       }

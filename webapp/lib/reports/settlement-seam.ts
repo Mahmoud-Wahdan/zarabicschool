@@ -147,5 +147,6 @@ export async function settleApprovedReport(
   await tx.report.update({
     where: { id: report.id },
     data: { settledAt: new Date(), archivedAt: new Date() },
+    select: { id: true },
   });
 }
