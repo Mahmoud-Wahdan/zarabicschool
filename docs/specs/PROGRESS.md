@@ -22,6 +22,11 @@
 
 **Session 1 — Reports (session + monthly), report languages, role dashboards, UI/UX** (owner mission brief; runs on `feature/phase-5` after the Phase 5/6 completion session). Order: docs → fake-messaging removal → report languages → submit-time visibility/delivery + rejection counter + Admin session-detail page → monthly report → dashboards (Teacher, Guardian, Student, Student-without-guardian) with the Stitch "Academic Precision" UI/UX applied. **NO tests this session** (owner authorizes the test loop separately; plan staged in `docs/specs/test-plan-session1.md`): everything is reported "implemented, not verified"; only the owner verifies in the browser. Finance (Paymob webhook, plans, subscriptions, renewal, expiry) is Session 2 — out of scope here except the student-with-guardian finance wall. Phase 9 items (9.9 timezone-by-country, 9.10 join window 30 minutes) are owner decisions scheduled for Phase 9, NOT built now.
 
+Session 1 implementation status:
+- Student finance wall server-side enforcement: `requireStudentFinanceAccess` actively enforced in `POST /api/invoices/[id]/checkout`, `POST /api/invoices/[id]/proofs`, and `app/[locale]/student/invoices/page.tsx` (returns 403 Forbidden / redirects if student has a linked guardian).
+- Test plan document: `docs/specs/test-plan-session1.md` completed covering Unit, Integration (real test DB), and E2E (Playwright) layers.
+- Static checks: TypeScript clean (`npx tsc --noEmit` exit 0).
+
 (Preceding entry — same date.) Phase 5 completion + Phase 6 implementation executed in one session on `feature/phase-5` (owner-authorized "implement first, test after"). **Next: the test loop** (jest unit + real-Postgres integration suites incl. the new settlement tests, then E2E), then the owner's browser review. See phase-05/06 specs for the detailed 2026-10-18 execution logs.
 
 Known-error fixes (verified against the dev DB):

@@ -1,25 +1,22 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-
 import DashboardShell from "../../../_components/dashboard-shell";
 import InvoicePaymentPanel from "../../../_components/invoices/invoice-payment-panel";
 import StatusBadge, { type BadgeTone } from "../../../_components/ui/status-badge";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatMoney } from "../../../../lib/payments/format";
-
+import { requireStudentFinanceAccess } from "../../../../lib/guards/student-finance";
 export async function generateMetadata() {
   const t = await getTranslations("invoices");
   return { title: `${t("title")} | Zarabicschool` };
 }
-
 const INVOICE_STATUS_TONE: Record<string, BadgeTone> = {
   PENDING: "pending",
   PAID: "success",
   FAILED: "danger",
   CANCELLED: "neutral",
 };
-
 /**
  * Adult students without a guardian pay for themselves (CONTEXT §20.6); a minor's
  * invoices belong to the guardian — the student keeps the read-only dashboard view.
@@ -27,14 +24,15 @@ const INVOICE_STATUS_TONE: Record<string, BadgeTone> = {
 export default async function StudentInvoicesPage() {
   const user = await requireRole("STUDENT");
   const [t, locale] = await Promise.all([getTranslations("invoices"), getLocale()]);
-  const student = await prisma.student.findUnique({
-    where: { userId: user.id },
-    select: { id: true, guardianId: true, isAdult: true },
-  });
-  if (!student || student.guardianId || !student.isAdult) {
-    redirect(`/${locale}/student`);
-  }
-
+ let student;
+try {
+  student = await requireStudentFinanceAccess(user.id);
+} catch {
+  redirect(`/${locale}/student`);
+}
+if (!student || !student.isAdult) {
+  redirect(`/${locale}/student`);
+}
   const invoices = await prisma.invoice.findMany({
     where: { academyId: user.academyId, studentId: student.id },
     orderBy: { createdAt: "desc" },
@@ -51,16 +49,13 @@ export default async function StudentInvoicesPage() {
       paidAt: true,
     },
   });
-
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
   const providerLabel = (provider: string) => (provider === "PAYMOB" ? t("providerPaymob") : t("providerUsd"));
-
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
-
       <section className="mt-6 space-y-4">
         {invoices.length === 0 ? (
           <div className="rounded-xl border border-[var(--line)] bg-white p-6 text-sm opacity-70">

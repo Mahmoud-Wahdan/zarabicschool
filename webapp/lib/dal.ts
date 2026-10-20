@@ -124,16 +124,14 @@ export async function requireApiRoles(roles: AuthUser["role"][]) {
   return { user, error: null };
 }
 
-/**
- * Finance wall (owner, 2026-10-18 — CONTEXT §12/§21.6): a student WITH a guardian
- * has NO finance access at all — pages/APIs must treat them as blocked (403/404)
- * and the invoices nav item is hidden. An adult student without a guardian pays
- * for himself. Cached per request.
- */
-export const studentFinanceBlocked = cache(async (userId: string): Promise<boolean> => {
-  const student = await prisma.student.findUnique({
+export const getStudentFinanceProfile = cache(async (userId: string) =>
+  prisma.student.findUnique({
     where: { userId },
-    select: { guardianId: true },
-  });
+    select: { id: true, guardianId: true, isAdult: true },
+  }),
+);
+
+export async function studentFinanceBlocked(userId: string): Promise<boolean> {
+  const student = await getStudentFinanceProfile(userId);
   return student !== null && student.guardianId !== null;
-});
+}
