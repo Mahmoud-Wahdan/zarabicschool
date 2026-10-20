@@ -180,11 +180,13 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                     </div>
 
                     {/* Evaluations arrive with Phase 7 — the panel is reserved, never
-                        auto-compared (THE SYSTEM RECORDS, THE ADMIN DECIDES). */}
-                    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-outline-variant bg-surface-container-low p-3">
-                      <p className="text-label-md font-bold text-primary">{t("evaluationsPanel")}</p>
-                      <p className="text-body-sm text-on-surface-variant">{t("evaluationsPending")}</p>
-                    </div>
+                        auto-compared (THE SYSTEM RECORDS, THE ADMIN DECIDES). Evaluations stay Admin-only per CONTEXT §9. */}
+                    {user.role === "ADMIN" ? (
+                      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-outline-variant bg-surface-container-low p-3">
+                        <p className="text-label-md font-bold text-primary">{t("evaluationsPanel")}</p>
+                        <p className="text-body-sm text-on-surface-variant">{t("evaluationsPending")}</p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="rounded-lg bg-surface-container-low px-3 py-2 text-body-sm text-on-surface-variant">{t("reportMissing")}</p>

@@ -166,15 +166,18 @@ export class PaymobProvider implements PaymentProvider {
     const reference = String(readPath(parsed, "id") ?? "");
     if (!reference) throw new PaymentProviderError("Paymob webhook reference is missing.", "INVALID_WEBHOOK", 400);
     const merchantOrderId = readPath(parsed, "merchant_order_id") ?? readPath(parsed, "order.merchant_order_id");
+    const succeeded = readPath(parsed, "success") === true;
     return {
+      provider: "PAYMOB",
+      providerEventId: reference,
       providerReference: reference,
-      invoiceId: typeof merchantOrderId === "string"
-        ? merchantOrderId
-        : undefined,
+      invoiceId: typeof merchantOrderId === "string" ? merchantOrderId : undefined,
       amountMinor: BigInt(amountCents),
       currency: "EGP",
-      succeeded: readPath(parsed, "success") === true,
+      succeeded,
+      eventType: succeeded ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
       rawEventHash: createHash("sha256").update(rawBody).digest("hex"),
+      rawPayload: parsed as Record<string, unknown>,
     };
   }
 }

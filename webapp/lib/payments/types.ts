@@ -1,5 +1,12 @@
 export type PaymentCurrency = "EGP" | "USD";
 
+export type PaymentEventType =
+  | "PAYMENT_SUCCESS"
+  | "PAYMENT_FAILED"
+  | "SUBSCRIPTION_RENEWAL_SUCCESS"
+  | "SUBSCRIPTION_RENEWAL_FAILED"
+  | "SUBSCRIPTION_CANCELED";
+
 export type PaymentCheckoutInput = {
   invoiceId: string;
   amountMinor: bigint;
@@ -20,12 +27,18 @@ export type PaymentCheckout = {
 };
 
 export type VerifiedPaymentEvent = {
+  provider: "PAYMOB" | "USD_GATEWAY";
+  providerEventId: string;
   providerReference: string;
   invoiceId?: string;
+  providerSubscriptionId?: string;
   amountMinor: bigint;
   currency: PaymentCurrency;
   succeeded: boolean;
   rawEventHash: string;
+  eventType?: PaymentEventType;
+  eventTimestamp?: Date;
+  rawPayload?: Record<string, unknown>;
 };
 
 export interface PaymentProvider {

@@ -362,6 +362,9 @@ model Academy {
   payrollLedger             PayrollLedger[]            @relation("PayrollLedgerAcademy")
   paymentProofs             PaymentProof[]             @relation("PaymentProofAcademy")
   monthlyReports            MonthlyReport[]
+  billingPlans              BillingPlan[]              @relation("BillingPlanAcademy")
+  billingSubscriptions      BillingSubscription[]      @relation("BillingSubscriptionAcademy")
+  exchangeRates             ExchangeRate[]             @relation("ExchangeRateAcademy")
 
   @@map("academies")
 }
@@ -409,6 +412,8 @@ model User {
   createdPayrollEntries         PayrollLedger[]            @relation("PayrollLedgerCreatedBy")
   uploadedPaymentProofs         PaymentProof[]             @relation("PaymentProofUploadedBy")
   reviewedPaymentProofs         PaymentProof[]             @relation("PaymentProofReviewedBy")
+  createdExchangeRates          ExchangeRate[]             @relation("ExchangeRateCreatedBy")
+  payerBillingSubscriptions     BillingSubscription[]      @relation("BillingSubscriptionPayer")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -504,6 +509,7 @@ model Student {
   reservations    SessionReservation[]
   studentSubjects StudentSubject[]
   assignments     StudentTeacherAssignment[]
+  billingSubscriptions BillingSubscription[]   @relation("BillingSubscriptionStudent")
 
   @@index([academyId])
   @@index([guardianId])
@@ -988,4 +994,90 @@ model PaymentProof {
   @@index([invoiceId, createdAt])
   @@index([academyId, status])
   @@map("payment_proofs")
+}
+
+enum BillingSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model BillingPlan {
+  id               String                  @id @default(uuid()) @db.Uuid
+  academyId        String                  @map("academy_id") @db.Uuid
+  nameAr           String                  @map("name_ar")
+  nameEn           String                  @map("name_en")
+  packageType      SubscriptionPackageType @map("package_type")
+  sessionsPerMonth Int                     @map("sessions_per_month")
+  basePriceMinor   BigInt                  @map("base_price_minor")
+  currency         String                  @default("EGP") @db.VarChar(3)
+  tier             String?
+  isActive         Boolean                 @default(true) @map("is_active")
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy          Academy                 @relation("BillingPlanAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  subscriptions    BillingSubscription[]   @relation("BillingPlanSubscriptions")
+
+  @@index([academyId, isActive])
+  @@map("billing_plans")
+}
+
+model ExchangeRate {
+  id            String   @id @default(uuid()) @db.Uuid
+  academyId     String   @map("academy_id") @db.Uuid
+  fromCurrency  String   @map("from_currency") @db.VarChar(3)
+  toCurrency    String   @map("to_currency") @db.VarChar(3)
+  rate          Decimal  @db.Decimal(20, 8)
+  effectiveFrom DateTime @default(now()) @map("effective_from") @db.Timestamptz(6)
+  createdById   String   @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy       Academy  @relation("ExchangeRateAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  createdBy     User     @relation("ExchangeRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([academyId, fromCurrency, toCurrency, effectiveFrom])
+  @@map("exchange_rates")
+}
+
+model BillingSubscription {
+  id                     String                    @id @default(uuid()) @db.Uuid
+  academyId              String                    @map("academy_id") @db.Uuid
+  studentId              String                    @map("student_id") @db.Uuid
+  payerUserId            String                    @map("payer_user_id") @db.Uuid
+  planId                 String                    @map("plan_id") @db.Uuid
+  currency               String                    @db.VarChar(3)
+  status                 BillingSubscriptionStatus @default(ACTIVE)
+  provider               PaymentProvider           @default(PAYMOB)
+  providerSubscriptionId String?                   @unique @map("provider_subscription_id")
+  lockedPriceMinor       BigInt                    @map("locked_price_minor")
+  currentPeriodStart     DateTime                  @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd       DateTime                  @map("current_period_end") @db.Timestamptz(6)
+  consentTimestamp       DateTime                  @default(now()) @map("consent_timestamp") @db.Timestamptz(6)
+  autoRenew              Boolean                   @default(true) @map("auto_renew")
+  canceledAt             DateTime?                 @map("canceled_at") @db.Timestamptz(6)
+  graceEndsAt            DateTime?                 @map("grace_ends_at") @db.Timestamptz(6)
+  createdAt              DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy                Academy                   @relation("BillingSubscriptionAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  student                Student                   @relation("BillingSubscriptionStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  payerUser              User                      @relation("BillingSubscriptionPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
+  plan                   BillingPlan               @relation("BillingPlanSubscriptions", fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status])
+  @@index([studentId, status])
+  @@index([payerUserId, status])
+  @@map("billing_subscriptions")
+}
+
+model WebhookEvent {
+  id              String          @id @default(uuid()) @db.Uuid
+  provider        PaymentProvider
+  providerEventId String          @map("provider_event_id")
+  eventType       String          @map("event_type")
+  payload         Json
+  status          String          @default("PROCESSED")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([provider, providerEventId])
+  @@index([provider, createdAt])
+  @@map("webhook_events")
 }
