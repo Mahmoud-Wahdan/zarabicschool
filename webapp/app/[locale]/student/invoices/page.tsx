@@ -24,15 +24,18 @@ const INVOICE_STATUS_TONE: Record<string, BadgeTone> = {
 export default async function StudentInvoicesPage() {
   const user = await requireRole("STUDENT");
   const [t, locale] = await Promise.all([getTranslations("invoices"), getLocale()]);
- let student;
-try {
-  student = await requireStudentFinanceAccess(user.id);
+  try {
+ await requireStudentFinanceAccess(user.id);
 } catch {
   redirect(`/${locale}/student`);
 }
-if (!student || !student.isAdult) {
-  redirect(`/${locale}/student`);
-}
+  const student = await prisma.student.findUnique({
+    where: { userId: user.id },
+    select: { id: true, guardianId: true, isAdult: true },
+  });
+  if (!student || student.guardianId || !student.isAdult) {
+    redirect(`/${locale}/student`);
+  }
   const invoices = await prisma.invoice.findMany({
     where: { academyId: user.academyId, studentId: student.id },
     orderBy: { createdAt: "desc" },
