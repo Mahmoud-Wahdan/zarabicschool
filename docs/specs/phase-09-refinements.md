@@ -84,3 +84,20 @@ Real-DB authorization tests per new endpoint (Admin/Supervisor/others), Supervis
 ## Execution log
 - 2026-10-14: spec created from the owner's list. No code written.
 - 2026-10-18: added 9.9 (timezone by country) and 9.10 (join 30 minutes before) from the owner. Documentation only.
+- 2026-10-24: Session 3 addendum (owner, document only — do NOT implement here): owner re-stated 9.9 + 9.10 with two sharpened constraints and open questions, recorded below. 9.9/9.10 remain the canonical entries; this addendum adds the owner's exact framing.
+
+## Session 3 addendum (owner, 2026-10-24 — document only, not implemented)
+
+### C.1 Session times in each user's own timezone (extends 9.9)
+- Session times are DISPLAYED in each user's own timezone — student, teacher, guardian — derived from their country; stored times stay UTC (CONTEXT §6); only display (and input) change.
+- Open questions (owner to answer before any build):
+  1. Where does a user's timezone come from — the `Users.timezone` column set at application/approval time, the `country` field proposed in 9.3, or a profile setting the user can change? Who may edit it (self? Admin/Supervisor?)?
+  2. For countries spanning several IANA zones, does the system pick a default and let the user override, or force an explicit choice at first login?
+  3. When the guardian's and the student's timezones differ, does each viewer simply see their own (PROPOSAL in 9.9) — confirm.
+
+### C.2 Join button 30 minutes before the start (extends 9.10)
+- The join button/link becomes enabled 30 minutes before the session start (changes `JOIN_OPENS_BEFORE_START_MINUTES` in `lib/config/session-join.ts` from 15 to 30 when its time comes).
+- Security invariant to keep when this changes: the Zoom link itself stays SECRET — visible only to the session's teacher, its students (and their guardians), and Admin/Supervisor. Enabling the window earlier never widens WHO can read the link, only WHEN the button works.
+- Open questions (owner to answer before any build):
+  1. Does the 30-minute window apply to ALL roles (student, teacher, guardian) or only students? (Admin/Supervisor are exempt today by design.)
+  2. Should the 30 minutes be Admin-configurable in AcademySettings instead of a code constant (9.10 PROPOSAL), and should the WhatsApp link message move to T-30 to match the button?

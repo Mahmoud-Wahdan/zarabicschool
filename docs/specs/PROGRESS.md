@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-18
+> Last updated: 2026-10-24
 
 ## Phase Status
 
@@ -12,13 +12,19 @@
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
 | 3 | Schedules & Sessions | Complete | 2026-10-11 | Closed by the owner after the manual test. Batches 1-4 verified: scheduling-assignments schema/migration (owner-applied), detailed error codes with offending ids, shared Zoom format validation, smart session forms, assignments hub, approval-time teachers, worker, demo seed (4× idempotent), clear-demo verified, E2E spec staged; final checks green (validate/typecheck/lint 10 suites / 111 tests/build) |
 | 4 | Live Learning (Zoom links) | Complete | 2026-10-14 | Closed by the owner on 2026-10-14. Implementation + tests complete (12 suites / 149 tests green; gap review in review-before-phase-04.md). Reminder: migration `20261012000000_phase4_link_audit` must be applied if not yet (it activates link-change audit writes + their test assertions) |
-| 5 | Session Reports & Attendance | In Progress | 2026-10-20 | Step 1 + Batches A–C + Session 1 (reports, monthly reports, report languages, submit-time delivery, rejection counter, finance wall, dashboards) implemented; Session 2 reconciled the reports test suite to the submit-time contract. Awaiting owner browser review + authorized test loop |
-| 6 | Financial Management | In Progress | 2026-10-20 | Phase 6 core verified 2026-10-18 (16 suites / 192 tests). Phase 6b Session 2 pass (2026-10-20, implemented-not-verified): webhook atomic event claiming, checkout concurrency, server-side exchange-rate snapshots, monthly EXPIRY worker, billing APIs + Admin billing UI. Owner steps: apply migrations 20261018190000 + 20261020000000, Paymob test-mode keys, USD gateway decision |
+| 5 | Session Reports & Attendance | In Progress | 2026-10-24 | Step 1 + Batches A–C + Session 1 (reports, monthly reports, report languages, submit-time delivery, rejection counter, finance wall, dashboards) implemented; Session 2 reconciled the reports test suite; Session 3 adds session evaluations (student+guardian, teacher-never-sees). Awaiting owner browser review + authorized test loop |
+| 6 | Financial Management | In Progress | 2026-10-24 | Phase 6 core verified 2026-10-18 (16 suites / 192 tests). Phase 6b Session 2 pass (2026-10-20, implemented-not-verified): webhook atomic event claiming, checkout concurrency, server-side exchange-rate snapshots, monthly EXPIRY worker, billing APIs + Admin billing UI. Session 3 (2026-10-24): append-only payment audit + Admin report page, manual-payment UI hidden (APIs dormant-but-reachable), WhatsApp channel slice (OpenWA design first). Owner steps: apply migrations 20261018190000 + 20261020000000, Paymob test-mode keys, USD gateway decision |
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 | 9 | Refinements & UI/UX Polish | Not Started | 2026-10-14 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
 
-## Current Active Task (2026-10-20, Session 2)
+## Current Active Task (2026-10-24, Session 3)
+
+**Session 3 — Payment audit, evaluations, notification bell, WhatsApp channel, manual-payment hide** (owner-approved mission; runs on `feature/phase-5`; plan in `docs/specs/phase-06-financial-management.md` § "Session 3"). Automated tests NOT run (owner authorizes the loop separately; per-slice test debt is appended to `docs/specs/test-backlog.md`). Verification = `npx tsc --noEmit`, `npm run lint`, `npm run build` + the owner's browser manual checks. New migrations are FILE-ONLY until the owner applies them (DIRECT_URL). Owner decisions locked for this session: evaluations student+guardian (1–5 + optional comment, one per (session, author) incl. group sessions, 24 h edit lock, teacher NEVER sees it, Admin+Supervisor read); payment audit append-only (Admin-only report; cancelled/refunded producers arrive with Phase 6b); manual payment hidden from UI only (hide-set: proof upload + admin confirm + proof review; Admin Invoices nav/invoice creation/gateway Pay-now STAY; APIs "dormant but reachable"); WhatsApp full channel via OpenWA (design STOP before code); site wa.me link from AcademySettings (initial 01060814239, Admin-editable, never hardcoded). Roster slice (f) BLOCKED on the owner's page name — read-only SQL confirmed no session lacks roster rows, so it is not a data problem; roster code frozen meanwhile.
+
+Slice order: STEP 0 test-backlog (committed) → docs → (a) payment audit + hide → (b) evaluations → (c) bell + teacher-report finding → (d) WhatsApp design → STOP → (e) env/docs → (f) roster.
+
+**(Preceding entry — Session 2, 2026-10-20.)**
 
 **Session 2 — Payment security, billing, and subscriptions** (Phase A + Phase B handoff in `docs/Prompt.md`; runs on `feature/phase-5` after the Session 1 pass). NO automated tests (owner authorizes separately; Session 2 plan staged in `docs/specs/test-plan-session2.md`); typecheck/lint/build run once at the end of Phase B.
 
