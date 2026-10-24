@@ -365,6 +365,7 @@ model Academy {
   billingPlans              BillingPlan[]              @relation("BillingPlanAcademy")
   billingSubscriptions      BillingSubscription[]      @relation("BillingSubscriptionAcademy")
   exchangeRates             ExchangeRate[]             @relation("ExchangeRateAcademy")
+  paymentAuditRows          PaymentAudit[]             @relation("PaymentAuditAcademy")
 
   @@map("academies")
 }
@@ -414,6 +415,7 @@ model User {
   reviewedPaymentProofs         PaymentProof[]             @relation("PaymentProofReviewedBy")
   createdExchangeRates          ExchangeRate[]             @relation("ExchangeRateCreatedBy")
   payerBillingSubscriptions     BillingSubscription[]      @relation("BillingSubscriptionPayer")
+  paymentAuditEvents            PaymentAudit[]             @relation("PaymentAuditActor")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -658,12 +660,13 @@ model Invoice {
   paidAt            DateTime?               @map("paid_at") @db.Timestamptz(6)
   createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
-  academy           Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  student           Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  subscription      Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  academy           Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
   attempts          PaymentAttempt[]
   ledgerEntries     SubscriptionLedger[]
   paymentProofs     PaymentProof[]
+  auditEvents       PaymentAudit[] @relation("PaymentAuditInvoice")
 
   @@index([academyId, status, createdAt])
   @@index([provider, providerReference])
@@ -1080,4 +1083,28 @@ model WebhookEvent {
   @@unique([provider, providerEventId])
   @@index([provider, createdAt])
   @@map("webhook_events")
+}
+
+// Session 3 (owner decision 2026-10-24): append-only payment audit trail — one row
+// per payment lifecycle event (CREATED / PAID / FAILED / CANCELLED / REJECTED /
+// REFUNDED). Minimal SAFE metadata only: never card data, never a gateway payload.
+// actor_id is NULL for webhook/system events. The UPDATE/DELETE trigger lives in the
+// migration (the ledgers' prevent_ledger_mutation pattern); CANCELLED/REFUNDED have
+// no producer until Phase 6b (documented in the phase-06 spec).
+model PaymentAudit {
+  id        String   @id @default(uuid()) @db.Uuid
+  academyId String   @map("academy_id") @db.Uuid
+  invoiceId String?  @map("invoice_id") @db.Uuid
+  eventType String   @map("event_type")
+  actorId   String?  @map("actor_id") @db.Uuid
+  actorRole String?  @map("actor_role")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy   Academy  @relation("PaymentAuditAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  invoice   Invoice? @relation("PaymentAuditInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+  actor     User?    @relation("PaymentAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([academyId, createdAt])
+  @@index([invoiceId])
+  @@map("payment_audit")
 }

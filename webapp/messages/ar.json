@@ -49,8 +49,36 @@
       "guardianReports": "تقارير الأبناء",
       "familySchedule": "جدول العائلة",
       "invoices": "الفواتير والمدفوعات",
+      "paymentAudit": "سجل مدفوعات",
       "payroll": "الرواتب",
       "overtime": "مراجعة الوقت الإضافي"
+    }
+  },
+  "paymentAudit": {
+    "title": "سجل مدفوعات",
+    "eyebrow": "مالية",
+    "subtitle": "سجل غير قابل للتعديل لكل حدث في دورة حياة الدفع: إنشاء الفاتورة، الدفع، الفشل، الإلغاء، الرفض والاسترداد. للإدارة فقط.",
+    "migrationPending": "لم تُطبَّق ترحيلات قاعدة البيانات لسجل المدفوعات (20261024000000) بعد — ستظهر السجلات تلقائيًا بعد تطبيقها.",
+    "filterEvent": "نوع الحدث",
+    "filterAll": "كل الأحداث",
+    "filterInvoice": "معرّف الفاتورة",
+    "filterInvoiceHint": "UUID الفاتورة (اختياري)",
+    "filterApply": "تصفية",
+    "empty": "لا توجد سجلات مدفوعات بعد.",
+    "columnTime": "الوقت",
+    "columnEvent": "الحدث",
+    "columnActor": "المُنفِّذ",
+    "columnInvoice": "الفاتورة",
+    "columnDetails": "تفاصيل",
+    "actorSystem": "النظام / Webhook",
+    "appendOnlyNote": "السجل إلزامي الإضافة فقط — لا يمكن تعديل أي صف أو حذفه (قيد على مستوى قاعدة البيانات).",
+    "events": {
+      "CREATED": "إنشاء فاتورة",
+      "PAID": "تم الدفع",
+      "FAILED": "فشل الدفع",
+      "CANCELLED": "إلغاء",
+      "REJECTED": "رفض",
+      "REFUNDED": "استرداد"
     }
   },
   "reportsQueue": {

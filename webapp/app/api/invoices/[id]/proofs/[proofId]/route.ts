@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireApiRoles } from "../../../../../../lib/dal";
+import { writePaymentAudit } from "../../../../../../lib/payments/audit";
 import { prisma } from "../../../../../../lib/prisma";
 import { paymentProofReviewSchema } from "../../../../../../lib/validation/financial";
 
@@ -24,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   }
   const proof = await prisma.paymentProof.findFirst({
     where: { id: proofId, academyId: user.academyId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, invoiceId: true },
   });
   if (!proof) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Payment proof was not found." } }, { status: 404 });
   if (proof.status === "CONFIRMED" || proof.status === "REJECTED") {
@@ -38,11 +39,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     return NextResponse.json({ error: { code: "PROOF_ALREADY_REVIEWED", message: "This proof has already been reviewed." } }, { status: 409 });
   }
   const reviewedAt = new Date();
-  const claimed = await prisma.paymentProof.updateMany({
-    where: { id: proofId, status: "PENDING" },
-    data: parsed.data.action === "CONFIRM"
-      ? { status: "CONFIRMED", reviewedById: user.id, reviewedAt, reviewNote: parsed.data.note || null }
-      : { status: "REJECTED", reviewedById: user.id, reviewedAt, reviewNote: parsed.data.note || null },
+  const claimed = await prisma.$transaction(async (tx) => {
+    const count = await tx.paymentProof.updateMany({
+      where: { id: proofId, status: "PENDING" },
+      data: parsed.data.action === "CONFIRM"
+        ? { status: "CONFIRMED", reviewedById: user.id, reviewedAt, reviewNote: parsed.data.note || null }
+        : { status: "REJECTED", reviewedById: user.id, reviewedAt, reviewNote: parsed.data.note || null },
+    });
+    // Payment audit (Session 3, Slice A): a REJECTED proof is a REJECTED payment
+    // event — commits with the review write; fail-closed (the review retry is safe).
+    if (count.count > 0 && parsed.data.action === "REJECT") {
+      await writePaymentAudit({
+        academyId: user.academyId,
+        invoiceId: proof.invoiceId,
+        eventType: "REJECTED",
+        actorId: user.id,
+        actorRole: "ADMIN",
+        metadata: { reason: parsed.data.note || "PROOF_REJECTED" },
+      }, tx);
+    }
+    return count;
   });
   if (claimed.count === 0) {
     const current = await prisma.paymentProof.findUniqueOrThrow({ where: { id: proofId } });

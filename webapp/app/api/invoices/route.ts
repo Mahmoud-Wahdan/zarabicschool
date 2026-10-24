@@ -4,6 +4,7 @@ import { Prisma } from "../../../generated/prisma/client";
 import { requireApiRoles } from "../../../lib/dal";
 import { isPhase6bReady } from "../../../lib/billing/readiness";
 import { requireStudentFinanceAccess } from "../../../lib/guards/student-finance";
+import { writePaymentAudit } from "../../../lib/payments/audit";
 import { prisma } from "../../../lib/prisma";
 import { invoiceCreateSchema } from "../../../lib/validation/financial";
 
@@ -128,19 +129,38 @@ export async function POST(request: Request) {
     });
     exchangeRate = rate?.rate ?? null;
   }
-  const invoice = await prisma.invoice.create({
-    data: {
+  const invoice = await prisma.$transaction(async (tx) => {
+    const created = await tx.invoice.create({
+      data: {
+        academyId: user.academyId,
+        studentId: student.id,
+        amountMinor: BigInt(parsed.data.amountMinor),
+        currency: parsed.data.currency,
+        provider: parsed.data.provider,
+        exchangeRate,
+        packageType: parsed.data.packageType,
+        sessionsPurchased: parsed.data.sessionsPurchased,
+        status: "PENDING",
+      },
+      select: { id: true, amountMinor: true, currency: true, status: true, packageType: true, sessionsPurchased: true, createdAt: true },
+    });
+    // Payment audit (Session 3, Slice A): CREATED commits with the invoice itself —
+    // fail-closed; an audit failure aborts the create (retry-safe, idempotent-free).
+    await writePaymentAudit({
       academyId: user.academyId,
-      studentId: student.id,
-      amountMinor: BigInt(parsed.data.amountMinor),
-      currency: parsed.data.currency,
-      provider: parsed.data.provider,
-      exchangeRate,
-      packageType: parsed.data.packageType,
-      sessionsPurchased: parsed.data.sessionsPurchased,
-      status: "PENDING",
-    },
-    select: { id: true, amountMinor: true, currency: true, status: true, packageType: true, sessionsPurchased: true, createdAt: true },
+      invoiceId: created.id,
+      eventType: "CREATED",
+      actorId: user.id,
+      actorRole: "ADMIN",
+      metadata: {
+        provider: parsed.data.provider,
+        amountMinor: created.amountMinor.toString(),
+        currency: created.currency,
+        packageType: created.packageType,
+        sessionsPurchased: created.sessionsPurchased,
+      },
+    }, tx);
+    return created;
   });
   return NextResponse.json({ data: { ...invoice, amountMinor: invoice.amountMinor.toString() } }, { status: 201 });
 }

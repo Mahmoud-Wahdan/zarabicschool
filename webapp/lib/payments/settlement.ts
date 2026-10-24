@@ -3,6 +3,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { isPhase6bReady } from "../billing/readiness";
 import { prisma } from "../prisma";
 import { addMonthsUtc } from "../credits/period";
+import { writePaymentAudit } from "./audit";
 import { PaymentProviderError, type VerifiedPaymentEvent } from "./types";
 
 /**
@@ -78,6 +79,30 @@ async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "I
         status,
       },
     });
+    // Payment audit (Session 3, Slice A): a signed non-success event is a FAILED
+    // payment-fact — best-effort: observability never changes the webhook outcome.
+    // The audit table requires an academy: resolve it from the invoice and SKIP the
+    // row for UNMATCHED events (they stay observable in webhook_events).
+    if (event.invoiceId) {
+      const invoice = await prisma.invoice.findUnique({ where: { id: event.invoiceId }, select: { academyId: true } });
+      if (invoice) {
+        await writePaymentAudit(
+          {
+            academyId: invoice.academyId,
+            invoiceId: event.invoiceId,
+            eventType: "FAILED",
+            actorId: null,
+            actorRole: "WEBHOOK",
+            metadata: {
+              provider: event.provider,
+              providerReference: event.providerReference,
+              webhookStatus: status,
+            },
+            bestEffort: true,
+          },
+        );
+      }
+    }
   } catch (cause) {
     if (isUniqueViolation(cause)) return;
     // Names/ids only — never the payload — so a broken observability write can
@@ -206,6 +231,24 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
       },
       update: { status: "SUCCEEDED", providerReference: event.providerReference },
     });
+    // Payment audit (Session 3, Slice A): PAID commits with the money move —
+    // fail-closed; if the audit insert fails the whole settlement rolls back and
+    // a provider retry reprocesses cleanly (webhook claim is in this transaction).
+    await writePaymentAudit({
+      academyId: invoice.academyId,
+      invoiceId: invoice.id,
+      eventType: "PAID",
+      actorId: null,
+      actorRole: "WEBHOOK",
+      metadata: {
+        provider: "PAYMOB",
+        providerReference: event.providerReference,
+        amountMinor: invoice.amountMinor.toString(),
+        currency: invoice.currency,
+        packageType: invoice.packageType,
+        sessionsPurchased: invoice.sessionsPurchased,
+      },
+    }, tx);
     return { status: "settled" as const, invoiceId: invoice.id, subscriptionId: subscription.id };
   });
 }
@@ -296,6 +339,24 @@ export async function settleInvoiceConfirmedByAdmin(options: {
         data: { status: "CONFIRMED", reviewedById: options.adminId, reviewedAt: now },
       });
     }
+    // Payment audit (Session 3, Slice A): PAID commits with the money move —
+    // fail-closed (an audit failure aborts the admin confirmation, which is
+    // idempotent: an already-paid invoice answers "already_settled").
+    await writePaymentAudit({
+      academyId: invoice.academyId,
+      invoiceId: invoice.id,
+      eventType: "PAID",
+      actorId: options.adminId,
+      actorRole: "ADMIN",
+      metadata: {
+        provider: invoice.provider,
+        providerReference: options.reference || options.paymentProofId || undefined,
+        amountMinor: invoice.amountMinor.toString(),
+        currency: invoice.currency,
+        packageType: invoice.packageType,
+        sessionsPurchased: invoice.sessionsPurchased,
+      },
+    }, tx);
     return { status: "settled" as const, invoiceId: invoice.id, subscriptionId: subscription.id };
   });
 }

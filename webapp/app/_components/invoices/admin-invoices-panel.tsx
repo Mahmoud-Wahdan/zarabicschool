@@ -26,7 +26,6 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [create, setCreate] = useState({ studentId: "", packageType: "MONTHLY_PLAN", sessionsPurchased: 8, amountMinor: "", currency: "EGP", provider: "PAYMOB" });
-  const [confirm, setConfirm] = useState<Record<string, { reference: string; proofId: string }>>({});
 
   function money(amountMinor: string, currency: string) {
     return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amountMinor) / 100);
@@ -81,70 +80,13 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
     }
   }
 
-  async function confirmInvoice(invoiceId: string) {
-    setMessage("");
-    setBusy(true);
-    try {
-      const state = confirm[invoiceId] ?? { reference: "", proofId: "" };
-      const response = await fetch(`/api/invoices/${invoiceId}/confirm`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          reference: state.reference || undefined,
-          paymentProofId: state.proofId || undefined,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setMessage(payload.error?.message ?? t("actionFailed"));
-        return;
-      }
-      if (payload.data?.status === "already_settled") {
-        setMessage(t("alreadyPaid"));
-      } else {
-        setMessage(t("confirmed"));
-      }
-      setInvoices((current) =>
-        current.map((invoice) =>
-          invoice.id === invoiceId
-            ? {
-                ...invoice,
-                status: "PAID",
-                proofs: invoice.proofs.map((proof) => (state.proofId && proof.id === state.proofId ? { ...proof, status: "CONFIRMED" } : proof)),
-              }
-            : invoice,
-        ),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function reviewProof(invoiceId: string, proofId: string, action: "CONFIRM" | "REJECT") {
-    setMessage("");
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/invoices/${invoiceId}/proofs/${proofId}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setMessage(payload.error?.message ?? t("actionFailed"));
-        return;
-      }
-      setInvoices((current) =>
-        current.map((invoice) =>
-          invoice.id === invoiceId
-            ? { ...invoice, proofs: invoice.proofs.map((proof) => (proof.id === proofId ? { ...proof, status: payload.data.status } : proof)) }
-            : invoice,
-        ),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  // MANUAL-PAYMENT UI HIDE (owner decision 2026-10-24 — docs/specs/phase-06-financial-management.md
+  // § Session 3, Slice A): the Admin manual-confirm and proof-review UI is hidden. The APIs stay
+  // reachable with unchanged authorization ("dormant but reachable" — listed in the phase spec):
+  //   POST /api/invoices/[id]/confirm            (ADMIN)
+  //   POST /api/invoices/[id]/proofs/[proofId]   (ADMIN)
+  // Invoice creation, the invoice list and statuses STAY (the gateway "Pay now" flow needs the
+  // Admin-created invoice). The removed JSX/functions live in git history at this commit.
 
   return (
     <div className="space-y-6">
@@ -176,7 +118,6 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
       </section>
 
       {invoices.map((invoice) => {
-        const state = confirm[invoice.id] ?? { reference: "", proofId: "" };
         return (
           <section key={invoice.id} className="dashboard-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -193,42 +134,6 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
                 {t(`status.${invoice.status}`)}
               </span>
             </div>
-
-            {invoice.proofs.length ? (
-              <div className="mt-3 space-y-1 text-xs">
-                <p className="font-semibold opacity-80">{t("proofsTitle")}</p>
-                {invoice.proofs.map((proof) => (
-                  <div key={proof.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--background)] p-2">
-                    <span>{proof.originalName}</span>
-                    {proof.reference ? <span className="opacity-60">· {proof.reference}</span> : null}
-                    <span className={`rounded-full px-2 py-0.5 ${proof.status === "PENDING" ? "bg-amber-100 text-amber-800" : proof.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
-                      {proof.status === "PENDING" ? t("proofPending") : proof.status === "CONFIRMED" ? t("proofConfirmed") : t("proofRejected")}
-                    </span>
-                    {proof.status === "PENDING" ? (
-                      <>
-                        <button type="button" disabled={busy} onClick={() => void reviewProof(invoice.id, proof.id, "CONFIRM")} className="rounded-lg border border-[var(--line)] px-2 py-1">{t("proofConfirmed")}</button>
-                        <button type="button" disabled={busy} onClick={() => void reviewProof(invoice.id, proof.id, "REJECT")} className="rounded-lg border border-[var(--line)] px-2 py-1">{t("proofRejected")}</button>
-                      </>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {invoice.status === "PENDING" ? (
-              <div className="mt-4 grid gap-3 border-t border-[var(--line)] pt-4 sm:grid-cols-2 lg:grid-cols-4">
-                <input value={state.reference} onChange={(e) => setConfirm({ ...confirm, [invoice.id]: { ...state, reference: e.target.value } })} placeholder={t("referenceLabel")} className="rounded-lg border border-[var(--line)] px-3 py-2" />
-                <select value={state.proofId} onChange={(e) => setConfirm({ ...confirm, [invoice.id]: { ...state, proofId: e.target.value } })} className="rounded-lg border border-[var(--line)] px-3 py-2">
-                  <option value="">{t("selectProof")}</option>
-                  {invoice.proofs.filter((proof) => proof.status !== "REJECTED").map((proof) => (
-                    <option key={proof.id} value={proof.id}>{proof.originalName}</option>
-                  ))}
-                </select>
-                <button type="button" disabled={busy} onClick={() => void confirmInvoice(invoice.id)} className="cta-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50">
-                  {t("confirmInvoice")}
-                </button>
-              </div>
-            ) : null}
           </section>
         );
       })}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
+import { writePaymentAudit } from "../../../../../lib/payments/audit";
 import { PaymobProvider, PaymentProviderError, createUsdProvider } from "../../../../../lib/payments";
 import { errorResponse, isSameOrigin } from "../../../../../lib/request";
 export const runtime = "nodejs";
@@ -59,6 +60,9 @@ export async function POST(
     || (user.role === "GUARDIAN" && invoice.student.guardian?.userId === user.id);
   if (!isOwner) return errorResponse(403, "FORBIDDEN", "You do not have access to this invoice.");
   if (invoice.status !== "PENDING") return errorResponse(409, "INVOICE_NOT_PAYABLE", "This invoice is not payable.");
+  // Audit actor role: only ADMIN/STUDENT/GUARDIAN pass the gate above (server-guaranteed),
+  // so anything else can only mean SUPERVISOR/TEACHER slipping through — recorded as SYSTEM.
+  const auditActorRole = user.role === "ADMIN" ? "ADMIN" : user.role === "GUARDIAN" ? "GUARDIAN" : user.role === "STUDENT" ? "STUDENT" : "SYSTEM";
 
   // Claim the invoice row FIRST, inside ONE transaction (Phase B review — checkout
   // concurrency): concurrent POSTs serialize on the invoice row, so at most one
@@ -98,6 +102,16 @@ export async function POST(
         where: { invoiceId: invoice.id, status: { in: ["CREATED", "REDIRECTED"] } },
         data: { status: "FAILED" },
       });
+      // Payment audit (Session 3, Slice A): the takeover FAILED the prior attempt —
+      // commits with the claim transaction. The actor is whoever retried checkout.
+      await writePaymentAudit({
+        academyId: invoice.academyId,
+        invoiceId: invoice.id,
+        eventType: "FAILED",
+        actorId: user.id,
+        actorRole: auditActorRole,
+        metadata: { attemptId: newest.id, provider: invoice.provider, reason: "CHECKOUT_ATTEMPT_TAKEOVER" },
+      }, tx);
     }
     const priorCount = await tx.paymentAttempt.count({ where: { invoiceId: invoice.id } });
     const attempt = await tx.paymentAttempt.create({
@@ -148,6 +162,21 @@ export async function POST(
   } catch (caught) {
     if (caught instanceof PaymentProviderError) {
       await prisma.paymentAttempt.update({ where: { id: claim.attemptId }, data: { status: "FAILED" } });
+      // Payment audit (Session 3, Slice A): the provider refused the checkout —
+      // best-effort (the 4xx/5xx answer must still reach the payer).
+      await writePaymentAudit({
+        academyId: invoice.academyId,
+        invoiceId: invoice.id,
+        eventType: "FAILED",
+        actorId: user.id,
+        actorRole: auditActorRole,
+        metadata: {
+          attemptId: claim.attemptId,
+          provider: invoice.provider,
+          reason: caught.code,
+        },
+        bestEffort: true,
+      });
       return errorResponse(caught.status, caught.code, caught.message);
     }
     throw caught;

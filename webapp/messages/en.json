@@ -49,8 +49,36 @@
       "guardianReports": "Children's Reports",
       "familySchedule": "Family Schedule",
       "invoices": "Invoices & Payments",
+      "paymentAudit": "Payment Audit",
       "payroll": "Payroll",
       "overtime": "Overtime Review"
+    }
+  },
+  "paymentAudit": {
+    "title": "Payment Audit",
+    "eyebrow": "Financials",
+    "subtitle": "An append-only record of every payment lifecycle event: invoice created, paid, failed, cancelled, rejected and refunded. Admin only.",
+    "migrationPending": "The payment-audit migration (20261024000000) has not been applied yet — records will appear automatically once it lands.",
+    "filterEvent": "Event type",
+    "filterAll": "All events",
+    "filterInvoice": "Invoice ID",
+    "filterInvoiceHint": "Invoice UUID (optional)",
+    "filterApply": "Apply",
+    "empty": "No payment audit records yet.",
+    "columnTime": "Time",
+    "columnEvent": "Event",
+    "columnActor": "Actor",
+    "columnInvoice": "Invoice",
+    "columnDetails": "Details",
+    "actorSystem": "System / Webhook",
+    "appendOnlyNote": "The log is append-only — no row can be edited or deleted (database-level constraint).",
+    "events": {
+      "CREATED": "Invoice created",
+      "PAID": "Paid",
+      "FAILED": "Payment failed",
+      "CANCELLED": "Cancelled",
+      "REJECTED": "Rejected",
+      "REFUNDED": "Refunded"
     }
   },
   "reportsQueue": {
