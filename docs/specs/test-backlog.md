@@ -30,4 +30,16 @@
 
 ## Session 3 additions (appended per slice; IDs + what each protects)
 
-*(to be appended as slices land)*
+### Slice A — payment audit + manual-payment hide (2026-10-24)
+
+- **PA-01** — invoice CREATE writes one `CREATED` audit row with actor ADMIN in the same transaction (protects: audit completeness at the money entry point).
+- **PA-02** — webhook settlement writes one `PAID` row; a forced ledger-insert failure rolls back the claim AND the audit row (extends INT-WH-08 — protects: a PAID audit row can never exist without its financial effects).
+- **PA-03** — Admin confirm → `PAID` row with actor; already-paid idempotent path writes NO second row (protects: no audit spam/duplication on retries).
+- **PA-04** — proof REJECT → one `REJECTED` row; proof CONFIRM writes no audit row (by design: the PAID event belongs to the confirm/settlement) (protects: event semantics).
+- **PA-05** — checkout stale-attempt takeover → one `FAILED` row with the caller as actor; provider-refused checkout → `FAILED` row, best-effort, the payer still gets the error (protects: failure observability without changing outcomes).
+- **PA-06** — append-only trigger: `UPDATE`/`DELETE` on `payment_audit` raises (protects: the audit cannot be rewritten from the app or psql session).
+- **PA-07** — `/admin/payment-audit` reachable as ADMIN; Supervisor/Teacher/Student/Guardian get the role redirect/403 (protects: money-audit read boundary).
+- **PA-08** — metadata allowlist: a payload with unknown/gateway keys stores only allowlisted keys; no `source_data`/`pan` ever reaches `payment_audit.metadata` (protects: no card data, no gateway payloads).
+- **PA-09** — hidden UI: admin invoices panel renders no Confirm/proof-review forms and the payer panel renders no proof-upload form, while the dormant APIs still enforce their unchanged authorization (protects: the hide-only contract).
+
+*(slice B additions follow)*

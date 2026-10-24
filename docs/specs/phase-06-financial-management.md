@@ -217,3 +217,14 @@ Add `OPENWA_WEBHOOK_SECRET` (names only), remove the stale `MESSAGING_PROVIDER`,
 ### Slice F — Roster (BLOCKED on owner)
 
 Owner confirmed via read-only SQL that NO session exists without `session_students` rows, so it is not a data problem and all code creation paths are verified to write the roster. Waiting for the page name/screenshot before touching anything.
+
+### 2026-10-24 — Slice A implemented (payment audit + manual-payment hide)
+
+**Implemented, not verified** (static checks only; tests deferred). Migration `20261024000000_session3_payment_audit` CREATED, NOT APPLIED — owner applies from `webapp/` with DIRECT_URL. `npx tsc --noEmit`, `npm run lint`, `npm run build` all exit 0 after the slice.
+
+- `prisma/schema.prisma`: `PaymentAudit` model (`payment_audit`) + back-relations on Academy/Invoice/User. Migration: CHECK on event type/actor role, RESTRICT FKs, indexes `(academy_id, created_at DESC)` + `(invoice_id)`, append-only trigger `payment_audit_append_only` reusing `prevent_ledger_mutation()`.
+- `lib/payments/audit.ts`: `isPaymentAuditReady()` (information_schema probe, self-heals once applied), `writePaymentAudit(input, tx?)` with a 10-key metadata allowlist (no card data, no gateway payload ever), `bestEffort` mode for observability-only writes, in-transaction mode for money moves (fail-closed).
+- Write sites: invoice CREATE (`app/api/invoices/route.ts` — now one transaction: create + CREATED row, actor ADMIN); webhook settlement + Admin confirm PAID (`lib/payments/settlement.ts` — inside both settlement transactions, fail-closed); signed non-success/unmatchable webhook → FAILED best-effort (academy resolved from the invoice; UNMATCHED events skip the audit row — they stay in `webhook_events`); checkout stale-attempt takeover + provider-refused checkout → FAILED (`app/api/invoices/[id]/checkout/route.ts`, actor role narrowed server-side); proof REJECT → REJECTED (`app/api/invoices/[id]/proofs/[proofId]/route.ts`, same transaction as the review).
+- Admin report: `/[locale]/admin/payment-audit` page (ADMIN-only via `requireRole("ADMIN")`, event-type + invoice filters, 100-row window, migration-pending banner); ADMIN nav item "paymentAudit" in the shell. No new read API route — the server component queries directly (smaller auth surface).
+- Manual-payment UI HIDDEN (owner hide-set): `admin-invoices-panel.tsx` lost the manual-confirm + proof-review forms; `invoice-payment-panel.tsx` lost the proof-upload form (gateway "Pay now" + invoice create/list STAY). Dormant-but-reachable APIs with unchanged authorization: `POST /api/invoices/[id]/confirm`, `POST /api/invoices/[id]/proofs`, `POST /api/invoices/[id]/proofs/[proofId]`.
+- Test debt appended to `docs/specs/test-backlog.md` (PA-01..PA-09).
