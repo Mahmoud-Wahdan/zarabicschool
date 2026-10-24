@@ -330,6 +330,8 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
       select: { id: true },
     });
     const event = {
+      provider: "PAYMOB" as const,
+      providerEventId: `evt-${randomUUID()}`,
       providerReference: `ref-${randomUUID()}`,
       invoiceId: invoice.id,
       amountMinor: BigInt(80000),
@@ -357,7 +359,10 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
     const settledInvoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id }, select: { status: true } });
     expect(settledInvoice.status).toBe("PAID");
     const replay = await settlePaidInvoice(event);
-    expect(replay.status).toBe("already_settled");
+    // Duplicate delivery of the SAME event: post-Phase-6b the webhook_events
+    // claim answers "already_processed"; before that migration the invoice
+    // PAID-state guard answers "already_settled". Never a second settlement.
+    expect(["already_processed", "already_settled"]).toContain(replay.status);
 
     const payPerSessionInvoice = await prisma.invoice.create({
       data: {
@@ -373,6 +378,8 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
       select: { id: true },
     });
     await settlePaidInvoice({
+      provider: "PAYMOB",
+      providerEventId: `evt-${randomUUID()}`,
       providerReference: `ref-${randomUUID()}`,
       invoiceId: payPerSessionInvoice.id,
       amountMinor: BigInt(20000),

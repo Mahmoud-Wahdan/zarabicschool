@@ -30,6 +30,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "monthlyReports", icon: "calendar_month", href: "/admin/monthly-reports" },
     { key: "sessionRequests", icon: "report_problem", href: "/admin/session-requests", badgeKey: "requests", badgeTone: "secondary" },
     { key: "financials", icon: "receipt_long", href: "/admin/financials" },
+    { key: "billing", icon: "toll", href: "/admin/billing" },
     { key: "invoices", icon: "request_quote", href: "/admin/invoices" },
     { key: "payroll", icon: "payments", href: "/admin/payroll" },
     { key: "overtime", icon: "more_time", href: "/admin/overtime" },

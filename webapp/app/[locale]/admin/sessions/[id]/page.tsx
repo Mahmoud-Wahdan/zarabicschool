@@ -70,7 +70,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
   const viewer = { userId: user.id, academyId: user.academyId, role: user.role } as const;
 
   const reportExtras: ReportExtra[] = session1Ready
-    ? await (prisma.report as any).findMany({
+    ? await prisma.report.findMany({
         where: { sessionId: session.id, reportType: "SESSION_COMPLETION_REPORT" },
         select: { studentId: true, language: true, rejectionCount: true },
       })

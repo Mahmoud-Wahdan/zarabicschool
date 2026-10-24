@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import { getServerSession } from "next-auth";
 
 import { prisma } from "../../lib/prisma";
+import { getReportForViewer } from "../../lib/reports/visibility";
 import { processDueNotificationJobs, processLateReportNotifications } from "../../lib/worker/notifications";
 import { settleApprovedReport } from "../../lib/reports/settlement-seam";
 import { POST as submitReportRoute } from "../../app/api/sessions/[id]/students/[studentId]/report/route";
@@ -167,7 +168,8 @@ async function withProviderUnconfigured(run: () => Promise<void>) {
 }
 
 beforeAll(async () => {
-  process.env.MESSAGING_PROVIDER = "fake";
+  // The fake messaging provider was removed (owner, 2026-10-18): OpenWA is the
+  // only provider; withProviderUnconfigured simulates missing OPENWA_* config.
   fx = await createSessionFixtures();
 });
 
@@ -542,19 +544,41 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     expect(reservation.releasedAt).not.toBeNull();
   });
 
-  it("queues the guardian approval notice and the teacher rejection notice after commit (Batch D)", async () => {
+  it("queues the guardian and student SUBMIT notices; approval adds no family notice (Session 1, CONTEXT §9)", async () => {
     const approvedSession = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student1] });
     const submitted = await submitReport(approvedSession.id, fx.studentProfileIds.student1);
+    // The student has a linked guardian → the family (guardian AND student, per the
+    // visibility rules) is notified the moment the report is SUBMITTED — not on
+    // approval (owner decision 2026-10-18; supersedes the old Batch D contract).
+    const submitJobs = await prisma.notificationJob.findMany({
+      where: { kind: "REPORT_SUBMITTED", dedupKey: `REPORT_SUBMITTED:${submitted.body.data.id}:${fx.guardianUserId}` },
+    });
+    expect(submitJobs).toHaveLength(1);
+    const studentJob = await prisma.notificationJob.findFirstOrThrow({
+      where: { kind: "REPORT_SUBMITTED", dedupKey: `REPORT_SUBMITTED:${submitted.body.data.id}:${fx.studentUserIds.student1}` },
+    });
+    expect(studentJob.recipientUserId).toBe(fx.studentUserIds.student1);
+    const familyJobsBefore = await prisma.notificationJob.count({
+      where: { kind: "REPORT_SUBMITTED", reportId: submitted.body.data.id },
+    });
+    expect(familyJobsBefore).toBe(2);
+    await processDueNotificationJobs(new Date(), fx.academyId);
+    const sent = await prisma.notificationJob.findUniqueOrThrow({ where: { id: studentJob.id } });
+    expect(["SENT", "FAILED"]).toContain(sent.status);
+
     const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
     expect(approved.status).toBe(200);
-    // The student has a linked guardian → the guardian is the approval recipient (decision 7).
-    const approveJob = await prisma.notificationJob.findFirstOrThrow({
-      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+    // Approval concerns teacher pay ONLY — it must never enqueue a new family notice
+    // (the old REPORT_APPROVED job no longer exists) and never duplicate the submit one.
+    await expect(
+      prisma.notificationJob.findFirst({
+        where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+      }),
+    ).resolves.toBeNull();
+    const familyJobsAfter = await prisma.notificationJob.count({
+      where: { kind: "REPORT_SUBMITTED", reportId: submitted.body.data.id },
     });
-    expect(approveJob.recipientUserId).toBe(fx.guardianUserId);
-    await processDueNotificationJobs(new Date(), fx.academyId);
-    const sent = await prisma.notificationJob.findUniqueOrThrow({ where: { id: approveJob.id } });
-    expect(sent.status).toBe("SENT");
+    expect(familyJobsAfter).toBe(familyJobsBefore);
 
     const rejectedSession = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student2] });
     const submitted2 = await submitReport(rejectedSession.id, fx.studentProfileIds.student2);
@@ -566,14 +590,14 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     expect(rejectJob.recipientUserId).toBe(fx.teacherUserId);
   });
 
-  it("an adult student without a guardian receives the approval notice (decision 7)", async () => {
+  it("an adult student without a guardian receives the submit notice (decision 7, Session 1)", async () => {
     const adultUser = await prisma.user.create({
       data: {
-        academyId: fx.academyId,
         username: `demo_test_adult2_${fx.suffix}`,
         displayName: "Demo Test Adult Two",
         passwordHash: "x".repeat(60),
         role: "STUDENT",
+        academyId: fx.academyId,
         timezone: "Africa/Cairo",
         isActive: true,
         mustChangePassword: false,
@@ -586,33 +610,140 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
     });
     const session = await createPastSession({ studentProfileIds: [adultStudent.id] });
     const submitted = await submitReport(session.id, adultStudent.id);
-    const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
-    expect(approved.status).toBe(200);
+    // An adult student without a guardian is the whole-report viewer AND the only
+    // family recipient of the submit notice.
     const job = await prisma.notificationJob.findFirstOrThrow({
-      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+      where: { kind: "REPORT_SUBMITTED", dedupKey: `REPORT_SUBMITTED:${submitted.body.data.id}:${adultUser.id}` },
     });
     expect(job.recipientUserId).toBe(adultUser.id);
-  });
-
-  it("a failed approval notice never rolls the approval back and stores no secrets (Batch D)", async () => {
-    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
-    const submitted = await submitReport(session.id, fx.studentProfileIds.student3);
     const approved = await reviewReport(submitted.body.data.id, "APPROVE", fx.adminUserId);
     expect(approved.status).toBe(200);
+    // Approval still sends nothing to the family.
+    await expect(
+      prisma.notificationJob.findFirst({
+        where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("a failed submit notice never rolls the submission back and stores no secrets (Session 1)", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
+    const submitted = await submitReport(session.id, fx.studentProfileIds.student3);
+    expect(submitted.status).toBe(201);
     const row = await prisma.report.findUniqueOrThrow({ where: { id: submitted.body.data.id } });
-    expect(row.status).toBe("APPROVED");
+    expect(row.status).toBe("SUBMITTED");
 
     await withProviderUnconfigured(async () => {
       await processDueNotificationJobs(new Date(), fx.academyId);
     });
     const failed = await prisma.notificationJob.findFirstOrThrow({
-      where: { kind: "REPORT_APPROVED", dedupKey: `REPORT_APPROVED:${submitted.body.data.id}` },
+      where: { kind: "REPORT_SUBMITTED", dedupKey: `REPORT_SUBMITTED:${submitted.body.data.id}:${fx.studentUserIds.student3}` },
     });
     expect(failed.status).toBe("FAILED");
     expect(failed.lastError).toBe("OpenWA is not configured.");
     expect(failed.lastError).not.toContain("zoom.us");
-    // The decision stands regardless of the messaging failure.
-    const stillApproved = await prisma.report.findUniqueOrThrow({ where: { id: submitted.body.data.id } });
-    expect(stillApproved.status).toBe("APPROVED");
+    // The submission stands regardless of the messaging failure.
+    const stillSubmitted = await prisma.report.findUniqueOrThrow({ where: { id: submitted.body.data.id } });
+    expect(stillSubmitted.status).toBe("SUBMITTED");
+  });
+
+  it("INT-REP-01: submission stores SUBMITTED, is immediately visible to the linked guardian, queues the notice, and moves no money", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student1] });
+    const { status, body } = await submitReport(session.id, fx.studentProfileIds.student1);
+    expect(status).toBe(201);
+    const row = await prisma.report.findUniqueOrThrow({ where: { id: body.data.id } });
+    expect(row.status).toBe("SUBMITTED");
+    expect(row.settledAt).toBeNull();
+    expect(row.archivedAt).toBeNull();
+
+    // Immediately queryable by the linked guardian — no Admin/Supervisor approval anywhere.
+    const guardianView = await getReportForViewer(
+      { userId: fx.guardianUserId, academyId: fx.academyId, role: "GUARDIAN" },
+      session.id,
+      fx.studentProfileIds.student1,
+    );
+    expect(guardianView?.id).toBe(row.id);
+    expect(guardianView?.summary).toBe("Covered the lesson content.");
+
+    // The submit notice is queued for the family (guardian + student of a guarded student).
+    const submitJobs = await prisma.notificationJob.count({
+      where: { kind: "REPORT_SUBMITTED", reportId: row.id },
+    });
+    expect(submitJobs).toBe(2);
+
+    // Settlement is unchanged until approval: the teacher's ledger row is NOT created.
+    const credits = await prisma.payrollLedger.count({
+      where: { academyId: fx.academyId, sessionId: session.id, entryType: "SESSION_CREDIT" },
+    });
+    expect(credits).toBe(0);
+    const deductions = await prisma.subscriptionLedger.count({
+      where: { academyId: fx.academyId, sessionId: session.id, entryType: "SESSION_DEDUCTION" },
+    });
+    expect(deductions).toBe(0);
+  });
+
+  it("INT-REP-03: a correction after rejection keeps the same row, shows the latest content, and never re-notifies the family", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student2] });
+    const first = await submitReport(session.id, fx.studentProfileIds.student2);
+    expect(first.status).toBe(201);
+    const reportId = first.body.data.id;
+    const jobsBefore = await prisma.notificationJob.count({ where: { kind: "REPORT_SUBMITTED", reportId } });
+    expect(jobsBefore).toBe(2);
+
+    const rejected = await reviewReport(reportId, "REJECT", fx.supervisorUserId, "Add the recitation section.");
+    expect(rejected.status).toBe(200);
+
+    const corrected = await submitReport(session.id, fx.studentProfileIds.student2, fx.teacherUserId, reportPayload({
+      summary: "Corrected summary with the recitation section.",
+    }));
+    expect(corrected.status).toBe(200);
+
+    // Same database row (unique per session+student+type), latest content, audit trail kept.
+    expect(corrected.body.data.id).toBe(reportId);
+    const rowCount = await prisma.report.count({
+      where: { sessionId: session.id, studentId: fx.studentProfileIds.student2, reportType: "SESSION_COMPLETION_REPORT" },
+    });
+    expect(rowCount).toBe(1);
+    const row = await prisma.report.findUniqueOrThrow({ where: { id: reportId } });
+    expect(row.summary).toBe("Corrected summary with the recitation section.");
+    expect(row.rejectionReason).toBe("Add the recitation section.");
+
+    // No second WhatsApp for the same report: the deduped submit notice count is unchanged.
+    const jobsAfter = await prisma.notificationJob.count({ where: { kind: "REPORT_SUBMITTED", reportId } });
+    expect(jobsAfter).toBe(jobsBefore);
+  });
+
+  it("UNIT-REJ-01: the rejection counter increments on each rejection", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student3] });
+    const submitted = await submitReport(session.id, fx.studentProfileIds.student3);
+    const reportId = submitted.body.data.id;
+
+    const firstReject = await reviewReport(reportId, "REJECT", fx.adminUserId, "First correction request.");
+    expect(firstReject.status).toBe(200);
+    expect((await prisma.report.findUniqueOrThrow({ where: { id: reportId } })).rejectionCount).toBe(1);
+
+    await submitReport(session.id, fx.studentProfileIds.student3);
+    const secondReject = await reviewReport(reportId, "REJECT", fx.adminUserId, "Second correction request.");
+    expect(secondReject.status).toBe(200);
+    expect((await prisma.report.findUniqueOrThrow({ where: { id: reportId } })).rejectionCount).toBe(2);
+  });
+
+  it("UNIT-REJ-02: a rejection writes no financial penalty ledger rows and never raises the late-report red mark", async () => {
+    const session = await createPastSession({ studentProfileIds: [fx.studentProfileIds.student4] });
+    const submitted = await submitReport(session.id, fx.studentProfileIds.student4);
+    const rejected = await reviewReport(submitted.body.data.id, "REJECT", fx.supervisorUserId, "Clarify the summary.");
+    expect(rejected.status).toBe(200);
+
+    // No deduction, no adjustment/credit — a rejection is purely informational.
+    const deductions = await prisma.subscriptionLedger.count({ where: { sessionId: session.id } });
+    expect(deductions).toBe(0);
+    const payrollEntries = await prisma.payrollLedger.count({ where: { sessionId: session.id } });
+    expect(payrollEntries).toBe(0);
+
+    // The red mark is for LATE reports only (CONTEXT §6/§7) — a rejection never creates one.
+    const lateFlags = await prisma.teacherFlag.count({
+      where: { academyId: fx.academyId, teacherId: fx.teacherProfileId, flagType: "LATE_REPORT" },
+    });
+    expect(lateFlags).toBe(0);
   });
 });

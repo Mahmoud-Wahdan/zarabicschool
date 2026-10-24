@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "../../../generated/prisma/client";
 
 import { requireApiRoles } from "../../../lib/dal";
+import { isPhase6bReady } from "../../../lib/billing/readiness";
 import { requireStudentFinanceAccess } from "../../../lib/guards/student-finance";
 import { prisma } from "../../../lib/prisma";
 import { invoiceCreateSchema } from "../../../lib/validation/financial";
@@ -112,6 +113,21 @@ export async function POST(request: Request) {
     select: { id: true },
   });
   if (!student) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Student not found." } }, { status: 404 });
+  // Exchange-rate snapshot: selected from the academy's server-side ExchangeRates
+  // configuration (never from client input). The invoice's rate is snapshotted at
+  // creation so historical invoices keep the rate that applied when they were
+  // created; EGP invoices need no conversion against the academy's base currency.
+  // Before the Phase 6b migration is applied (or with no rate configured) the
+  // snapshot stays null, exactly like the previous optional-field behavior.
+  let exchangeRate: Prisma.Decimal | null = null;
+  if (parsed.data.currency !== "EGP" && (await isPhase6bReady())) {
+    const rate = await prisma.exchangeRate.findFirst({
+      where: { academyId: user.academyId, fromCurrency: parsed.data.currency, toCurrency: "EGP" },
+      orderBy: { effectiveFrom: "desc" },
+      select: { rate: true },
+    });
+    exchangeRate = rate?.rate ?? null;
+  }
   const invoice = await prisma.invoice.create({
     data: {
       academyId: user.academyId,
@@ -119,7 +135,7 @@ export async function POST(request: Request) {
       amountMinor: BigInt(parsed.data.amountMinor),
       currency: parsed.data.currency,
       provider: parsed.data.provider,
-      exchangeRate: parsed.data.exchangeRate ?? null,
+      exchangeRate,
       packageType: parsed.data.packageType,
       sessionsPurchased: parsed.data.sessionsPurchased,
       status: "PENDING",

@@ -3,6 +3,7 @@
 import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 
 import { runSerializable } from "../credits/reservation";
+import { processMonthlyCreditExpiry } from "./credits";
 import { getMessagingProvider } from "../messaging/provider";
 import { prisma } from "../prisma";
 import { monthKeyRangeUtc, previousMonthKey } from "../reports/month-key";
@@ -532,6 +533,11 @@ export async function runWorkerTick(now = new Date()) {
     await processMonthlyReportReminders(now);
   } catch (cause) {
     console.error("[worker] monthly report reminder processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processMonthlyCreditExpiry(now);
+  } catch (cause) {
+    console.error("[worker] monthly credit expiry failed.", cause instanceof Error ? cause.message : cause);
   }
   try {
     await extendDueSeries(now);

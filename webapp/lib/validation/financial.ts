@@ -3,7 +3,12 @@ import { z } from "zod";
 const currencySchema = z.enum(["EGP", "USD"]);
 const isoDateTime = z.string().datetime({ offset: true });
 
-/** Admin creates a PENDING invoice — the amount lives on the invoice, never on the client at pay time. */
+/**
+ * Admin creates a PENDING invoice — the amount lives on the invoice, never on the
+ * client at pay time. The exchange-rate snapshot is NOT client input: the API
+ * selects the academy's current effective rate from the ExchangeRates
+ * configuration (Phase 6b rule — server-side configuration only).
+ */
 export const invoiceCreateSchema = z.object({
   studentId: z.string().uuid(),
   packageType: z.enum(["MONTHLY_PLAN", "ANNUAL_PLAN", "PAY_PER_SESSION"]),
@@ -11,7 +16,6 @@ export const invoiceCreateSchema = z.object({
   amountMinor: z.number().int().min(1).max(100_000_000),
   currency: currencySchema,
   provider: z.enum(["PAYMOB", "USD_GATEWAY"]),
-  exchangeRate: z.number().positive().max(1_000_000).optional(),
 });
 
 /** Admin confirms a manual payment (proof fallback). Same transition as the signed webhook. */

@@ -34,7 +34,8 @@ export async function getPayPerSessionConfig(academyId: string): Promise<PayPerS
     let maxSessions = DEFAULT_PAY_PER_SESSION_MAX;
 
     for (const setting of settings) {
-      const val = parseInt(setting.value, 10);
+      // AcademySetting.value is Json — normalize to string before parsing.
+      const val = parseInt(String(setting.value), 10);
       if (Number.isSafeInteger(val) && val > 0) {
         if (setting.key.endsWith(".min")) minSessions = val;
         if (setting.key.endsWith(".max")) maxSessions = val;

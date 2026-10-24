@@ -1,4 +1,4 @@
-﻿-- Session 1 (owner, 2026-10-18): report languages + monthly reports + rejection counter.
+-- Session 1 (owner, 2026-10-18): report languages + monthly reports + rejection counter.
 -- Additive only. OWNER APPLIES from webapp/: npx prisma migrate deploy (uses DIRECT_URL).
 -- Until applied: isSession1ReportsReady() degrades (monthly reports 409, language
 -- selector + rejection counter self-hide, submit-time notices deferred) — no crashes.
