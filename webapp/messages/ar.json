@@ -199,7 +199,24 @@
     "attachmentsCount": "{count, plural, one {مرفق واحد} other {# مرفقات}}",
     "empty": "لا توجد تقارير حصص لـ{name} بعد.",
     "noChildren": "لا يوجد أبناء مرتبطون.",
-    "monthlySection": "التقارير الشهرية"
+    "monthlySection": "التقارير الشهرية",
+    "evaluationSummary": "قيّم هذه الحصة"
+  },
+  "evaluation": {
+    "title": "تقييم الحصة والمعلمة",
+    "hint": "تقييمك يساعد الإدارة على متابعة جودة الحصص. يقرأه الإدارة والمشرف فقط — ولا تراه المعلمة أبدًا.",
+    "ratingLabel": "التقييم من 5",
+    "ratingRequired": "اختر تقييمًا من 1 إلى 5.",
+    "ratingValue": "{rating} من 5",
+    "commentLabel": "ملاحظات (اختياري)",
+    "submit": "إرسال التقييم",
+    "update": "تحديث التقييم",
+    "submitted": "تم حفظ تقييمك.",
+    "saving": "جارٍ الحفظ…",
+    "submitFailed": "تعذر حفظ التقييم. حاول مرة أخرى.",
+    "locked": "انتهت مدة التعديل (24 ساعة) — التقييم مقفل الآن.",
+    "yourRating": "تقييمك",
+    "editableFor24h": "يمكن التعديل خلال 24 ساعة من الإرسال، ثم يُقفل التقييم."
   },
   "sessionRequest": {
     "open": "أبلغ عن عطل / غياب",
@@ -1282,7 +1299,10 @@
     "attachmentsCount": "{count, plural, one {مرفق واحد} other {# مرفقات}}",
     "languageChip": "لغة التقرير",
     "evaluationsPanel": "تقييمات الطالب / ولي الأمر",
-    "evaluationsPending": "تصل التقييمات مع المرحلة 7 وستُعرض هنا جنبًا إلى جنب مع التقرير — للعرض فقط.",
+    "evaluationsPending": "لا توجد تقييمات من الطالب أو ولي الأمر لهذه الحصة بعد.",
+    "evaluationAuthorStudent": "تقييم الطالب",
+    "evaluationAuthorGuardian": "تقييم ولي الأمر",
+    "evaluationRatingOf": "{rating} من 5",
     "reportMissing": "لم يُرسل تقرير لهذا الطالب بعد.",
     "settlementTitle": "سجل التسويات",
     "settlementHint": "قيود دفتر الحسابات المكتوبة لهذه الحصة. للإدارة فقط؛ لا يتلقى المشرف أي مبالغ.",

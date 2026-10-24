@@ -6,6 +6,7 @@ import Icon from "@/app/_components/ui/icon";
 import EmptyState from "@/app/_components/ui/empty-state";
 import StatusBadge from "@/app/_components/ui/status-badge";
 import { requireRoles } from "@/lib/dal";
+import { getEvaluationsForSession, isEvaluationsReady } from "@/lib/evaluations/service";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/payments/format";
 import { getClassRemarkOptions } from "@/lib/reports/class-remarks";
@@ -83,6 +84,14 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
       view: await getReportForViewer(viewer, session.id, entry.studentId),
     })),
   );
+
+  // Session evaluations (Session 3, Slice B — owner decision 2026-10-24): the
+  // STUDENT and GUARDIAN ratings of the session/teacher, shown READ-ONLY side by
+  // side with the teacher's report. Admin AND Supervisor see them (the owner's
+  // newest decision — they relay to the teacher manually with their own text);
+  // THE TEACHER NEVER SEES THEM, in any form. The system never compares reports
+  // against evaluations, never flags conflicts, never decides who is right.
+  const evaluations = (await isEvaluationsReady()) ? await getEvaluationsForSession(session.id) : [];
 
   // Settlement history (ADMIN only — the Supervisor data layer omits money entirely).
   const settlement =
@@ -179,12 +188,36 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                       </div>
                     </div>
 
-                    {/* Evaluations arrive with Phase 7 — the panel is reserved, never
-                        auto-compared (THE SYSTEM RECORDS, THE ADMIN DECIDES). Evaluations stay Admin-only per CONTEXT §9. */}
-                    {user.role === "ADMIN" ? (
-                      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-outline-variant bg-surface-container-low p-3">
+                    {/* Evaluations (Session 3): the STUDENT and GUARDIAN ratings + comments,
+                        read-only. Visible to Admin AND Supervisor (owner, 2026-10-24); the
+                        teacher never sees them (no route, payload, page or notification).
+                        THE SYSTEM RECORDS, THE ADMIN DECIDES — never auto-compared. */}
+                    {user.role === "ADMIN" || user.role === "SUPERVISOR" ? (
+                      <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
                         <p className="text-label-md font-bold text-primary">{t("evaluationsPanel")}</p>
-                        <p className="text-body-sm text-on-surface-variant">{t("evaluationsPending")}</p>
+                        {evaluations.length === 0 ? (
+                          <p className="text-body-sm text-on-surface-variant">{t("evaluationsPending")}</p>
+                        ) : (
+                          evaluations.map((evaluation) => (
+                            <div key={evaluation.id} className="rounded-lg border border-outline-variant bg-surface-container-lowest p-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-label-md font-semibold text-primary">
+                                  {evaluation.authorType === "STUDENT" ? t("evaluationAuthorStudent") : t("evaluationAuthorGuardian")}
+                                </span>
+                                <span className="text-body-sm text-[var(--gold)]" aria-label={t("evaluationRatingOf", { rating: evaluation.rating })}>
+                                  {"★".repeat(evaluation.rating)}
+                                  {"☆".repeat(5 - evaluation.rating)}
+                                </span>
+                              </div>
+                              {evaluation.comment ? (
+                                <p className="mt-1 text-body-sm text-on-surface" dir="auto">{evaluation.comment}</p>
+                              ) : null}
+                              <p className="mt-1 text-label-sm text-on-surface-variant">
+                                {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(evaluation.createdAt)}
+                              </p>
+                            </div>
+                          ))
+                        )}
                       </div>
                     ) : null}
                   </div>

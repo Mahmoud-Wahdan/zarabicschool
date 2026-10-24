@@ -2,7 +2,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import DashboardShell from "../../../../../_components/dashboard-shell";
+import EvaluationCard from "../../../../../_components/evaluations/evaluation-card";
 import { requireRole, studentFinanceBlocked } from "../../../../../../lib/dal";
+import { getOwnEvaluation, isEvaluationsReady } from "../../../../../../lib/evaluations/service";
 import { prisma } from "../../../../../../lib/prisma";
 import { getClassRemarkOptions } from "../../../../../../lib/reports/class-remarks";
 import { classRemarkLabel, reportDir } from "../../../../../../lib/reports/report-language";
@@ -17,7 +19,16 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
 
   const enrollment = await prisma.sessionStudent.findFirst({
     where: { sessionId: id, student: { userId: user.id } },
-    select: { studentId: true, session: { select: { subject: { select: { nameEn: true, nameAr: true } } } } },
+    select: {
+      studentId: true,
+      session: {
+        select: {
+          subject: { select: { nameEn: true, nameAr: true } },
+          status: true,
+          scheduledEnd: true,
+        },
+      },
+    },
   });
   if (!enrollment) notFound();
 
@@ -33,6 +44,18 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
     ),
     getClassRemarkOptions(user.academyId),
   ]);
+
+  // Session evaluation (Session 3, Slice B — owner decision 2026-10-24): the STUDENT
+  // evaluates the session/teacher after it ends. The teacher never sees it; nothing
+  // here is shown to or derived from the teacher's surfaces.
+  const sessionEnded =
+    enrollment.session.status !== "CANCELLED" &&
+    enrollment.session.status !== "MISSED" &&
+    new Date() >= enrollment.session.scheduledEnd;
+  const evaluationsReady = sessionEnded && (await isEvaluationsReady());
+  const ownEvaluation = evaluationsReady
+    ? await getOwnEvaluation(id, { userId: user.id, role: "STUDENT" })
+    : null;
 
   const attachmentList = view?.attachments ?? [];
   return (
@@ -76,6 +99,16 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
       ) : (
         <p className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5 text-sm opacity-70">{t("pending")}</p>
       )}
+      {evaluationsReady ? (
+        <div className="mt-6">
+          <EvaluationCard
+            sessionId={id}
+            initialRating={ownEvaluation?.rating ?? null}
+            initialComment={ownEvaluation?.comment ?? null}
+            locked={ownEvaluation?.locked ?? false}
+          />
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

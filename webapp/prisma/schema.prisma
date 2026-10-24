@@ -366,6 +366,7 @@ model Academy {
   billingSubscriptions      BillingSubscription[]      @relation("BillingSubscriptionAcademy")
   exchangeRates             ExchangeRate[]             @relation("ExchangeRateAcademy")
   paymentAuditRows          PaymentAudit[]             @relation("PaymentAuditAcademy")
+  sessionEvaluations        SessionEvaluation[]        @relation("SessionEvaluationAcademy")
 
   @@map("academies")
 }
@@ -416,6 +417,7 @@ model User {
   createdExchangeRates          ExchangeRate[]             @relation("ExchangeRateCreatedBy")
   payerBillingSubscriptions     BillingSubscription[]      @relation("BillingSubscriptionPayer")
   paymentAuditEvents            PaymentAudit[]             @relation("PaymentAuditActor")
+  sessionEvaluationsAuthored    SessionEvaluation[]        @relation("SessionEvaluationAuthor")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -512,6 +514,7 @@ model Student {
   studentSubjects StudentSubject[]
   assignments     StudentTeacherAssignment[]
   billingSubscriptions BillingSubscription[]   @relation("BillingSubscriptionStudent")
+  evaluations     SessionEvaluation[]
 
   @@index([academyId])
   @@index([guardianId])
@@ -585,6 +588,7 @@ model Session {
   sessionRequests            SessionRequest[]       @relation("SessionRequestSession")
   replacementSessionRequests SessionRequest[]       @relation("SessionRequestReplacement")
   payrollEntries             PayrollLedger[]        @relation("PayrollLedgerSession")
+  evaluations                SessionEvaluation[]
 
   @@unique([recurrenceGroupId, recurrenceWeekIndex])
   @@index([academyId, scheduledStart, status])
@@ -1107,4 +1111,39 @@ model PaymentAudit {
   @@index([academyId, createdAt])
   @@index([invoiceId])
   @@map("payment_audit")
+}
+
+enum EvaluationAuthorType {
+  STUDENT
+  GUARDIAN
+}
+
+// Session 3 (owner decision 2026-10-24): per-session evaluation of the session/teacher
+// by the STUDENT and the GUARDIAN — rating 1..5 + optional comment, ONE per
+// (session, author) (owner-confirmed, incl. group sessions and multi-child guardians),
+// editable for 24h then locked (server-enforced, no DB trigger). THE TEACHER NEVER
+// SEES IT: no teacher route, payload, page or notification may select this table —
+// Admin AND Supervisor read it (owner's newest decision, superseding the older
+// CONTEXT §9 "Admin-only" line) and relay to the teacher manually with their own text.
+// No notifications are enqueued on create/edit.
+model SessionEvaluation {
+  id           String               @id @default(uuid()) @db.Uuid
+  academyId    String               @map("academy_id") @db.Uuid
+  sessionId    String               @map("session_id") @db.Uuid
+  authorUserId String               @map("author_user_id") @db.Uuid
+  studentId    String               @map("student_id") @db.Uuid
+  authorType   EvaluationAuthorType @map("author_type")
+  rating       Int
+  comment      String?
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy      Academy              @relation("SessionEvaluationAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session      Session              @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  authorUser   User                 @relation("SessionEvaluationAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  student      Student              @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, authorUserId])
+  @@index([academyId, createdAt])
+  @@index([sessionId])
+  @@map("session_evaluations")
 }

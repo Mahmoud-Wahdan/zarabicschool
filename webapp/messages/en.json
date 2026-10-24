@@ -199,7 +199,24 @@
     "attachmentsCount": "{count, plural, one {1 attachment} other {# attachments}}",
     "empty": "No session reports for {name} yet.",
     "noChildren": "No linked children.",
-    "monthlySection": "Monthly reports"
+    "monthlySection": "Monthly reports",
+    "evaluationSummary": "Evaluate this session"
+  },
+  "evaluation": {
+    "title": "Session & teacher evaluation",
+    "hint": "Your evaluation helps the academy follow up on quality. Only the Admin and the Supervisor read it — the teacher never sees it.",
+    "ratingLabel": "Rating out of 5",
+    "ratingRequired": "Pick a rating from 1 to 5.",
+    "ratingValue": "{rating} out of 5",
+    "commentLabel": "Comment (optional)",
+    "submit": "Submit evaluation",
+    "update": "Update evaluation",
+    "submitted": "Your evaluation was saved.",
+    "saving": "Saving…",
+    "submitFailed": "The evaluation could not be saved. Please try again.",
+    "locked": "The 24-hour edit window has closed — this evaluation is locked.",
+    "yourRating": "Your rating",
+    "editableFor24h": "Editable for 24 hours after submitting, then it locks."
   },
   "sessionRequest": {
     "open": "Report an outage / absence",
@@ -1282,7 +1299,10 @@
     "attachmentsCount": "{count, plural, one {1 attachment} other {# attachments}}",
     "languageChip": "Report language",
     "evaluationsPanel": "Student / guardian evaluations",
-    "evaluationsPending": "Evaluations arrive with Phase 7 and will be shown here, side by side with the report — display only.",
+    "evaluationsPending": "No student or guardian evaluations for this session yet.",
+    "evaluationAuthorStudent": "Student evaluation",
+    "evaluationAuthorGuardian": "Guardian evaluation",
+    "evaluationRatingOf": "{rating} out of 5",
     "reportMissing": "No report submitted for this student yet.",
     "settlementTitle": "Settlement history",
     "settlementHint": "Ledger entries written for this session. Admin-only; a Supervisor never receives amounts.",
