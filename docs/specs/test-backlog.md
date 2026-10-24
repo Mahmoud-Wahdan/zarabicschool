@@ -42,4 +42,16 @@
 - **PA-08** — metadata allowlist: a payload with unknown/gateway keys stores only allowlisted keys; no `source_data`/`pan` ever reaches `payment_audit.metadata` (protects: no card data, no gateway payloads).
 - **PA-09** — hidden UI: admin invoices panel renders no Confirm/proof-review forms and the payer panel renders no proof-upload form, while the dormant APIs still enforce their unchanged authorization (protects: the hide-only contract).
 
-*(slice B additions follow)*
+### Slice B additions — session evaluations (2026-10-24)
+
+- **EV-01** — STUDENT on the roster submits → 201, one row; second submit → update within 24h (protects: one per (session, author)).
+- **EV-02** — GUARDIAN of a roster child submits → 201; guardian with TWO children on the same group-session roster still has exactly ONE evaluation (unique key) (protects: the owner-confirmed multi-child rule).
+- **EV-03** — student/guardian NOT linked to the session → generic 404 (no existence oracle) (protects: minors' data visibility boundary).
+- **EV-04** — rating 0 / 6 / non-integer → 400; comment > 2000 → 400 (protects: schema CHECK mirrors validation).
+- **EV-05** — edit after 24h → 403 EVALUATION_LOCKED; edit within → 200, same row id (protects: server-side lock).
+- **EV-06** — concurrent first-submits → exactly one row, no 500 (P2002 recovery path) (protects: double-click/race).
+- **EV-07** — session CANCELLED/MISSED or not yet ended → 409 (protects: post-session-only rule).
+- **EV-08** — TEACHER GET/POST on the route → 403; no teacher page/payload selects `session_evaluations` (grep guard in review) (protects: TEACHER NEVER SEES).
+- **EV-09** — Admin session-detail shows both evaluations; Supervisor sees them; neither mutates (protects: read-only relaying view).
+
+### Slice C additions (follow)
