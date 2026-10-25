@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 import {
   classRemarkLabel,
@@ -12,6 +12,24 @@ import {
   type ReportLanguageCode,
 } from "../../../../../../lib/reports/report-language";
 import ReportAttachments, { type AttachmentItem } from "./report-attachments";
+
+/** Client-side pre-check only — the server re-validates by content signature and size. */
+const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_FILES = 10;
+const KNOWN_ERROR_CODES = new Set([
+  "SESSION_NOT_FINISHED",
+  "SESSION_NOT_REPORTABLE",
+  "ALREADY_SUBMITTED",
+  "REPORT_IMMUTABLE",
+  "NOT_FOUND",
+  "VALIDATION_ERROR",
+  "ATTACHMENT_TOO_LARGE",
+  "INVALID_ATTACHMENT_TYPE",
+  "STORAGE_NOT_CONFIGURED",
+  "ATTACHMENTS_MIGRATION_PENDING",
+  "STORAGE_ERROR",
+]);
 
 export type ExistingReport = {
   id: string;
@@ -56,7 +74,7 @@ export default function ReportForm({
   attachments: AttachmentItem[];
 }) {
   const t = useTranslations("teacherReport");
-  const editable = initial === null || initial.status === "REJECTED";
+  const uiLocale = useLocale();
   const [currentId, setCurrentId] = useState<string | null>(initial?.id ?? null);
   const [language, setLanguage] = useState<ReportLanguageCode | null>(initial?.language ?? defaultLanguage ?? null);
   const [form, setForm] = useState({
@@ -72,6 +90,33 @@ export default function ReportForm({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploaded, setUploaded] = useState<AttachmentItem[]>(attachments);
+  // Files picked before the FIRST submission (the report row does not exist yet);
+  // they upload to the new report right after the submit succeeds.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentRetry, setAttachmentRetry] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Editable only while missing or REJECTED (the server enforces the same rule).
+  const editable = status === null || status === "REJECTED";
+  // Remark labels: the report language when active, else the UI locale (never the raw slug).
+  const remarkLanguage: ReportLanguageCode = language ?? (uiLocale === "en" ? "en" : "ar");
+
+  /** Localized message for a coded API error; falls back to the generic message. */
+  function errorMessage(code: unknown): string {
+    return typeof code === "string" && KNOWN_ERROR_CODES.has(code) ? t(`errors.${code}`) : t("errorGeneric");
+  }
+
+  function pickFiles(list: FileList | null) {
+    setError("");
+    const picked = Array.from(list ?? []);
+    const rejected = picked.find((file) => !ALLOWED_UPLOAD_TYPES.includes(file.type) || file.size > MAX_UPLOAD_BYTES);
+    if (rejected) {
+      setError(t(rejected.size > MAX_UPLOAD_BYTES ? "errors.ATTACHMENT_TOO_LARGE" : "errors.INVALID_ATTACHMENT_TYPE"));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setPendingFiles(picked.slice(0, MAX_UPLOAD_FILES));
+  }
 
   // Report-language content pack (null = pre-migration fallback to UI-locale labels).
   const content = language ? SESSION_REPORT_CONTENT[language] : null;
@@ -117,32 +162,32 @@ export default function ReportForm({
       body: JSON.stringify({ ...form, operationalEvents, language: language ?? undefined }),
     });
     const payload = await response.json().catch(() => null);
-    setSaving(false);
     if (!response.ok) {
-      setError(payload?.error?.message ?? t("errorGeneric"));
+      setSaving(false);
+      setError(errorMessage(payload?.error?.code));
       return;
     }
+    const reportId: string | null = payload?.data?.id ?? currentId;
     setStatus("SUBMITTED");
-    if (payload?.data?.id) setCurrentId(payload.data.id);
+    if (reportId) setCurrentId(reportId);
+    if (reportId && pendingFiles.length > 0) {
+      // The report is already accepted; an attachment failure never undoes it.
+      const upload = new FormData();
+      pendingFiles.forEach((file) => upload.append("files", file));
+      const uploadResponse = await fetch(`/api/reports/${reportId}/attachments`, { method: "POST", body: upload });
+      const uploadPayload = await uploadResponse.json().catch(() => null);
+      if (!uploadResponse.ok) {
+        setAttachmentRetry(true);
+        setError(`${t("attachmentsAfterSubmitFailed")} ${errorMessage(uploadPayload?.error?.code)}`);
+      } else {
+        const listResponse = await fetch(`/api/reports/${reportId}/attachments`);
+        const listPayload = listResponse.ok ? await listResponse.json().catch(() => null) : null;
+        if (listPayload?.data) setUploaded(listPayload.data);
+      }
+      setPendingFiles([]);
+    }
+    setSaving(false);
     setMessage(t("submittedMessage"));
-  }
-
-  if ((status === "APPROVED" || status === "ARCHIVED") && currentId) {
-    return (
-      <div className="mt-5 flex flex-col gap-4">
-        <p className="rounded-lg bg-secondary-container px-4 py-3 text-body-md text-on-secondary-container">{t("approvedReadOnly")}</p>
-        <ReportAttachments reportId={currentId} initial={attachments} editable={false} />
-      </div>
-    );
-  }
-
-  if (status === "SUBMITTED" && currentId && !editable) {
-    return (
-      <div className="mt-5 flex flex-col gap-4">
-        <p className="rounded-lg bg-surface-container-high px-4 py-3 text-body-md text-on-surface-variant">{t("awaitingReview")}</p>
-        <ReportAttachments reportId={currentId} initial={attachments} editable />
-      </div>
-    );
   }
 
   return (
@@ -152,7 +197,13 @@ export default function ReportForm({
       dir={language ? reportDir(language) : undefined}
       lang={language ?? undefined}
     >
-      {initial?.status === "REJECTED" ? (
+      {status === "APPROVED" || status === "ARCHIVED" ? (
+        <p className="rounded-lg bg-secondary-container px-4 py-3 text-body-md text-on-secondary-container">{t("approvedReadOnly")}</p>
+      ) : null}
+      {status === "SUBMITTED" ? (
+        <p className="rounded-lg bg-surface-container-high px-4 py-3 text-body-md text-on-surface-variant">{t("awaitingReview")}</p>
+      ) : null}
+      {status === "REJECTED" && initial?.status === "REJECTED" ? (
         <div className="flex flex-col gap-1 rounded-lg bg-error-container px-4 py-3 text-on-error-container">
           <p className="text-body-md font-bold">{t("rejectedBanner")}</p>
           <p className="text-body-sm">{initial.rejectionReason}</p>
@@ -207,7 +258,7 @@ export default function ReportForm({
           </option>
           {classRemarkOptions.map((option) => (
             <option key={option.slug} value={option.slug}>
-              {language ? classRemarkLabel(classRemarkOptions, option.slug, language) : option.slug}
+              {classRemarkLabel(classRemarkOptions, option.slug, remarkLanguage)}
             </option>
           ))}
         </select>
@@ -288,12 +339,33 @@ export default function ReportForm({
 
       {currentId ? (
         <ReportAttachments
+          key={`${currentId}:${uploaded.length}`}
           reportId={currentId}
-          initial={attachments}
-          editable={editable}
+          initial={uploaded}
+          editable={editable || attachmentRetry}
           title={content ? content.attachmentsLabel : undefined}
         />
-      ) : null}
+      ) : (
+        <label className="flex flex-col gap-1 text-body-sm">
+          <span className="font-semibold text-on-surface">
+            {content ? content.attachmentsLabel : t("attachments.title")}{" "}
+            <span className="font-normal text-on-surface-variant">({content ? content.optionalLabel : t("optional")})</span>
+          </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ALLOWED_UPLOAD_TYPES.join(",")}
+            disabled={saving}
+            onChange={(event) => pickFiles(event.target.files)}
+            className="w-full rounded-lg border border-outline-variant px-3 py-2 text-body-sm"
+          />
+          <span className="text-label-sm text-on-surface-variant">{t("attachments.uploadHint")}</span>
+          {pendingFiles.length > 0 ? (
+            <span className="text-label-sm text-on-surface-variant">{t("pendingFiles", { count: pendingFiles.length })}</span>
+          ) : null}
+        </label>
+      )}
 
       {error ? (
         <p role="alert" className="rounded-lg bg-error-container px-3.5 py-2.5 text-body-sm text-on-error-container">

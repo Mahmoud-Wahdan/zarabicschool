@@ -2,10 +2,12 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
 import EmptyState from "../../_components/ui/empty-state";
+import RosterReportAction from "../../_components/reports/roster-report-action";
 import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { joinWindowState } from "../../../lib/config/session-join";
+import { getTeacherRosterReportStatuses, rosterKey } from "../../../lib/reports/roster-status";
 import { wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 import { Link } from "../../../i18n/navigation";
 
@@ -51,6 +53,11 @@ export default async function TeacherDashboard() {
     },
   });
   const currentLocale = await getLocale();
+  const reportStatuses = await getTeacherRosterReportStatuses(
+    user.id,
+    user.academyId,
+    teacher?.sessions.map((session) => session.id) ?? [],
+  );
   const formatTime = (value: Date) => new Intl.DateTimeFormat(currentLocale === "ar" ? "ar-EG" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -73,12 +80,8 @@ export default async function TeacherDashboard() {
         </div>
         <div className="mt-4 space-y-3">
           {teacher?.sessions.map((session) => {
-            // The report icon appears only after the scheduled end, and never for
-            // cancelled/missed sessions (CONTEXT §6; Phase 5 review F-16).
-            const reportable =
-              now >= session.scheduledEnd &&
-              session.status !== "CANCELLED" &&
-              session.status !== "MISSED";
+            // Report buttons per roster student (shared RosterReportAction — the button
+            // is disabled until the scheduled end; never for cancelled/missed sessions).
             // The Zoom button uses the shared join-window constant — never a
             // hardcoded minute figure in UI text (owner rule; Phase 9 item 9.10
             // will change the constant, not the UI).
@@ -103,18 +106,24 @@ export default async function TeacherDashboard() {
                 <p className="mt-1 opacity-70">
                   {session.students.length} {t("teacher.metrics.students")} · {tSessions(`types.${session.sessionType}`)}
                 </p>
-                {reportable ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                {session.status !== "CANCELLED" && session.status !== "MISSED" ? (
+                  <ul className="mt-3 space-y-2">
                     {session.students.map((student) => (
-                      <Link
-                        key={student.studentId}
-                        href={`/teacher/sessions/${session.id}/report?studentId=${student.studentId}`}
-                        className="cta-primary rounded-lg px-3 py-2 text-xs"
-                      >
-                        {t("teacher.actions.report")} · {student.student.user.displayName}
-                      </Link>
+                      <li key={student.studentId} className="flex flex-wrap items-center justify-between gap-2">
+                        <span>{student.student.user.displayName}</span>
+                        <RosterReportAction
+                          sessionId={session.id}
+                          studentId={student.studentId}
+                          sessionStatus={session.status}
+                          scheduledEnd={session.scheduledEnd}
+                          now={now}
+                          timezone={user.timezone}
+                          locale={currentLocale}
+                          report={reportStatuses.get(rosterKey(session.id, student.studentId)) ?? null}
+                        />
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : null}
               </div>
             );

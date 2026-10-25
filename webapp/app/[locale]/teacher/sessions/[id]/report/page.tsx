@@ -148,7 +148,10 @@ export default async function TeacherReportPage({
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
+      <Link href="/teacher/sessions" className="text-label-md text-on-surface-variant hover:underline">
+        {t("backToSessions")}
+      </Link>
+      <h1 className="mt-2 text-headline-md font-bold text-primary">{t("title")}</h1>
       <p className="mt-1 text-body-sm text-on-surface-variant">
         {rosterEntry.student.user.displayName} · {subjectName}
       </p>

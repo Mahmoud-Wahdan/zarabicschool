@@ -1,12 +1,14 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import RosterReportAction from "../../../_components/reports/roster-report-action";
 import SessionJoinLink from "../../../_components/session-join-link";
 import SessionRequestForm from "../../../_components/session-request-form";
 import Icon from "../../../_components/ui/icon";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
+import { getTeacherRosterReportStatuses, rosterKey } from "../../../../lib/reports/roster-status";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
 
@@ -24,6 +26,11 @@ export default async function TeacherSessionsPage() {
       students: { select: { student: { select: { id: true, user: { select: { displayName: true } } } } } },
     },
   });
+  const reportStatuses = await getTeacherRosterReportStatuses(
+    user.id,
+    user.academyId,
+    sessions.map((session) => session.id),
+  );
 
   // Today = the viewer's local day (DST-safe through the shared wall-clock helper).
   const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: user.timezone }).format(now);
@@ -33,6 +40,45 @@ export default async function TeacherSessionsPage() {
   const todays = sessions.filter((session) => session.scheduledStart >= dayStart && session.scheduledStart < dayEnd);
   const subjectName = (subject: { nameEn: string; nameAr: string }) =>
     locale === "ar" ? subject.nameAr : subject.nameEn;
+  // Display only: a SCHEDULED session whose end has passed reads "ended" instead of
+  // "scheduled". The stored status is untouched (no transition rule is defined yet).
+  const statusLabel = (session: (typeof sessions)[number]) =>
+    session.status === "SCHEDULED" && now >= session.scheduledEnd ? t("teacher.ended") : t(`statuses.${session.status}`);
+
+  const roster = (session: (typeof sessions)[number], withZoom: boolean) => {
+    const state = withZoom && session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
+    return (
+      <ul className="mt-3 space-y-2">
+        {session.students.map(({ student }) => (
+          <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] p-3">
+            <span className="text-sm">
+              <Icon name="person" size={16} className="align-middle" /> {student.user.displayName}
+            </span>
+            <span className="flex flex-wrap items-center gap-2">
+              {state ? (
+                <>
+                  <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
+                  {session.zoomHostUrl ? (
+                    <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
+                  ) : null}
+                </>
+              ) : null}
+              <RosterReportAction
+                sessionId={session.id}
+                studentId={student.id}
+                sessionStatus={session.status}
+                scheduledEnd={session.scheduledEnd}
+                now={now}
+                timezone={user.timezone}
+                locale={locale}
+                report={reportStatuses.get(rosterKey(session.id, student.id)) ?? null}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
@@ -44,69 +90,38 @@ export default async function TeacherSessionsPage() {
 
       <section className="mt-6 space-y-3">
         <h2 className="text-lg font-bold text-[var(--navy)]">{t("teacher.today")}</h2>
-        {todays.map((session) => {
-          const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
-          return (
-            <article key={session.id} className="lift-card dashboard-card p-5">
-              <div className="flex flex-wrap justify-between gap-3">
-                <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                <span className="text-sm opacity-70">
-                  {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} · {t(`statuses.${session.status}`)}
-                </span>
-              </div>
-              <ul className="mt-3 space-y-2">
-                {session.students.map(({ student }) => (
-                  <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] p-3">
-                    <span className="text-sm">
-                      <span className="material-symbols-outlined align-middle text-sm" aria-hidden="true">person</span>{" "}
-                      {student.user.displayName} · {t(`types.${session.sessionType}`)}
-                    </span>
-                    {state ? (
-                      <span className="flex flex-wrap items-center gap-2">
-                        <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
-                        {session.zoomHostUrl ? (
-                          <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-              {session.zoomHostUrl && session.status === "SCHEDULED" ? (
-                <p className="mt-2 text-xs opacity-60">{t("teacher.hostNote")}</p>
-              ) : null}
-            </article>
-          );
-        })}
+        {todays.map((session) => (
+          <article key={session.id} className="lift-card dashboard-card p-5">
+            <div className="flex flex-wrap justify-between gap-3">
+              <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
+              <span className="text-sm opacity-70">
+                {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} · {statusLabel(session)} · {t(`types.${session.sessionType}`)}
+              </span>
+            </div>
+            {roster(session, true)}
+            {session.zoomHostUrl && session.status === "SCHEDULED" ? (
+              <p className="mt-2 text-xs opacity-60">{t("teacher.hostNote")}</p>
+            ) : null}
+          </article>
+        ))}
         {!todays.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("teacher.todayEmpty")}</p> : null}
       </section>
 
       <section className="mt-6 space-y-3">
         <h2 className="text-lg font-bold text-[var(--navy)]">{t("teacher.upcoming")}</h2>
-        {sessions.map((session) => {
-          const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
-          return (
-            <article key={session.id} className="lift-card dashboard-card p-5">
-              <div className="flex flex-wrap justify-between gap-3">
-                <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
-              </div>
-              <p className="mt-2 text-sm opacity-70">
-                {t(`statuses.${session.status}`)} · {t(`types.${session.sessionType}`)} ·{" "}
-                {session.students.map((item) => item.student.user.displayName).join(", ")}
-              </p>
-              {state ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} />
-                  {session.zoomHostUrl ? (
-                    <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
-                  ) : null}
-                </div>
-              ) : null}
-              {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
-            </article>
-          );
-        })}
+        {sessions.map((session) => (
+          <article key={session.id} className="lift-card dashboard-card p-5">
+            <div className="flex flex-wrap justify-between gap-3">
+              <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
+              <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
+            </div>
+            <p className="mt-2 text-sm opacity-70">
+              {statusLabel(session)} · {t(`types.${session.sessionType}`)}
+            </p>
+            {roster(session, true)}
+            {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
+          </article>
+        ))}
         {!sessions.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("empty")}</p> : null}
       </section>
     </DashboardShell>

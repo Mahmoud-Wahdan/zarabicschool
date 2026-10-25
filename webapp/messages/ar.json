@@ -1221,6 +1221,30 @@
       "uploading": "جارٍ الرفع…",
       "open": "فتح",
       "errorGeneric": "تعذر إتمام العملية. حاول مرة أخرى."
+    },
+    "backToSessions": "العودة إلى حصصي",
+    "pendingFiles": "{count, plural, one {ملف واحد سيُرفع بعد الإرسال} two {ملفان سيُرفعان بعد الإرسال} few {# ملفات ستُرفع بعد الإرسال} many {# ملفًا سيُرفع بعد الإرسال} other {# ملف سيُرفع بعد الإرسال}}",
+    "attachmentsAfterSubmitFailed": "تم إرسال التقرير، لكن تعذر رفع المرفقات:",
+    "roster": {
+      "write": "اكتب التقرير",
+      "waitingReview": "بانتظار المراجعة",
+      "approved": "معتمد",
+      "editRejected": "تعديل التقرير",
+      "rejectionReason": "سبب الرفض: {reason}",
+      "availableAfter": "متاح بعد انتهاء الحصة ({time})"
+    },
+    "errors": {
+      "SESSION_NOT_FINISHED": "لم تنتهِ الحصة بعد — يفتح التقرير بعد موعد انتهائها.",
+      "SESSION_NOT_REPORTABLE": "لا يمكن كتابة تقرير لحصة ملغاة أو لم تقم.",
+      "ALREADY_SUBMITTED": "تم إرسال تقرير لهذا الطالب في هذه الحصة وهو بانتظار المراجعة.",
+      "REPORT_IMMUTABLE": "التقرير معتمد ولا يمكن تعديله.",
+      "NOT_FOUND": "الحصة أو الطالب غير موجودين في جدولك.",
+      "VALIDATION_ERROR": "أكمل الحقول المطلوبة: تقدير الحصة والملخص والواجب.",
+      "ATTACHMENT_TOO_LARGE": "حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.",
+      "INVALID_ATTACHMENT_TYPE": "المسموح فقط: صور (JPEG/PNG/WebP) وملفات PDF.",
+      "STORAGE_NOT_CONFIGURED": "تخزين المرفقات غير مُعدّ بعد — تواصل مع الإدارة.",
+      "ATTACHMENTS_MIGRATION_PENDING": "المرفقات غير مفعّلة بعد — تواصل مع الإدارة.",
+      "STORAGE_ERROR": "تعذر الوصول إلى الملف. حاول مرة أخرى."
     }
   },
   "studentReport": {
@@ -1474,7 +1498,8 @@
       "students": "الطلاب",
       "zoom": "Zoom",
       "startHost": "بدء الاجتماع (مضيف)",
-      "hostNote": "رابط المضيف يظهر لك ولفريق العمليات فقط."
+      "hostNote": "رابط المضيف يظهر لك ولفريق العمليات فقط.",
+      "ended": "انتهى موعدها"
     },
     "student": {
       "title": "حصصي",

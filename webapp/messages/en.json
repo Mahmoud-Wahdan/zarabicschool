@@ -1221,6 +1221,30 @@
       "uploading": "Uploading…",
       "open": "Open",
       "errorGeneric": "The operation failed. Please try again."
+    },
+    "backToSessions": "Back to my sessions",
+    "pendingFiles": "{count, plural, one {1 file will upload after submitting} other {# files will upload after submitting}}",
+    "attachmentsAfterSubmitFailed": "The report was submitted, but the attachments could not be uploaded:",
+    "roster": {
+      "write": "Write report",
+      "waitingReview": "Awaiting review",
+      "approved": "Approved",
+      "editRejected": "Edit report",
+      "rejectionReason": "Rejection reason: {reason}",
+      "availableAfter": "Available after the session ends ({time})"
+    },
+    "errors": {
+      "SESSION_NOT_FINISHED": "The session has not ended yet — the report opens after its scheduled end.",
+      "SESSION_NOT_REPORTABLE": "A report cannot be written for a cancelled or missed session.",
+      "ALREADY_SUBMITTED": "A report for this student in this session was already submitted and is awaiting review.",
+      "REPORT_IMMUTABLE": "This report is approved and can no longer be changed.",
+      "NOT_FOUND": "This session or student is not in your schedule.",
+      "VALIDATION_ERROR": "Complete the required fields: class remark, summary and homework.",
+      "ATTACHMENT_TOO_LARGE": "Each file must be 10 MB or smaller.",
+      "INVALID_ATTACHMENT_TYPE": "Only images (JPEG/PNG/WebP) and PDF files are allowed.",
+      "STORAGE_NOT_CONFIGURED": "Attachment storage is not configured yet — contact the Admin.",
+      "ATTACHMENTS_MIGRATION_PENDING": "Attachments are not enabled yet — contact the Admin.",
+      "STORAGE_ERROR": "The file could not be reached. Try again."
     }
   },
   "studentReport": {
@@ -1474,7 +1498,8 @@
       "students": "Students",
       "zoom": "Zoom",
       "startHost": "Start (host)",
-      "hostNote": "The host link is visible only to you and the operations team."
+      "hostNote": "The host link is visible only to you and the operations team.",
+      "ended": "Ended"
     },
     "student": {
       "title": "My sessions",
