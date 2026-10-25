@@ -4,7 +4,7 @@ import { prisma } from "../prisma";
 import type { ReportLanguageCode } from "./report-language";
 
 export { classRemarkLabel } from "./report-language";
-import type { ClassRemarkOptionLike } from "./report-language";
+import { BUILTIN_REMARK_LABELS, type ClassRemarkOptionLike } from "./report-language";
 
 export const CLASS_REMARKS_SETTING_KEY = "report.class_remarks";
 
@@ -41,18 +41,6 @@ export const DEFAULT_CLASS_REMARK_OPTIONS: ClassRemarkOption[] = [
   },
 ];
 
-/**
- * Legacy list (Phase 5, removed from the defaults 2026-10-18): rows and
- * AcademySettings values written before per-language labels existed store
- * these plain strings. They keep rendering with sensible labels.
- */
-const LEGACY_REMARK_LABELS: Record<string, Partial<Record<ReportLanguageCode, string>>> = {
-  excellent: { ar: "ممتاز", en: "Excellent", fr: "Excellent", de: "Hervorragend", tr: "Mükemmel" },
-  good: { ar: "جيد", en: "Good", fr: "Bien", de: "Gut", tr: "İyi" },
-  acceptable: { ar: "مقبول", en: "Acceptable", fr: "Acceptable", de: "Akzeptabel", tr: "Kabul edilebilir" },
-  "needs follow-up": { ar: "يحتاج متابعة", en: "Needs follow-up", fr: "À suivre", de: "Nachfassen nötig", tr: "Takip gerekli" },
-};
-
 let settingsTableReady: boolean | null = null;
 
 /** Same owner-applied migration as report_attachments (20261015093512). */
@@ -79,7 +67,7 @@ function normalizeStoredOptions(value: unknown): ClassRemarkOption[] | null {
       if (typeof item === "string" && item.trim().length > 0) {
         // Legacy shape: plain slug strings — map to translated options where known.
         const slug = item.trim();
-        options.push({ slug, labels: LEGACY_REMARK_LABELS[slug] ?? { en: slug } });
+        options.push({ slug, labels: BUILTIN_REMARK_LABELS[slug] ?? { en: slug } });
         continue;
       }
       if (item && typeof item === "object") {

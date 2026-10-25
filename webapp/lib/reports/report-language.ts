@@ -50,7 +50,27 @@ export function remarkDisplayLanguage(reportLanguage: ReportLanguageCode | null 
   return reportLanguage ?? (uiLocale === "en" ? "en" : "ar");
 }
 
-/** Resolve a stored class-remark slug to its label in the report's language (fallback: en, then the slug). Pure — client-safe. */
+/**
+ * Built-in labels for known remark slugs: the seeded list plus legacy slugs written
+ * before per-language labels existed (Phase 5 strings, the demo seed's
+ * `needs_follow_up`). Used when the academy's editable list no longer carries a
+ * slug that old reports still store.
+ */
+export const BUILTIN_REMARK_LABELS: Record<string, Partial<Record<ReportLanguageCode, string>>> = {
+  excellent: { ar: "ممتاز", en: "Excellent", fr: "Excellent", de: "Hervorragend", tr: "Mükemmel" },
+  very_good: { ar: "جيد جدًا", en: "Very Good", fr: "Très bien", de: "Sehr gut", tr: "Çok iyi" },
+  good: { ar: "جيد", en: "Good", fr: "Bien", de: "Gut", tr: "İyi" },
+  acceptable: { ar: "مقبول", en: "Acceptable", fr: "Acceptable", de: "Akzeptabel", tr: "Kabul edilebilir" },
+  needs_improvement: { ar: "يحتاج إلى تحسين", en: "Needs Improvement", fr: "À améliorer", de: "Verbesserungsbedarf", tr: "Geliştirme gerekli" },
+  "needs follow-up": { ar: "يحتاج متابعة", en: "Needs follow-up", fr: "À suivre", de: "Nachfassen nötig", tr: "Takip gerekli" },
+  needs_follow_up: { ar: "يحتاج متابعة", en: "Needs follow-up", fr: "À suivre", de: "Nachfassen nötig", tr: "Takip gerekli" },
+};
+
+/**
+ * Resolve a stored class-remark slug to its label in the report's language.
+ * Order: the academy's option label → the built-in label for a known slug → the
+ * option's English label → the slug itself (last resort only). Pure — client-safe.
+ */
 export function classRemarkLabel(
   options: ClassRemarkOptionLike[],
   slug: string | null | undefined,
@@ -58,8 +78,12 @@ export function classRemarkLabel(
 ): string {
   if (!slug) return "";
   const option = options.find((candidate) => candidate.slug === slug);
-  if (!option) return slug;
-  return option.labels[lang] ?? option.labels.en ?? slug;
+  const fromOption = option?.labels[lang];
+  if (fromOption && fromOption !== slug) return fromOption;
+  const builtin = BUILTIN_REMARK_LABELS[slug];
+  if (builtin) return builtin[lang] ?? builtin.en ?? slug;
+  const english = option?.labels.en;
+  return english && english !== slug ? english : slug;
 }
 
 // ---------------------------------------------------------------------------

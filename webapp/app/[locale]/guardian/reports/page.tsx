@@ -4,13 +4,14 @@ import DashboardShell from "../../../_components/dashboard-shell";
 import Icon from "../../../_components/ui/icon";
 import EvaluationCard from "../../../_components/evaluations/evaluation-card";
 import MonthlyReportContent from "../../../_components/monthly/monthly-report-content";
+import AttachmentList from "../../../_components/reports/attachment-list";
 import { requireRole } from "../../../../lib/dal";
 import { isEvaluationsReady } from "../../../../lib/evaluations/service";
 import { prisma } from "../../../../lib/prisma";
 import { formatMonthLabel } from "../../../../lib/reports/month-key";
 import { getMonthlyReportForViewer } from "../../../../lib/reports/monthly";
 import { getClassRemarkOptions } from "../../../../lib/reports/class-remarks";
-import { classRemarkLabel, reportDir } from "../../../../lib/reports/report-language";
+import { classRemarkLabel, remarkDisplayLanguage, reportDir } from "../../../../lib/reports/report-language";
 import { getReportForViewer } from "../../../../lib/reports/visibility";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 
@@ -153,14 +154,17 @@ export default async function GuardianReportsPage() {
               {view.classRemark ? (
                 <p className="text-sm">
                   <strong>{t("remark")}:</strong>{" "}
-                  {view.language ? classRemarkLabel(classRemarkOptions, view.classRemark, view.language) : view.classRemark}
+                  {classRemarkLabel(classRemarkOptions, view.classRemark, remarkDisplayLanguage(view.language, locale))}
                 </p>
               ) : null}
               <p className="text-sm"><strong>{t("summary")}:</strong> {view.summary}</p>
               <p className="text-sm"><strong>{t("homework")}:</strong> {view.homework}</p>
               {view.notes ? <p className="text-sm"><strong>{t("notes")}:</strong> {view.notes}</p> : null}
               {view.attachments.length > 0 ? (
-                <p className="text-label-sm opacity-70">{t("attachmentsCount", { count: view.attachments.length })}</p>
+                <div dir={locale === "ar" ? "rtl" : "ltr"}>
+                  <p className="text-label-sm opacity-70">{t("attachmentsCount", { count: view.attachments.length })}</p>
+                  <AttachmentList reportId={view.id} items={view.attachments} />
+                </div>
               ) : null}
               {evaluationsReady &&
               session.status !== "CANCELLED" &&

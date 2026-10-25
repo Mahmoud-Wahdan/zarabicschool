@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "../../../i18n/navigation";
 import {
   classRemarkLabel,
+  remarkDisplayLanguage,
   REPORT_LANGUAGE_OPTIONS,
   reportDir,
   type ClassRemarkOptionLike,
@@ -433,9 +434,7 @@ export default function ReportsQueuePanel({
                       {t("classRemark")}
                     </p>
                     <p className="text-body-md text-on-surface">
-                      {selected.language
-                        ? classRemarkLabel(classRemarkOptions, selected.classRemark, selected.language)
-                        : selected.classRemark}
+                      {classRemarkLabel(classRemarkOptions, selected.classRemark, remarkDisplayLanguage(selected.language, locale))}
                     </p>
                   </div>
                   <div>

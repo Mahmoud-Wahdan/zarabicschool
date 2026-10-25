@@ -173,7 +173,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                         {entry.view.classRemark ? (
                           <p className="text-body-sm text-on-surface">
                             <strong>{t("remark")}:</strong>{" "}
-                            {session1Ready && extra ? classRemarkLabel(classRemarkOptions, entry.view.classRemark, language) : entry.view.classRemark}
+                            {classRemarkLabel(classRemarkOptions, entry.view.classRemark, language)}
                           </p>
                         ) : null}
                         {entry.view.summary ? <p className="text-body-sm text-on-surface"><strong>{t("summary")}:</strong> {entry.view.summary}</p> : null}
