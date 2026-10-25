@@ -126,3 +126,9 @@
 - **FW-01..FW-03** — one finance-wall helper on checkout/invoices/proofs/page; pay-per-session count outside min/max → 400.
 - **PF-01** — `/teacher/sessions` shows today's sessions when the teacher has >100 older ones.
 - **PL-01..PL-05** — payment-link message (when built): Supervisor 403; never to a student with a guardian; PAID invoice 409; second send same day blocked; text contains no provider URL/token.
+
+## Session 5 — schema hardening (2026-10-25)
+- **HD-01** — each new CHECK (invoices, subscriptions, subscription_ledger, payroll_ledger, teacher_rates, sessions) rejects its invalid row.
+- **HD-02** — a second INITIAL_PURCHASE for the same invoice is rejected (duplicate webhook).
+- **HD-03** — duplicate teacher rate (same teacher, same effective_from) → 409 RATE_ALREADY_EXISTS.
+- **HD-04** — an http:// Zoom link is rejected by the DB even if the code check is bypassed.
