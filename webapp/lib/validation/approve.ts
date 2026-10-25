@@ -13,7 +13,7 @@ const phoneField = z
 export const approveApplicationSchema = z
   .object({
     relationship: z.enum(["father", "mother"]).optional(),
-    existingGuardianId: z.string().uuid().optional(),
+    existingGuardianId: z.guid().optional(),
     createGuardian: z
       .object({
         full_name: z.string().trim().min(2, "Guardian name must be at least 2 characters").max(100),
@@ -38,7 +38,7 @@ export const approveApplicationSchema = z
     teachers: z
       .record(
         z.string().trim().min(1).max(30),
-        z.record(z.string().trim().min(1).max(80), z.string().uuid())
+        z.record(z.string().trim().min(1).max(80), z.guid())
       )
       .optional(),
   })

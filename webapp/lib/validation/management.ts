@@ -52,7 +52,7 @@ export const guardianCreateSchema = z.object({
 
 export const studentCreateSchema = z.object({
   ...accountFields,
-  guardianId: z.string().uuid().nullable().optional(),
+  guardianId: z.guid().nullable().optional(),
   isAdult: z.boolean().default(false),
   enrollmentDate: z.string().date().nullable().optional(),
   reportLanguage: reportLanguageSchema.optional(),
@@ -65,7 +65,7 @@ export const profileUpdateSchema = z.object({
   phone: z.string().trim().max(40).optional().or(z.literal("")).optional(),
   email: z.string().trim().email().optional().or(z.literal("")).optional(),
   isActive: z.boolean().optional(),
-  guardianId: z.string().uuid().nullable().optional(),
+  guardianId: z.guid().nullable().optional(),
   relationship: z.enum(["FATHER", "MOTHER"]).optional(),
   // Session 1 (owner, 2026-10-18): the language the teacher writes this student's
   // reports in — editable by Admin/Supervisor on the student profile (CONTEXT §9).
@@ -73,14 +73,14 @@ export const profileUpdateSchema = z.object({
 });
 
 export const teacherSubjectSchema = z.object({
-  teacherId: z.string().uuid(),
-  subjectId: z.string().uuid(),
+  teacherId: z.guid(),
+  subjectId: z.guid(),
 });
 
 export const assignmentCreateSchema = z.object({
-  studentId: z.string().uuid(),
-  teacherId: z.string().uuid(),
-  subjectId: z.string().uuid(),
+  studentId: z.guid(),
+  teacherId: z.guid(),
+  subjectId: z.guid(),
 });
 
 export const assignmentUpdateSchema = z.discriminatedUnion("action", [
@@ -90,21 +90,21 @@ export const assignmentUpdateSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("CHANGE_TEACHER"),
-    newTeacherId: z.string().uuid(),
+    newTeacherId: z.guid(),
     endedReason: z.string().trim().max(1000).optional().or(z.literal("")),
   }),
 ]);
 
 export const assignmentListSchema = z.object({
-  studentId: z.string().uuid().optional(),
-  teacherId: z.string().uuid().optional(),
-  subjectId: z.string().uuid().optional(),
+  studentId: z.guid().optional(),
+  teacherId: z.guid().optional(),
+  subjectId: z.guid().optional(),
   status: z.enum(["ACTIVE", "ENDED"]).optional(),
 });
 
 export const enrollmentSchema = z.object({
-  sessionId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  sessionId: z.guid(),
+  studentId: z.guid(),
   assignmentOverrideReason: z.string().trim().min(1).max(1000).optional(),
 });
 
@@ -114,15 +114,15 @@ const zoomUrlField = z.string().trim().min(1).max(2000);
 const optionalZoomUrlField = z.string().trim().max(2000).optional().or(z.literal(""));
 
 export const sessionCreateSchema = z.object({
-  teacherId: z.string().uuid(),
-  subjectId: z.string().uuid(),
+  teacherId: z.guid(),
+  subjectId: z.guid(),
   sessionType: z.enum(["PRIVATE", "GROUP"]),
   scheduledStart: isoDateTime,
   scheduledEnd: isoDateTime,
   timezone: z.string().trim().min(1).max(80).default("UTC"),
   zoomJoinUrl: zoomUrlField,
   zoomHostUrl: optionalZoomUrlField,
-  studentIds: z.array(z.string().uuid()).min(1).max(100),
+  studentIds: z.array(z.guid()).min(1).max(100),
   assignmentOverrideReason: z.string().trim().min(1).max(1000).optional(),
 });
 
@@ -195,7 +195,7 @@ export const monthKeySchema = z
 
 export const monthlyReportSchema = z.object({
   monthKey: monthKeySchema,
-  studentId: z.string().uuid(),
+  studentId: z.guid(),
   achievement: z.string().trim().min(2).max(10000),
   learningProgress: z.enum(["EXCELLENT", "VERY_GOOD", "GOOD", "VERY_SLOW_PROGRESS"]),
   classFocus: z.enum(["ALWAYS", "OFTEN", "SOMETIMES", "RARELY"]),

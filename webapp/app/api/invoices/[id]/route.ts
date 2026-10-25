@@ -6,7 +6,7 @@ import { requireStudentFinanceAccess } from "../../../../lib/guards/student-fina
 import { prisma } from "../../../../lib/prisma";
 
 function isUuid(value: string) {
-  return z.string().uuid().safeParse(value).success;
+  return z.guid().safeParse(value).success;
 }
 
 /**

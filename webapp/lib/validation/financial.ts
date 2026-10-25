@@ -10,7 +10,7 @@ const isoDateTime = z.string().datetime({ offset: true });
  * configuration (Phase 6b rule — server-side configuration only).
  */
 export const invoiceCreateSchema = z.object({
-  studentId: z.string().uuid(),
+  studentId: z.guid(),
   packageType: z.enum(["MONTHLY_PLAN", "ANNUAL_PLAN", "PAY_PER_SESSION"]),
   sessionsPurchased: z.number().int().min(1).max(500),
   amountMinor: z.number().int().min(1).max(100_000_000),
@@ -21,7 +21,7 @@ export const invoiceCreateSchema = z.object({
 /** Admin confirms a manual payment (proof fallback). Same transition as the signed webhook. */
 export const invoiceConfirmSchema = z.object({
   reference: z.string().trim().max(200).optional().or(z.literal("")),
-  paymentProofId: z.string().uuid().optional(),
+  paymentProofId: z.guid().optional(),
 });
 
 /** Payer uploads a payment proof (image/PDF ≤ 10 MB, magic-byte validated). */
@@ -43,7 +43,7 @@ export const overtimeReviewSchema = z.object({
 
 /** Admin manual payroll adjustment (bonus/fine/correction) — reason mandatory. */
 export const payrollAdjustmentSchema = z.object({
-  teacherId: z.string().uuid(),
+  teacherId: z.guid(),
   amountMinor: z.number().int().refine((value) => value !== 0, "The amount must not be zero."),
   currency: currencySchema,
   reason: z.string().trim().min(2).max(1000),
@@ -51,7 +51,7 @@ export const payrollAdjustmentSchema = z.object({
 
 /** Admin records a payout/disbursement — an internal ledger record, never proof of an external transfer. */
 export const payrollDisbursementSchema = z.object({
-  teacherId: z.string().uuid(),
+  teacherId: z.guid(),
   amountMinor: z.number().int().positive(),
   currency: currencySchema,
   reason: z.string().trim().min(2).max(1000),
@@ -59,7 +59,7 @@ export const payrollDisbursementSchema = z.object({
 
 /** Admin sets the effective-dated hourly teacher rate. */
 export const teacherRateCreateSchema = z.object({
-  teacherId: z.string().uuid(),
+  teacherId: z.guid(),
   hourlyRateMinor: z.number().int().positive().max(100_000_000),
   currency: currencySchema,
   effectiveFrom: isoDateTime,

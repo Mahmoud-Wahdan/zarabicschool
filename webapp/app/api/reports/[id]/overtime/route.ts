@@ -10,7 +10,7 @@ const overtimeSchema = z.object({
 });
 
 function isUuid(value: string) {
-  return z.string().uuid().safeParse(value).success;
+  return z.guid().safeParse(value).success;
 }
 
 /**

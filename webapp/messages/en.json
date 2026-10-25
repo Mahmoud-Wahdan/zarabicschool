@@ -1248,14 +1248,23 @@
       "ALREADY_SUBMITTED": "A report for this student in this session was already submitted and is awaiting review.",
       "REPORT_IMMUTABLE": "This report is approved and can no longer be changed.",
       "NOT_FOUND": "This session or student is not in your schedule.",
-      "VALIDATION_ERROR": "Complete the required fields: class remark, summary and homework.",
+      "VALIDATION_ERROR": "The request could not be accepted: invalid data. Refresh the page and try again.",
       "ATTACHMENT_TOO_LARGE": "Each file must be 10 MB or smaller.",
       "INVALID_ATTACHMENT_TYPE": "Only images (JPEG/PNG/WebP), PDF and audio (MP3/M4A/OGG/WAV) files are allowed.",
       "STORAGE_NOT_CONFIGURED": "Attachment storage is not configured yet — contact the Admin.",
       "ATTACHMENTS_MIGRATION_PENDING": "Attachments are not enabled yet — contact the Admin.",
       "STORAGE_ERROR": "The file could not be reached. Try again.",
       "STORAGE_MIGRATION_PENDING": "Attachment storage is not enabled yet — contact the Admin.",
-      "UPLOAD_FAILED": "The file could not be uploaded. Try again."
+      "UPLOAD_FAILED": "The file could not be uploaded. Try again.",
+      "fields": {
+        "classRemark": "Invalid class remark — pick a value from the list.",
+        "summary": "The lesson summary is required (at least 2 characters).",
+        "homework": "Homework is required.",
+        "notes": "Notes are longer than allowed (5000 characters).",
+        "extraTimeMinutes": "Extra time must be between 0 and 600 minutes.",
+        "operationalEvents": "Operational events must be valid JSON.",
+        "language": "Invalid report language."
+      }
     }
   },
   "studentReport": {

@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const { proofId } = await params;
-  if (!z.string().uuid().safeParse(proofId).success) {
+  if (!z.guid().safeParse(proofId).success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid proof identifier." } }, { status: 400 });
   }
   const parsed = paymentProofReviewSchema.safeParse(await request.json().catch(() => null));

@@ -9,7 +9,7 @@ import { paymentProofMetaSchema } from "../../../../../lib/validation/financial"
 import { allowRequest } from "../../../../../lib/rate-limit";
 import { requireStudentFinanceAccess } from "../../../../../lib/guards/student-finance";
 function isUuid(value: string) {
-    return z.string().uuid().safeParse(value).success;
+    return z.guid().safeParse(value).success;
 }
 /**
  * The payer (guardian of a minor, or an adult student without a guardian) uploads a

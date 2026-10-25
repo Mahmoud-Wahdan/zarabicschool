@@ -18,6 +18,7 @@ const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "applicat
 const isAllowedUpload = (file: File) => ALLOWED_UPLOAD_TYPES.includes(file.type) || file.type.startsWith("audio/");
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 10;
+const FIELD_ERROR_KEYS = ["classRemark", "summary", "homework", "notes", "extraTimeMinutes", "operationalEvents", "language"] as const;
 const KNOWN_ERROR_CODES = new Set([
   "SESSION_NOT_FINISHED",
   "SESSION_NOT_REPORTABLE",
@@ -82,7 +83,14 @@ export default function ReportForm({
   const [language, setLanguage] = useState<ReportLanguageCode | null>(initial?.language ?? defaultLanguage ?? null);
   const [form, setForm] = useState({
     attendanceOutcome: initial?.attendanceOutcome ?? "ATTENDED",
-    classRemark: initial?.classRemark ?? "",
+    // A stored slug that is no longer in the academy's list starts EMPTY: a controlled
+    // <select> whose value matches no option would DISPLAY the first enabled option while
+    // the state keeps the stale slug (the server then rejects it). Empty = the disabled
+    // placeholder shows, and the teacher must pick a real option.
+    classRemark:
+      initial?.classRemark && classRemarkOptions.some((option) => option.slug === initial.classRemark)
+        ? initial.classRemark
+        : "",
     summary: initial?.summary ?? "",
     homework: initial?.homework ?? "",
     notes: initial?.notes ?? "",
@@ -104,8 +112,16 @@ export default function ReportForm({
   // Remark labels: the report language when active, else the UI locale (never the raw slug).
   const remarkLanguage: ReportLanguageCode = language ?? (uiLocale === "en" ? "en" : "ar");
 
-  /** Localized message for a coded API error; falls back to the generic message. */
-  function errorMessage(code: unknown): string {
+  /**
+   * Localized message for a coded API error; falls back to the generic message. A
+   * VALIDATION_ERROR names the failing field when the server reports one, so a
+   * non-field cause (e.g. an identifier) is never shown as "fill the fields".
+   */
+  function errorMessage(code: unknown, fields?: unknown): string {
+    if (code === "VALIDATION_ERROR" && fields && typeof fields === "object") {
+      const field = FIELD_ERROR_KEYS.find((key) => key in fields);
+      if (field) return t(`errors.fields.${field}`);
+    }
     return typeof code === "string" && KNOWN_ERROR_CODES.has(code) ? t(`errors.${code}`) : t("errorGeneric");
   }
 
@@ -159,15 +175,24 @@ export default function ReportForm({
       }
     }
     setSaving(true);
-    const response = await fetch(`/api/sessions/${sessionId}/students/${studentId}/report`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...form, operationalEvents, language: language ?? undefined }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`/api/sessions/${sessionId}/students/${studentId}/report`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...form, operationalEvents, language: language ?? undefined }),
+      });
+    } catch {
+      // Network failure: nothing was accepted and no file was uploaded; picked files stay for the retry.
+      setSaving(false);
+      setError(t("errorGeneric"));
+      return;
+    }
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
+      // Rejected submit: no file is uploaded (uploads happen only after acceptance).
       setSaving(false);
-      setError(errorMessage(payload?.error?.code));
+      setError(errorMessage(payload?.error?.code, payload?.error?.fields));
       return;
     }
     const reportId: string | null = payload?.data?.id ?? currentId;
@@ -177,16 +202,18 @@ export default function ReportForm({
       // The report is already accepted; an attachment failure never undoes it.
       const upload = new FormData();
       pendingFiles.forEach((file) => upload.append("files", file));
-      const uploadResponse = await fetch(`/api/reports/${reportId}/attachments`, { method: "POST", body: upload });
-      const uploadPayload = await uploadResponse.json().catch(() => null);
-      if (!uploadResponse.ok) {
+      // The server request is atomic (a failure removes every object and row it created),
+      // so a failed request leaves nothing behind. Either way the list is re-read from the
+      // server, so a retry starts from what actually landed and never duplicates a file.
+      const uploadResponse = await fetch(`/api/reports/${reportId}/attachments`, { method: "POST", body: upload }).catch(() => null);
+      const uploadPayload = uploadResponse ? await uploadResponse.json().catch(() => null) : null;
+      if (!uploadResponse?.ok) {
         setAttachmentRetry(true);
         setError(`${t("attachmentsAfterSubmitFailed")} ${errorMessage(uploadPayload?.error?.code)}`);
-      } else {
-        const listResponse = await fetch(`/api/reports/${reportId}/attachments`);
-        const listPayload = listResponse.ok ? await listResponse.json().catch(() => null) : null;
-        if (listPayload?.data) setUploaded(listPayload.data);
       }
+      const listResponse = await fetch(`/api/reports/${reportId}/attachments`).catch(() => null);
+      const listPayload = listResponse?.ok ? await listResponse.json().catch(() => null) : null;
+      if (listPayload?.data) setUploaded(listPayload.data);
       setPendingFiles([]);
     }
     setSaving(false);

@@ -7,7 +7,7 @@ import { prisma } from "../../../../../../lib/prisma";
 import { billingPlanUpdateSchema } from "../../../../../../lib/validation/billing";
 
 function isUuid(val: string) {
-  return z.string().uuid().safeParse(val).success;
+  return z.guid().safeParse(val).success;
 }
 
 /**

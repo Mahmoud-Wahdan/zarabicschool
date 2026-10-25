@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = reportReviewSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid review decision.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) {
+  if (!z.guid().safeParse(id).success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid report identifier." } }, { status: 400 });
   }
   const report = await prisma.report.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, academyId: true, status: true, attendanceOutcome: true, studentId: true, sessionId: true, teacherId: true } });

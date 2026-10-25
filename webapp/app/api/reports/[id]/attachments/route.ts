@@ -12,7 +12,7 @@ import { MAX_ATTACHMENT_BYTES, detectAllowedMime } from "../../../../../lib/stor
 const MAX_FILES_PER_REQUEST = 10;
 
 function isUuid(value: string) {
-  return z.string().uuid().safeParse(value).success;
+  return z.guid().safeParse(value).success;
 }
 
 /** Display-only original filename: strip path components, cap length, never used as a storage path. */

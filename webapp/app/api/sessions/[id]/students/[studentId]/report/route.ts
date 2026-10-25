@@ -14,7 +14,7 @@ import { sessionReportSchema } from "../../../../../../../lib/validation/managem
 const REPORT_NUDGE_KINDS = ["REPORT_REMINDER", "REPORT_REMINDER_FOLLOWUP"] as const;
 
 function isUuid(value: string) {
-  return z.string().uuid().safeParse(value).success;
+  return z.guid().safeParse(value).success;
 }
 
 export async function GET(

@@ -14,7 +14,7 @@ export async function GET(
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
   if (error) return error;
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) {
+  if (!z.guid().safeParse(id).success) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid monthly report identifier." } },
       { status: 400 },
@@ -47,7 +47,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) {
+  if (!z.guid().safeParse(id).success) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "Invalid monthly report identifier." } },
       { status: 400 },

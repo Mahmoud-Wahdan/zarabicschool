@@ -17,12 +17,12 @@ const reviewSchema = z.object({
   // STUDENT = one student absent (group session stays SCHEDULED for the others;
   // the requester's reservation is released + a replacement linked to the original).
   scope: z.enum(["SESSION", "STUDENT"]).optional(),
-  studentId: z.string().uuid().optional(),
+  studentId: z.guid().optional(),
   replacement: replacementSessionSchema.optional(),
 });
 
 function isUuid(value: string) {
-  return z.string().uuid().safeParse(value).success;
+  return z.guid().safeParse(value).success;
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
