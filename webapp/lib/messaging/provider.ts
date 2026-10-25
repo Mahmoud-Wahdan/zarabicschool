@@ -5,9 +5,9 @@ import type { MessagingProvider } from "./types";
 
 /**
  * OpenWA is the only production messaging provider (the fake provider was
- * removed, owner decision 2026-10-18). `MESSAGING_PROVIDER` remains the
- * configuration hook for future providers; a future second provider is
- * resolved here and nowhere else — callers never import a concrete provider.
+ * removed, owner decision 2026-10-18). A future second provider is resolved
+ * here and nowhere else — callers never import a concrete provider. (The old
+ * MESSAGING_PROVIDER env name was never read and is gone from .env.example.)
  *
  * A missing OPENWA_* configuration never throws and never rolls anything
  * back: OpenWAProvider answers { ok: false, error: "OpenWA is not configured." }
