@@ -21,6 +21,7 @@
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
     "userMenu": "User menu",
+    "notificationBell": "Notifications{count, plural, =0 {} other { — # new}}",
     "scope": {
       "ADMIN": "Superadmin View",
       "SUPERVISOR": "Supervisor View",

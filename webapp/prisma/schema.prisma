@@ -760,6 +760,11 @@ model NotificationJob {
   // values and small counts — NEVER free text, credentials, or links.
   reportId        String?               @map("report_id") @db.Uuid
   payload         Json?
+  // Session 3 (owner decision 2026-10-24): per-recipient unread tracking for the
+  // notification bell. NULL = not seen. Set by the viewer's own ack action (the
+  // bell click), never by the worker. Operator queue badges (applications/reports/
+  // requests) are team queues and do not use it.
+  readAt          DateTime?             @map("read_at") @db.Timestamptz(6)
   createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy         Academy               @relation(fields: [academyId], references: [id], onDelete: Restrict)

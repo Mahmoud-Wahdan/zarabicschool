@@ -68,7 +68,15 @@ export default async function TeacherReportPage({
         <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
         <p className="mt-3 rounded-lg bg-surface-container-low px-4 py-3 text-body-md text-on-surface-variant">
           {t("notFinished", {
-            time: new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(session.scheduledEnd),
+            // Rendered in the VIEWER's timezone (Session 3, item B finding): the bare
+            // Intl call used the SERVER's local zone, so on a UTC host a Cairo teacher
+            // saw a wrong end time. The submit GATE itself (report route:78) compares
+            // true UTC instants and was never affected; the rule is unchanged.
+            time: new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: user.timezone,
+            }).format(session.scheduledEnd),
           })}
         </p>
       </DashboardShell>

@@ -15,6 +15,79 @@ type NavItem = {
   badgeTone?: "secondary" | "tertiary";
 };
 
+type BadgeCounts = {
+  applications: number;
+  reports: number;
+  requests: number;
+  notifications: number;
+};
+
+/**
+ * Notification bell (Session 3, slice C — owner decision 2026-10-24): rendered in
+ * the shared shell header on EVERY page of every role. Counts come from
+ * GET /api/notifications/badge — computed server-side, scoped to the logged-in
+ * viewer (operators get the team-queue depths; teacher/student/guardian get their
+ * own unacked notification_jobs; evaluation-related kinds are structurally
+ * excluded from every count server-side, so a teacher can never receive one).
+ * Clicking the bell acks family-role notifications (POST) and navigates to the
+ * viewer's dashboard, which hosts the relevant detail surfaces.
+ */
+function NotificationBell({ role, dashboardHref }: { role: string; dashboardHref: string }) {
+  const t = useTranslations("appShell");
+  const [counts, setCounts] = useState<BadgeCounts | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/notifications/badge")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload?.data) setCounts(payload.data as BadgeCounts);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isOperator = role === "ADMIN" || role === "SUPERVISOR";
+  const total = counts
+    ? isOperator
+      ? counts.applications + counts.reports + counts.requests
+      : counts.notifications
+    : 0;
+
+  async function onBellClick() {
+    if (!isOperator) {
+      // Ack the viewer's own notifications so the badge clears (server-side read_at).
+      try {
+        await fetch("/api/notifications/badge", { method: "POST" });
+        setCounts((current) => (current ? { ...current, notifications: 0 } : current));
+      } catch {
+        // The navigation still happens; the badge reconciles on the next mount.
+      }
+    }
+    window.location.href = dashboardHref;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onBellClick()}
+      aria-label={t("notificationBell", { count: total })}
+      className="relative rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+    >
+      <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
+        {total > 0 ? "notifications" : "notifications_none"}
+      </span>
+      {total > 0 ? (
+        <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-label-sm font-semibold text-on-error">
+          {total > 99 ? "99+" : total}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 const NAV_BY_ROLE: Record<string, NavItem[]> = {
   ADMIN: [
     { key: "dashboard", icon: "grid_view", href: "/admin" },
@@ -375,6 +448,7 @@ export default function DashboardShell({
           </div>
           <div className="flex items-center gap-3">
             <ShellClock timezone={timezone} />
+            <NotificationBell role={role} dashboardHref={(NAV_BY_ROLE[role] ?? NAV_BY_ROLE.STUDENT)[0]?.href ?? "/"} />
             <UserMenu userName={userName} roleLabel={roleLabel} />
           </div>
         </header>

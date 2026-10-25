@@ -21,6 +21,7 @@
     "openMenu": "فتح قائمة التنقل",
     "closeMenu": "إغلاق قائمة التنقل",
     "userMenu": "قائمة المستخدم",
+    "notificationBell": "الإشعارات{count, plural, =0 {} other { — # جديد}}",
     "scope": {
       "ADMIN": "عرض SuperAdmin",
       "SUPERVISOR": "عرض المشرف",
