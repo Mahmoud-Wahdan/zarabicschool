@@ -372,6 +372,7 @@ model Academy {
   exchangeRates             ExchangeRate[]             @relation("ExchangeRateAcademy")
   paymentAuditRows          PaymentAudit[]             @relation("PaymentAuditAcademy")
   sessionEvaluations        SessionEvaluation[]        @relation("SessionEvaluationAcademy")
+  adminMessages             AdminMessage[]             @relation("AdminMessageAcademy")
 
   @@map("academies")
 }
@@ -422,6 +423,8 @@ model User {
   createdExchangeRates          ExchangeRate[]             @relation("ExchangeRateCreatedBy")
   payerBillingSubscriptions     BillingSubscription[]      @relation("BillingSubscriptionPayer")
   paymentAuditEvents            PaymentAudit[]             @relation("PaymentAuditActor")
+  receivedAdminMessages         AdminMessage[]             @relation("AdminMessageRecipient")
+  sentAdminMessages             AdminMessage[]             @relation("AdminMessageCreatedBy")
   sessionEvaluationsAuthored    SessionEvaluation[]        @relation("SessionEvaluationAuthor")
 
   @@unique([academyId, username])
@@ -770,6 +773,11 @@ model NotificationJob {
   // bell click), never by the worker. Operator queue badges (applications/reports/
   // requests) are team queues and do not use it.
   readAt          DateTime?             @map("read_at") @db.Timestamptz(6)
+  // WhatsApp slice (d) (2026-10-25): delivery tracking from the signed OpenWA
+  // status webhook. Ids and statuses only — never message content.
+  providerMessageId String?             @map("provider_message_id") @db.VarChar(255)
+  deliveryStatus    String?             @map("delivery_status") @db.VarChar(16)
+  deliveryUpdatedAt DateTime?           @map("delivery_updated_at") @db.Timestamptz(6)
   createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy         Academy               @relation(fields: [academyId], references: [id], onDelete: Restrict)
@@ -779,7 +787,27 @@ model NotificationJob {
 
   @@index([academyId, status, scheduledFor])
   @@index([reportId])
+  @@index([providerMessageId], map: "notification_jobs_provider_message_id_idx")
   @@map("notification_jobs")
+}
+
+/// Admin individual WhatsApp message (slice d). The free-text body lives ONLY
+/// here so notification_jobs.payload keeps its redaction rule ({adminMessageId}).
+/// ADMIN-only read/write; the body is never logged or returned to other roles.
+model AdminMessage {
+  id              String   @id @default(uuid()) @db.Uuid
+  academyId       String   @map("academy_id") @db.Uuid
+  recipientUserId String   @map("recipient_user_id") @db.Uuid
+  createdById     String   @map("created_by_user_id") @db.Uuid
+  body            String   @db.VarChar(4000)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy         Academy  @relation("AdminMessageAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  recipientUser   User     @relation("AdminMessageRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  createdBy       User     @relation("AdminMessageCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([academyId, createdAt(sort: Desc)], map: "admin_messages_academy_created_idx")
+  @@index([recipientUserId], map: "admin_messages_recipient_idx")
+  @@map("admin_messages")
 }
 
 model SessionRequest {
