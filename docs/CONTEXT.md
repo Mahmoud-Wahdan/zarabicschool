@@ -127,6 +127,8 @@ Two units, on purpose:
 
 **Money moves only after Admin or Supervisor APPROVES the teacher's per-student report. Submitting the report moves nothing.** (Supersedes the 5th-revision "submission triggers pay". This matches PROGRESS.md and the phase-05/06 specs.)
 
+**Session completion (owner, 2026-10-25 — CONFIRMED):** a session stays `SCHEDULED` until the teacher has SUBMITTED a report for EVERY roster student (each student's report is independent); at that moment it becomes `COMPLETED`, in the same transaction as the last report. A later rejection never reverts it. Completion moves no money — settlement stays driven only by approval of each report.
+
 **Report lifecycle:** `SUBMITTED → APPROVED → ARCHIVED` (archival happens in the settlement transaction), or `SUBMITTED → REJECTED → SUBMITTED` after the teacher corrects. The same `Reports` row is edited before archive; there is no revision/version table. Reports are per student, also in group sessions.
 
 **Rejection counter (PROPOSAL, 2026-10-18 — instead of any automatic red mark):** reports carry a `rejection_count`, incremented on each Admin/Supervisor rejection; Admin/Supervisor see it on the report and in a per-teacher summary. There is NO automatic red mark and NO automatic penalty from rejections; the red mark stays for LATE reports only (Section 6). The system records, the Admin decides (INSTRUCTIONS.md §6).

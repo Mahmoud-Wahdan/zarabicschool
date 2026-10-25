@@ -243,7 +243,7 @@ Represents scheduled live learning meetings.
 
 > **Override audit (2026-10-10):** `assignment_overridden_by_id` + `assignment_override_reason` mark the whole session row — the audit is **per session, not per student** (the CHECK makes a non-blank reason mandatory exactly when an override actor is set). Students added to an already-created session later (enrollment side-door) get no separate override record yet.
 
-> **Status transitions:** `SCHEDULED → IN_PROGRESS → COMPLETED` is the normal session flow. A session may remain `COMPLETED` while its report is `MISSING`; report completeness does not change session status. `SCHEDULED → MISSED` applies when the session did not take place, and `SCHEDULED → CANCELLED` requires an Admin reason. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
+> **Status transitions (updated 2026-10-25, owner decision):** `SCHEDULED → COMPLETED` happens when every roster student has a submitted session report, inside the transaction of the last report submit (`lib/reports/session-completion.ts`); there is no `IN_PROGRESS` value in the enum. Historical note: `SCHEDULED → IN_PROGRESS → COMPLETED` was the original wording. A session may remain `COMPLETED` while its report is `MISSING`; report completeness does not change session status. `SCHEDULED → MISSED` applies when the session did not take place, and `SCHEDULED → CANCELLED` requires an Admin reason. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
 
 ---
 

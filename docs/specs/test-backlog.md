@@ -81,3 +81,18 @@
 - **CL-06** — DB insert failure after upload removes the Cloudinary object (attachments + proofs) (protects: no orphans).
 - **CL-07** — legacy `storage_provider='supabase'` rows still sign through the Supabase provider (protects: existing files readable).
 - **CL-08 (test maintenance)** — `report-attachments` + `invoices-checkout` tests must adapt to the new `StorageProvider` shape (`upload({folder,…})` returns the object; fake keys carry no extension).
+
+### Session 4 additions (2026-10-25) — report-form fix + session completion
+
+- **RF-01** — report POST for a session whose id is a legacy non-RFC uuid (`00000000-0000-0000-0000-…`) passes the path check and reaches the business rules; a non-uuid string still → 400 (protects: Item 1 root cause).
+- **RF-02** — every route using `z.guid()` still rejects non 8-4-4-4-12 input (protects: no malformed id reaches Postgres).
+- **RF-03** — form: a stored remark slug absent from the academy list renders the disabled placeholder and blocks submit client-side; server `VALIDATION_ERROR` with `fields.classRemark` shows the remark message, not "complete the fields" (protects: no displayed-but-unselected value).
+- **RF-04** — rejected submit uploads nothing (no Cloudinary object); post-acceptance upload failure leaves the report SUBMITTED and re-reads the list; retry creates no duplicate row (protects: no orphans/duplicates).
+- **SC-01** — concurrent last-two reports of a 2-student group session: both 201/200, session COMPLETED exactly once, no error (protects: row lock vs write skew).
+- **SC-02** — reject a report after completion: the session stays COMPLETED; the resubmission keeps it COMPLETED (protects: rejection never reverts).
+- **SC-03** — group session (3 students): COMPLETED only after the 3rd report; after 1–2 reports it stays SCHEDULED and the UI shows "1 من 3"/"2 من 3" (protects: per-student independence).
+- **SC-04** — single-student session: the first submitted report completes it in the same transaction; a forced failure after the report insert rolls back both (protects: atomicity).
+- **SC-05** — completion creates NO `subscription_ledger`/`payroll_ledger` rows (count before/after) (protects: settlement only on approval).
+- **SC-06** — CANCELLED/MISSED sessions are never completed; resubmit/replay on a COMPLETED session writes no second transition (protects: idempotency).
+- **SC-07** — concurrent resubmits of the same REJECTED report: exactly one 200, the other 409 ALREADY_SUBMITTED (protects: editable only after rejection under concurrency).
+- **SC-08** — `GET /api/sessions` returns `reportCount` to ADMIN/SUPERVISOR/TEACHER only; STUDENT/GUARDIAN payloads have no `reportCount` (protects: classmates' report state).
