@@ -41,6 +41,14 @@ export async function POST(request: Request) {
     select: { id: true },
   });
   if (!teacher) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Teacher not found." } }, { status: 404 });
+  // One rate per teacher per effective instant (UNIQUE teacher_id, effective_from).
+  const duplicate = await prisma.teacherRate.findFirst({
+    where: { teacherId: teacher.id, effectiveFrom: new Date(parsed.data.effectiveFrom) },
+    select: { id: true },
+  });
+  if (duplicate) {
+    return NextResponse.json({ error: { code: "RATE_ALREADY_EXISTS", message: "A rate with this effective date already exists." } }, { status: 409 });
+  }
   const rate = await prisma.teacherRate.create({
     data: {
       academyId: user.academyId,

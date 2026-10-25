@@ -60,21 +60,21 @@ model Report {
 }
 
 model ReportAttachment {
-  id           String   @id @default(uuid()) @db.Uuid
-  academyId    String   @map("academy_id") @db.Uuid
-  reportId     String   @map("report_id") @db.Uuid
-  filePath     String   @map("file_path")
-  mimeType     String   @map("mime_type")
-  sizeBytes    BigInt   @map("size_bytes")
-  originalName String   @map("original_name")
+  id              String   @id @default(uuid()) @db.Uuid
+  academyId       String   @map("academy_id") @db.Uuid
+  reportId        String   @map("report_id") @db.Uuid
+  filePath        String   @map("file_path")
+  mimeType        String   @map("mime_type")
+  sizeBytes       BigInt   @map("size_bytes")
+  originalName    String   @map("original_name")
   // Cloudinary switch (2026-10-25): file_path = provider object key (public_id);
   // the object's identity is stored, never a URL. Legacy rows = 'supabase'.
-  storageProvider String  @default("supabase") @map("storage_provider") @db.VarChar(20)
-  resourceType    String? @map("resource_type") @db.VarChar(20)
-  format          String? @db.VarChar(20)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  academy      Academy  @relation("ReportAttachmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  report       Report   @relation("ReportAttachment", fields: [reportId], references: [id], onDelete: Restrict)
+  storageProvider String   @default("supabase") @map("storage_provider") @db.VarChar(20)
+  resourceType    String?  @map("resource_type") @db.VarChar(20)
+  format          String?  @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy         Academy  @relation("ReportAttachmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  report          Report   @relation("ReportAttachment", fields: [reportId], references: [id], onDelete: Restrict)
 
   @@index([reportId])
   @@index([academyId, createdAt])
@@ -373,6 +373,8 @@ model Academy {
   paymentAuditRows          PaymentAudit[]             @relation("PaymentAuditAcademy")
   sessionEvaluations        SessionEvaluation[]        @relation("SessionEvaluationAcademy")
   adminMessages             AdminMessage[]             @relation("AdminMessageAcademy")
+  sessionJoinClicks         SessionJoinClick[]         @relation("SessionJoinClickAcademy")
+  applicationRecords        ApplicationRecord[]        @relation("ApplicationRecordAcademy")
 
   @@map("academies")
 }
@@ -499,30 +501,30 @@ model Guardian {
 }
 
 model Student {
-  id              String                     @id @default(uuid()) @db.Uuid
-  userId          String                     @unique @map("user_id") @db.Uuid
-  guardianId      String?                    @map("guardian_id") @db.Uuid
-  isAdult         Boolean                    @default(false) @map("is_adult")
-  academyId       String                     @map("academy_id") @db.Uuid
+  id                   String                     @id @default(uuid()) @db.Uuid
+  userId               String                     @unique @map("user_id") @db.Uuid
+  guardianId           String?                    @map("guardian_id") @db.Uuid
+  isAdult              Boolean                    @default(false) @map("is_adult")
+  academyId            String                     @map("academy_id") @db.Uuid
   // Session 1 (owner, 2026-10-18): the language the teacher writes this
   // student's reports in (default ar; Admin/Supervisor edit; CONTEXT §9).
-  reportLanguage  ReportLanguage             @default(ar) @map("report_language")
-  enrollmentDate  DateTime?                  @map("enrollment_date") @db.Date
-  createdAt       DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user            User                       @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
-  guardian        Guardian?                  @relation(fields: [guardianId], references: [id], onDelete: Restrict)
-  academy         Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  subscriptions   Subscription[]
-  invoices        Invoice[]
-  sessionStudents SessionStudent[]           @relation("SessionStudentStudent")
-  reports         Report[]
-  monthlyReports  MonthlyReport[]
-  reservations    SessionReservation[]
-  studentSubjects StudentSubject[]
-  assignments     StudentTeacherAssignment[]
-  billingSubscriptions BillingSubscription[]   @relation("BillingSubscriptionStudent")
-  evaluations     SessionEvaluation[]
+  reportLanguage       ReportLanguage             @default(ar) @map("report_language")
+  enrollmentDate       DateTime?                  @map("enrollment_date") @db.Date
+  createdAt            DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                 User                       @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
+  guardian             Guardian?                  @relation(fields: [guardianId], references: [id], onDelete: Restrict)
+  academy              Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subscriptions        Subscription[]
+  invoices             Invoice[]
+  sessionStudents      SessionStudent[]           @relation("SessionStudentStudent")
+  reports              Report[]
+  monthlyReports       MonthlyReport[]
+  reservations         SessionReservation[]
+  studentSubjects      StudentSubject[]
+  assignments          StudentTeacherAssignment[]
+  billingSubscriptions BillingSubscription[]      @relation("BillingSubscriptionStudent")
+  evaluations          SessionEvaluation[]
 
   @@index([academyId])
   @@index([guardianId])
@@ -625,13 +627,16 @@ model SessionStudent {
 
 model SessionJoinClick {
   id        String   @id @default(uuid()) @db.Uuid
+  academyId String   @map("academy_id") @db.Uuid
   sessionId String   @map("session_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   clickedAt DateTime @default(now()) @map("clicked_at") @db.Timestamptz(6)
+  academy   Academy  @relation("SessionJoinClickAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   session   Session  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([sessionId, clickedAt])
+  @@index([academyId])
   @@map("session_join_clicks")
 }
 
@@ -672,16 +677,17 @@ model Invoice {
   paidAt            DateTime?               @map("paid_at") @db.Timestamptz(6)
   createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
-  academy           Academy  @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  student           Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  academy           Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  student           Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subscription      Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
   attempts          PaymentAttempt[]
   ledgerEntries     SubscriptionLedger[]
   paymentProofs     PaymentProof[]
-  auditEvents       PaymentAudit[] @relation("PaymentAuditInvoice")
+  auditEvents       PaymentAudit[]          @relation("PaymentAuditInvoice")
 
   @@index([academyId, status, createdAt])
   @@index([provider, providerReference])
+  @@index([studentId, createdAt], map: "invoices_student_created_idx")
   @@map("invoices")
 }
 
@@ -752,38 +758,38 @@ model RecurrenceSeries {
 }
 
 model NotificationJob {
-  id              String                @id @default(uuid()) @db.Uuid
-  academyId       String                @map("academy_id") @db.Uuid
-  sessionId       String?               @map("session_id") @db.Uuid
-  recipientUserId String                @map("recipient_user_id") @db.Uuid
-  kind            String
-  dedupKey        String                @unique @map("dedup_key")
-  scheduledFor    DateTime              @map("scheduled_for") @db.Timestamptz(6)
-  status          NotificationJobStatus @default(PENDING)
-  attempts        Int                   @default(0)
-  lastError       String?               @map("last_error")
-  sentAt          DateTime?             @map("sent_at") @db.Timestamptz(6)
+  id                String                @id @default(uuid()) @db.Uuid
+  academyId         String                @map("academy_id") @db.Uuid
+  sessionId         String?               @map("session_id") @db.Uuid
+  recipientUserId   String                @map("recipient_user_id") @db.Uuid
+  kind              String
+  dedupKey          String                @unique @map("dedup_key")
+  scheduledFor      DateTime              @map("scheduled_for") @db.Timestamptz(6)
+  status            NotificationJobStatus @default(PENDING)
+  attempts          Int                   @default(0)
+  lastError         String?               @map("last_error")
+  sentAt            DateTime?             @map("sent_at") @db.Timestamptz(6)
   // Session 1 (2026-10-18): composition context for message kinds that need more
   // than the session link. REDACTION RULE (CONTEXT §5/§24): only ids/keys/enum
   // values and small counts — NEVER free text, credentials, or links.
-  reportId        String?               @map("report_id") @db.Uuid
-  payload         Json?
+  reportId          String?               @map("report_id") @db.Uuid
+  payload           Json?
   // Session 3 (owner decision 2026-10-24): per-recipient unread tracking for the
   // notification bell. NULL = not seen. Set by the viewer's own ack action (the
   // bell click), never by the worker. Operator queue badges (applications/reports/
   // requests) are team queues and do not use it.
-  readAt          DateTime?             @map("read_at") @db.Timestamptz(6)
+  readAt            DateTime?             @map("read_at") @db.Timestamptz(6)
   // WhatsApp slice (d) (2026-10-25): delivery tracking from the signed OpenWA
   // status webhook. Ids and statuses only — never message content.
-  providerMessageId String?             @map("provider_message_id") @db.VarChar(255)
-  deliveryStatus    String?             @map("delivery_status") @db.VarChar(16)
-  deliveryUpdatedAt DateTime?           @map("delivery_updated_at") @db.Timestamptz(6)
-  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  academy         Academy               @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  session         Session?              @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  recipientUser   User                  @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
-  report          Report?               @relation("NotificationJobReport", fields: [reportId], references: [id], onDelete: Restrict)
+  providerMessageId String?               @map("provider_message_id") @db.VarChar(255)
+  deliveryStatus    String?               @map("delivery_status") @db.VarChar(16)
+  deliveryUpdatedAt DateTime?             @map("delivery_updated_at") @db.Timestamptz(6)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy           Academy               @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  session           Session?              @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  recipientUser     User                  @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
+  report            Report?               @relation("NotificationJobReport", fields: [reportId], references: [id], onDelete: Restrict)
 
   @@index([academyId, status, scheduledFor])
   @@index([reportId])
@@ -955,15 +961,18 @@ model StudentTeacherAssignment {
 
 model ApplicationRecord {
   id            String      @id @default(uuid()) @db.Uuid
+  academyId     String      @map("academy_id") @db.Uuid
   applicationId String      @map("application_id") @db.Uuid
   userId        String      @map("user_id") @db.Uuid
   role          UserRole
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy       Academy     @relation("ApplicationRecordAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   user          User        @relation("ApplicationCreatedUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([applicationId, userId])
   @@index([applicationId])
+  @@index([academyId])
   @@map("application_created_records")
 }
 
@@ -976,12 +985,13 @@ model TeacherRate {
   effectiveFrom   DateTime        @map("effective_from") @db.Timestamptz(6)
   createdById     String          @map("created_by") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  academy         Academy         @relation("TeacherRateAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  teacher         Teacher         @relation("TeacherRateTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  academy         Academy         @relation("TeacherRateAcademy", fields: [academyId], references: [id], onDelete: Restrict, map: "teacher_rates_academy_fkey")
+  teacher         Teacher         @relation("TeacherRateTeacher", fields: [teacherId], references: [id], onDelete: Restrict, map: "teacher_rates_teacher_fkey")
   createdBy       User            @relation("TeacherRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   payrollEntries  PayrollLedger[]
 
-  @@index([teacherId, effectiveFrom])
+  @@index([teacherId, effectiveFrom], map: "teacher_rates_teacher_effective_idx")
+  @@unique([teacherId, effectiveFrom], map: "teacher_rates_teacher_effective_from_key")
   @@map("teacher_rates")
 }
 
@@ -1003,45 +1013,45 @@ model PayrollLedger {
   // NULL = system-generated (settlement); NOT NULL = Admin-created (audit).
   createdById             String?                @map("created_by") @db.Uuid
   createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  academy                 Academy                @relation("PayrollLedgerAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  teacher                 Teacher                @relation("PayrollLedgerTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
-  session                 Session?               @relation("PayrollLedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
-  report                  Report?                @relation("PayrollLedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
-  teacherRate             TeacherRate?           @relation(fields: [teacherRateId], references: [id], onDelete: Restrict)
+  academy                 Academy                @relation("PayrollLedgerAcademy", fields: [academyId], references: [id], onDelete: Restrict, map: "payroll_ledger_academy_fkey")
+  teacher                 Teacher                @relation("PayrollLedgerTeacher", fields: [teacherId], references: [id], onDelete: Restrict, map: "payroll_ledger_teacher_fkey")
+  session                 Session?               @relation("PayrollLedgerSession", fields: [sessionId], references: [id], onDelete: Restrict, map: "payroll_ledger_session_fkey")
+  report                  Report?                @relation("PayrollLedgerReport", fields: [reportId], references: [id], onDelete: Restrict, map: "payroll_ledger_report_fkey")
+  teacherRate             TeacherRate?           @relation(fields: [teacherRateId], references: [id], onDelete: Restrict, map: "payroll_ledger_teacher_rate_fkey")
   createdBy               User?                  @relation("PayrollLedgerCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
-  @@index([teacherId, currency, createdAt])
-  @@index([sessionId])
-  @@index([academyId, createdAt])
+  @@index([teacherId, currency, createdAt], map: "payroll_ledger_teacher_currency_idx")
+  @@index([sessionId], map: "payroll_ledger_session_idx")
+  @@index([academyId, createdAt], map: "payroll_ledger_academy_created_idx")
   @@map("payroll_ledger")
 }
 
 model PaymentProof {
-  id           String             @id @default(uuid()) @db.Uuid
-  academyId    String             @map("academy_id") @db.Uuid
-  invoiceId    String             @map("invoice_id") @db.Uuid
-  uploadedById String             @map("uploaded_by") @db.Uuid
-  filePath     String             @map("file_path")
-  mimeType     String             @map("mime_type")
-  sizeBytes    BigInt             @map("size_bytes")
-  originalName String             @map("original_name")
+  id              String             @id @default(uuid()) @db.Uuid
+  academyId       String             @map("academy_id") @db.Uuid
+  invoiceId       String             @map("invoice_id") @db.Uuid
+  uploadedById    String             @map("uploaded_by") @db.Uuid
+  filePath        String             @map("file_path")
+  mimeType        String             @map("mime_type")
+  sizeBytes       BigInt             @map("size_bytes")
+  originalName    String             @map("original_name")
   // Cloudinary switch (2026-10-25) — same identity columns as report_attachments.
-  storageProvider String          @default("supabase") @map("storage_provider") @db.VarChar(20)
-  resourceType    String?         @map("resource_type") @db.VarChar(20)
-  format          String?         @db.VarChar(20)
-  status       PaymentProofStatus @default(PENDING)
-  reference    String?
-  reviewedById String?            @map("reviewed_by") @db.Uuid
-  reviewedAt   DateTime?          @map("reviewed_at") @db.Timestamptz(6)
-  reviewNote   String?            @map("review_note")
-  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  academy      Academy            @relation("PaymentProofAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  invoice      Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  uploadedBy   User               @relation("PaymentProofUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
-  reviewedBy   User?              @relation("PaymentProofReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  storageProvider String             @default("supabase") @map("storage_provider") @db.VarChar(20)
+  resourceType    String?            @map("resource_type") @db.VarChar(20)
+  format          String?            @db.VarChar(20)
+  status          PaymentProofStatus @default(PENDING)
+  reference       String?
+  reviewedById    String?            @map("reviewed_by") @db.Uuid
+  reviewedAt      DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote      String?            @map("review_note")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy         Academy            @relation("PaymentProofAcademy", fields: [academyId], references: [id], onDelete: Restrict, map: "payment_proofs_academy_fkey")
+  invoice         Invoice            @relation(fields: [invoiceId], references: [id], onDelete: Restrict, map: "payment_proofs_invoice_fkey")
+  uploadedBy      User               @relation("PaymentProofUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  reviewedBy      User?              @relation("PaymentProofReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
 
-  @@index([invoiceId, createdAt])
-  @@index([academyId, status])
+  @@index([invoiceId, createdAt], map: "payment_proofs_invoice_created_idx")
+  @@index([academyId, status], map: "payment_proofs_academy_status_idx")
   @@map("payment_proofs")
 }
 
@@ -1083,7 +1093,7 @@ model ExchangeRate {
   academy       Academy  @relation("ExchangeRateAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   createdBy     User     @relation("ExchangeRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
-  @@index([academyId, fromCurrency, toCurrency, effectiveFrom])
+  @@index([academyId, fromCurrency, toCurrency, effectiveFrom], map: "exchange_rates_academy_id_from_currency_to_currency_effect_idx")
   @@map("exchange_rates")
 }
 
@@ -1141,16 +1151,16 @@ model PaymentAudit {
   id        String   @id @default(uuid()) @db.Uuid
   academyId String   @map("academy_id") @db.Uuid
   invoiceId String?  @map("invoice_id") @db.Uuid
-  eventType String   @map("event_type")
+  eventType String   @map("event_type") @db.VarChar
   actorId   String?  @map("actor_id") @db.Uuid
-  actorRole String?  @map("actor_role")
+  actorRole String?  @map("actor_role") @db.VarChar
   metadata  Json?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   academy   Academy  @relation("PaymentAuditAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   invoice   Invoice? @relation("PaymentAuditInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
   actor     User?    @relation("PaymentAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
 
-  @@index([academyId, createdAt])
+  @@index([academyId, createdAt(sort: Desc)])
   @@index([invoiceId])
   @@map("payment_audit")
 }
@@ -1176,7 +1186,7 @@ model SessionEvaluation {
   studentId    String               @map("student_id") @db.Uuid
   authorType   EvaluationAuthorType @map("author_type")
   rating       Int
-  comment      String?
+  comment      String?              @db.VarChar(2000)
   createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy      Academy              @relation("SessionEvaluationAcademy", fields: [academyId], references: [id], onDelete: Restrict)
@@ -1184,8 +1194,8 @@ model SessionEvaluation {
   authorUser   User                 @relation("SessionEvaluationAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
   student      Student              @relation(fields: [studentId], references: [id], onDelete: Restrict)
 
-  @@unique([sessionId, authorUserId])
-  @@index([academyId, createdAt])
+  @@unique([sessionId, authorUserId], map: "session_evaluations_session_author_unique")
+  @@index([academyId, createdAt(sort: Desc)])
   @@index([sessionId])
   @@map("session_evaluations")
 }

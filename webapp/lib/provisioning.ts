@@ -622,6 +622,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
     // Link created records back to the application (same transaction).
     await tx.applicationRecord.createMany({
       data: accounts.map((account) => ({
+        academyId: input.academyId,
         applicationId: app.id,
         userId: account.userId,
         role: account.role,
