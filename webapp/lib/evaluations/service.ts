@@ -137,6 +137,28 @@ export async function getOwnEvaluation(sessionId: string, author: EvaluationAuth
   return row ? toView(row) : null;
 }
 
+/** The caller's own evaluations for several sessions at once (list pages). Author-scoped only. */
+export async function getOwnEvaluationsForSessions(
+  sessionIds: string[],
+  author: EvaluationAuthor,
+): Promise<Map<string, EvaluationView>> {
+  if (sessionIds.length === 0 || !(await isEvaluationsReady())) return new Map();
+  const rows = await prisma.sessionEvaluation.findMany({
+    where: { sessionId: { in: sessionIds }, authorUserId: author.userId },
+    select: {
+      id: true,
+      sessionId: true,
+      rating: true,
+      comment: true,
+      authorType: true,
+      authorUserId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  return new Map(rows.map(({ sessionId, ...row }) => [sessionId, toView(row)]));
+}
+
 /**
  * Create or update the author's evaluation within the 24h window. Idempotent under
  * concurrent first-submits: the P2002 loser re-reads and continues down the update

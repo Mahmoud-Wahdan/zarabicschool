@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 
 import DashboardShell from "../../../../../_components/dashboard-shell";
 import EvaluationCard from "../../../../../_components/evaluations/evaluation-card";
+import AttachmentList from "../../../../../_components/reports/attachment-list";
 import { requireRole, studentFinanceBlocked } from "../../../../../../lib/dal";
 import { getOwnEvaluation, isEvaluationsReady } from "../../../../../../lib/evaluations/service";
 import { prisma } from "../../../../../../lib/prisma";
 import { getClassRemarkOptions } from "../../../../../../lib/reports/class-remarks";
-import { classRemarkLabel, reportDir } from "../../../../../../lib/reports/report-language";
+import { classRemarkLabel, remarkDisplayLanguage, reportDir } from "../../../../../../lib/reports/report-language";
 import { getReportForViewer } from "../../../../../../lib/reports/visibility";
 
 export default async function StudentReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,7 +76,7 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
           {view.classRemark ? (
             <p>
               <strong>{t("remark")}:</strong>{" "}
-              {view.language ? classRemarkLabel(classRemarkOptions, view.classRemark, view.language) : view.classRemark}
+              {classRemarkLabel(classRemarkOptions, view.classRemark, remarkDisplayLanguage(view.language, locale))}
             </p>
           ) : null}
           {view.summary ? (
@@ -86,13 +87,7 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
           {attachmentList.length > 0 ? (
             <div>
               <p className="font-semibold">{t("attachments")}</p>
-              <ul className="mt-1 space-y-1">
-                {attachmentList.map((attachment) => (
-                  <li key={attachment.id} className="text-sm">
-                    {attachment.originalName}
-                  </li>
-                ))}
-              </ul>
+              <AttachmentList reportId={view.id} items={attachmentList} />
             </div>
           ) : null}
         </article>

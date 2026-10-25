@@ -41,6 +41,15 @@ export type ClassRemarkOptionLike = {
   labels: Partial<Record<ReportLanguageCode, string>>;
 };
 
+/**
+ * The language a class-remark LABEL is shown in: the report's own language when
+ * known, else the viewer's UI locale (ar/en). Keeps the raw slug off the screen
+ * for rows written before the Session 1 language column existed.
+ */
+export function remarkDisplayLanguage(reportLanguage: ReportLanguageCode | null | undefined, uiLocale: string): ReportLanguageCode {
+  return reportLanguage ?? (uiLocale === "en" ? "en" : "ar");
+}
+
 /** Resolve a stored class-remark slug to its label in the report's language (fallback: en, then the slug). Pure — client-safe. */
 export function classRemarkLabel(
   options: ClassRemarkOptionLike[],

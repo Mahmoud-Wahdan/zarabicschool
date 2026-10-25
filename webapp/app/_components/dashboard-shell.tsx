@@ -140,6 +140,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   STUDENT: [
     { key: "dashboard", icon: "dashboard", href: "/student" },
     { key: "mySessions", icon: "calendar_month", href: "/student/sessions" },
+    { key: "sessionReports", icon: "description", href: "/student/reports" },
     { key: "attendance", icon: "event_available", href: "/student/attendance" },
     { key: "monthlyReports", icon: "calendar_month", href: "/student/monthly-reports" },
     { key: "invoices", icon: "request_quote", href: "/student/invoices" },

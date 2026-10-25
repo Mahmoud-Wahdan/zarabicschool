@@ -1,12 +1,15 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import EvaluateSessionDetails from "../../../_components/evaluations/evaluate-session-details";
 import SessionJoinLink from "../../../_components/session-join-link";
 import SessionRequestForm from "../../../_components/session-request-form";
 import Icon from "../../../_components/ui/icon";
 import { requireRole, studentFinanceBlocked } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
+import { getOwnEvaluationsForSessions, isEvaluationsReady } from "../../../../lib/evaluations/service";
+import { Link } from "../../../../i18n/navigation";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 
 export default async function StudentSessionsPage() {
@@ -26,6 +29,15 @@ export default async function StudentSessionsPage() {
   });
   const subjectName = (subject: { nameEn: string; nameAr: string }) =>
     locale === "ar" ? subject.nameAr : subject.nameEn;
+  // Ended = past the scheduled end and not cancelled/missed: the student may read the
+  // report and evaluate (the evaluations API re-checks roster + end server-side).
+  const isEnded = (session: (typeof sessions)[number]) =>
+    session.status !== "CANCELLED" && session.status !== "MISSED" && now >= session.scheduledEnd;
+  const evaluationsReady = await isEvaluationsReady();
+  const evaluations = evaluationsReady
+    ? await getOwnEvaluationsForSessions(sessions.filter(isEnded).map((session) => session.id), { userId: user.id, role: "STUDENT" })
+    : new Map();
+  const tReports = await getTranslations("studentReports");
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
@@ -44,10 +56,20 @@ export default async function StudentSessionsPage() {
                 <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
               </div>
               <p className="mt-2 text-sm opacity-70">
-                {session.teacher.user.displayName} · {t(`statuses.${session.status}`)} · {t(`types.${session.sessionType}`)}
+                {session.teacher.user.displayName} ·{" "}
+                {session.status === "SCHEDULED" && now >= session.scheduledEnd ? t("teacher.ended") : t(`statuses.${session.status}`)} ·{" "}
+                {t(`types.${session.sessionType}`)}
               </p>
               {state ? <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} /> : null}
+              {isEnded(session) ? (
+                <Link href={`/student/sessions/${session.id}/report`} className="mt-2 inline-block text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
+                  {tReports("open")}
+                </Link>
+              ) : null}
               {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
+              {evaluationsReady && isEnded(session) ? (
+                <EvaluateSessionDetails sessionId={session.id} label={tReports("evaluate")} evaluation={evaluations.get(session.id) ?? null} />
+              ) : null}
             </article>
           );
         })}

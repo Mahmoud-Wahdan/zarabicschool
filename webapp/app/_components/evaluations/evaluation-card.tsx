@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+const EVALUATION_ERROR_CODES = new Set([
+  "EVALUATIONS_MIGRATION_PENDING",
+  "SESSION_NOT_EVALUABLE",
+  "EVALUATION_LOCKED",
+  "EVALUATION_CONFLICT",
+  "NOT_FOUND",
+  "VALIDATION_ERROR",
+]);
+
 export type EvaluationCardProps = {
   sessionId: string;
   initialRating: number | null;
@@ -46,7 +55,8 @@ export default function EvaluationCard({ sessionId, initialRating, initialCommen
         if (payload?.error?.code === "EVALUATION_LOCKED") {
           setIsLocked(true);
         }
-        setError(payload?.error?.message ?? tEval("submitFailed"));
+        const code = payload?.error?.code;
+        setError(typeof code === "string" && EVALUATION_ERROR_CODES.has(code) ? tEval(`errors.${code}`) : tEval("submitFailed"));
         return;
       }
       setRating(payload.data.rating as number);

@@ -52,7 +52,8 @@
       "invoices": "Invoices & Payments",
       "paymentAudit": "Payment Audit",
       "payroll": "Payroll",
-      "overtime": "Overtime Review"
+      "overtime": "Overtime Review",
+      "sessionReports": "Session reports"
     }
   },
   "paymentAudit": {
@@ -217,7 +218,15 @@
     "submitFailed": "The evaluation could not be saved. Please try again.",
     "locked": "The 24-hour edit window has closed — this evaluation is locked.",
     "yourRating": "Your rating",
-    "editableFor24h": "Editable for 24 hours after submitting, then it locks."
+    "editableFor24h": "Editable for 24 hours after submitting, then it locks.",
+    "errors": {
+      "EVALUATIONS_MIGRATION_PENDING": "Evaluations are not enabled yet — contact the Admin.",
+      "SESSION_NOT_EVALUABLE": "A session can be evaluated only after it ends, and never when cancelled.",
+      "EVALUATION_LOCKED": "The 24-hour edit window has passed — the evaluation is locked.",
+      "EVALUATION_CONFLICT": "An evaluation for this session was just saved. Refresh the page.",
+      "NOT_FOUND": "This session is not available to you.",
+      "VALIDATION_ERROR": "Choose a rating from 1 to 5; the comment is limited to 2000 characters."
+    }
   },
   "sessionRequest": {
     "open": "Report an outage / absence",
@@ -1913,5 +1922,12 @@
     "doneNote": "Approved overtime is paid as an adjustment at the same per-minute rate — it never changes the settled session credit.",
     "attended": "Attended",
     "absent": "Absent"
+  },
+  "studentReports": {
+    "title": "Session reports",
+    "subtitle": "Your teacher's reports on your ended sessions — homework, notes and attachments.",
+    "empty": "No reports yet. A report appears here as soon as your teacher submits it.",
+    "open": "View report",
+    "evaluate": "Evaluate the session"
   }
 }
