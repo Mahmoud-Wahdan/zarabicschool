@@ -1547,7 +1547,8 @@
     },
     "empty": "No sessions scheduled yet.",
     "loading": "Loading sessions…",
-    "error": "Unable to load sessions. Please retry."
+    "error": "Unable to load sessions. Please retry.",
+    "awaitingReports": "Awaiting reports ({done} of {total})"
   },
   "sessionsAdmin": {
     "page": {

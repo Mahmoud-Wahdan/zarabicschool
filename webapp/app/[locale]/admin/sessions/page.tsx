@@ -26,6 +26,7 @@ export default async function SessionsPage() {
         subject: { select: { nameEn: true, nameAr: true } },
         teacher: { select: { user: { select: { displayName: true } } } },
         students: { select: { student: { select: { user: { select: { displayName: true } } } } } },
+        _count: { select: { reports: { where: { reportType: "SESSION_COMPLETION_REPORT" } } } },
       },
     }),
     prisma.recurrenceSeries.findMany({
@@ -69,8 +70,9 @@ export default async function SessionsPage() {
       <SessionManagementPanel
         viewerTimezone={user.timezone}
         locale={locale}
-        sessions={sessions.map((session) => ({
+        sessions={sessions.map(({ _count, ...session }) => ({
           ...session,
+          reportCount: _count.reports,
           scheduledStart: session.scheduledStart.toISOString(),
           scheduledEnd: session.scheduledEnd.toISOString(),
         }))}

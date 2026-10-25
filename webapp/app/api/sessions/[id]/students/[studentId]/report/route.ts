@@ -8,6 +8,7 @@ import { getClassRemarks } from "../../../../../../../lib/reports/class-remarks"
 import { enqueueReportSubmittedNotifications } from "../../../../../../../lib/reports/notifications";
 import { reportRowSelect } from "../../../../../../../lib/reports/selects";
 import { isSession1ReportsReady } from "../../../../../../../lib/reports/session1-ready";
+import { completeSessionIfFullyReported, lockSessionForReport } from "../../../../../../../lib/reports/session-completion";
 import { getReportForViewer } from "../../../../../../../lib/reports/visibility";
 import { sessionReportSchema } from "../../../../../../../lib/validation/management";
 
@@ -105,35 +106,55 @@ export async function POST(
     status: "SUBMITTED" as const,
     ...(session1Ready ? { language: parsed.data.language } : {}),
   };
+  const rowSelect = await reportRowSelect();
+  const teacherId = existing
+    ? null
+    : (await prisma.teacher.findUniqueOrThrow({ where: { userId: user.id }, select: { id: true } })).id;
+  // ONE transaction (owner decision 2026-10-25): the report write and the session's
+  // completion commit or roll back together. The session row lock serializes the
+  // submits of one session, so two concurrent "last" reports cannot both miss the
+  // completion (lib/reports/session-completion.ts). Completion never touches a ledger.
   let report;
-  if (existing) {
-    // Rejection reason, actor and timestamp stay on the row as the audit trail
-    // (database-schema.md §17) — resubmission never wipes them (Phase 5 review F-02).
-    report = await prisma.report.update({ where: { id: existing.id }, data: editableData, select: await reportRowSelect() });
-  } else {
-    try {
-      report = await prisma.report.create({
-        data: {
-          academyId: user.academyId,
-          sessionId,
-          studentId,
-          teacherId: (await prisma.teacher.findUniqueOrThrow({ where: { userId: user.id }, select: { id: true } })).id,
-          reportType: "SESSION_COMPLETION_REPORT",
-          attendanceOutcome: parsed.data.attendanceOutcome,
-          extraTimeMinutes: parsed.data.extraTimeMinutes,
-          extraTimeStatus: parsed.data.extraTimeMinutes > 0 ? "PENDING" : "NONE",
-          ...editableData,
-        },
-        select: await reportRowSelect(),
-      });
-    } catch (cause) {
-      // A concurrent first submission hits the unique (session, student, type) index —
-      // report it as "already submitted", not as a server error (Phase 5 review F-11).
-      if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === "P2002") {
-        return NextResponse.json({ error: { code: "ALREADY_SUBMITTED", message: "A report has already been submitted for this session and student." } }, { status: 409 });
+  try {
+    report = await prisma.$transaction(async (tx) => {
+      await lockSessionForReport(tx, sessionId);
+      let row;
+      if (existing) {
+        // Rejection reason, actor and timestamp stay on the row as the audit trail
+        // (database-schema.md §17) — resubmission never wipes them (Phase 5 review F-02).
+        // Conditional on REJECTED, so a concurrent resubmit cannot edit a SUBMITTED row.
+        const updated = await tx.report.updateMany({ where: { id: existing.id, status: "REJECTED" }, data: editableData });
+        if (updated.count === 0) return null;
+        row = await tx.report.findUniqueOrThrow({ where: { id: existing.id }, select: rowSelect });
+      } else {
+        row = await tx.report.create({
+          data: {
+            academyId: user.academyId,
+            sessionId,
+            studentId,
+            teacherId: teacherId!,
+            reportType: "SESSION_COMPLETION_REPORT",
+            attendanceOutcome: parsed.data.attendanceOutcome,
+            extraTimeMinutes: parsed.data.extraTimeMinutes,
+            extraTimeStatus: parsed.data.extraTimeMinutes > 0 ? "PENDING" : "NONE",
+            ...editableData,
+          },
+          select: rowSelect,
+        });
       }
-      throw cause;
+      await completeSessionIfFullyReported(tx, sessionId);
+      return row;
+    });
+  } catch (cause) {
+    // A concurrent first submission hits the unique (session, student, type) index —
+    // report it as "already submitted", not as a server error (Phase 5 review F-11).
+    if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === "P2002") {
+      return NextResponse.json({ error: { code: "ALREADY_SUBMITTED", message: "A report has already been submitted for this session and student." } }, { status: 409 });
     }
+    throw cause;
+  }
+  if (!report) {
+    return NextResponse.json({ error: { code: "ALREADY_SUBMITTED", message: "A report has already been submitted for this session and student and is awaiting review." } }, { status: 409 });
   }
   // Cancel the pending late-report nudges once every roster student has a report
   // (Phase 5 review F-07; owner rule: a submitted report stops the reminders).

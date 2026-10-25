@@ -67,11 +67,15 @@ export async function GET(request: Request) {
       subject: { select: { nameAr: true, nameEn: true } },
       teacher: { select: { user: { select: { displayName: true } } } },
       students: { select: { studentId: true, attendanceStatus: true, student: { select: { user: { select: { displayName: true } } } } } },
+      _count: { select: { reports: { where: { reportType: "SESSION_COMPLETION_REPORT" } } } },
     },
   });
-  const data = sessions.map(({ zoomHostUrl, ...session }) => ({
+  // reportCount = submitted session reports (display-only "awaiting reports X of Y");
+  // operators and the session's teacher only — family roles never learn classmates' report state.
+  const staff = user.role === "ADMIN" || user.role === "SUPERVISOR" || user.role === "TEACHER";
+  const data = sessions.map(({ zoomHostUrl, _count, ...session }) => ({
     ...session,
-    ...(user.role === "ADMIN" || user.role === "SUPERVISOR" || user.role === "TEACHER" ? { zoomHostUrl } : {}),
+    ...(staff ? { zoomHostUrl, reportCount: _count.reports } : {}),
   }));
   return NextResponse.json({ data });
 }

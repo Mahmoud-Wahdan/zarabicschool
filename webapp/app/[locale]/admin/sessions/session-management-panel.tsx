@@ -13,7 +13,7 @@ import {
   useTeacherOptions,
 } from "./use-smart-session-form";
 
-type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; zoomJoinUrl: string; zoomHostUrl: string | null; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[] };
+type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; zoomJoinUrl: string; zoomHostUrl: string | null; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[]; reportCount?: number };
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
@@ -23,6 +23,9 @@ const inputClass = "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2
 
 export default function SessionManagementPanel({ viewerTimezone, locale, sessions: initialSessions, series, changeRequests, linkOverlap }: { viewerTimezone: string; locale: string; sessions: Session[]; series: Series[]; changeRequests: ChangeRequest[]; linkOverlap: string[] }) {
   const t = useTranslations("sessionsAdmin");
+  const tSessions = useTranslations("sessions");
+  // Render-stable clock for the display-only "ended" check (captured once on mount).
+  const [nowMs] = useState(() => Date.now());
   const [sessions, setSessions] = useState(initialSessions);
   const [students, setStudents] = useState<{ id: string; displayName: string }[]>([]);
   const [filters, setFilters] = useState({ status: "", from: "", to: "", teacherId: "", studentId: "" });
@@ -354,6 +357,13 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                       ? "bg-red-100 text-red-800"
                       : "bg-[var(--gold)]/15"
                 }`}>{t(`statuses.${session.status}`)}</span>
+                {/* Display only (owner, 2026-10-25): an ended session completes when its last
+                    roster report is submitted; until then show the progress from existing data. */}
+                {session.status === "SCHEDULED" && new Date(session.scheduledEnd).getTime() <= nowMs ? (
+                  <span className="rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs">
+                    {tSessions("teacher.ended")} · {tSessions("awaitingReports", { done: session.reportCount ?? 0, total: session.students.length })}
+                  </span>
+                ) : null}
                 {session.status === "SCHEDULED" ? (
                   <>
                     <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, start: "", end: "" })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>

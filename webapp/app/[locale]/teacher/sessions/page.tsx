@@ -40,10 +40,14 @@ export default async function TeacherSessionsPage() {
   const todays = sessions.filter((session) => session.scheduledStart >= dayStart && session.scheduledStart < dayEnd);
   const subjectName = (subject: { nameEn: string; nameAr: string }) =>
     locale === "ar" ? subject.nameAr : subject.nameEn;
-  // Display only: a SCHEDULED session whose end has passed reads "ended" instead of
-  // "scheduled". The stored status is untouched (no transition rule is defined yet).
-  const statusLabel = (session: (typeof sessions)[number]) =>
-    session.status === "SCHEDULED" && now >= session.scheduledEnd ? t("teacher.ended") : t(`statuses.${session.status}`);
+  // Display only: an ended session that is not COMPLETED yet reads "ended · awaiting
+  // reports (X of Y)" — the session completes when the last roster report is submitted
+  // (owner, 2026-10-25). Derived from existing data; no extra status value.
+  const statusLabel = (session: (typeof sessions)[number]) => {
+    if (session.status !== "SCHEDULED" || now < session.scheduledEnd) return t(`statuses.${session.status}`);
+    const done = session.students.filter(({ student }) => reportStatuses.has(rosterKey(session.id, student.id))).length;
+    return `${t("teacher.ended")} · ${t("awaitingReports", { done, total: session.students.length })}`;
+  };
 
   const roster = (session: (typeof sessions)[number], withZoom: boolean) => {
     const state = withZoom && session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
