@@ -62,3 +62,22 @@
 - **NB-04** — `POST /api/notifications/badge` (family roles) sets `read_at` ONLY on the viewer's own jobs; ADMIN/SUPERVISOR POST → 403 (team queues have no per-user read state) (protects: ack scope).
 - **NB-05** — pre-migration (no `read_at` column): the family-role count answers 0 and the ack is a no-op — no crash (protects: self-healing).
 - **RB-01 (item B)** — the "after scheduled end" report gate (`app/api/sessions/[id]/students/[studentId]/report/route.ts:78`) compares true UTC instants; creation input requires an explicit offset (`z.string().datetime({ offset: true })`, `lib/validation/management.ts:111`) and the form converts wall clock via the DST-safe `wallClockInputToUtc` in the SESSION timezone (`lib/schedules/recurrence.ts:36-39`, `use-smart-session-form.ts:130`) — timezone handling cannot make the GATE wrong. The teacher-facing "not finished until T" message WAS wrong: it rendered T in the server's local zone (`teacher/sessions/[id]/report/page.tsx:71`, no `timeZone` option) — fixed to the viewer's timezone; the rule itself is unchanged.
+
+### fix/session-reports-ui additions (2026-10-25)
+
+- **SR-01** — roster button state per (session, student): before end → disabled + end time in the VIEWER tz; no report → write; SUBMITTED → awaiting review; APPROVED/ARCHIVED → approved; REJECTED → edit + reason; CANCELLED/MISSED → nothing (protects: UI mirrors the server gate).
+- **SR-02** — a teacher's roster statuses never include another teacher's reports (`getTeacherRosterReportStatuses` scoped by teacher user id) (protects: teacher isolation).
+- **SR-03** — first submit with picked files: report 201 then attachments 201; attachment failure leaves the report SUBMITTED and shows the retry uploader (protects: submit never rolled back by storage).
+- **SR-04** — coded API errors render localized messages (SESSION_NOT_FINISHED, SESSION_NOT_REPORTABLE, ALREADY_SUBMITTED, REPORT_IMMUTABLE) (protects: owner finding 1).
+- **ST-01** — `/student/reports`: student WITH guardian sees only homework/notes/attachments; adult without guardian also remark+summary; other students' reports never listed (protects: visibility rules).
+- **ST-02** — "Evaluate" shows only on ended, non-cancelled sessions the student is on; the API still rejects before end/off-roster (protects: eligibility).
+- **ST-03** — grep guard: no `app/[locale]/teacher/**` or `app/_components/reports/**` file imports `lib/evaluations` (protects: teacher never sees evaluations).
+- **CR-01** — `classRemarkLabel` resolves `needs_follow_up`, `needs follow-up` and the 5 seeded slugs in ar/en/fr/de/tr even with an empty options list; unknown slug → slug (protects: owner finding 4).
+- **CL-01** — Cloudinary signature = sha1(sorted params + secret), `api_key`/`file`/`resource_type` excluded (documented example vector) (protects: upload/download auth).
+- **CL-02** — any CLOUDINARY_* missing → upload 409 STORAGE_NOT_CONFIGURED, no crash; pre-migration → 409 STORAGE_MIGRATION_PENDING (protects: coded failure).
+- **CL-03** — uploaded row stores public_id/resource_type/format/bytes with `storage_provider='cloudinary'`; no URL in DB or API responses (protects: no public URLs).
+- **CL-04** — download URL issued only after `getReportForViewer` passes: unrelated student/guardian/teacher → 404; URL has `expires_at` ≤ now+300 s and `type=authenticated` (protects: private files).
+- **CL-05** — signature allowlist: MP3/M4A/OGG/WAV accepted for report attachments, rejected for payment proofs; MP4 video rejected; >10 MB → 413 (protects: type/size policy).
+- **CL-06** — DB insert failure after upload removes the Cloudinary object (attachments + proofs) (protects: no orphans).
+- **CL-07** — legacy `storage_provider='supabase'` rows still sign through the Supabase provider (protects: existing files readable).
+- **CL-08 (test maintenance)** — `report-attachments` + `invoices-checkout` tests must adapt to the new `StorageProvider` shape (`upload({folder,…})` returns the object; fake keys carry no extension).

@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-24
+> Last updated: 2026-10-25
 
 ## Phase Status
 
@@ -17,6 +17,10 @@
 | 7 | Admin & Reports | Not Started | 2026-09-28 | — |
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 | 9 | Refinements & UI/UX Polish | Not Started | 2026-10-14 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
+
+## Current Active Task (2026-10-25, fix/session-reports-ui)
+
+Owner findings fixed on branch `fix/session-reports-ui` (log: phase-06 § "2026-10-25 — fix/session-reports-ui"): teacher roster report buttons, student session-reports page + evaluations, localized class-remark labels, Cloudinary private storage. Static checks green; tests deferred (backlog SR-/ST-/CR-/CL- IDs). **Owner steps:** apply migration `20261025000000_cloudinary_storage_columns`; decide the session `COMPLETED` transition rule (OPEN — not defined in CONTEXT); decide what happens to the 4 legacy Supabase attachment rows (demo).
 
 ## Current Active Task (2026-10-24, Session 3)
 

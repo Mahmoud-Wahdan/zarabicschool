@@ -204,7 +204,7 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 - **B) PAY — SESSION report only:** Admin/Supervisor approval of the session report triggers the existing atomic settlement (Section 7, unchanged). Rejection returns the report to the teacher (existing flow).
 
 **Report streams (two, separate):**
-1. **Teacher session report** ("End class"; mandatory; its approval by Admin/Supervisor triggers her pay): class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions. Fields: class remark (Admin-managed list in AcademySettings), summary (required), homework (required), notes, attachments (JPEG/PNG/WebP/PDF by signature check, max 10 MB each, private Supabase Storage). Submitting is possible only after the scheduled end, only by the assigned teacher, only once per (session, student).
+1. **Teacher session report** ("End class"; mandatory; its approval by Admin/Supervisor triggers her pay): class remark, summary, homework, notes, optional attachments (Section 6). Written **per student**, also in group sessions. Fields: class remark (Admin-managed list in AcademySettings), summary (required), homework (required), notes, attachments (JPEG/PNG/WebP/PDF + audio MP3/M4A/OGG/WAV by signature check, max 10 MB each, private Cloudinary "authenticated" assets — switched from Supabase Storage on 2026-10-25). Submitting is possible only after the scheduled end, only by the assigned teacher, only once per (session, student).
 2. **Teacher monthly report (NEW, added 2026-10-18 — resolves the old "may be the same stream, confirm in Phase 7" line):** a **separate report stream**, same permission model as the session report (only the assigned teacher, per student). **NO money, NO attendance, NO ledger, NO approval gate** — it is pure communication to the family. Fields: month (default = previous month); achievement over the month (long text, required); learning progress (Excellent / Very Good / Good / Very Slow Progress); active and focused in class (Always / Often / Sometimes / Rarely); completes homework/tasks (Always / Most of the time / Sometimes / Rarely); comes on time (Always / Often / Sometimes / Rarely); sessions rescheduled in the month (None / 1 / 2 / More than 2 — **computed automatically** from replacement sessions / approved outage requests; pre-filled, read-only); areas needing additional support (text); key learning objectives for next month (text). Rules (PROPOSAL until the owner confirms): unique per (teacher, student, month); only for a month that has started; the teacher may edit for 7 days after submission, then it locks; the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports.
 
 **Report languages (client requirement, 2026-10-18):** teachers write in the student's language — `ar / en / fr / de / tr`.
@@ -234,7 +234,7 @@ WhatsApp is used **only** for: credential delivery, registration/status updates,
 - **Backend/API:** Next.js route handlers / server actions.
 - **Background work:** timed notifications (2h reminder, report reminders, red mark) and the OpenWA sender need something running continuously. OpenWA itself is a self-hosted service that must stay up. **CONFIRMED (2026-10-06): a simple database-polling worker** (checks a jobs table every minute; no Redis/BullMQ in the MVP). It runs reminders, report notices, red marks, monthly-credit expiry and monthly credit grants for annual plans. Subscription charging and renewal retries are handled by the payment provider; our webhook is the source of truth.
 - **Database/ORM:** PostgreSQL + Prisma on **Supabase** (transaction-mode pooler `DATABASE_URL` + `DIRECT_URL` for migrations) — CONFIRMED. Partial unique indexes, CHECK constraints and triggers are raw SQL inside Prisma migrations.
-- **File storage:** private **Supabase Storage** buckets (payment proofs and report attachments); DB stores `file_path`; access via short-lived signed URLs.
+- **File storage (owner, 2026-10-25):** private **Cloudinary** "authenticated" assets (report attachments + payment proofs) behind `StorageProvider`; signed uploads from our server only (no unsigned preset, secret server-only); the DB stores the object identity (`file_path` = public_id, `storage_provider`, `resource_type`, `format`, `size_bytes`), never a URL; downloads = short-lived signed Download-API URLs issued only after the app's authorization check. Rows written before the switch stay in Supabase Storage (legacy read path; nothing migrated or deleted without the owner).
 - **Video:** Zoom used from outside the platform via links (Section 6). No Zoom SDK, no Zoom API client.
 - **Messaging:** OpenWA behind `MessagingProvider`. SMS: post-MVP, may never be built.
 - **Payments (NEW):** hosted-checkout gateways behind a `PaymentProvider` interface: **Paymob (EGP)** + a USD gateway (provider OPEN, Section 20.3). No card data on our servers.
@@ -330,7 +330,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | SMS fallback | Post-MVP, may never be built — CONFIRMED |
 | Three application forms and their flow | CONFIRMED (fields OPEN) |
 | Auth = NextAuth only, forced password change, no self-reset, login rate limit | CONFIRMED |
-| Supabase (Postgres + private Storage) | CONFIRMED |
+| Supabase Postgres; private file storage on Cloudinary (switched 2026-10-25; legacy Supabase Storage rows read-only) | CONFIRMED |
 | Delivery to the client in stages | CONFIRMED (boundaries OPEN) |
 | Hosting | OPEN until deployment |
 | **Free trial session** (owner, 2026-10-14) — reverses the earlier "no trial-session type"; scheduled for Phase 9, NOT in Phases 5–6; teacher pay/limits for trials OPEN | CONFIRMED direction, details OPEN |
@@ -353,7 +353,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Scheduling blocked at zero credits; audited Admin/Supervisor override | CONFIRMED |
 | Teacher payout monthly (Admin closes payroll) | CONFIRMED |
 | Guardian WhatsApp on report approval; 2h reminder to teacher+student+guardian | CONFIRMED |
-| Attachments: images + PDF, 10 MB, private | CONFIRMED |
+| Attachments: images + PDF (+ audio for report attachments, owner 2026-10-25), 10 MB, private (Cloudinary) | CONFIRMED |
 | Class remark list (editable) | CONFIRMED |
 | No mock data: full schema first, full seed, UI on real data | CONFIRMED (Section 13/21) |
 | OpenWA credential delivery implemented now | CONFIRMED (Section 5) |
@@ -378,7 +378,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 - **Gap:** `.env.example` does not yet list `OPENWA_URL`, `OPENWA_API_KEY`, `OPENWA_SESSION_ID` — add them (names only) when the OpenWA provider is built.
 - Gateway variables: **verified against the implementation (2026-10-20, Phase 6b)** — the Paymob code (`webapp/lib/payments/paymob.ts`) reads exactly `PAYMOB_API_URL`, `PAYMOB_API_KEY`, `PAYMOB_INTEGRATION_ID_EGP`, `PAYMOB_IFRAME_ID_EGP`, `PAYMOB_HMAC_SECRET`; `.env.example` now lists these names (the earlier `PAYMOB_PUBLICKEY`/`PAYMOB_SECRETKEY`/`PAYMOB_HMAC`/`PAYMOB_INTEGRATION_ID` entries were unused by code and removed from the example). For the USD gateway `USD_GATEWAY_API_KEY`, `USD_GATEWAY_WEBHOOK_SECRET` stay placeholders until the provider is chosen.
 - **Removed:** all `ZOOM_*` variables (no Zoom API any more — delete them from `.env` too), `JWT_SECRET`, official-WhatsApp variables, webhook secret.
-- To be added when their phase starts (names to confirm then): Supabase Storage credentials (Phase 5/6). No Redis (database-polling worker is confirmed).
+- To be added when their phase starts (names to confirm then): file storage: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (2026-10-25; `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_STORAGE_BUCKET` remain only for legacy reads). No Redis (database-polling worker is confirmed).
 - `.env` is never committed; `.env.example` contains names only.
 - **Action:** secrets exposed during setup (database password, Zoom client secret, auth secret) must be rotated before any real data is stored (tracked in PROGRESS.md).
 
