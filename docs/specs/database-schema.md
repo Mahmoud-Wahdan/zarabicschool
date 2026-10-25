@@ -1,6 +1,6 @@
 # Zarabicschool — Database Schema
 
-> **Status: Architecture Aligned — Updated with confirmed 2026-09-29 business rules.**
+> **Status: Architecture Aligned — Updated with confirmed 2026-09-29 business rules; 2026-10-10 scheduling-assignment plan added (pending migration approval).**
 >
 > **Conventions:**
 > - All IDs are `UUID` (generated via `gen_random_uuid()`).
@@ -10,7 +10,7 @@
 > - Timestamps are `TIMESTAMPTZ` (timezone-aware).
 > - Dual-ledger financial design: `SubscriptionLedger` counts sessions and `PayrollLedger` stores teacher compensation.
 >
-> Last updated: 2026-09-28
+> Last updated: 2026-10-10
 
 ---
 
@@ -40,7 +40,7 @@ Unified authentication table. Role-specific details live in profile tables.
 | `password_hash` | VARCHAR | NOT NULL | Stored via bcrypt |
 | `display_name` | VARCHAR | NOT NULL | |
 | `phone` | VARCHAR | | For WhatsApp notifications |
-| `role` | ENUM | NOT NULL | `ADMIN`, `TEACHER`, `STUDENT`, `GUARDIAN` |
+| `role` | ENUM | NOT NULL | `ADMIN`, `SUPERVISOR`, `TEACHER`, `STUDENT`, `GUARDIAN` |
 | `timezone` | VARCHAR | NOT NULL, DEFAULT 'Africa/Cairo' | IANA timezone identifier for all user schedule localization |
 | `is_active` | BOOLEAN | DEFAULT true | Admin can deactivate; checked on every authenticated request |
 | `must_change_password` | BOOLEAN | DEFAULT true | Forced password reset on first login |
@@ -73,6 +73,7 @@ Unified authentication table. Role-specific details live in profile tables.
 | `is_adult` | BOOLEAN | DEFAULT false | True if student studies without a guardian |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `enrollment_date` | DATE | | |
+| `report_language` | ENUM | NOT NULL, DEFAULT 'ar' | NEW (Session 1, 2026-10-18): language the teacher writes this student's reports in — `ar`, `en`, `fr`, `de`, `tr`; edited by Admin/Supervisor (profile + application mapping); separate from the site UI locale |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -84,9 +85,7 @@ Unified authentication table. Role-specific details live in profile tables.
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `user_id` | UUID | FK → Users, UNIQUE, NOT NULL | 1:1 with Users |
-| `academy_id` | UUID | FK → Academies, NOT NULL | || `hourly_rate_minor` | INTEGER | NOT NULL, DEFAULT 0 | Hourly rate agreed with academy (e.g. in piasters/cents) |
-| `hourly_rate_currency` | VARCHAR(3) | NOT NULL, DEFAULT 'EGP' | ISO 4217 code (`EGP`, `USD`) |
-| `late_reports_count` | INTEGER | DEFAULT 0 | Count of red marks for overdue session reports |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -137,6 +136,49 @@ Maps confirmed student–teacher–subject educational relationships.
 | `confirmed_at` | TIMESTAMPTZ | nullable | |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | | | UNIQUE(student_id, teacher_id, subject_id) | Prevent duplicate active pairings |
+
+> **Note (2026-10-10):** the `Enrollments` table above was never implemented. The actual scheduling prerequisite is `StudentTeacherAssignments` (§8.2) plus the new `StudentSubjects` (§8.1) enrollment bookkeeping; see the Phase 2/3 specs.
+
+### 8.1 StudentSubjects (NEW — 2026-10-10 plan, Phase 2/3)
+
+Records **which subjects a confirmed student studies**. Created automatically upon approving a student's or guardian's application (from the application's `subjects[]`) **within the same transaction**, idempotent and unique per pair. It is bookkeeping and the source of the "Needs Teacher" list; scheduling itself is gated by `StudentTeacherAssignments` (§8.2), not by this table.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL, ON DELETE RESTRICT | |
+| `student_id` | UUID | FK → Students, NOT NULL, ON DELETE RESTRICT | |
+| `subject_id` | UUID | FK → Subjects, NOT NULL, ON DELETE RESTRICT | |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| | | UNIQUE(student_id, subject_id) | Idempotent per pair |
+
+### 8.2 StudentTeacherAssignments (NEW — 2026-10-10 plan, Phase 2/3)
+
+**Who teaches whom for which subject** — required for scheduling (session / series / replacement). Managed only by Admin/Supervisor. Zoom links and payments are out of its scope.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL, ON DELETE RESTRICT | |
+| `student_id` | UUID | FK → Students, NOT NULL, ON DELETE RESTRICT | |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL, ON DELETE RESTRICT | |
+| `subject_id` | UUID | FK → Subjects, NOT NULL, ON DELETE RESTRICT | |
+| `status` | ENUM | DEFAULT 'ACTIVE' | `ACTIVE`, `ENDED` |
+| `created_by` | UUID | FK → Users, NOT NULL | Admin/Supervisor who created the assignment |
+| `ended_at` | TIMESTAMPTZ | nullable | Set when the assignment is terminated |
+| `ended_reason` | TEXT | nullable | Optional termination reason |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | | |
+
+### Raw-SQL invariants (migration reviewed by the owner 2026-10-10; the owner applies it)
+1. **Partial unique index (owner choice, 2026-10-10):** `CREATE UNIQUE INDEX idx_student_teacher_assignments_active ON student_teacher_assignments (student_id, subject_id) WHERE status = 'ACTIVE';` — **one ACTIVE teacher per (student, subject)**. Changing the teacher = end the old row + create the new one in ONE transaction (API flow); an accidental second active teacher for the same student+subject is impossible at the DB level. `ENDED` rows remain as history (re-assigning the same teacher later creates a fresh ACTIVE row).
+2. **Lifecycle CHECK:** `CHECK ((status = 'ACTIVE' AND ended_at IS NULL) OR (status = 'ENDED' AND ended_at IS NOT NULL))` on `student_teacher_assignments` — an ACTIVE assignment never carries `ended_at`; an ENDED one always does.
+3. **Unique index:** `UNIQUE (student_id, subject_id)` on `student_subjects`.
+4. **Composite FK:** `FOREIGN KEY (teacher_id, subject_id) REFERENCES teacher_subjects (teacher_id, subject_id)` on `student_teacher_assignments` — an assignment may exist only where the teacher already teaches the subject (possible because `teacher_subjects` has the verified unique index `teacher_subjects_teacher_id_subject_id_key`). Side effect: a `TeacherSubject` row **cannot be deleted while ANY assignment row references it — ACTIVE or ENDED** (the FK matches history, not just active rows), so a teacher who ever had an assignment for a subject is effectively permanently linked to it; the teacher-subjects API surfaces a clean 409 and the assignments/teacher-subjects UI must explain this instead of leaving the operator with a bare error.
+5. **Delete policy:** all FKs `ON DELETE RESTRICT`.
+6. **Backfill (owner decision 2026-10-10):** NOT inside the migration — a separate idempotent `INSERT … ON CONFLICT DO NOTHING` statement of `student_subjects` rows from existing session rosters (`session_students ⋈ sessions`), with the proposed rows shown to the owner and applied only on explicit instruction. **No assignments are auto-created** — assignments remain an explicit Admin/Supervisor decision; the demo seed (not yet run) adds the Demo Student ↔ Demo Teacher ↔ Quran assignment.
+
+**Override rule (CONFIRMED):** scheduling without a required assignment is allowed only for Admin/Supervisor **with a reason**, and is logged on the created `sessions` row (`assignment_overridden_by_id` + `assignment_override_reason`, §10) — queryable audit columns, not a separate table. The audit is **per session, not per student**: one override action marks the one session it created. Students added to an already-created session afterwards (the enrollment side-door) do not produce their own override record yet — if per-student override evidence is ever needed, that becomes a future audit table, not a schema change now.
 
 ---
 
@@ -191,13 +233,17 @@ Represents scheduled live learning meetings.
 | `recurrence_group_id` | UUID | nullable | Links weekly recurring session series |
 | `replacement_for_session_id` | UUID | FK → Sessions, nullable | Links replacement session to missed original |
 | `cancellation_reason` | TEXT | nullable | Technical outage, absence notes, etc. |
+| `assignment_overridden_by_id` | UUID | FK → Users, nullable | NEW (2026-10-10): Admin/Supervisor who scheduled with an assignment override |
+| `assignment_override_reason` | TEXT | nullable | NEW (2026-10-10): required when `assignment_overridden_by_id` is set; audit log of the override |
 | `created_by` | UUID | FK → Users, NOT NULL | Admin |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
 > **Security Note:** Zoom URLs are secrets. Never log them. They are readable only by Admin, the assigned teacher, and the session's students; guardian visibility is OPEN. The same link is copied to generated sessions in a recurrence group as a PROPOSAL, and remains editable per session.
 
-> **Status transitions:** `SCHEDULED → COMPLETED` after the session and reports are handled; `SCHEDULED → MISSED` when the session did not take place; `SCHEDULED → CANCELLED` by Admin with a reason. Completed, missed, and cancelled sessions are terminal except for an audited Admin correction or a linked replacement session. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
+> **Override audit (2026-10-10):** `assignment_overridden_by_id` + `assignment_override_reason` mark the whole session row — the audit is **per session, not per student** (the CHECK makes a non-blank reason mandatory exactly when an override actor is set). Students added to an already-created session later (enrollment side-door) get no separate override record yet.
+
+> **Status transitions (updated 2026-10-25, owner decision):** `SCHEDULED → COMPLETED` happens when every roster student has a submitted session report, inside the transaction of the last report submit (`lib/reports/session-completion.ts`); there is no `IN_PROGRESS` value in the enum. Historical note: `SCHEDULED → IN_PROGRESS → COMPLETED` was the original wording. A session may remain `COMPLETED` while its report is `MISSING`; report completeness does not change session status. `SCHEDULED → MISSED` applies when the session did not take place, and `SCHEDULED → CANCELLED` requires an Admin reason. `scheduled_end > scheduled_start` and `duration_minutes` must equal the interval; these prevent invalid payroll duration snapshots.
 
 ---
 
@@ -211,16 +257,35 @@ Junction mapping students to sessions. Attendance is a report result, not a Zoom
 | `session_id` | UUID | FK → Sessions, NOT NULL | |
 | `student_id` | UUID | FK → Students, NOT NULL | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
-| `attendance_status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `ATTENDED`, `ABSENT`, `NOT_HELD`; set only by report submission or audited Admin override |
+| `attendance_status` | ENUM | DEFAULT 'PENDING' | `PENDING`, `ATTENDED`, `STUDENT_ABSENT`; explicit persisted attendance state, set by an approved report outcome or audited Admin override |
 | `overridden_by` | UUID | FK → Users, nullable | Admin who overrode the report result |
 | `override_reason` | TEXT | nullable | Required for an Admin override |
 | | | UNIQUE(session_id, student_id) | |
 
-> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. A student absence does not create a deduction or credit; an attended report triggers settlement in Phase 6.
+> **Constraint reason:** one row per student/session prevents duplicate assignment and gives the report a stable attendance target. Evaluation existence never dynamically determines this value. An approved `STUDENT_ABSENT` report does not create a deduction or credit; an approved `ATTENDED` report updates this state and can trigger settlement. **2026-10-10 clarification (CONFIRMED):** `SessionStudents` tracks only **who is booked** for the session (the roster); attendance data comes exclusively from the approved report — the scheduler never writes `attendance_status` (new rows are created with the `PENDING` default).
 
-### Optional SessionJoinClicks (PROPOSAL / OPTIONAL)
+### SessionJoinClicks (CONFIRMED, Phase 4 — KEPT)
 
-If retained, the redirect behind the Zoom button writes `(session_id, user_id, clicked_at)`. It is soft evidence for Admin, never proof of attendance, and must not store or log the URL.
+The redirect behind the Zoom button writes `(session_id, user_id, clicked_at)`. It is soft evidence for Admin, never proof of attendance, and must not store or log the URL. A failed insert never blocks the redirect.
+
+### SessionLinkAudits (NEW, 2026-10-12 — pending owner-applied migration `20261012000000_phase4_link_audit`)
+
+Append-by-code audit rows for Zoom link changes. The URL value is NEVER stored — only which link kind changed, by whom, when, and whether the change came from a per-session edit (`source = 'SESSION'`) or the series "apply link to upcoming" action (`source = 'SERIES'`; one row per touched session, or a series-only row when only the recurrence rule was updated).
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
+| `series_id` | UUID | FK → RecurrenceSeries, nullable | set for `source = 'SERIES'` rows |
+| `session_id` | UUID | FK → Sessions, nullable | null only for the rule-only series row |
+| `changed_by_id` | UUID | FK → Users, NOT NULL | the Admin/Supervisor who saved the change |
+| `source` | TEXT | NOT NULL, CHECK IN ('SESSION','SERIES') | raw-SQL domain CHECK (Prisma cannot express it) |
+| `join_url_changed` | BOOLEAN | NOT NULL DEFAULT false | flag only — never the URL |
+| `host_url_changed` | BOOLEAN | NOT NULL DEFAULT false | flag only — never the URL |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+| | | INDEX (academy_id, created_at), (session_id, created_at), (series_id, created_at) | |
+
+> **Constraint reason:** every FK uses `ON DELETE RESTRICT` (delete-policy §27). No append-only trigger (unlike the ledgers): this is an operational audit, not money; application code only ever INSERTs, and demo/test cleanup must remain possible (`db:clear:demo` and the test fixtures delete these rows under the documented demo-only guards). Until the owner applies the migration, `lib/scheduling/link-audit.ts` detects the missing table and skips audit writes with a visible warning; the audit tests self-deactivate the same way and activate once applied.
 
 ---
 
@@ -238,11 +303,13 @@ Stores core configuration for student prepaid session packages. Remaining sessio
 | `total_amount_minor` | INTEGER | NOT NULL | Package purchase price in minor units |
 | `currency` | VARCHAR(3) | NOT NULL | ISO 4217 code (`USD`, `EGP`) |
 | `sessions_purchased` | INTEGER | NOT NULL | Total sessions bought in this package |
+| `package_type` | ENUM | NOT NULL | `MONTHLY_PLAN` or `PAY_PER_SESSION` |
+| `period_ends_at` | TIMESTAMPTZ | nullable | Required for monthly plans; NULL for never-expiring pay-per-session credits |
 | `status` | ENUM | DEFAULT 'ACTIVE' | `ACTIVE`, `EXHAUSTED`, `CANCELLED` |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
-> **Business Rule (Confirmed):** Packages have no time-based expiration date. The former per-session price field is intentionally absent because package consumption is one session per attended class, and teacher pay is hourly and independent.
+> **Business Rule (Confirmed):** Monthly-plan credits expire at the end of their billing period and do not roll over; pay-per-session credits have no expiry. The former per-session price field is intentionally absent because consumption is one session per attended class, and teacher pay is hourly and independent.
 
 ---
 
@@ -353,19 +420,29 @@ Per-student teacher reports. In a group session there is one report for each stu
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `session_id` | UUID | FK → Sessions, NOT NULL | Linked session |
 | `student_id` | UUID | FK → Students, NOT NULL | Student covered by this report |
-| `author_id` | UUID | FK → Users, NOT NULL | Assigned teacher who submits it |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL | Teacher who submits it |
 | `report_type` | ENUM | NOT NULL | `SESSION_COMPLETION_REPORT` |
-| `attendance_outcome` | ENUM | NOT NULL | `ATTENDED`, `STUDENT_ABSENT`, plus OPEN outcomes |
-| `class_remark` | ENUM | NOT NULL | Dropdown values OPEN |
+| `status` | ENUM | NOT NULL | `SUBMITTED`, `REJECTED`, `APPROVED`, `ARCHIVED`; `MISSING` is a report-view state when no row exists |
+| `attendance_outcome` | ENUM | NOT NULL | `ATTENDED`, `STUDENT_ABSENT` |
+| `class_remark` | VARCHAR | NOT NULL | Required text; dropdown values remain OPEN |
 | `summary` | TEXT | NOT NULL | Required lesson summary |
 | `homework` | TEXT | NOT NULL | Required homework value; student visibility is OPEN |
 | `notes` | TEXT | nullable | Optional notes |
+| `operational_events` | JSONB | nullable | Facts such as late entry, early exit, outage, disconnection, or reconnection; informational evidence for review, never an automatic attendance decision |
 | `extra_time_minutes` | INTEGER | DEFAULT 0 | Frozen after submission |
 | `extra_time_status` | ENUM | DEFAULT 'NONE' | `NONE`, `PENDING`, `APPROVED`, `REJECTED` |
-| `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer |
+| `extra_time_reviewed_by` | UUID | FK → Users, nullable | Admin reviewer; Supervisor cannot approve money |
 | `extra_time_reviewed_at` | TIMESTAMPTZ | nullable | Review timestamp |
 | `submitted_at` | TIMESTAMPTZ | NOT NULL | Submission timestamp |
+| `rejection_reason` | TEXT | nullable | Admin reason when status is `REJECTED` |
+| `rejected_by` | UUID | FK → Users, nullable | Admin or Supervisor who rejected the report |
+| `rejected_at` | TIMESTAMPTZ | nullable | Rejection timestamp |
+| `approved_at` | TIMESTAMPTZ | nullable | Admin or Supervisor approval timestamp |
+| `approved_by` | UUID | FK → Users, nullable | Admin or Supervisor who approved the report; the actor cannot edit ledger amounts |
 | `settled_at` | TIMESTAMPTZ | nullable | Set in the same transaction as settlement ledger rows; never cleared to retry |
+| `archived_at` | TIMESTAMPTZ | nullable | Set after approved settlement succeeds; archived reports are immutable |
+| `language` | ENUM | NOT NULL, DEFAULT 'ar' | NEW (Session 1, 2026-10-18): the report's language (`ar`, `en`, `fr`, `de`, `tr`); selector default = the student's `report_language`; the report renders in this language with the correct dir |
+| `rejection_count` | INTEGER | NOT NULL, DEFAULT 0 | NEW (Session 1, 2026-10-18, PROPOSAL): incremented on each Admin/Supervisor rejection; visible to Admin/Supervisor on the report + per-teacher summary; NEVER drives an automatic red mark or penalty (red mark = late reports only) |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -376,9 +453,9 @@ ON reports (session_id, student_id)
 WHERE report_type = 'SESSION_COMPLETION_REPORT';
 ```
 
-`attendance_outcome` and `extra_time_minutes` are frozen after submission. Text fields remain editable under server-side authorization and audit rules. A settled report is a claim: corrections use `ADMIN_ADJUSTMENT` or refund entries, never clearing `settled_at`.
+Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin or Supervisor rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher, Supervisor, nor Admin may edit the evidence. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
 
-Teacher reports are visible to the guardian and Admin, not the student; whether the student sees homework is OPEN. Student evaluations are Admin-only.
+Reports are visible to the guardian and the student (per the CONTEXT §9 visibility rules) from the moment of SUBMISSION, in every status — approval gates pay only (owner, 2026-10-18). A student with a guardian sees only homework/notes/attachments (session reports); an adult student without a guardian, the guardian, Admin and Supervisor see the whole report; the submitting teacher sees her own report in every state. Teachers never see other teachers's reports. Student evaluations are separate from Reports and are not inferred from attendance; evaluation is mandatory after a completed session (Phase 7).
 
 ## 18. ReportAttachments
 
@@ -394,6 +471,35 @@ Teacher reports are visible to the guardian and Admin, not the student; whether 
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 
 Access uses short-lived signed URLs. Executables are prohibited.
+
+---
+
+## 18b. MonthlyReports (NEW — Session 1, 2026-10-18, PROPOSAL until the owner confirms)
+
+Separate monthly report stream written by the assigned teacher per student. NO money, NO attendance, NO ledger, NO approval gate — pure communication to the family (CONTEXT §9).
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `academy_id` | UUID | FK → Academies, NOT NULL | |
+| `teacher_id` | UUID | FK → Teachers, NOT NULL | Assigned teacher only |
+| `student_id` | UUID | FK → Students, NOT NULL | |
+| `month_key` | VARCHAR(7) | NOT NULL | `'YYYY-MM'`; only months that have started are allowed |
+| `achievement` | TEXT | NOT NULL | Achievement over the month (long text, required) |
+| `learning_progress` | ENUM | NOT NULL | `EXCELLENT`, `VERY_GOOD`, `GOOD`, `VERY_SLOW_PROGRESS` |
+| `class_focus` | ENUM | NOT NULL | `ALWAYS`, `OFTEN`, `SOMETIMES`, `RARELY` (active and focused in class) |
+| `homework_completion` | ENUM | NOT NULL | `ALWAYS`, `MOST_OF_THE_TIME`, `SOMETIMES`, `RARELY` (completes homework/tasks) |
+| `punctuality` | ENUM | NOT NULL | `ALWAYS`, `OFTEN`, `SOMETIMES`, `RARELY` (comes on time) |
+| `rescheduled_sessions` | INTEGER | NOT NULL, DEFAULT 0 | Computed server-side from replacement sessions / approved outage requests in that month; pre-filled, read-only; displayed as None / 1 / 2 / More than 2 |
+| `support_areas` | TEXT | nullable | Areas needing additional support |
+| `next_month_objectives` | TEXT | nullable | Key learning objectives for next month; the ONLY field a student with a guardian sees (PROPOSAL) |
+| `language` | ENUM | NOT NULL, DEFAULT 'ar' | Report language (`ar`,`en`,`fr`,`de`,`tr`); selector default = the student's `report_language` |
+| `submitted_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Start of the 7-day edit window (PROPOSAL) |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | | |
+| | | UNIQUE(teacher_id, student_id, month_key) | One report per teacher/student/month |
+
+Rules: only the assigned teacher may create/edit; unique per (teacher, student, month); only for a month that has started; teacher may edit for 7 days after submission, then locked (PROPOSAL); the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports (PROPOSAL). Visibility mirrors session reports: guardian/Admin/Supervisor whole; student with a guardian → only `next_month_objectives` (PROPOSAL); adult student → whole; teachers never see other teachers' reports. Additive migration, owner applies.
 
 ---
 
@@ -491,6 +597,8 @@ Broadcast notices issued by Admin.
 
 Auditing log for WhatsApp and SMS communications.
 
+**Implementation note (Session 1, 2026-10-18):** the implemented system has NO separate NotificationLog table — `notification_jobs` doubles as the queue AND the redacted log (Phase 3 accepted design): status (`PENDING`/`PROCESSING`/`SENT`/`FAILED`/`CANCELLED`), `attempts`, `last_error` (short provider error only), `sent_at`; NO message content is ever stored (the worker composes text at send time; credentials/passwords/Zoom links are never persisted). A missing OpenWA configuration produces a FAILED row ("OpenWA is not configured."), never a crash or rollback. The planned columns below describe a future dedicated audit store; the `content` column must remain redacted if ever built.
+
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
@@ -531,7 +639,8 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
 2. **Partial Unique Indexes:**
    - `idx_payroll_ledger_unique_session_credit` on `payroll_ledger(session_id)` WHERE `entry_type = 'SESSION_CREDIT'`.
    - `idx_subscription_ledger_unique_session_deduction` on `subscription_ledger(session_id, subscription_id)` WHERE `entry_type = 'SESSION_DEDUCTION'`.
-   - `idx_reports_unique_session_completion` on `reports(session_id, author_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
+   - `idx_reports_unique_session_completion` on `reports(session_id, student_id)` WHERE `report_type = 'SESSION_COMPLETION_REPORT'`.
+   - `idx_student_teacher_assignments_active` on `student_teacher_assignments(student_id, subject_id)` WHERE `status = 'ACTIVE'` (NEW, 2026-10-10 — owner reviewed: one ACTIVE teacher per student+subject).
 3. **CHECK Constraints:**
    - `CHECK (amount_minor > 0)` on `payroll_ledger` for `SESSION_CREDIT`.
    - `CHECK (amount_minor < 0)` on `payroll_ledger` for `DISBURSEMENT`.
@@ -540,6 +649,9 @@ The following constraints cannot be fully expressed in Prisma schema syntax and 
    - `CHECK (scheduled_end > scheduled_start)` on `sessions`.
    - `CHECK (scheduled_end > scheduled_start)` and a duration consistency check on `sessions`.
    - `CHECK (length(currency) = 3)` on financial tables.
+   - `CHECK ((status = 'ACTIVE' AND ended_at IS NULL) OR (status = 'ENDED' AND ended_at IS NOT NULL))` on `student_teacher_assignments` (NEW, 2026-10-10).
+    - `sessions_assignment_override_audit_check` on `sessions`: the override reason is mandatory and non-blank exactly when `assignment_overridden_by_id` is set (NEW, 2026-10-10).
+    - `CHECK (source IN ('SESSION','SERIES'))` on `session_link_audits` (NEW, 2026-10-12, migration pending owner apply).
 
 The duration expression, partial indexes, append-only triggers, and conditional checks are raw SQL because Prisma cannot express them completely.
 
@@ -551,7 +663,7 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 
 ## 28. Open Decisions
 
-- **S2:** Remove `Reports` as a separate history table or retain derived history? Recommend removal of a duplicate attendance table; reports remain the source evidence.
+- **S2:** Remove a duplicate `Attendance` history table or retain derived history? Recommend removal; `SessionStudents` stores the explicit current outcome and Reports remain the evidence.
 - **S5:** Store `zoom_host_url`? Options: store it encrypted for teacher/Admin convenience, or require the teacher to use the join link. Recommend optional storage, pending owner confirmation.
 - **S9:** Attachment allowlist and size cap. Options: images plus PDF with a small cap, images only with a smaller cap, or broader documents with scanning. Recommend images plus PDF, no executables.
 - **S14:** Keep `SubscriptionLedger.amount_minor` informational or remove it. Recommend remove; invoices are the money source of truth.
@@ -559,6 +671,8 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 - **S21:** INTEGER versus BIGINT for money and hourly rounding. Recommend BIGINT if high-volume SaaS growth is expected; rounding remains OPEN.
 - **S22:** Zero-session scheduling mechanism. Options: reserve pending sessions, block generation at balance, or allow audited Admin override. Confirm the mechanism; teacher credit must never be blocked.
 - Report attendance outcomes, class remarks, homework visibility, notification recipients/timing, guardian visibility of links, evaluation fields, reversal UX, payout cycle, and tenant-scoped uniqueness remain OPEN where noted above.
+
+Supervisor approval is confirmed, but Supervisor permissions remain operational only: the actor may approve/reject the report, while the system performs settlement and exposes no money amounts or payroll actions to that role.
 
 ## Change Summary Labels
 
@@ -590,3 +704,5 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 - **S26:** Added redacted notification content and idempotency.
 - **S27:** Added corrected contents, Prisma notes, and delete policy.
 - **S28:** Added SaaS hygiene and the open-decisions list.
+- **S29 (2026-10-10 plan, pending migration approval):** Added `StudentSubjects` (§8.1) and `StudentTeacherAssignments` (§8.2) with partial-unique/unique/composite-FK invariants, the roster-only clarification for `SessionStudents`, and assignment-override audit columns on `Sessions`.
+- **S30 (2026-10-12, Phase 4 — migration pending owner apply):** Confirmed `SessionJoinClicks` as kept evidence and added `SessionLinkAudits` (§11) — URL-less link-change audit rows with a raw-SQL `source` domain CHECK, RESTRICT foreign keys, and no append-only trigger (operational audit, not money).
