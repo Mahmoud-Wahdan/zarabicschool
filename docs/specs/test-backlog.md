@@ -110,3 +110,19 @@
 - **WA-10** — `GET /api/admin/whatsapp/health`: Supervisor 403; response never contains the API key; OpenWA down → `reachable:false`.
 - **WA-11** — whatsapp-number PUT: Admin only, invalid format 400; landing/footer render `https://wa.me/201060814239` from the setting; no link when the row is missing.
 - **WA-12** — pre-migration: messages route 409 `WHATSAPP_MIGRATION_PENDING`; webhook acks without writing; worker sends without storing the message id.
+
+## Session 5 Stage 2 plan — tests to write when each item is implemented (phase-06 § "Session 5")
+- **SEED-01/02** — after the demo seed: no APPROVED/ARCHIVED report without settlement; only `billing.pay_per_session.*` keys.
+- **PM-01..PM-10** — Paymob: each success-predicate flag (pending, is_voided, is_refunded, is_void, is_refund, error_occured, auth-without-capture) blocks settlement; match by `order.id` only (forged `merchant_order_id` ignored); amount/currency mismatch → `mismatch`, no money; pending then success for the same txn settles once; success on a PAID invoice → anomaly flag, no money; replay → `already_processed`; concurrent duplicates → one settlement.
+- **RA-01..RA-03** — approval of a report of a CANCELLED session → 409 `SESSION_CANCELLED`, zero ledger rows; cancel between submit and approve; reject still allowed.
+- **OT-01..OT-03** — overtime: missing rate → stays PENDING, no ledger; double click → one row; failure after the ledger insert → both rolled back.
+- **AN-01..AN-03** — ANNUAL: invoice create 409, checkout 409, signed success ignored + flag.
+- **PR-01..PR-04** — payroll idempotency key duplicate → one row; currency mismatch 409; cross-origin 403; Supervisor 403.
+- **SS-01..SS-03** — seam: concurrent attended reports of one group session → no 500, one credit; no subscription → teacher paid + Admin flag; consumption order earliest-expiring first.
+- **SEC-01/02** — seed aborts without `SEED_DEMO_PASSWORD`; demo seed leaves the Admin hash unchanged.
+- **AP-01/02** — profiles `type=constructor|__proto__|toString` → 400; Supervisor never receives Admin/Supervisor rows.
+- **SO-01/02** — every mutating route: cross-origin/missing Origin 403, same-origin OK; webhooks unaffected.
+- **PW-01..PW-03** — admin-set password forces change for ADMIN/SUPERVISOR/TEACHER; student unchanged; self-change clears.
+- **FW-01..FW-03** — one finance-wall helper on checkout/invoices/proofs/page; pay-per-session count outside min/max → 400.
+- **PF-01** — `/teacher/sessions` shows today's sessions when the teacher has >100 older ones.
+- **PL-01..PL-05** — payment-link message (when built): Supervisor 403; never to a student with a guardian; PAID invoice 409; second send same day blocked; text contains no provider URL/token.

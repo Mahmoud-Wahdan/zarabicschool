@@ -174,7 +174,7 @@ If the report says the student did not attend, that student's attendance becomes
 
 ### OPEN sub-decisions (do not invent — ask when implementation reaches them)
 1. ~~Rounding~~ — pay is proportional by the minute (owner); only the final rounding to the minor unit is a PROPOSAL (half-up).
-2. "على كيفك": **max sessions per purchase = 16** (Admin-configurable; owner's example); the minimum was not stated (ASSUMPTION: 1).
+2. "على كيفك": **max sessions per purchase = 16** (Admin-configurable; owner's example); the minimum was not stated (ASSUMPTION: 1). **Settings key (owner, 2026-10-25):** the authoritative AcademySettings keys are `billing.pay_per_session.min` / `billing.pay_per_session.max` (the keys the running code reads, `webapp/lib/billing/pay-per-session.ts`); the seed's `pay_per_session_min/max` are unread and are removed from the seed (Session 5 plan A0).
 3. Number of grace days (owner said "e.g. 3" — default 3, configurable). Still to confirm.
 4. Report availability — CONFIRMED (owner, 2026-10-07): the report is per session/student and becomes available after the session ends (the scheduled end).
 5. Late-report timing — T+0 notify, T+15 reminder, T+30 red mark from the scheduled end: accepted by the owner (2026-10-07).
