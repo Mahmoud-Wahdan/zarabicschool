@@ -96,3 +96,17 @@
 - **SC-06** — CANCELLED/MISSED sessions are never completed; resubmit/replay on a COMPLETED session writes no second transition (protects: idempotency).
 - **SC-07** — concurrent resubmits of the same REJECTED report: exactly one 200, the other 409 ALREADY_SUBMITTED (protects: editable only after rejection under concurrency).
 - **SC-08** — `GET /api/sessions` returns `reportCount` to ADMIN/SUPERVISOR/TEACHER only; STUDENT/GUARDIAN payloads have no `reportCount` (protects: classmates' report state).
+
+## Session 5 Part 1 — WhatsApp (d)+(e) (2026-10-25)
+- **WA-01** — phone normaliser: `01012345678`/`1012345678`/`201012345678` → `201012345678`; `+14155550102`/`0044…` unchanged; `12345`/letters → null (protects: abroad users, no guessed country code).
+- **WA-02** — adapter calls `POST <base>/api/sessions/<id>/messages/send-text` with `{chatId:"…@c.us", text}` + `X-API-Key` + `Idempotency-Key`; the 201 `messageId` is returned (HTTP mocked at the boundary).
+- **WA-03** — non-production: number not in `OPENWA_SEND_ALLOWLIST` → `{ok:false}`, no HTTP call; empty allowlist → nothing sent; production ignores the allowlist.
+- **WA-04** — transient (409/429/5xx/network) → PENDING again after 2 min then 10 min, FAILED after the 3rd send; permanent (400/401/404/no config) → FAILED after one send.
+- **WA-05** — PROCESSING older than 10 min → FAILED and not re-sent; younger rows untouched.
+- **WA-06** — SESSION_REMINDER/SESSION_START due after `scheduledEnd` → CANCELLED, provider not called.
+- **WA-07** — webhook: no secret env / no header / wrong signature / signature over a re-serialised body → 401 and no DB write; valid → 200.
+- **WA-08** — webhook forward-only: READ then replayed DELIVERED stays READ; FAILED after DELIVERED stays DELIVERED; unknown messageId → 200 nothing changed; other sessionId → ignored.
+- **WA-09** — `POST /api/admin/messages`: Supervisor/Teacher 403; cross-origin 403; other-academy recipient 404; no phone 409; 21st message in 10 min 429; job payload is exactly `{adminMessageId}`; response contains no body text.
+- **WA-10** — `GET /api/admin/whatsapp/health`: Supervisor 403; response never contains the API key; OpenWA down → `reachable:false`.
+- **WA-11** — whatsapp-number PUT: Admin only, invalid format 400; landing/footer render `https://wa.me/201060814239` from the setting; no link when the row is missing.
+- **WA-12** — pre-migration: messages route 409 `WHATSAPP_MIGRATION_PENDING`; webhook acks without writing; worker sends without storing the message id.

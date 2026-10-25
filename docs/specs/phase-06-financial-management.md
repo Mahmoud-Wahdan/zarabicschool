@@ -272,3 +272,48 @@ Branch `fix/session-reports-ui` (from `feature/phase-5`). Static checks only (ts
 - Display: an ended session not yet COMPLETED shows "انتهى موعدها · بانتظار التقارير (X من Y)" on teacher and admin session cards (derived from existing data; no new status value). Report counts are exposed to staff roles only (family roles never learn classmates' report state).
 - Inspection (no conflict): the late-report chain (`lib/worker/notifications.ts:277-288, :341`) skips fully reported sessions, and a newly COMPLETED session is fully reported by definition; settlement (`settlement-seam.ts`) and credit reservations never read session status. Behaviour changes to note: Admin can no longer edit/cancel a fully reported session (`app/api/sessions/[id]/route.ts:40` treats COMPLETED as immutable), and a whole-session outage approval no longer marks it MISSED (`session-requests/[id]/review/route.ts:154`); dashboard completed/upcoming counts become accurate.
 - No migration. Verification: tsc/lint/build exit 0; the lock statement probed on the real DB in a rolled-back transaction with a legacy-format id. Tests deferred (backlog SC-01..SC-08).
+
+### 2026-10-25 — Session 5 Part 1: WhatsApp slices (d) + (e) implemented (branch `feature/whatsapp`)
+
+**Implemented, not verified** (tests deferred). `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0. Migration `20261026000000_whatsapp_delivery_admin_messages` **CREATED, NOT APPLIED** (no BOM; owner applies with DIRECT_URL). Live send **skipped**: OpenWA was not running on this machine (the local port refused the connection on GET `/api/health`).
+
+Review of the existing WhatsApp path — bugs found and fixed (messaging only):
+- **W1 (Critical): every send failed.** The adapter posted to `/api/sendText` with `{sessionId, chatId, text}`; OpenWA exposes `POST /api/sessions/:sessionId/messages/send-text` with `{chatId, text}` (`OpenWA/src/modules/message/message.controller.ts:202`, global prefix `api` in `src/config/app-validation.ts:49`). Fixed in `lib/messaging/openwa-provider.ts`.
+- **W2 (High): chat id.** The stored phone (`+20…`) was used as `chatId`; OpenWA needs `<digits>@c.us`. New `lib/messaging/phone.ts`: `+`/`00` numbers pass through unchanged; only Egyptian local formats (`01XXXXXXXXX`, `1XXXXXXXXX`) become `201XXXXXXXXX`; a bare `201…` is already international; anything else is REFUSED (never guessed).
+- **W3 (High, safety): demo numbers.** Once W1 is fixed, a dev worker would deliver every queued job to the demo-seed phones (possibly real people). New guard: outside `NODE_ENV=production` the adapter sends ONLY to numbers in `OPENWA_SEND_ALLOWLIST` (unset = nothing sent; the job is FAILED with a clear reason).
+- **W4 (Medium): no retry except report nudges.** Transient failures (network/timeout, HTTP 409 engine-not-ready, 429 pacing, 5xx) now retry: max 3 sends, 2 min then 10 min. Permanent failures (400 unregistered, 401/403, 404, missing config, bad number) → FAILED at once. The late-report re-arm (attempts < 2) still works on top. The job id is sent as OpenWA's `Idempotency-Key`, so a retry is never delivered twice.
+- **W5 (Medium): stuck jobs.** A crash between claim and send left jobs in `PROCESSING` forever. Now `PROCESSING` older than 10 min → FAILED ("worker interrupted"), never auto re-sent.
+- **W6 (Medium): stale notices.** After a worker outage, `SESSION_REMINDER` and `SESSION_START` (join link) were still sent for sessions already over. Now cancelled once `scheduledEnd` has passed.
+- **W7 (Low): burst sending.** 1.5 s between sends in one tick and no overlapping ticks (`lib/worker/start.ts`) to lower the ban risk.
+- **W8 (Low): hardcoded brand.** The credentials message said "Zarabicschool"; it now uses the academy name from the DB.
+- Reviewed, no change needed: every enqueue site uses a unique `dedup_key` + `skipDuplicates` (no duplicate jobs); report notices go to the student + linked guardian only; job rows store ids/keys only (credentials are sent directly by the approval route; the password never enters a row); Zoom links are composed at send time, never stored.
+- **Not fixed (in the plan):** session/admin notice templates exist only in ar/en (fr/de/tr users get Arabic for non-report notices); the application form accepts Egyptian numbers only (`lib/validation/application.ts:3-11`, S8) — a form/business change; Admin has no view of FAILED jobs; `.env` lists `OPENWA_API_KEY` and `OPENWA_SESSION_ID` twice with DIFFERENT values (the last one wins) — owner to clean up; the proxy's 120 req/min/IP limit also applies to the webhook (fine at our volume).
+
+New (slice d as approved + Session 5 amendments):
+- `POST /api/whatsapp/status`: raw body via `request.text()` before `JSON.parse`; `X-OpenWA-Signature: sha256=<hex HMAC-SHA256>` with `OPENWA_WEBHOOK_SECRET`, `timingSafeEqual`; no secret / missing / wrong signature → 401, nothing stored; 64 KB cap; envelope `{event, sessionId, timestamp, idempotencyKey, deliveryId, data}` (`OpenWA webhook-delivery.service.ts:537-541`); other `sessionId` → ignored. `message.ack`/`message.failed` → forward-only `delivery_status` by `provider_message_id` (SENT → DELIVERED → READ; FAILED never overwrites DELIVERED/READ), so replays are no-ops. `session.status` → status word logged only. Unknown events → 200 ignored. No message content stored.
+- `GET /api/admin/whatsapp/health` — ADMIN only; server-side fetch of `/api/health` + `/api/health/ready`; returns reachability, HTTP status, status word; the key never leaves the server.
+- `POST /api/admin/messages` — ADMIN only (Supervisor 403), same-origin, Zod `{recipientUserId: guid, body: trim 1..4000}`, 20 per 10 min per Admin; recipient active, same academy, with a phone; ONE transaction writes `admin_messages` + an `ADMIN_MESSAGE` job with payload `{adminMessageId}`; the body is never logged nor returned; the worker loads it at send time.
+- `GET/PUT /api/admin/settings/whatsapp-number` — ADMIN only; key `site.whatsapp_number`; the initial `01060814239` is inserted by the migration (not by code). Landing page (floating button) + footer render `https://wa.me/<digits>`; no row → no link.
+- Admin page `/[locale]/admin/whatsapp` (ADMIN nav only): health check, contact number, individual message.
+- Pre-migration: messages answer 409 `WHATSAPP_MIGRATION_PENDING`, the webhook acks without storing, the worker skips message-id storage (probe `lib/messaging/readiness.ts`, self-heals).
+- `.env.example` (slice e): `MESSAGING_PROVIDER` removed (never read); added `OPENWA_WEBHOOK_SECRET`, `OPENWA_SEND_ALLOWLIST`, `ALLOWED_ORIGINS` (names only).
+
+**Migration to apply (owner):** `20261026000000_whatsapp_delivery_admin_messages` — `notification_jobs` + `provider_message_id VARCHAR(255)`, `delivery_status VARCHAR(16)` CHECK (SENT/DELIVERED/READ/FAILED), `delivery_updated_at TIMESTAMPTZ` + index on `provider_message_id`; new `admin_messages` (RESTRICT FKs, body VARCHAR(4000) non-blank CHECK, indexes `(academy_id, created_at DESC)`, `(recipient_user_id)`); inserts `site.whatsapp_number = "01060814239"` per academy (`ON CONFLICT DO NOTHING`). From `webapp/`: `npx prisma migrate deploy`.
+
+**Manual webhook registration (owner; never from app code).** Placeholders only — put real values in your shell, not in files:
+
+```bash
+# 1) pick a long random secret; put the SAME value in webapp/.env as OPENWA_WEBHOOK_SECRET
+# 2) register on the connected session (OPERATOR-role key)
+curl -X POST "<OPENWA_URL>/api/sessions/<OPENWA_SESSION_ID>/webhooks" \
+  -H "X-API-Key: <OPENWA_API_KEY>" -H "content-type: application/json" \
+  -d '{"url":"<APP_BASE_URL>/api/whatsapp/status","events":["message.ack","message.failed","session.status"],"secret":"<OPENWA_WEBHOOK_SECRET>","retryCount":3}'
+# 3) confirm (and get the id if you ever need to delete it)
+curl "<OPENWA_URL>/api/sessions/<OPENWA_SESSION_ID>/webhooks" -H "X-API-Key: <OPENWA_API_KEY>"
+```
+
+`<APP_BASE_URL>` must be reachable FROM the OpenWA host (locally `http://localhost:3000`). Never subscribe `message.received` (inbound chat content must not reach our DB).
+
+**Manual live test (owner):** start OpenWA (session connected) → `OPENWA_SEND_ALLOWLIST=01229911425,01288088139` in `webapp/.env` → apply the migration → `npm run dev` → `/admin/whatsapp` "Check now" → give a TEST account the phone 01229911425 → send an individual message → within ~1 min the job is SENT; with the webhook registered `delivery_status` moves to DELIVERED/READ → message a user without a phone → 409 → stop OpenWA and send → retried twice, then FAILED. A handful of messages, seconds apart.
+
+**Risks:** OpenWA is unofficial (ban risk; never the only channel); production ignores the allowlist by design; Admin messages can reach minors' phones (privacy/consent = launch gap, Session 5 plan J); the webhook trusts one shared secret — rotate if it leaks.
