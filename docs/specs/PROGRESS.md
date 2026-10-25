@@ -18,7 +18,13 @@
 | 8 | Testing & Launch | In Progress | 2026-10-11 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green |
 | 9 | Refinements & UI/UX Polish | Not Started | 2026-10-14 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
 
-## Current Active Task (2026-10-25, Session 4 on fix/session-reports-ui)
+## Current Active Task (2026-10-25, Session 5 on feature/whatsapp)
+
+**Part 1 — WhatsApp slices (d)+(e): implemented, not verified** (tsc/lint/build exit 0; tests deferred, backlog WA-01..12). Fixed the OpenWA adapter (wrong endpoint — every send failed; chat-id format; international numbers), added a non-production recipient allowlist, worker retry/backoff/stale-job recovery, the signed delivery webhook, Admin health check, Admin individual messages, the wa.me link from AcademySettings. Live send skipped (OpenWA not running). **Owner steps:** apply migration `20261026000000_whatsapp_delivery_admin_messages`; clean the duplicated `OPENWA_API_KEY`/`OPENWA_SESSION_ID` lines in `.env`; register the webhook manually (phase-06 § "Session 5 Part 1"); run the live test.
+**Part 2 — docs only:** phase-09 items 9.11 (teacher daily WhatsApp schedule) and 9.12.
+**Part 3 — Stage 2 plan written** (phase-06 § "Session 5"; review link `review-session4.md`). **STOPPED for the owner's "approved"** — no payment/security code before it. Next on approval: A0 seed/settings cleanup → A1 Paymob webhook → A2–A5 → B1–B5 → C → D.
+
+## Previous Task (2026-10-25, Session 4 on fix/session-reports-ui)
 
 Item 1 fixed (report form rejected legacy-id sessions — Zod 4 strict uuid; ids now `z.guid()`). Item 2 implemented: a session becomes COMPLETED in the same transaction as the report that completes its roster (owner decision; no ledger effect). No new migration. Static checks green; tests deferred (backlog RF-01..RF-04, SC-01..SC-08). Owner to confirm: "submitted" = any report row (a rejected report counts).
 
