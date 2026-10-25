@@ -12,9 +12,14 @@ import SubjectsSection from "../_components/landing/subjects-section";
 import TeacherBand from "../_components/landing/teacher-band";
 import WhyUs from "../_components/landing/why-us";
 import LogoPlaceholder from "../_components/logo-placeholder";
+import Icon from "../_components/ui/icon";
+import { getPublicWhatsAppLink } from "../../lib/messaging/contact-number";
 
 export default async function Home() {
   const t = await getTranslations("common");
+  const tFooter = await getTranslations("landing.footer");
+  // Site WhatsApp contact (AcademySettings `site.whatsapp_number`, Admin-editable).
+  const whatsappHref = await getPublicWhatsAppLink();
 
   return (
     <div id="top" className="min-h-screen">
@@ -35,7 +40,19 @@ export default async function Home() {
           <ApplyRoles />
         </div>
       </main>
-      <SiteFooter />
+      <SiteFooter whatsappHref={whatsappHref} />
+      {whatsappHref ? (
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={tFooter("whatsappCta")}
+          className="fixed bottom-4 end-4 z-40 inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-3 text-label-md font-semibold text-on-secondary shadow-lg hover:opacity-90"
+        >
+          <Icon name="chat" size={20} />
+          <span className="hidden sm:inline">{tFooter("whatsappCta")}</span>
+        </a>
+      ) : null}
     </div>
   );
 }

@@ -106,6 +106,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "billing", icon: "toll", href: "/admin/billing" },
     { key: "invoices", icon: "request_quote", href: "/admin/invoices" },
     { key: "paymentAudit", icon: "history", href: "/admin/payment-audit" },
+    { key: "whatsapp", icon: "chat", href: "/admin/whatsapp" },
     { key: "payroll", icon: "payments", href: "/admin/payroll" },
     { key: "overtime", icon: "more_time", href: "/admin/overtime" },
     { key: "accounts", icon: "manage_accounts", href: "/admin/users" },
