@@ -20,8 +20,8 @@ function formatSize(bytes: number) {
 
 /**
  * Attachment list + uploader for one report. Uploads go through
- * POST /api/reports/:id/attachments (server validates MIME by magic bytes and
- * the 10 MB cap); opening uses the short-lived signed-URL endpoint.
+ * POST /api/reports/:id/attachments (server validates MIME by magic bytes —
+ * images, PDF, audio — and the 10 MB cap); opening uses the short-lived signed-URL endpoint.
  */
 export default function ReportAttachments({
   reportId,
@@ -98,7 +98,7 @@ export default function ReportAttachments({
             ref={inputRef}
             type="file"
             multiple
-            accept="image/jpeg,image/png,image/webp,application/pdf"
+            accept="image/jpeg,image/png,image/webp,application/pdf,audio/*"
             disabled={busy}
             onChange={(event) => event.target.files && upload(event.target.files)}
             className="w-full rounded-lg border border-outline-variant px-3 py-2 text-body-sm"

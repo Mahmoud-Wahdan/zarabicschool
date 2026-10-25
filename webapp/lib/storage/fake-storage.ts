@@ -1,27 +1,33 @@
-import type { StorageProvider, StorageUploadInput } from "./provider";
+import { randomUUID } from "node:crypto";
+
+import type { StorageProvider, StorageUploadInput, StoredObject, StoredObjectRef } from "./provider";
 
 /**
  * In-memory fake for tests (MESSAGING_PROVIDER-style substitution). Stores bytes in
  * memory, never touches the network, and records every removal for compensation tests.
+ * Reports itself as "cloudinary" so rows written in tests take the current code path.
  */
 export class FakeStorageProvider implements StorageProvider {
+  readonly name = "cloudinary" as const;
   readonly objects = new Map<string, { buffer: Buffer; contentType: string }>();
   readonly removedPaths: string[] = [];
 
-  async upload({ path, buffer, contentType }: StorageUploadInput): Promise<void> {
-    this.objects.set(path, { buffer, contentType });
+  async upload({ folder, buffer, contentType, ext }: StorageUploadInput): Promise<StoredObject> {
+    const key = `${folder}/${randomUUID()}`;
+    this.objects.set(key, { buffer, contentType });
+    return { key, resourceType: contentType.startsWith("audio/") ? "video" : "image", format: ext, bytes: buffer.length };
   }
 
-  async createSignedUrl(path: string): Promise<string> {
-    if (!this.objects.has(path)) {
+  async createSignedUrl(object: StoredObjectRef): Promise<string> {
+    if (!this.objects.has(object.key)) {
       throw new Error("Storage sign failed with status 404.");
     }
-    return `https://fake-storage.test/signed/${encodeURIComponent(path)}`;
+    return `https://fake-storage.test/signed/${encodeURIComponent(object.key)}`;
   }
 
-  async remove(path: string): Promise<void> {
-    this.removedPaths.push(path);
-    this.objects.delete(path);
+  async remove(object: StoredObjectRef): Promise<void> {
+    this.removedPaths.push(object.key);
+    this.objects.delete(object.key);
   }
 
   reset() {
@@ -41,11 +47,11 @@ export class FlakyStorageProvider extends FakeStorageProvider {
     super();
   }
 
-  async upload(input: { path: string; buffer: Buffer; contentType: string }): Promise<void> {
+  async upload(input: StorageUploadInput): Promise<StoredObject> {
     this.uploadCalls += 1;
     if (this.uploadCalls === this.failOnUploadCall) {
       throw new Error("storage unavailable");
     }
-    await super.upload(input);
+    return super.upload(input);
   }
 }

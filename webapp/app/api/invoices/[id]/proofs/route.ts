@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
-import { getStorageProvider } from "../../../../../lib/storage";
+import { getStorageProvider, isStorageColumnsReady } from "../../../../../lib/storage";
+import type { StoredObject } from "../../../../../lib/storage/provider";
 import { MAX_ATTACHMENT_BYTES, detectAllowedMime } from "../../../../../lib/storage/mime";
 import { paymentProofMetaSchema } from "../../../../../lib/validation/financial";
 import { allowRequest } from "../../../../../lib/rate-limit";
@@ -67,7 +67,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const provider = getStorageProvider();
     if (!provider) {
         return NextResponse.json(
-            { error: { code: "STORAGE_NOT_CONFIGURED", message: "Payment proof storage is not configured yet. Ask the Admin to add the Supabase Storage settings." } },
+            { error: { code: "STORAGE_NOT_CONFIGURED", message: "Payment proof storage is not configured yet. Ask the Admin to add the Cloudinary settings." } },
+            { status: 409 },
+        );
+    }
+    if (!(await isStorageColumnsReady())) {
+        return NextResponse.json(
+            { error: { code: "STORAGE_MIGRATION_PENDING", message: "Payment proof storage is not applied yet. Ask the Admin to run the pending migration." } },
             { status: 409 },
         );
     }
@@ -93,26 +99,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!detected) {
         return NextResponse.json({ error: { code: "INVALID_PROOF_TYPE", message: "Only images (JPEG, PNG, WebP) and PDF files are allowed." } }, { status: 400 });
     }
-    const path = `${user.academyId}/payment-proofs/${invoice.id}/${randomUUID()}.${detected.ext}`;
+    // Folder per academy/invoice; the object's identity is stored, never a URL.
+    const folder = `zarabicschool/${user.academyId}/payment-proofs/${invoice.id}`;
     const originalName = (file.name.split(/[\\/]/).pop() ?? "proof").trim().slice(0, 200) || "proof";
+    let stored: StoredObject;
     try {
-        await provider.upload({ path, buffer, contentType: detected.mime });
+        stored = await provider.upload({ folder, buffer, contentType: detected.mime, ext: detected.ext });
     } catch {
         return NextResponse.json({ error: { code: "UPLOAD_FAILED", message: "The upload failed. Try again." } }, { status: 502 });
     }
-    const proof = await prisma.paymentProof.create({
-        data: {
-            academyId: user.academyId,
-            invoiceId: invoice.id,
-            uploadedById: user.id,
-            filePath: path,
-            mimeType: detected.mime,
-            sizeBytes: BigInt(buffer.length),
-            originalName,
-            reference: meta.success && meta.data.reference ? meta.data.reference : null,
-            status: "PENDING",
-        },
-        select: { id: true, status: true, createdAt: true },
-    });
+    let proof;
+    try {
+        proof = await prisma.paymentProof.create({
+            data: {
+                academyId: user.academyId,
+                invoiceId: invoice.id,
+                uploadedById: user.id,
+                filePath: stored.key,
+                storageProvider: provider.name,
+                resourceType: stored.resourceType,
+                format: stored.format,
+                mimeType: detected.mime,
+                sizeBytes: BigInt(stored.bytes),
+                originalName,
+                reference: meta.success && meta.data.reference ? meta.data.reference : null,
+                status: "PENDING",
+            },
+            select: { id: true, status: true, createdAt: true },
+        });
+    } catch (cause) {
+        // No orphan object when the row cannot be written.
+        await provider.remove(stored).catch(() => undefined);
+        throw cause;
+    }
     return NextResponse.json({ data: proof }, { status: 201 });
 }

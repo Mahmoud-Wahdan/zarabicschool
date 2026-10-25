@@ -15,6 +15,7 @@ import ReportAttachments, { type AttachmentItem } from "./report-attachments";
 
 /** Client-side pre-check only — the server re-validates by content signature and size. */
 const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const isAllowedUpload = (file: File) => ALLOWED_UPLOAD_TYPES.includes(file.type) || file.type.startsWith("audio/");
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 10;
 const KNOWN_ERROR_CODES = new Set([
@@ -29,6 +30,8 @@ const KNOWN_ERROR_CODES = new Set([
   "STORAGE_NOT_CONFIGURED",
   "ATTACHMENTS_MIGRATION_PENDING",
   "STORAGE_ERROR",
+  "STORAGE_MIGRATION_PENDING",
+  "UPLOAD_FAILED",
 ]);
 
 export type ExistingReport = {
@@ -109,7 +112,7 @@ export default function ReportForm({
   function pickFiles(list: FileList | null) {
     setError("");
     const picked = Array.from(list ?? []);
-    const rejected = picked.find((file) => !ALLOWED_UPLOAD_TYPES.includes(file.type) || file.size > MAX_UPLOAD_BYTES);
+    const rejected = picked.find((file) => !isAllowedUpload(file) || file.size > MAX_UPLOAD_BYTES);
     if (rejected) {
       setError(t(rejected.size > MAX_UPLOAD_BYTES ? "errors.ATTACHMENT_TOO_LARGE" : "errors.INVALID_ATTACHMENT_TYPE"));
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -355,7 +358,7 @@ export default function ReportForm({
             ref={fileInputRef}
             type="file"
             multiple
-            accept={ALLOWED_UPLOAD_TYPES.join(",")}
+            accept={[...ALLOWED_UPLOAD_TYPES, "audio/*"].join(",")}
             disabled={saving}
             onChange={(event) => pickFiles(event.target.files)}
             className="w-full rounded-lg border border-outline-variant px-3 py-2 text-body-sm"

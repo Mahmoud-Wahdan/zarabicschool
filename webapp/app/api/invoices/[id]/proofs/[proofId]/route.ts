@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       (parsed.data.action === "CONFIRM" && proof.status === "CONFIRMED") ||
       (parsed.data.action === "REJECT" && proof.status === "REJECTED")
     ) {
-      const current = await prisma.paymentProof.findUniqueOrThrow({ where: { id: proofId } });
+      const current = await prisma.paymentProof.findUniqueOrThrow({ where: { id: proofId }, select: { id: true, status: true, reviewNote: true, reviewedAt: true } });
       return NextResponse.json({ data: current, alreadyHandled: true });
     }
     return NextResponse.json({ error: { code: "PROOF_ALREADY_REVIEWED", message: "This proof has already been reviewed." } }, { status: 409 });
@@ -61,7 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     return count;
   });
   if (claimed.count === 0) {
-    const current = await prisma.paymentProof.findUniqueOrThrow({ where: { id: proofId } });
+    const current = await prisma.paymentProof.findUniqueOrThrow({ where: { id: proofId }, select: { id: true, status: true, reviewNote: true, reviewedAt: true } });
     return NextResponse.json({ data: current, alreadyHandled: true });
   }
   const updated = await prisma.paymentProof.findUniqueOrThrow({

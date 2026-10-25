@@ -67,6 +67,11 @@ model ReportAttachment {
   mimeType     String   @map("mime_type")
   sizeBytes    BigInt   @map("size_bytes")
   originalName String   @map("original_name")
+  // Cloudinary switch (2026-10-25): file_path = provider object key (public_id);
+  // the object's identity is stored, never a URL. Legacy rows = 'supabase'.
+  storageProvider String  @default("supabase") @map("storage_provider") @db.VarChar(20)
+  resourceType    String? @map("resource_type") @db.VarChar(20)
+  format          String? @db.VarChar(20)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   academy      Academy  @relation("ReportAttachmentAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   report       Report   @relation("ReportAttachment", fields: [reportId], references: [id], onDelete: Restrict)
@@ -992,6 +997,10 @@ model PaymentProof {
   mimeType     String             @map("mime_type")
   sizeBytes    BigInt             @map("size_bytes")
   originalName String             @map("original_name")
+  // Cloudinary switch (2026-10-25) — same identity columns as report_attachments.
+  storageProvider String          @default("supabase") @map("storage_provider") @db.VarChar(20)
+  resourceType    String?         @map("resource_type") @db.VarChar(20)
+  format          String?         @db.VarChar(20)
   status       PaymentProofStatus @default(PENDING)
   reference    String?
   reviewedById String?            @map("reviewed_by") @db.Uuid

@@ -1226,7 +1226,7 @@
     "attachments": {
       "title": "Attachments",
       "empty": "No attachments.",
-      "uploadHint": "Images (JPEG/PNG/WebP) or PDF — 10 MB max per file.",
+      "uploadHint": "Images (JPEG/PNG/WebP), PDF or audio (MP3/M4A/OGG/WAV) — max 10 MB per file.",
       "uploading": "Uploading…",
       "open": "Open",
       "errorGeneric": "The operation failed. Please try again."
@@ -1250,10 +1250,12 @@
       "NOT_FOUND": "This session or student is not in your schedule.",
       "VALIDATION_ERROR": "Complete the required fields: class remark, summary and homework.",
       "ATTACHMENT_TOO_LARGE": "Each file must be 10 MB or smaller.",
-      "INVALID_ATTACHMENT_TYPE": "Only images (JPEG/PNG/WebP) and PDF files are allowed.",
+      "INVALID_ATTACHMENT_TYPE": "Only images (JPEG/PNG/WebP), PDF and audio (MP3/M4A/OGG/WAV) files are allowed.",
       "STORAGE_NOT_CONFIGURED": "Attachment storage is not configured yet — contact the Admin.",
       "ATTACHMENTS_MIGRATION_PENDING": "Attachments are not enabled yet — contact the Admin.",
-      "STORAGE_ERROR": "The file could not be reached. Try again."
+      "STORAGE_ERROR": "The file could not be reached. Try again.",
+      "STORAGE_MIGRATION_PENDING": "Attachment storage is not enabled yet — contact the Admin.",
+      "UPLOAD_FAILED": "The file could not be uploaded. Try again."
     }
   },
   "studentReport": {

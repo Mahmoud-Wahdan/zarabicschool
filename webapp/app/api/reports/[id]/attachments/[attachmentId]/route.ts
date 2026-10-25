@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireApiRoles } from "../../../../../../lib/dal";
 import { prisma } from "../../../../../../lib/prisma";
 import { getReportForViewer } from "../../../../../../lib/reports/visibility";
-import { getStorageProvider } from "../../../../../../lib/storage";
+import { getStorageProviderFor, isStorageColumnsReady } from "../../../../../../lib/storage";
 import { isAttachmentsReady } from "../../../../../../lib/storage/attachment-ready";
 
 const SIGNED_URL_EXPIRES_SECONDS = 300;
@@ -34,9 +34,15 @@ export async function GET(
       { status: 409 },
     );
   }
+  // Before the storage-columns migration every row is a legacy Supabase object.
+  const columnsReady = await isStorageColumnsReady();
   const attachment = await prisma.reportAttachment.findFirst({
     where: { id: attachmentId, academyId: user.academyId },
-    select: { filePath: true, report: { select: { sessionId: true, studentId: true } } },
+    select: {
+      filePath: true,
+      ...(columnsReady ? { storageProvider: true, resourceType: true, format: true } : {}),
+      report: { select: { sessionId: true, studentId: true } },
+    },
   });
   if (!attachment) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Attachment not found." } }, { status: 404 });
   const view = await getReportForViewer(
@@ -47,15 +53,20 @@ export async function GET(
   if (!view || !view.attachments.some((item) => item.id === attachmentId)) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "Attachment not found." } }, { status: 404 });
   }
-  const provider = getStorageProvider();
+  const providerName = attachment.storageProvider === "cloudinary" ? "cloudinary" : "supabase";
+  const provider = getStorageProviderFor(providerName);
   if (!provider) {
     return NextResponse.json(
-      { error: { code: "STORAGE_NOT_CONFIGURED", message: "Attachment storage is not configured yet. Ask the Admin to add the Supabase Storage settings." } },
+      { error: { code: "STORAGE_NOT_CONFIGURED", message: "Attachment storage is not configured yet. Ask the Admin to add the storage settings." } },
       { status: 409 },
     );
   }
   try {
-    const url = await provider.createSignedUrl(attachment.filePath, SIGNED_URL_EXPIRES_SECONDS);
+    // Signed only AFTER the visibility check above; the URL is never stored or logged.
+    const url = await provider.createSignedUrl(
+      { key: attachment.filePath, resourceType: attachment.resourceType ?? null, format: attachment.format ?? null },
+      SIGNED_URL_EXPIRES_SECONDS,
+    );
     return NextResponse.json({ data: { url, expiresInSeconds: SIGNED_URL_EXPIRES_SECONDS } });
   } catch {
     return NextResponse.json({ error: { code: "STORAGE_ERROR", message: "The attachment could not be opened. Try again." } }, { status: 502 });

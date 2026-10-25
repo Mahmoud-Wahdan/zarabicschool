@@ -1226,7 +1226,7 @@
     "attachments": {
       "title": "المرفقات",
       "empty": "لا توجد مرفقات.",
-      "uploadHint": "صور (JPEG/PNG/WebP) أو PDF — بحد أقصى 10 ميجابايت للملف.",
+      "uploadHint": "صور (JPEG/PNG/WebP) أو PDF أو صوت (MP3/M4A/OGG/WAV) — بحد أقصى 10 ميجابايت للملف.",
       "uploading": "جارٍ الرفع…",
       "open": "فتح",
       "errorGeneric": "تعذر إتمام العملية. حاول مرة أخرى."
@@ -1250,10 +1250,12 @@
       "NOT_FOUND": "الحصة أو الطالب غير موجودين في جدولك.",
       "VALIDATION_ERROR": "أكمل الحقول المطلوبة: تقدير الحصة والملخص والواجب.",
       "ATTACHMENT_TOO_LARGE": "حجم كل ملف يجب ألا يتجاوز 10 ميجابايت.",
-      "INVALID_ATTACHMENT_TYPE": "المسموح فقط: صور (JPEG/PNG/WebP) وملفات PDF.",
+      "INVALID_ATTACHMENT_TYPE": "المسموح فقط: صور (JPEG/PNG/WebP) وملفات PDF وصوت (MP3/M4A/OGG/WAV).",
       "STORAGE_NOT_CONFIGURED": "تخزين المرفقات غير مُعدّ بعد — تواصل مع الإدارة.",
       "ATTACHMENTS_MIGRATION_PENDING": "المرفقات غير مفعّلة بعد — تواصل مع الإدارة.",
-      "STORAGE_ERROR": "تعذر الوصول إلى الملف. حاول مرة أخرى."
+      "STORAGE_ERROR": "تعذر الوصول إلى الملف. حاول مرة أخرى.",
+      "STORAGE_MIGRATION_PENDING": "تخزين المرفقات غير مفعّل بعد — تواصل مع الإدارة.",
+      "UPLOAD_FAILED": "تعذر رفع الملف. حاول مرة أخرى."
     }
   },
   "studentReport": {

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { requireApiRole, requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { getReportForViewer } from "../../../../../lib/reports/visibility";
-import { getStorageProvider } from "../../../../../lib/storage";
+import { getStorageProvider, isStorageColumnsReady } from "../../../../../lib/storage";
+import { StorageError, type StoredObject } from "../../../../../lib/storage/provider";
 import { isAttachmentsReady } from "../../../../../lib/storage/attachment-ready";
 import { MAX_ATTACHMENT_BYTES, detectAllowedMime } from "../../../../../lib/storage/mime";
 
@@ -66,7 +66,7 @@ export async function POST(
   }
   const report = await prisma.report.findFirst({
     where: { id: reportId, academyId: user.academyId },
-    select: { id: true, status: true, teacher: { select: { userId: true } } },
+    select: { id: true, status: true, sessionId: true, teacher: { select: { userId: true } } },
   });
   if (!report || report.teacher.userId !== user.id) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "Report not found." } }, { status: 404 });
@@ -77,7 +77,13 @@ export async function POST(
   const provider = getStorageProvider();
   if (!provider) {
     return NextResponse.json(
-      { error: { code: "STORAGE_NOT_CONFIGURED", message: "Attachment storage is not configured yet. Ask the Admin to add the Supabase Storage settings." } },
+      { error: { code: "STORAGE_NOT_CONFIGURED", message: "Attachment storage is not configured yet. Ask the Admin to add the Cloudinary settings." } },
+      { status: 409 },
+    );
+  }
+  if (!(await isStorageColumnsReady())) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_MIGRATION_PENDING", message: "Attachment storage is not applied yet. Ask the Admin to run the pending migration." } },
       { status: 409 },
     );
   }
@@ -96,8 +102,10 @@ export async function POST(
   // Order (documented): the request is ATOMIC — every file uploads to storage first and
   // its DB row is created second; if anything fails, this request's rows are deleted and
   // every object uploaded by this request is removed, so neither orphan rows nor orphan
-  // objects survive. The user's filename is never part of the server-generated path.
-  const uploadedPaths: string[] = [];
+  // objects survive. The user's filename is never part of the server-generated key.
+  // Folder per academy/session/report; the object's identity is stored, never a URL.
+  const folder = `zarabicschool/${user.academyId}/sessions/${report.sessionId}/reports/${report.id}`;
+  const uploadedObjects: StoredObject[] = [];
   const createdRowIds: string[] = [];
   try {
     for (const file of files) {
@@ -108,22 +116,25 @@ export async function POST(
       if (buffer.length > MAX_ATTACHMENT_BYTES) {
         throw new AttachmentRejection(413, "ATTACHMENT_TOO_LARGE", "Each attachment must be 10 MB or smaller.");
       }
-      const detected = detectAllowedMime(buffer);
+      const detected = detectAllowedMime(buffer, "report");
       if (!detected) {
-        throw new AttachmentRejection(400, "INVALID_ATTACHMENT_TYPE", "Only images (JPEG, PNG, WebP) and PDF files are allowed.");
+        throw new AttachmentRejection(400, "INVALID_ATTACHMENT_TYPE", "Only images (JPEG, PNG, WebP), PDF and audio (MP3, M4A, OGG, WAV) files are allowed.");
       }
-      const path = `${user.academyId}/${report.id}/${randomUUID()}.${detected.ext}`;
-      await provider.upload({ path, buffer, contentType: detected.mime });
-      uploadedPaths.push(path);
+      const stored = await provider.upload({ folder, buffer, contentType: detected.mime, ext: detected.ext });
+      uploadedObjects.push(stored);
       const row = await prisma.reportAttachment.create({
         data: {
           academyId: user.academyId,
           reportId: report.id,
-          filePath: path,
+          filePath: stored.key,
+          storageProvider: provider.name,
+          resourceType: stored.resourceType,
+          format: stored.format,
           mimeType: detected.mime,
-          sizeBytes: BigInt(buffer.length),
+          sizeBytes: BigInt(stored.bytes),
           originalName: sanitizeOriginalName(file.name),
         },
+        select: { id: true },
       });
       createdRowIds.push(row.id);
     }
@@ -133,8 +144,11 @@ export async function POST(
         .deleteMany({ where: { id: { in: createdRowIds } } })
         .catch(() => undefined);
     }
-    await Promise.allSettled(uploadedPaths.map((path) => provider.remove(path)));
+    await Promise.allSettled(uploadedObjects.map((object) => provider.remove(object)));
     if (cause instanceof AttachmentRejection) return rejectionResponse(cause);
+    if (cause instanceof StorageError) {
+      return NextResponse.json({ error: { code: "UPLOAD_FAILED", message: "The upload failed. Try again." } }, { status: 502 });
+    }
     throw cause;
   }
   return NextResponse.json({ data: { uploaded: files.length } }, { status: 201 });
