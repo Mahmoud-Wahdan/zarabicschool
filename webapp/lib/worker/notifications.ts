@@ -5,6 +5,7 @@ import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { getMessagingProvider } from "../messaging/provider";
+import { isWhatsAppDeliveryReady } from "../messaging/readiness";
 import { prisma } from "../prisma";
 import { monthKeyRangeUtc, previousMonthKey } from "../reports/month-key";
 import { resolveReportLanguage, type ReportLanguageCode } from "../reports/report-language";
@@ -23,6 +24,20 @@ const LATE_REPORT_FLAG_MS = 30 * 60 * 1000;
 // Monthly-report missing reminders fire on the 1st and 3rd of each month, in the
 // TEACHER's local calendar (PROPOSAL, owner 2026-10-18 — CONTEXT §9).
 const MONTHLY_REPORT_REMINDER_DAYS = [1, 3];
+// Delivery hardening (WhatsApp slice, 2026-10-25). A TRANSIENT provider failure
+// (network, OpenWA busy/paced, engine not ready, 5xx) is retried with a growing
+// delay up to MAX_SEND_ATTEMPTS sends in total; a permanent failure (bad number,
+// auth, missing config) goes straight to FAILED. CREDENTIALS jobs are never
+// produced here (the approval route sends them directly), so the worker can
+// never re-send a password.
+const MAX_SEND_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [2 * 60 * 1000, 10 * 60 * 1000];
+// A job left in PROCESSING this long means the process died mid-send. It is
+// marked FAILED, never re-sent automatically (the message may have gone out).
+const STALE_PROCESSING_MS = 10 * 60 * 1000;
+// Pause between two sends of one tick: OpenWA is unofficial and bursts raise
+// the ban risk (CONTEXT §8).
+const SEND_SPACING_MS = 1500;
 
 function isReportNudgeKind(kind: string) {
   return kind === "REPORT_REMINDER" || kind === "REPORT_REMINDER_FOLLOWUP";
@@ -72,6 +87,8 @@ type JobWithRelations = NotificationJob & {
     language: string;
     student: { user: { displayName: string } };
   } | null;
+  /** ADMIN_MESSAGE body, loaded from admin_messages at send time (never stored on the job). */
+  adminMessageBody?: string | null;
 };
 
 // Exported for the late-report chain unit tests (message/time assertions).
@@ -114,6 +131,10 @@ export function composeJobMessage(job: JobWithRelations): string {
       tr: `${studentName} için aylık rapor (${month}) hazır. Panelden inceleyebilirsiniz.`,
     };
     return templates[reportLanguage];
+  }
+  if (job.kind === "ADMIN_MESSAGE" && job.adminMessageBody) {
+    // Admin individual message: the Admin's own text, verbatim (Admin-only feature).
+    return job.adminMessageBody;
   }
   if (job.kind === "MONTHLY_REPORT_REMINDER") {
     // Operational nudge to the TEACHER (recipient locale ar/en): missing monthly
@@ -205,6 +226,26 @@ async function sessionFullyReported(sessionId: string): Promise<boolean> {
   return rosterCount > 0 && reportCount >= rosterCount;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Session reminders/start notices are pointless once the session has ended. */
+function isSessionNoticeKind(kind: string) {
+  return kind === "SESSION_REMINDER" || kind === "SESSION_START";
+}
+
+export async function recoverStaleProcessingJobs(now = new Date(), academyId?: string) {
+  await prisma.notificationJob.updateMany({
+    where: {
+      status: "PROCESSING",
+      updatedAt: { lt: new Date(now.getTime() - STALE_PROCESSING_MS) },
+      ...(academyId ? { academyId } : {}),
+    },
+    data: { status: "FAILED", lastError: "Worker interrupted during send; not retried automatically." },
+  });
+}
+
 export async function processDueNotificationJobs(now = new Date(), academyId?: string) {
   // REPORT_SUBMITTED jobs (Session 1) carry a report link; the relation only exists
   // after the owner applies migration 20261018190000. Before that, no such jobs
@@ -226,6 +267,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
       id: true,
       sessionId: true,
       kind: true,
+      attempts: true,
       ...(session1Ready ? { payload: true } : {}),
       recipientUser: { select: { id: true, phone: true, isActive: true, preferredLanguage: true, timezone: true } },
       session: {
@@ -259,6 +301,8 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   });
   if (!due.length) return;
   const provider = getMessagingProvider();
+  const deliveryReady = await isWhatsAppDeliveryReady();
+  let sendsThisTick = 0;
   for (const job of due as JobWithRelations[]) {
     const claimed = await prisma.notificationJob.updateMany({
       where: { id: job.id, status: "PENDING" },
@@ -278,6 +322,16 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         (isReportNudgeKind(job.kind) && job.session.status === "COMPLETED");
       if (!sessionEligible) {
         await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" }, select: { id: true } });
+        continue;
+      }
+      if (isSessionNoticeKind(job.kind) && job.session.scheduledEnd.getTime() <= now.getTime()) {
+        // After a worker outage, never send "starts at …" or a join link for a
+        // session that is already over.
+        await prisma.notificationJob.update({
+          where: { id: job.id },
+          data: { status: "CANCELLED", lastError: "Session already ended before the notice was sent." },
+          select: { id: true },
+        });
         continue;
       }
       if (isReportNudgeKind(job.kind) && job.sessionId && (await sessionFullyReported(job.sessionId))) {
@@ -308,13 +362,55 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         });
       }
     }
-    const message = composeJobMessage({ ...job, monthlyReport });
-    const result = await provider.sendText({ userId: job.recipientUser.id, phone: job.recipientUser.phone }, message);
+    let adminMessageBody: string | null = null;
+    if (job.kind === "ADMIN_MESSAGE") {
+      const payload = (job.payload as { adminMessageId?: unknown } | null) ?? null;
+      if (deliveryReady && typeof payload?.adminMessageId === "string") {
+        const row = await prisma.adminMessage.findFirst({
+          where: { id: payload.adminMessageId, recipientUserId: job.recipientUser.id },
+          select: { body: true },
+        });
+        adminMessageBody = row?.body ?? null;
+      }
+      if (!adminMessageBody) {
+        await prisma.notificationJob.update({
+          where: { id: job.id },
+          data: { status: "FAILED", lastError: "Admin message not found." },
+          select: { id: true },
+        });
+        continue;
+      }
+    }
+    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody });
+    if (sendsThisTick > 0) await sleep(SEND_SPACING_MS);
+    sendsThisTick += 1;
+    // The job id is the provider idempotency key: a retried job is never delivered twice.
+    const result = await provider.sendText(
+      { userId: job.recipientUser.id, phone: job.recipientUser.phone },
+      message,
+      { idempotencyKey: `notification-job:${job.id}` },
+    );
+    const attemptsSoFar = job.attempts + 1;
+    const retryDelay = RETRY_DELAYS_MS[Math.min(attemptsSoFar - 1, RETRY_DELAYS_MS.length - 1)];
+    const willRetry = !result.ok && result.transient === true && attemptsSoFar < MAX_SEND_ATTEMPTS;
     await prisma.notificationJob.update({
       where: { id: job.id },
       data: result.ok
-        ? { status: "SENT", sentAt: new Date(), lastError: null }
-        : { status: "FAILED", lastError: result.error ?? "Messaging provider failed." },
+        ? {
+            status: "SENT",
+            sentAt: new Date(),
+            lastError: null,
+            ...(deliveryReady && result.providerMessageId
+              ? { providerMessageId: result.providerMessageId, deliveryStatus: "SENT", deliveryUpdatedAt: new Date() }
+              : {}),
+          }
+        : willRetry
+          ? {
+              status: "PENDING",
+              scheduledFor: new Date(Date.now() + retryDelay),
+              lastError: result.error ?? "Messaging provider failed.",
+            }
+          : { status: "FAILED", lastError: result.error ?? "Messaging provider failed." },
       select: { id: true },
     });
   }
@@ -519,6 +615,11 @@ export async function extendDueSeries(now = new Date(), academyId?: string) {
 }
 
 export async function runWorkerTick(now = new Date()) {
+  try {
+    await recoverStaleProcessingJobs(now);
+  } catch (cause) {
+    console.error("[worker] stale job recovery failed.", cause instanceof Error ? cause.message : cause);
+  }
   try {
     await processDueNotificationJobs(now);
   } catch (cause) {
