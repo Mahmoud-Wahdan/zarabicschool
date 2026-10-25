@@ -54,4 +54,11 @@
 - **EV-08** — TEACHER GET/POST on the route → 403; no teacher page/payload selects `session_evaluations` (grep guard in review) (protects: TEACHER NEVER SEES).
 - **EV-09** — Admin session-detail shows both evaluations; Supervisor sees them; neither mutates (protects: read-only relaying view).
 
-### Slice C additions (follow)
+### Slice C additions — notification bell + item B finding (2026-10-24)
+
+- **NB-01** — `GET /api/notifications/badge` is viewer-scoped: an ADMIN sees only their academy's queue depths; a GUARDIAN sees only their own unacked jobs (protects: no cross-recipient leakage).
+- **NB-02** — badge counts appear in the shell on EVERY role page (not only dashboards) (protects: the shared-layout requirement).
+- **NB-03** — a TEACHER's count NEVER includes evaluation-related jobs: no such jobs exist (slice B enqueues nothing) AND the SQL excludes `kind LIKE 'EVALUATION%'` (protects: the owner's teacher-exclusion invariant, structurally).
+- **NB-04** — `POST /api/notifications/badge` (family roles) sets `read_at` ONLY on the viewer's own jobs; ADMIN/SUPERVISOR POST → 403 (team queues have no per-user read state) (protects: ack scope).
+- **NB-05** — pre-migration (no `read_at` column): the family-role count answers 0 and the ack is a no-op — no crash (protects: self-healing).
+- **RB-01 (item B)** — the "after scheduled end" report gate (`app/api/sessions/[id]/students/[studentId]/report/route.ts:78`) compares true UTC instants; creation input requires an explicit offset (`z.string().datetime({ offset: true })`, `lib/validation/management.ts:111`) and the form converts wall clock via the DST-safe `wallClockInputToUtc` in the SESSION timezone (`lib/schedules/recurrence.ts:36-39`, `use-smart-session-form.ts:130`) — timezone handling cannot make the GATE wrong. The teacher-facing "not finished until T" message WAS wrong: it rendered T in the server's local zone (`teacher/sessions/[id]/report/page.tsx:71`, no `timeZone` option) — fixed to the viewer's timezone; the rule itself is unchanged.
