@@ -200,3 +200,17 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 - Seed data after the run: 190 seed rows, ledgers unchanged (subscription 8 rows sum 28; payroll 4 rows sum 47250); 0 test academies, 0 test users, 0 webhook_events left.
 - Real defects found and fixed this session: credentials in URLs (forms without `method`), 10 routes 500 on malformed ids, payroll amount overflow 500, subjects listed across academies, two routes with the wrong cross-origin error code, evaluations 201 contract, complaint siblings rule, INT-EXP-08 settlement (owner option a).
 - **NOT covered (honestly):** browser/UI journeys and RTL layout (Playwright waits for the Phase 9 redesign); timezone display outside Cairo; the real Paymob callback shape and 3-DS sequence (Layer 2 / sandbox); OpenWA end-to-end (live WhatsApp test is last); backups/restore, monitoring, production deploy; `npm audit` `fast-uri` (deferred); performance/load. "Everything is tested" is NOT claimed.
+
+### Owner decisions (2026-10-27)
+- **Paymob:** a manual checklist PLUS ONE real Paymob test-mode run (Layer 2) — APPROVED; Layer 2 starts only when the owner says so. The run also settles the open A1 sandbox questions (callback envelope + `?hmac=`, HMAC field order, 3-DS pending→success).
+- **E2E accounts:** dedicated accounts in a per-run test academy, after Phase 9 — APPROVED.
+- **X-Powered-By:** disabled (`poweredByHeader: false`), test OW-A02-2.
+- **Console provider:** full message body in dev with temporary passwords and raw Zoom links masked; recipient = user id + last 3 digits; production start FAILS with `MESSAGING_PROVIDER=console|fake` (`lib/config/messaging-mode.ts`, called from `instrumentation.ts`); tests MSG-04..08.
+
+**Paymob manual checklist (before/at Layer 2):**
+- [ ] Paymob dashboard: integration "Transaction processed callback" = `https://<public host>/api/payments/paymob/webhook`; "Transaction response callback" = the platform return page.
+- [ ] `PAYMOB_HMAC_SECRET` in the env equals the dashboard HMAC secret (compare without printing).
+- [ ] `APP_PUBLIC_URL` / tunnel running and reachable at payment time; `next dev` running.
+- [ ] One test-card payment: webhook row PROCESSED, invoice PAID, one INITIAL_PURCHASE, PAID audit row.
+- [ ] One declined test card: `<txn>:FAILED` IGNORED row, invoice PENDING, no money.
+- [ ] Reconcile order 640087357 (invoice 2e4ca7e1…) in the dashboard first (charged or not).
