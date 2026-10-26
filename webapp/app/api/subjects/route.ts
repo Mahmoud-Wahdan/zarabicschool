@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireApiRoles } from "../../../lib/dal";
 import { subjectCreateSchema } from "../../../lib/validation/management";
+import { requireSameOrigin } from "../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   // CONTEXT §4: subjects are an operational surface — Admin AND Supervisor.
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "../../../lib/prisma";
 import { allowRequest } from "../../../lib/rate-limit";
-import { errorResponse, getClientIp } from "../../../lib/request";
+import { errorResponse, getClientIp, requireSameOrigin } from "../../../lib/request";
 import { requireApiRoles } from "../../../lib/dal";
 import {
   applicationSchema,
@@ -85,6 +85,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const origin = request.headers.get("origin");
   if (origin) {
     try {

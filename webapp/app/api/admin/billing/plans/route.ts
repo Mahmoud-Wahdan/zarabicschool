@@ -4,6 +4,7 @@ import { requireApiRole } from "../../../../../lib/dal";
 import { isPhase6bReady } from "../../../../../lib/billing/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { billingPlanCreateSchema } from "../../../../../lib/validation/billing";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 /**
  * GET /api/admin/billing/plans
@@ -44,6 +45,8 @@ export async function GET() {
  * Admin-only: create a new billing plan.
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
 

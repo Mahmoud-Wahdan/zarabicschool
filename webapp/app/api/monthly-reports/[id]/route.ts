@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getMonthlyReportByIdForViewer, isMonthlyReportEditable } from "@/lib/reports/monthly";
 import { isSession1ReportsReady } from "@/lib/reports/session1-ready";
 import { monthlyReportUpdateSchema } from "@/lib/validation/management";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export async function GET(
   _request: Request,
@@ -36,6 +37,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("TEACHER");
   if (error) return error;
 

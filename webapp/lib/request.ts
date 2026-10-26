@@ -62,6 +62,19 @@ export function isSameOrigin(headers: Headers): boolean {
   return allowedList.includes(origin);
 }
 
+/**
+ * B3 (S1): the one guard for every state-changing route — `null` when the request is
+ * same-origin, otherwise the 403 to return. Usage, first line of the handler:
+ *   const crossOrigin = requireSameOrigin(request); if (crossOrigin) return crossOrigin;
+ * Exempt by design (signed server-to-server): the Paymob and OpenWA webhooks;
+ * NextAuth's own /api/auth/[...nextauth] (its CSRF token).
+ */
+export function requireSameOrigin(request: Request): NextResponse | null {
+  return isSameOrigin(request.headers)
+    ? null
+    : errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
+}
+
 export function errorResponse(
   status: number,
   code: string,
