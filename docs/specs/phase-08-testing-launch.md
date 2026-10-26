@@ -82,16 +82,16 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Write Playwright E2E tests for student onboarding flow
-- [ ] Write integration test suite for report submission -> Admin/Supervisor approval -> attendance -> settlement
-- [ ] Run automated idempotency verification for duplicate settlement requests
-- [ ] Run rejection/resubmission, missing-report, archive-immutability, and rollback tests
-- [ ] Conduct full Arabic RTL responsive UI audit
-- [ ] Audit application for proper error boundaries and user feedback
-- [ ] Run security check on role authorization barriers across all routes
-- [ ] Audit environment variables and ensure `.env.example` is complete
-- [ ] Set up production monitoring, error logging, and health checks
-- [ ] Execute production deployment and verify live end-to-end functionality
+- [~] Write Playwright E2E tests for student onboarding flow — **[audit 2026-10-26] PARTIAL**: one spec (`e2e/phase3.e2e.spec.ts`); writing journeys deferred until after the Phase 9 redesign; not run this session.
+- [x] Write integration test suite for report submission -> Admin/Supervisor approval -> attendance -> settlement — **[audit 2026-10-26] DONE**: `reports.test.ts`, `edge-cases.test.ts` GRP-*, `integration/layer1-full-cycle.test.ts`.
+- [x] Run automated idempotency verification for duplicate settlement requests — **[audit 2026-10-26] DONE**: reports concurrency, WH-02/03, MP-02/03, PAY-02..04, OT-02.
+- [x] Run rejection/resubmission, missing-report, archive-immutability, and rollback tests — **[audit 2026-10-26] DONE**: reports.test.ts (incl. forced second-ledger-insert failure), WH-08, late-report-chain.
+- [ ] Conduct full Arabic RTL responsive UI audit — **[audit 2026-10-26] MISSING** (after the Phase 9 redesign).
+- [~] Audit application for proper error boundaries and user feedback — **[audit 2026-10-26] PARTIAL**: `app/[locale]/error.tsx` + `not-found.tsx` exist, no `app/global-error.tsx`; API never 500s on malformed ids/bodies (VAL-01..03); UI feedback not audited.
+- [x] Run security check on role authorization barriers across all routes — **[audit 2026-10-26] DONE**: `owasp.test.ts` (role matrix derived from every handler), `same-origin-guard.test.ts`.
+- [x] Audit environment variables and ensure `.env.example` is complete — **[audit 2026-10-26] DONE**: names only; `APP_PUBLIC_URL` and `MESSAGING_PROVIDER` added; `NEXTAUTH_URL` is not set in the dev `.env` (owner).
+- [ ] Set up production monitoring, error logging, and health checks — **[audit 2026-10-26] MISSING** (launch; G-A09-2).
+- [ ] Execute production deployment and verify live end-to-end functionality — **[audit 2026-10-26] MISSING** (launch; Layer 2 real payment only when the owner says).
 
 ## Execution log (updated as soon as real work happens)
 
@@ -194,3 +194,9 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 | **Security** | same-origin sweep, credentials not in URLs, headers, bcrypt cost, constant-time signatures, log redaction, no stack traces | OWASP suite (see security-review.md) | Covered (automatable part) |
 | UI / browser | RTL layouts, forms, loading/empty/error states | — | **Gap**: Playwright UI journeys deferred until after the Phase 9 redesign (owner) |
 | Operations | backups/restore, monitoring, production deploy | — | **Gap**: later Phase 8 steps (deploy checklist) |
+
+### 2026-10-26 — Phase 8 session 1 result (run 4, dev stopped)
+- **Full suite: 41 suites / 465 tests — 465 passed, 0 failed, 0 skipped, 1162.5 s** (`npm test -- --ci`, real dev DB, per-run test academies; tsc 0, lint 0).
+- Seed data after the run: 190 seed rows, ledgers unchanged (subscription 8 rows sum 28; payroll 4 rows sum 47250); 0 test academies, 0 test users, 0 webhook_events left.
+- Real defects found and fixed this session: credentials in URLs (forms without `method`), 10 routes 500 on malformed ids, payroll amount overflow 500, subjects listed across academies, two routes with the wrong cross-origin error code, evaluations 201 contract, complaint siblings rule, INT-EXP-08 settlement (owner option a).
+- **NOT covered (honestly):** browser/UI journeys and RTL layout (Playwright waits for the Phase 9 redesign); timezone display outside Cairo; the real Paymob callback shape and 3-DS sequence (Layer 2 / sandbox); OpenWA end-to-end (live WhatsApp test is last); backups/restore, monitoring, production deploy; `npm audit` `fast-uri` (deferred); performance/load. "Everything is tested" is NOT claimed.
