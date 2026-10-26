@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { POST as createInvoiceRoute } from "../../app/api/invoices/route";
 import { POST as checkoutRoute } from "../../app/api/invoices/[id]/checkout/route";
 import { PATCH as sessionPatchRoute } from "../../app/api/sessions/[id]/route";
+import { POST as enrollRoute } from "../../app/api/admin/enrollments/route";
 import { POST as submitReportRoute } from "../../app/api/sessions/[id]/students/[studentId]/report/route";
 import { POST as reviewReportRoute } from "../../app/api/reports/[id]/review/route";
 import { ANNOUNCEMENT_MAX_PER_HOUR } from "../../lib/config/announcements";
@@ -159,5 +160,19 @@ describe("Announcement hourly cap", () => {
     });
     await processDueNotificationJobs(new Date(), fx.academyId);
     expect((await prisma.notificationJob.findUniqueOrThrow({ where: { id: due.id } })).status).toBe("PENDING");
+  });
+});
+
+describe("Owner Q16 (2026-10-27) — no student is added to a session that already ended", () => {
+  it("MG-06: adding a student to an ended (still SCHEDULED, unreported) session → 409 SESSION_ALREADY_ENDED; roster and credit untouched", async () => {
+    const s = await pastSession("student6");
+    for (const actor of [fx.adminUserId, fx.supervisorUserId]) {
+      asActor(actor);
+      const response = await enrollRoute(req("/api/admin/enrollments", "POST", { sessionId: s.id, studentId: fx.studentProfileIds.student7 }));
+      expect(response.status).toBe(409);
+      expect((await response.json()).error.code).toBe("SESSION_ALREADY_ENDED");
+    }
+    expect(await prisma.sessionStudent.count({ where: { sessionId: s.id } })).toBe(1);
+    expect(await prisma.sessionReservation.count({ where: { sessionId: s.id, studentId: fx.studentProfileIds.student7 } })).toBe(0);
   });
 });

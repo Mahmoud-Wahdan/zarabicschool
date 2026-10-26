@@ -32,10 +32,15 @@ export async function POST(request: Request) {
     const enrollment = await runSerializable(async (tx) => {
       const session = await tx.session.findFirst({
         where: { id: sessionId, academyId: user.academyId, status: "SCHEDULED" },
-        select: { id: true, teacherId: true, subjectId: true, scheduledStart: true },
+        select: { id: true, teacherId: true, subjectId: true, scheduledStart: true, scheduledEnd: true },
       });
       if (!session) {
         throw new Error("SESSION_NOT_SCHEDULED");
+      }
+      // Owner Q16 (2026-10-27): a session that already ended (still SCHEDULED because
+      // its reports are not all in) never gains a student afterwards.
+      if (session.scheduledEnd.getTime() <= Date.now()) {
+        throw new Error("SESSION_ALREADY_ENDED");
       }
       await resolveParticipants(tx, {
         academyId: user.academyId,
@@ -58,6 +63,9 @@ export async function POST(request: Request) {
   } catch (cause) {
     if (cause instanceof SchedulingValidationError) {
       return schedulingErrorResponse(cause);
+    }
+    if (cause instanceof Error && cause.message === "SESSION_ALREADY_ENDED") {
+      return NextResponse.json({ error: { code: "SESSION_ALREADY_ENDED", message: "Students cannot be added to a session that has already ended." } }, { status: 409 });
     }
     if (cause instanceof Error && cause.message === "SESSION_NOT_SCHEDULED") {
       return NextResponse.json({ error: { code: "SESSION_NOT_SCHEDULED", message: "Students can only be added to scheduled sessions." } }, { status: 409 });

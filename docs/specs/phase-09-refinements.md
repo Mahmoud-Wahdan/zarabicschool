@@ -307,3 +307,7 @@ Unchanged from the first draft: Q1 design, Q2 assignments, Q3 timezone, Q4 join 
 
 ### Recommended first slice
 Unchanged: **S1 (join window 30 min)** — confirmed, smallest, no schema; needs Q4. **S16** is the first money/attendance slice that is fully CONFIRMED and can follow once its queries are approved.
+
+### Owner decisions (2026-10-27)
+- **Q16 APPROVED:** a student is never added to a session that has already ended without a report. Already enforced NOW in the existing enrollment route (`POST /api/admin/enrollments` → 409 `SESSION_ALREADY_ENDED`, test MG-06), since a session stays SCHEDULED after its end until its reports arrive. S16 (9.13) reuses the same rule.
+- **E2E accounts APPROVED:** dedicated E2E accounts in a per-run test academy, built AFTER Phase 9 (the redesign), so Playwright journeys never write into the seed academy.
