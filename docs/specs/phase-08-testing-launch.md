@@ -1,5 +1,7 @@
 # Phase 8 — Testing & Launch
 
+> **Session 5 (2026-10-26):** OWASP Top 10:2025 review in `security-review.md`; launch steps in `deploy-checklist.md` (ALLOWED_ORIGINS, Paymob path, npm install scripts, CSP/HSTS, `fast-uri` audit finding deferred to this phase); all Session 5 test ideas in `test-backlog.md`.
+
 ## Goal
 
 Bug fixing, UX polish, performance, launch prep. (CONTEXT.md §13, Phase 8.)

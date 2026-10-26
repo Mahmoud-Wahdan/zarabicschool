@@ -30,7 +30,9 @@ Raise the existing dashboards and management screens to a finished, client-ready
 - Builds on the Phase 5 queues (`SessionRequests`, reports queue, `TeacherFlags`); it is an aggregation view, not new business rules. OPEN: read/unread state and a badge counter.
 
 ### 9.5 Teacher performance page (new)
-- Per teacher: evaluation rating (from mandatory student evaluations, Admin-only data), on-time report rate, attendance in sessions, plus edit/delete/actions. Depends on Phase 7 evaluations and Phase 5 `TeacherFlags`. OPEN: exact metric definitions (e.g. "on time" = report before T+15).
+- Per teacher: evaluation rating (from the OPTIONAL student/guardian evaluations — owner, 2026-10-26; Admin/Supervisor-only data), on-time report rate, attendance in sessions, plus edit/delete/actions. Depends on Phase 7 evaluations and Phase 5 `TeacherFlags` (incl. `MONTHLY_REPORT_MISSING`, 2026-10-26). OPEN: exact metric definitions (e.g. "on time" = report before T+15).
+- **Teacher punctuality metric (owner, 2026-10-26 — NOT built):** based on the platform link-click log (`session_join_clicks`), which Phase 7 shows read-only to Admin/Supervisor as "link click time". **Lateness threshold OPEN for the owner.** Known reliability gaps to solve first (Phase 7 log): the T+0 WhatsApp start message carries the raw Zoom join link (joins from WhatsApp/Zoom app leave no click); join vs host clicks are not distinguished; a click does not prove presence. Operational late-start alerts (T+5 teacher reminder, T+10 Admin alert) already exist since 2026-10-26 — this item is the METRIC/rating, not the alerts.
+- **Teacher performance ANALYSIS (owner, 2026-10-26):** moved here from Phase 7. Phase 7 builds only the per-teacher evaluation SUMMARY (average, count, recent comments; Admin + Supervisor; no automatic action; the teacher never sees it). Trends, comparisons and any combined score belong to this page. OPEN: which metrics, periods and whether any score is shown.
 
 ### 9.6 Calendar views
 - Sessions shown as a calendar (week/month/day) for Student, Teacher, Admin and Supervisor, for both viewing and creating sessions. Times in the viewer's timezone (already stored in UTC). OPEN: calendar library vs. hand-built (no new dependency without asking — CONTEXT §21.5).
@@ -54,6 +56,7 @@ Raise the existing dashboards and management screens to a finished, client-ready
 - This CHANGES the Phase 4 contract: `JOIN_OPENS_BEFORE_START_MINUTES` in `lib/config/session-join.ts` is 15 today (Phase 4 spec/acceptance criteria, `phase4-live-links.test.ts` window tests, and `sessions.test.ts` scenario 11 assume 15). Change the constant to 30 and update the Phase 4 spec text, the localized button hint ("opens N minutes before") and the affected tests in the same change.
 - Note: the Stitch design file (`DESIGN.md`) says the "Enter Classroom" button appears at T-10 minutes; the owner's 30-minute rule wins, and the screens must show 30.
 - OPEN: should the reminder WhatsApp with the join link (currently at the scheduled start, CONTEXT §6) move to the moment the window opens (T-30)? PROPOSAL: keep the 2h reminder, and send the link message at T-30 so it matches the button. Owner confirms.
+  - Update 2026-10-26: WhatsApp now carries the platform join URL (never the Zoom link) and only while the window is open at send time; the T−2h reminder says when the link opens. If the window becomes 30 minutes, the text follows the constant automatically.
 - OPEN: should the 30 minutes be Admin-configurable in AcademySettings instead of a code constant? PROPOSAL: yes, default 30.
 
 ## Acceptance criteria

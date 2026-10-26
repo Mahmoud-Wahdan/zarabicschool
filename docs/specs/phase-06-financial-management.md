@@ -1,5 +1,7 @@
 # Phase 6 — Financial Management
 
+> **Session 5 status (2026-10-26):** slices A0–A5, B1–B5, C, D implemented and committed — see "2026-10-26 — Session 5 phase (b)". Webhook path `/api/payments/paymob/webhook`. OPEN: reversal/refund family (with E/F/6b), USD provider. Tests deferred (`test-backlog.md`).
+
 ## Goal
 
 Hosted payment gateways (Paymob for EGP plus an unconfigured USD provider boundary) + automatic teacher payroll accrual (Section 7). (CONTEXT.md §13, Phase 6.)
@@ -334,7 +336,7 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 
 ### A1 — Paymob webhook correctness (P1, P2, P3, P4, P12) — requesting-code-review before merge
 - **Goal:** an invoice becomes PAID only for a genuine, captured, non-voided, non-refunded payment of exactly the invoice's amount and currency, matched through a value covered by the HMAC.
-- **Files:** `lib/payments/paymob.ts` (`verifyWebhook`, `createCheckout`), `lib/payments/settlement.ts`, `app/api/payments/webhook/route.ts`, `app/api/invoices/[id]/checkout/route.ts`, `prisma/schema.prisma` + new migration.
+- **Files:** `lib/payments/paymob.ts` (`verifyWebhook`, `createCheckout`), `lib/payments/settlement.ts`, `app/api/payments/paymob/webhook/route.ts`, `app/api/invoices/[id]/checkout/route.ts`, `prisma/schema.prisma` + new migration.
 - **Rules:**
   1. Success = `success === true` AND `pending === false` AND `is_voided === false` AND `is_refunded === false` AND `is_void !== true` AND `is_refund !== true` AND `error_occured !== true` AND NOT (`is_auth === true` AND `is_capture !== true`). Anything else is a non-success event (recorded, never settles).
   2. Invoice matching: by the Paymob **`order.id`** stored at checkout (HMAC-covered field `order`), NEVER by `merchant_order_id` (not in the HMAC). `merchant_order_id` becomes informational only and unique per attempt: `<invoiceId>:<attemptNo>` (P12 — Paymob rejects a repeated merchant_order_id).
@@ -342,7 +344,7 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
   4. Idempotency: keep `UNIQUE(provider, provider_event_id)`. P2 fix: the claim key for settlement is the transaction id **only for success events**; non-success events are stored under `<txnId>:<state>` so a later success for the same transaction is not blocked. Settlement stays ONE transaction (claim + PAID + `INITIAL_PURCHASE` + audit).
   5. A success for an already-PAID invoice, or a refund/void callback for a PAID invoice → no money change; audit row + `PAYMENT_ANOMALY` Admin flag (P11). Refund handling itself waits for the refund rules (OPEN).
 - **Data model (migration `…_paymob_order_match`, file only):** `payment_attempts.provider_order_id VARCHAR(64) NULL`, `payment_attempts.provider_transaction_id VARCHAR(64) NULL`; partial unique `UNIQUE (provider, provider_order_id) WHERE provider_order_id IS NOT NULL`; index `(provider, provider_transaction_id)`. Backfill: none needed (no real payments yet; 11 demo PAID invoices keep their rows). Today `settlement.ts:232` OVERWRITES `providerReference` (the order id) with the transaction id — after the change `provider_reference` keeps the order id and the transaction id goes to the new column. `webhook_events.status` CHECK gains `MISMATCH` if it has a CHECK (verify in the migration).
-- **API contract:** `POST /api/payments/webhook` (unchanged route; no session auth). 401 bad/missing HMAC (nothing stored), 400 malformed JSON, 200 for everything signed (`settled` / `already_processed` / `ignored` / `unmatched` / `mismatch`). Zod schema for the parsed `obj`: `{ id: number, success: boolean, pending: boolean, is_voided, is_refunded, is_auth, is_capture, error_occured: boolean, amount_cents: int>0, currency: string, order: { id: number, merchant_order_id?: string } }`.
+- **API contract:** `POST /api/payments/paymob/webhook` (unchanged route; no session auth). 401 bad/missing HMAC (nothing stored), 400 malformed JSON, 200 for everything signed (`settled` / `already_processed` / `ignored` / `unmatched` / `mismatch`). Zod schema for the parsed `obj`: `{ id: number, success: boolean, pending: boolean, is_voided, is_refunded, is_auth, is_capture, error_occured: boolean, amount_cents: int>0, currency: string, order: { id: number, merchant_order_id?: string } }`.
 - **Security:** HMAC (SHA-512, timing-safe) stays first; replay = same event id → `already_processed`; settlement transaction + row lock unchanged; only the webhook and the Admin confirm action can set PAID.
 - **Failure behaviour:** DB error → 500 → Paymob retries → idempotent. Unknown order id → `unmatched` stored, no money.
 - **Owner must confirm in the Paymob sandbox (needs sandbox):** (a) the processed-callback shape — `{type:"TRANSACTION", obj:{…}}` with `?hmac=` in the QUERY string vs our current `hmac` header + flat body (P4: if Paymob uses the query, every real callback is 401 today); (b) the exact HMAC field list/order for the processed callback; (c) the sequence for a 3-DS card: is a `pending:true` callback sent first with the same transaction id?; (d) whether void/refund arrive as new transactions or updates of the same id; (e) that a second payment key on the same order works after expiry; (f) whether a Paymob **MOTO integration** exists in the dashboard (owner question).
@@ -354,7 +356,7 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 - **Goal:** approving a report of a CANCELLED session returns **409 `SESSION_CANCELLED`** and moves nothing.
 - **Files:** `lib/reports/settlement-seam.ts:40-46` (read `session.status` inside the settlement transaction, after the row lock), `app/api/reports/[id]/review/route.ts` (map the coded error).
 - **Rule:** status check inside the same transaction (no TOCTOU). Exception only through the existing audited Admin manual resolution (reason mandatory) — no "force" flag on the approve route. **Decision needed:** should `MISSED` also be refused (a MISSED session "did not take place", CONTEXT §7)? Proposal: yes, same 409 `SESSION_NOT_SETTLEABLE` with the status in the body.
-- **API:** `POST /api/reports/:id/review {action:"APPROVE"}` → 409 `{error:{code:"SESSION_CANCELLED"}}`; ADMIN/SUPERVISOR only (unchanged).
+- **API:** `POST /api/reports/:id/review {action:"APPROVE"}` → 409 `{error:{code:"SESSION_NOT_SETTLEABLE"}}` for CANCELLED **and** MISSED (owner, 2026-10-26; was `SESSION_CANCELLED` in this plan); ADMIN/SUPERVISOR only (unchanged).
 - **Tests:** RA-01 (cancelled → 409, zero ledger rows), RA-02 (cancel between submit and approve), RA-03 (reject still allowed on a cancelled session).
 
 ### A3 — Overtime approval + ledger in ONE transaction (P6, INSTRUCTIONS §7)
@@ -485,3 +487,101 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 - **Verification (read-only query):** 24 migrations, none unfinished/rolled back; triggers `subscription_ledger_append_only`, `payroll_ledger_append_only`, `payment_audit_append_only` → `prevent_ledger_mutation`; partial uniques: one session credit, one deduction per (session, subscription), one purchase per invoice, active reservation, open session request, active assignment; all 124 FKs RESTRICT; tables empty. Append-only UPDATE/DELETE probe runs after the seed (an empty table fires no row trigger).
 - Writers updated: `lib/provisioning.ts` (application records), `app/api/sessions/[id]/join/route.ts` (join clicks); teacher-rate create answers 409 `RATE_ALREADY_EXISTS` instead of a raw unique violation.
 - Tests to add: HD-01 (each new CHECK rejects its bad row), HD-02 (second INITIAL_PURCHASE for one invoice rejected), HD-03 (duplicate teacher rate → 409), HD-04 (`http://` Zoom link rejected by the DB).
+
+### 2026-10-25 — Session 5: new demo seed (owner-accepted exception)
+
+- `prisma/seed-demo.ts` rewritten and run once on the wiped dev DB (owner accepted it as-is): 12 users (Admin, Supervisor, 3 teachers, 2 guardians, 5 students — 3 with a guardian, 2 adults), 9 sessions, 5 reports, 6 invoices, 4 subscriptions. Passwords from env only (`SEED_DEMO_PASSWORD`; the Admin falls back to it when `SEED_ADMIN_PASSWORD` is unset — owner decision — and must change it at first login); fictional phones except the two `SEED_TEST_PHONE_*` values; no PENDING notification jobs; only the `billing.pay_per_session.*` settings keys; class remarks = code default.
+- **Accepted exception (owner, 2026-10-25):** the seed does NOT call the real settlement code (server-only modules). For the 4 paid invoices and the 3 approved reports it COPIES the settlement steps, each in ONE transaction (invoice PAID + attempt + subscription + INITIAL_PURCHASE + audit; report APPROVED + settled/archived markers + attendance + reservation + SESSION_DEDUCTION for attended + one SESSION_CREDIT per session). The DB CHECKs/partial uniques from the hardening migrations would reject an inconsistent row. **The real flow is exercised by hand:** approve the seeded SUBMITTED report (and resubmit + approve the REJECTED one) and pay/confirm the 2 PENDING invoices — those ledger rows come from the production code.
+- Post-seed checks (read-only query): 0 approved-without-settlement, 0 attended-without-deduction, 0 absent-with-money, 0 sessions missing their credit, 0 PAID-without-purchase, 0 COMPLETED-not-fully-reported, 0 roster rows without reservation, 0 negative balances, 0 PENDING jobs; UPDATE/DELETE blocked on all three append-only tables (rolled-back probe).
+
+### Waiting on Paymob/owner (2026-10-25)
+
+- **MOTO check:** none of the Session 5 slices A0–A5, B1–B5, C, D calls a Paymob MOTO API — they only touch our webhook parsing, settlement, routes, schema and UI. They are not blocked on MOTO.
+- **Waiting on the Paymob sandbox (not MOTO):** A1's callback shape (`obj` envelope + `?hmac=` query vs header) and the 3-DS pending→success sequence. A1 is built against the documented processed-callback format, with the parsing isolated so that a sandbox correction is a one-function change.
+- **Not built — waiting on the owner:** E payment-link message (rules given 2026-10-25, migration for the `LINK_SENT` audit type needs OK), F PLAN_GRANT (rules given, design only), refund (rules given, design only), Phase 6b renewals/grace, USD gateway (postponed), anything using a Paymob MOTO integration.
+
+### 2026-10-26 — Session 5 phase (b): slices A0–A5, B1–B5, C, D implemented (uncommitted, owner reviews before any commit)
+
+Skills used: superpowers:requesting-code-review (two independent review passes: A1, then A2/A3/A5 + A1 fixes), superpowers:verification-before-completion. Plan = the "Session 5 — Stage 2 plan" above. Migrations 20261026130000/140000/150000 applied by the owner after reviewing the SQL; 20261026160000 (B4) written, **owner to apply**.
+
+- **A0** — nothing left: the reviewed seed writes only `billing.pay_per_session.min/max`, no class-remark row (code default), no approved-without-settlement reports.
+- **A1 Paymob webhook** (`lib/payments/paymob.ts`, `settlement.ts`, `app/api/payments/paymob/webhook/route.ts`, checkout route):
+  - The envelope parsing is ONE function, `parsePaymobCallback`: it accepts `{type,obj}` or a flat body. The signature is read by `readPaymobSignature`: the `?hmac=` query first, then the `hmac` header. A sandbox correction stays a one-function change.
+  - HMAC is checked first; Zod validates the transaction after that.
+  - Success predicate: `paymobOutcome`. VOIDED/REFUNDED are taken only from the HMAC-covered `is_voided`/`is_refunded`. The uncovered `is_void`/`is_refund` can only block a success.
+  - Matching: the invoice is found ONLY through `payment_attempts.provider_order_id`, stored at checkout. `merchant_order_id` is `<invoiceId>:v<n>` and informational.
+  - Event ids: a success uses `<txn>`; anything else uses `<txn>:<OUTCOME>`. An UNMATCHED success is stored as `<txn>:UNMATCHED`, so a later settle of the same transaction is not blocked.
+  - Everything signed answers 200 with a status: settled, already_processed, ignored, unmatched, mismatch, already_settled, not_payable or invalid_shape.
+  - Mismatch (provider, currency, amount, ANNUAL plan), a success on a PAID invoice (double payment), a success on a non-payable invoice, and a void/refund of a PAID invoice each give an audit FAILED row (inside the settlement transaction, so fail-closed — this deviates from the plan's "best-effort") plus a `PAYMENT_ANOMALY` Admin flag (one job per Admin). No money moves.
+  - A signed body with an unexpected shape is stored as `INVALID_SHAPE` (field names only) and answers 200.
+  - Body cap 64 KB: `content-length` first, then the byte length. A chunked body is still buffered first, so we rely on the platform limit.
+  - The attempt keeps the order id; the settling transaction id goes to `provider_transaction_id` (no more overwrite).
+  - **Route path:** `/api/payments/paymob/webhook` (confirmed by the owner, 2026-10-26; plan text corrected) — register exactly this in the Paymob dashboard (deploy-checklist.md §4).
+- **A2** (`lib/reports/settlement-seam.ts`, review route): approval share-locks the session row and refuses CANCELLED and MISSED with **409 `SESSION_NOT_SETTLEABLE`**. This replaces the plan's `SESSION_CANCELLED`; owner decision: MISSED too, after the CONTEXT check.
+  - The review route takes the session lock BEFORE claiming the report (same lock order as submit, so no deadlock).
+  - Review finding fixed — the reverse direction: cancelling a session (`PATCH /api/sessions/:id`) and marking it MISSED (outage approval, SESSION scope) are now refused with **409 `SESSION_HAS_SETTLED_REPORTS`** when any report of the session is APPROVED/settled. Both lock the session row FOR UPDATE and re-check its status inside the transaction.
+  - Reject still works on a cancelled session.
+- **A3** (overtime route): the claim and the `ADMIN_ADJUSTMENT` row are in ONE transaction.
+  - `NO_TEACHER_RATE` rolls the claim back, so it stays PENDING and can be retried.
+  - DB backstop: one overtime entry per report.
+  - The teacher notice is sent after commit.
+- **A4**: `POST /api/invoices` and checkout refuse ANNUAL_PLAN with **409 `ANNUAL_PLAN_DISABLED`**. The webhook settles nothing for an annual invoice (MISMATCH + flag). The option is hidden in the Admin invoice form. Billing plans stay editable; there are no existing annual rows.
+- **A5**:
+  - `lib/payroll/manual-entry.ts` is shared by adjustments and disbursements. An `Idempotency-Key` UUID header makes a replay return 200 with the existing row; the same key for a different teacher/type/amount/currency gives 409 `IDEMPOTENCY_KEY_REUSED` (a different reason alone replays). A race is resolved by re-reading the key.
+  - Currency must equal the teacher's current rate currency: 409 `CURRENCY_MISMATCH`; no rate gives 409 `NO_TEACHER_RATE`.
+  - The Admin panel sends one key per distinct entry, kept across retries and network errors and dropped after success.
+  - **P9:** the session credit is written with ON CONFLICT DO NOTHING, so a concurrent group approval never aborts.
+  - **P8:**
+    - No live reservation: the package is chosen like `reserveCredit` (valid on the session date, earliest-expiring first, free credit = balance − RESERVED holds).
+    - No package at all: the teacher is still credited, nothing is deducted, and a `SETTLED_WITHOUT_SUBSCRIPTION` Admin flag is raised.
+    - A RELEASED reservation no longer picks the package.
+  - `BALANCE_NEGATIVE` had a dedup key without the Admin id, so only ONE Admin was ever told. Fixed: one job per Admin. Still once per subscription — a second negative episode after a top-up does not alert again; this predates the change.
+- **B1** — done by the reviewed seed: passwords from env only, the literal removed.
+- **B2** — `app/api/admin/profiles/route.ts`: `?type=` is now validated by `z.enum`. The real bug: `?type=constructor` resolved to `Object`'s constructor, `role` became undefined, Prisma dropped the filter, and GET returned **every user of the academy (Admins/Supervisors included, with phones/emails) to a Supervisor**; POST crashed with a 500. Sweep: no other raw request-keyed object lookup on the server.
+- **B3** — `requireSameOrigin()` in `lib/request.ts` (403 `ORIGIN_NOT_ALLOWED`, same as the existing checks). It is the first statement of **every** POST/PATCH/PUT/DELETE under `app/api` — 40 routes added. This includes `auth/change-password` (a custom route, outside NextAuth's CSRF) and the public `applications` POST.
+  - Exempt: the Paymob and OpenWA webhooks (signed server-to-server).
+  - `GET /api/sessions/:id/join` writes a click log and redirects. That is a GET with a write; it is noted for the OWASP pass.
+  - **Production needs `ALLOWED_ORIGINS`** or every mutation fails closed.
+- **B4** — migration `20261026160000_users_password_set_audit`: `password_set_by_id`, `password_set_at`, both-or-neither CHECK.
+  - Creating an ADMIN/SUPERVISOR now sets `must_change_password = true` (it was false).
+  - An Admin resetting someone else's password forces a change; editing your own does not.
+  - Edits without a password no longer clear the flag (every edit used to clear it).
+  - Profile creation also records the audit. Application provisioning already defaults to a forced change.
+- **B5** — one rule in `lib/guards/finance-access.ts`: a student pays for himself only when ADULT and without a guardian; otherwise the guardian pays.
+  - It is used by checkout, invoice detail, proofs (payer-only), and `studentFinanceBlocked` (nav, pages, `requireStudentFinanceAccess`).
+  - Checkout and the DAL used the looser "no guardian" rule before; the stricter rule was already used by the invoice list, detail, proofs and page. **Owner (2026-10-26): keep the strict rule; no minor exists without a guardian.** Guard check: the Admin CAN still create one (`POST /api/admin/profiles?type=student` accepts no `guardianId` with `isAdult` defaulting to false; the profile PATCH can unlink a guardian) — reported to the owner, not changed. In that edge case nobody can pay through the UI: the student is blocked, there is no guardian, and the manual-payment UI is hidden (Session 3) — only the dormant Admin confirm API remains.
+  - `POST /api/invoices` enforces the pay-per-session min/max: 400 `PAY_PER_SESSION_OUT_OF_RANGE`.
+- **C** — **not measured** (no authenticated load runs against the owner's dev server). Done, all low-risk:
+  - **C1:** pg Pool `max 10, idleTimeoutMillis 60 s, connectionTimeoutMillis 10 s, keepAlive`. 60 s rather than 300 s because the Supabase pooler idle limit was not verified.
+  - **C3:** one icon-font source. The duplicate render-blocking Google Fonts stylesheet was removed; the self-hosted variable font has the FILL/wght/GRAD/opsz axes.
+  - **C6:** `/teacher/sessions` uses a 7-days-back … 30-days-ahead window (cap 200) instead of the oldest 100. Sessions older than 7 days no longer appear there.
+  - **C7:** the worker starts without blocking server startup.
+
+  Skipped, with reasons:
+  - **C2 `relationJoins`:** needs the Prisma 7.10 docs check plus measurement.
+  - **C4 scoped client messages:** a broad UI refactor, not measurable now.
+  - **C5:** the unread-notification index already exists; a `teacher_flags` index is not justified at the current size.
+  - **C8 `npm cache clean`:** only useful as part of measurement.
+- **D** — drift: `prisma migrate diff` (DB → schema) is empty after A1/A3/A5 (re-checked 2026-10-26). `database-schema.md` §29 documents payment_audit, session_evaluations, the later notification_jobs columns and kinds, admin_messages, attachment storage columns, payment_attempts order matching, payroll_ledger idempotency/overtime uniqueness, the users password audit, and the hardening invariants.
+- **OWASP per-slice check** (decision 8a):
+
+  | Category | What it covers in this phase |
+  |---|---|
+  | A01 access control | B2 fixed a real IDOR. B3 adds origin checks everywhere. B5 has one finance rule. All payroll/overtime/annual routes stay ADMIN-only. |
+  | A02 misconfiguration | `ALLOWED_ORIGINS` required in production. |
+  | A04 crypto | The HMAC is timing-safe and checked first. |
+  | A05 injection | Prisma, plus tagged `$queryRaw` with bound parameters only. |
+  | A06 insecure design | Match by the HMAC-covered order id. Everything signed returns 200. Idempotency keys. One-transaction money moves. |
+  | A07 auth | B4 forced change. |
+  | A08 integrity | Append-only ledgers, the audit trail, DB uniques as backstops. |
+  | A09 logging | The webhook logs ids/field names only, never values or payloads. |
+
+  Not covered here: SSRF (no outbound URL from user input in these slices) and dependencies (`npm audit` is in the dedicated pass).
+- **Verification:**
+  - Lint 0 problems.
+  - Source typecheck (scratch config) 0 errors outside test files.
+  - The full `npx tsc --noEmit` / `npm run build` are queued for when the owner stops `next dev`.
+  - No tests (deferred; backlog updated).
+
+### Open — reversal / refund family (owner, 2026-10-26)
+- **Overtime reversal:** OPEN, designed together with the future refund/reversal work (E/F/6b). Constraint to respect: `payroll_ledger_one_overtime_per_report_key` allows ONE `ADMIN_ADJUSTMENT` with a `report_id` per report, so a reversal needs its own entry type (or a reversal entry without `report_id` that references the original row). Not built.
