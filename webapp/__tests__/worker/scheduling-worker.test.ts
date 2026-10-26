@@ -19,8 +19,10 @@ import {
   cleanupSessionFixtures,
   createSessionFixtures,
   closePrisma,
-  type SessionFixtures,
+  type SessionFixtures, writeInitialPurchase,
 } from "../helpers/session-fixtures";
+import { cleanupTrackedWebhookEvents, testPaymobId } from "../helpers/webhook-events";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -35,7 +37,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: sameOriginHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(body),
   });
 }
@@ -85,9 +87,7 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
     select: { id: true },
   });
   if (sessionsDelta !== 0) {
-    await prisma.subscriptionLedger.create({
-      data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
-    });
+    await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta });
   }
   return subscription;
 }
@@ -118,6 +118,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await cleanupTrackedWebhookEvents();
   if (fx) await cleanupSessionFixtures(fx);
   await closePrisma();
 });
@@ -265,9 +266,7 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
       orderBy: { createdAt: "asc" },
       select: { id: true },
     });
-    await prisma.subscriptionLedger.create({
-      data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta: 6 },
-    });
+    await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta: 6 });
     await extendDueSeries(new Date(Date.now() + 3 * 24 * 3600 * 1000), fx.academyId);
     const series = await prisma.recurrenceSeries.findUniqueOrThrow({ where: { id: seriesId } });
     expect(series.status).toBe("ACTIVE");
@@ -329,14 +328,21 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
       },
       select: { id: true },
     });
+    // A1: settlement matches the Paymob ORDER id stored on the checkout attempt.
+    const orderId = testPaymobId();
+    await prisma.paymentAttempt.create({
+      data: { invoiceId: invoice.id, provider: "PAYMOB", idempotencyKey: `demo_test_${fx.suffix}_r1`, providerReference: orderId, providerOrderId: orderId, status: "REDIRECTED" },
+    });
+    const transactionId = testPaymobId();
     const event = {
       provider: "PAYMOB" as const,
-      providerEventId: `evt-${randomUUID()}`,
-      providerReference: `ref-${randomUUID()}`,
-      invoiceId: invoice.id,
+      providerEventId: transactionId,
+      providerReference: transactionId,
+      providerOrderId: orderId,
       amountMinor: BigInt(80000),
       currency: "EGP" as const,
       succeeded: true,
+      outcome: "SUCCESS" as const,
       rawEventHash: `hash-${randomUUID()}`,
     };
     const result = await settlePaidInvoice(event);
@@ -377,16 +383,23 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
       },
       select: { id: true },
     });
-    await settlePaidInvoice({
+    const ppsOrderId = testPaymobId();
+    await prisma.paymentAttempt.create({
+      data: { invoiceId: payPerSessionInvoice.id, provider: "PAYMOB", idempotencyKey: `demo_test_${fx.suffix}_r1pps`, providerReference: ppsOrderId, providerOrderId: ppsOrderId, status: "REDIRECTED" },
+    });
+    const ppsTransactionId = testPaymobId();
+    const ppsResult = await settlePaidInvoice({
       provider: "PAYMOB",
-      providerEventId: `evt-${randomUUID()}`,
-      providerReference: `ref-${randomUUID()}`,
-      invoiceId: payPerSessionInvoice.id,
+      providerEventId: ppsTransactionId,
+      providerReference: ppsTransactionId,
+      providerOrderId: ppsOrderId,
       amountMinor: BigInt(20000),
       currency: "EGP",
       succeeded: true,
+      outcome: "SUCCESS",
       rawEventHash: `hash-${randomUUID()}`,
     });
+    expect(ppsResult.status).toBe("settled");
     const payPerSessionSubscription = await prisma.subscription.findFirstOrThrow({
       where: { academyId: fx.academyId, studentId: fx.studentProfileIds.student6, packageType: "PAY_PER_SESSION" },
       select: { periodStartsAt: true, periodEndsAt: true },

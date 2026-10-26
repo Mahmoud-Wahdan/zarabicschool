@@ -194,4 +194,24 @@ describe("Phase 1 authentication and RBAC gates", () => {
 
     expect(response.headers.get("location")).toBe("http://localhost:3000/ar/supervisor");
   });
+
+  it("keeps complaints, evaluation summaries and announcements Admin/Supervisor-only at the page gate (Phase 7)", async () => {
+    const pages = ["/ar/admin/complaints", "/ar/admin/complaints/some-id", "/ar/admin/evaluations", "/ar/admin/announcements"];
+    for (const role of ["TEACHER", "STUDENT", "GUARDIAN"]) {
+      getTokenMock.mockResolvedValue({ role, mustChangePassword: false });
+      for (const page of pages) {
+        const response = await proxy(request(page));
+        expect(response.headers.get("location")).toBe(`http://localhost:3000/ar/${role.toLowerCase()}`);
+      }
+    }
+    for (const role of ["SUPERVISOR", "ADMIN"]) {
+      getTokenMock.mockResolvedValue({ role, mustChangePassword: false });
+      for (const page of pages) {
+        const response = (await proxy(request(page))) as unknown as { type?: string };
+        expect(response.type).toBe("i18n");
+      }
+    }
+    getTokenMock.mockResolvedValue(null);
+    expect((await proxy(request("/ar/admin/complaints"))).headers.get("location")).toBe("http://localhost:3000/ar/login");
+  });
 });

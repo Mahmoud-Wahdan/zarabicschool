@@ -8,6 +8,7 @@ import {
 import { POST } from "../../app/api/applications/route";
 import { disconnectPrisma, prisma } from "../../lib/prisma";
 import { resetRateLimits } from "../../lib/rate-limit";
+import { sameOriginHeaders } from "../helpers/http";
 
 describe("Slice C1 — Application Validation & Submission", () => {
   const testPhone = "+201099999999";
@@ -241,10 +242,10 @@ describe("Slice C1 — Application Validation & Submission", () => {
 
       const req = new Request("http://localhost:3000/api/applications", {
         method: "POST",
-        headers: {
+        headers: sameOriginHeaders({
           "Content-Type": "application/json",
           "x-forwarded-for": "192.168.1.100",
-        },
+        }),
         body: JSON.stringify(honeypotPayload),
       });
 
@@ -276,10 +277,10 @@ describe("Slice C1 — Application Validation & Submission", () => {
       for (let i = 0; i < 5; i++) {
         const req = new Request("http://localhost:3000/api/applications", {
           method: "POST",
-          headers: {
+          headers: sameOriginHeaders({
             "Content-Type": "application/json",
             "x-forwarded-for": ip,
-          },
+          }),
           body: JSON.stringify(payload),
         });
         const res = await POST(req);
@@ -289,10 +290,10 @@ describe("Slice C1 — Application Validation & Submission", () => {
       // 6th request must be rate limited (429)
       const blockedReq = new Request("http://localhost:3000/api/applications", {
         method: "POST",
-        headers: {
+        headers: sameOriginHeaders({
           "Content-Type": "application/json",
           "x-forwarded-for": ip,
-        },
+        }),
         body: JSON.stringify(payload),
       });
       const blockedRes = await POST(blockedReq);

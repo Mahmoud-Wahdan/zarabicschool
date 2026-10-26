@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  allowedDevOrigins: ["192.168.1.41"],
+allowedDevOrigins: ['towable-churrigueresque-rod.ngrok-free.dev'],
   // Safe baseline security headers on every response (owner, 2026-10-26). No CSP
   // and no HSTS yet — both are launch-phase items in docs/specs/deploy-checklist.md.
   async headers() {

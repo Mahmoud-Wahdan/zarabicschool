@@ -5,7 +5,7 @@ import { isPhase7FollowupReady } from "../../../../../lib/phase7/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { isSession1ReportsReady } from "../../../../../lib/reports/session1-ready";
 import { profileUpdateSchema } from "../../../../../lib/validation/management";
-import { requireSameOrigin } from "../../../../../lib/request";
+import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -13,6 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = profileUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid profile data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   const target = await prisma.user.findFirst({ where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } }, select: { id: true, role: true } });

@@ -5,6 +5,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { allowRequest } from "../../../../../lib/rate-limit";
 import { JOIN_OPENS_BEFORE_START_MS } from "../../../../../lib/config/session-join";
 import { validateZoomUrl } from "../../../../../lib/validation/zoom-url";
+import { isUuidParam } from "../../../../../lib/request";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
@@ -19,6 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
   }
   const { id } = await params;
+  // Same generic 404 as an unknown session (never a 500, never an existence oracle).
+  if (!isUuidParam(id)) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
   const wantsHost = new URL(request.url).searchParams.get("host") === "1";
   const isOperator = user.role === "ADMIN" || user.role === "SUPERVISOR";
   // The host link is for Admin, Supervisor, and the session's assigned teacher only.

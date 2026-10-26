@@ -60,7 +60,7 @@ export default function PrivilegedUsersPanel({
 
   return (
     <div className="mt-6 space-y-6">
-      <form onSubmit={createUser} className="dashboard-card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+      <form method="post" onSubmit={createUser} className="dashboard-card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <input required minLength={3} placeholder={t("username")} value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />
         <input required minLength={2} placeholder={t("displayName")} value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />
         <input required minLength={12} type="password" placeholder={t("password")} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />

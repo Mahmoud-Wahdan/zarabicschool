@@ -5,7 +5,7 @@ import { requireApiRole } from "../../../../../lib/dal";
 import { getWhatsAppContactNumber, WHATSAPP_CONTACT_SETTING_KEY } from "../../../../../lib/messaging/contact-number";
 import { toInternationalDigits } from "../../../../../lib/messaging/phone";
 import { prisma } from "../../../../../lib/prisma";
-import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+import { errorResponse, requireSameOrigin } from "../../../../../lib/request";
 
 /**
  * Site WhatsApp contact number (wa.me link in the footer + landing page).
@@ -26,7 +26,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!isSameOrigin(request.headers)) return errorResponse(403, "FORBIDDEN", "Cross-origin request rejected.");
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));

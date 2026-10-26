@@ -5,7 +5,7 @@ import { requireApiRole } from "../../../../lib/dal";
 import { isWhatsAppDeliveryReady } from "../../../../lib/messaging/readiness";
 import { prisma } from "../../../../lib/prisma";
 import { allowRequest } from "../../../../lib/rate-limit";
-import { errorResponse, isSameOrigin } from "../../../../lib/request";
+import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 
 /**
  * POST /api/admin/messages — Admin individual WhatsApp message (slice d).
@@ -21,7 +21,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  if (!isSameOrigin(request.headers)) return errorResponse(403, "FORBIDDEN", "Cross-origin request rejected.");
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
   if (!(await isWhatsAppDeliveryReady())) {

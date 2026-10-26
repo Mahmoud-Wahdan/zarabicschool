@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { subjectUpdateSchema } from "../../../../lib/validation/management";
-import { requireSameOrigin } from "../../../../lib/request";
+import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -12,6 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = subjectUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid subject data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });

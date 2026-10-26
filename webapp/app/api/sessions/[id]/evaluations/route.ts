@@ -54,12 +54,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Provide a rating from 1 to 5 and an optional comment.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   }
   try {
-    const evaluation = await submitEvaluation(
+    const { view, created } = await submitEvaluation(
       id,
       { userId: user.id, role: user.role === "GUARDIAN" ? "GUARDIAN" : "STUDENT" },
       { rating: parsed.data.rating, comment: parsed.data.comment ? parsed.data.comment : null },
     );
-    return NextResponse.json({ data: evaluation }, { status: evaluation.createdAt === evaluation.updatedAt ? 201 : 200 });
+    return NextResponse.json({ data: view }, { status: created ? 201 : 200 });
   } catch (cause) {
     if (cause instanceof EvaluationError) {
       switch (cause.code) {

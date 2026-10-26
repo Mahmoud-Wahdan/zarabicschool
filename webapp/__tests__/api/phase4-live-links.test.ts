@@ -21,8 +21,10 @@ import {
   cleanupSessionFixtures,
   createSessionFixtures,
   closePrisma,
-  type SessionFixtures,
+  type SessionFixtures, writeInitialPurchase,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
+import { fakeMessaging } from "../helpers/fake-messaging";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -60,7 +62,7 @@ function joinRequest(sessionId: string, host = false) {
 function jsonRequest(path: string, method: string, body: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: sameOriginHeaders({ "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -114,14 +116,7 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
     },
     select: { id: true },
   });
-  await prisma.subscriptionLedger.create({
-    data: {
-      academyId: fx.academyId,
-      subscriptionId: subscription.id,
-      entryType: "INITIAL_PURCHASE",
-      sessionsDelta,
-    },
-  });
+  await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta });
 }
 
 beforeAll(async () => {
@@ -222,10 +217,16 @@ describe("Phase 4 — join redirect authorization matrix", () => {
     expect(supervisorResponse.status).toBe(307);
   });
 
-  it("anonymous requests are rejected with 401", async () => {
+  it("anonymous requests are redirected to the login page, never to Zoom", async () => {
+    // Owner follow-up 1 (2026-10-26): WhatsApp carries this URL, so a signed-out
+    // reader is sent to /login instead of a JSON 401. No click row is written.
     asActor(null);
+    const clicksBefore = await prisma.sessionJoinClick.count({ where: { sessionId: matrixSession.id } });
     const response = await joinRoute(joinRequest(matrixSession.id), routeParams(matrixSession.id));
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/login");
+    expect(response.headers.get("location")).not.toContain("zoom.us");
+    expect(await prisma.sessionJoinClick.count({ where: { sessionId: matrixSession.id } })).toBe(clicksBefore);
   });
 
   it("a student of another academy gets 404", async () => {
@@ -315,7 +316,9 @@ describe("Phase 4 — click evidence (no URL, never blocking)", () => {
     });
     expect(clicks).toHaveLength(2);
     for (const click of clicks) {
-      expect(Object.keys(click).sort()).toEqual(["clickedAt", "id", "sessionId", "userId"]);
+      // academy_id is NOT NULL since the 2026-10-25 hardening; still no URL column.
+      expect(Object.keys(click).sort()).toEqual(["academyId", "clickedAt", "id", "sessionId", "userId"]);
+      expect(click.academyId).toBe(fx.academyId);
       expect(JSON.stringify(click)).not.toContain("zoom.us");
     }
   });
@@ -360,11 +363,15 @@ describe("Phase 4 — click evidence (no URL, never blocking)", () => {
 });
 
 describe("Phase 4 — invalid stored links at the redirect", () => {
-  it("rejects javascript: and overlong stored links with 409 and never echoes them", async () => {
+  it("rejects non-Zoom and overlong stored links with 409 and never echoes them", async () => {
+    // H9 (2026-10-25): the database itself refuses a non-https stored link.
+    await expect(
+      createDirectSession({ startMinutes: -5, endMinutes: 55, zoomJoinUrl: "javascript:alert(1)", studentProfileIds: [fx.studentProfileIds.student4] }),
+    ).rejects.toThrow(/sessions_zoom_join_https_check/);
     const jsSession = await createDirectSession({
       startMinutes: -5,
       endMinutes: 55,
-      zoomJoinUrl: "javascript:alert(1)",
+      zoomJoinUrl: "https://evil.example/j/123456789012",
       studentProfileIds: [fx.studentProfileIds.student4],
     });
     const longSession = await createDirectSession({
@@ -378,7 +385,7 @@ describe("Phase 4 — invalid stored links at the redirect", () => {
     expect(jsResponse.status).toBe(409);
     const jsBody = await jsResponse.json();
     expect(jsBody.error.code).toBe("INVALID_ZOOM_URL");
-    expect(JSON.stringify(jsBody)).not.toContain("javascript:");
+    expect(JSON.stringify(jsBody)).not.toContain("evil.example");
     const longResponse = await joinRoute(joinRequest(longSession.id), routeParams(longSession.id));
     expect(longResponse.status).toBe(409);
     const longBody = await longResponse.json();
@@ -759,13 +766,9 @@ describe("Phase 4 — links never leak into logs or job errors", () => {
         status: "PENDING",
       },
     });
-    const previousProvider = process.env.MESSAGING_PROVIDER;
-    process.env.MESSAGING_PROVIDER = "openwa";
-    try {
-      await processDueNotificationJobs(new Date(), fx.academyId);
-    } finally {
-      process.env.MESSAGING_PROVIDER = previousProvider ?? "fake";
-    }
+    // The fake provider (tests never call OpenWA) fails the send permanently.
+    fakeMessaging.failNext("Provider unavailable.");
+    await processDueNotificationJobs(new Date(), fx.academyId);
     const failed = await prisma.notificationJob.findUnique({ where: { id: job.id } });
     expect(failed?.status).toBe("FAILED");
     expect(JSON.stringify(failed?.lastError ?? "")).not.toContain("zoom.us");

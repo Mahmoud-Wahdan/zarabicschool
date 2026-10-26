@@ -51,6 +51,7 @@ import {
   closePrisma,
   type SessionFixtures,
 } from "../helpers/session-fixtures";
+import { cleanupTrackedWebhookEvents, testPaymobId } from "../helpers/webhook-events";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 const checkoutState = (paymentsModule as unknown as {
@@ -165,6 +166,7 @@ afterAll(async () => {
     // PaymentProof rows (RESTRICT FK to invoices) are not covered by the shared
     // fixture cleanup â€” remove them first.
     await prisma.paymentProof.deleteMany({ where: { academyId: { in: [fx.academyId, fx.foreignAcademyId] } } });
+    await cleanupTrackedWebhookEvents();
     await cleanupSessionFixtures(fx);
   }
   await closePrisma();
@@ -303,24 +305,42 @@ describe("Session 2 â€” checkout concurrency (INT-CO, Paymob mocked at the 
 
   it("INT-CO-08: an invoice paid by a webhook between the claim and the provider call stays honest and replay-safe", async () => {
     const invoice = await createInvoice({ studentProfileId: adultStudent.id });
-    // Simulate the signed webhook landing while the checkout provider call is in flight.
+    // A1: a callback only matches an order id stored at checkout. The realistic race:
+    // the payer still holds an EARLIER attempt's link (older than the 50-min reuse
+    // window, so a new checkout takes over and fails it) and pays it while the new
+    // checkout's provider call is in flight. The old order id is still stored.
+    const oldOrderId = testPaymobId();
+    await prisma.paymentAttempt.create({
+      data: {
+        invoiceId: invoice.id,
+        provider: "PAYMOB",
+        idempotencyKey: `invoice:${invoice.id}:v1`,
+        providerReference: oldOrderId,
+        providerOrderId: oldOrderId,
+        checkoutUrl: "https://paymob.test/checkout/old",
+        status: "REDIRECTED",
+        createdAt: new Date(Date.now() - 55 * 60 * 1000),
+      },
+    });
+    const transactionId = testPaymobId();
     checkoutState.settleDuringCheckoutInvoiceId = invoice.id;
     checkoutState.settleEvent = {
       provider: "PAYMOB",
-      providerEventId: `demo_test_${fx.suffix}_co08`,
-      providerReference: `demo_test_${fx.suffix}_co08`,
-      invoiceId: invoice.id,
+      providerEventId: transactionId,
+      providerReference: transactionId,
+      providerOrderId: oldOrderId,
       amountMinor: BigInt(80000),
       currency: "EGP",
       succeeded: true,
+      outcome: "SUCCESS",
       eventType: "PAYMENT_SUCCESS",
       rawEventHash: `demo_test_${fx.suffix}_co08-hash`,
       rawPayload: { redacted: true },
     };
     const { status, body } = await postCheckout(adultUser.id, invoice.id);
     expect(status).toBe(200);
-    // The attempt rows stay honest: the checkout redirect happened AND the webhook
-    // settled the invoice â€” two attempt rows, one per real event.
+    // The attempt rows stay honest: the new checkout redirect happened AND the webhook
+    // settled the invoice through the old order â€” two attempt rows, one per real event.
     const attempts = await prisma.paymentAttempt.findMany({ where: { invoiceId: invoice.id } });
     expect(attempts.map((attempt) => attempt.status).sort()).toEqual(["REDIRECTED", "SUCCEEDED"]);
     const paid = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id }, select: { status: true } });

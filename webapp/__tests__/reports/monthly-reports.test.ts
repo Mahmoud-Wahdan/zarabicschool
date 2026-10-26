@@ -23,6 +23,7 @@ import {
   closePrisma,
   type SessionFixtures,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -47,7 +48,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body?: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers: sameOriginHeaders(body === undefined ? undefined : { "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -224,17 +225,26 @@ describe("Session 1 — monthly report integration (dev DB, demo_test_* cleanup)
     expect(row.rescheduledSessions).toBe(0);
   });
 
-  it("INT-MON-02: a concurrent duplicate submission yields one 201 and one 409 MONTHLY_REPORT_EXISTS", async () => {
+  it("INT-MON-02: a concurrent duplicate submission creates ONE row — the loser gets 409 MONTHLY_REPORT_EXISTS or a 200 edit of the same row", async () => {
     await createSessionInMonth({ studentProfileIds: [fx.studentProfileIds.student5], monthKey: previousMonth });
     const payload = monthlyPayload({ studentId: fx.studentProfileIds.student5 });
     const [first, second] = await Promise.all([
       postMonthlyReport(fx.teacherUserId, payload),
       postMonthlyReport(fx.teacherUserId, payload),
     ]);
+    // Route contract: a second submit inside the 7-day window is an EDIT (200, same
+    // row, original submittedAt). In a race the loser either saw the row (200 edit)
+    // or both missed it and the unique key refused one (409). Never two rows.
     const statuses = [first.status, second.status].sort((a, b) => a - b);
-    expect(statuses).toEqual([201, 409]);
-    const loser = first.status === 409 ? first : second;
-    expect(loser.body.error.code).toBe("MONTHLY_REPORT_EXISTS");
+    expect([[201, 409], [200, 201]]).toContainEqual(statuses);
+    const winner = first.status === 201 ? first : second;
+    const loser = winner === first ? second : first;
+    if (loser.status === 409) {
+      expect(loser.body.error.code).toBe("MONTHLY_REPORT_EXISTS");
+    } else {
+      expect(loser.body.data.id).toBe(winner.body.data.id);
+      expect(loser.body.data.submittedAt).toBe(winner.body.data.submittedAt);
+    }
     const rows = await prisma.monthlyReport.count({
       where: { teacherId: fx.teacherProfileId, studentId: fx.studentProfileIds.student5, monthKey: previousMonth },
     });

@@ -98,18 +98,18 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Add Prisma schema: `Subscriptions`, `SubscriptionLedger`, `Invoices`, `PaymentProofs`, `PayrollLedger`
-- [ ] Configure PostgreSQL unique partial index on `PayrollLedger (session_id)` for `SESSION_CREDIT`
-- [ ] Run migrations
-- [ ] Set up private Supabase Storage bucket for payment proofs & signed URL generator
-- [ ] Build student/guardian invoice payment proof upload form
-- [ ] Build Admin invoice verification and confirmation workflow (`INITIAL_PURCHASE` credit)
-- [ ] Implement Admin/Supervisor approval-gated settlement processor (deduction + first credit + attendance + report markers in one transaction; Supervisor never receives amounts)
-- [ ] Build multi-currency teacher earnings breakdown UI (per-currency balances)
-- [ ] Build Admin payroll review, manual adjustment, and disbursement approval views
-- [ ] REMOVED — BullMQ scheduled Zoom reconciliation worker.
-- [ ] [DEFERRED] Implement 75% usage low-balance alert trigger via WhatsApp (OpenWA); keep the balance calculation available for Admin review.
-- [ ] Write tests: transaction atomicity, double-spend prevention, dual-ledger balance calculations, idempotent replay rejection
+- [x] Add Prisma schema: `Subscriptions`, `SubscriptionLedger`, `Invoices`, `PaymentProofs`, `PayrollLedger` — **[audit 2026-10-26] DONE**: `prisma/schema.prisma`; migrations 20261018000000 onward.
+- [x] Configure PostgreSQL unique partial index on `PayrollLedger (session_id)` for `SESSION_CREDIT` — **[audit 2026-10-26] DONE**: `payroll_ledger_one_session_credit_key` (migration 20261018000000).
+- [x] Run migrations — **[audit 2026-10-26] DONE**: all applied (owner); `prisma migrate diff` empty after each session.
+- [-] Set up private Supabase Storage bucket for payment proofs & signed URL generator — **[audit 2026-10-26] OBSOLETE**: replaced by Cloudinary private storage (owner, 2026-10-25).
+- [x] Build student/guardian invoice payment proof upload form — **[audit 2026-10-26] DONE**: built, then HIDDEN by the owner (Session 3, 2026-10-24); API dormant-but-reachable; `invoices-checkout.test.ts` proofs.
+- [x] Build Admin invoice verification and confirmation workflow (`INITIAL_PURCHASE` credit) — **[audit 2026-10-26] DONE**: `app/api/invoices/[id]/confirm/route.ts` (UI hidden); tests `manual-payment.test.ts` MP-01..07.
+- [x] Implement Admin/Supervisor approval-gated settlement processor (deduction + first credit + attendance + report markers in one transaction; Supervisor never receives amounts) — **[audit 2026-10-26] DONE**: `lib/reports/settlement-seam.ts` + review route; `reports.test.ts`, `layer1-full-cycle.test.ts`.
+- [x] Build multi-currency teacher earnings breakdown UI (per-currency balances) — **[audit 2026-10-26] DONE**: `app/[locale]/teacher/payroll/page.tsx` (per currency; UI not covered by automated tests).
+- [x] Build Admin payroll review, manual adjustment, and disbursement approval views — **[audit 2026-10-26] DONE**: `app/[locale]/admin/payroll/page.tsx`, `app/api/payroll/*`; tests `payroll-money.test.ts` (2026-10-26).
+- [-] REMOVED — BullMQ scheduled Zoom reconciliation worker. — **[audit 2026-10-26] OBSOLETE**: no Zoom API.
+- [-] [DEFERRED] Implement 75% usage low-balance alert trigger via WhatsApp (OpenWA); keep the balance calculation available for Admin review. — **[audit 2026-10-26] DEFERRED**: Post-MVP (CONTEXT §6 item 6).
+- [x] Write tests: transaction atomicity, double-spend prevention, dual-ledger balance calculations, idempotent replay rejection — **[audit 2026-10-26] DONE**: `reports.test.ts` (rollback, concurrency), `payments-webhook.test.ts` (WH-08 rollback), `credit-expiry.test.ts`, `payroll-money.test.ts`, `manual-payment.test.ts`.
 
 ## Execution log (updated as soon as real work happens)
 
@@ -583,5 +583,21 @@ Skills used: superpowers:requesting-code-review (two independent review passes: 
   - The full `npx tsc --noEmit` / `npm run build` are queued for when the owner stops `next dev`.
   - No tests (deferred; backlog updated).
 
+### CONFIRMED — settlement when no ACTIVE package covers the session (owner, 2026-10-26; INT-EXP-08 option a)
+- **Rule:** an attended session is ALWAYS settled. The deduction comes from the reserved package; without a reservation, from an ACTIVE package valid on the session date (earliest-expiring, preferring one with credit); if none covers the date (e.g. a late settlement after the period ended while the package is still ACTIVE), from the student's ACTIVE package anyway, earliest-expiring first — **even into the negative**, and every Admin gets `BALANCE_NEGATIVE` (CONTEXT §7 "settle anyway and flag Admin").
+- Only a student with **no ACTIVE package at all** is settled without a deduction + `SETTLED_WITHOUT_SUBSCRIPTION` (P8).
+- **The teacher is credited in every case.**
+- Code: `lib/reports/settlement-seam.ts` `fallbackSubscriptionId` (2026-10-26: added the "ACTIVE package outside its period" step; before it, this case fell through to "no subscription"). Tests: INT-EXP-08 (credit-expiry), SS-05 (reports).
+
 ### Open — reversal / refund family (owner, 2026-10-26)
 - **Overtime reversal:** OPEN, designed together with the future refund/reversal work (E/F/6b). Constraint to respect: `payroll_ledger_one_overtime_per_report_key` allows ONE `ADMIN_ADJUSTMENT` with a `report_id` per report, so a reversal needs its own entry type (or a reversal entry without `report_id` that references the original row). Not built.
+
+### 2026-10-26 — Read-only diagnosis: real Paymob payment left no `webhook_events` row (invoice 2e4ca7e1-ee33-496e-8356-5fddfcea4cec)
+- **Facts (DB, read-only):** invoice 18.00 EGP (1800 minor), MONTHLY_PLAN, 8 sessions, seed academy, created by the Admin 15:08:33 UTC, still **PENDING** (no paid_at, no subscription, no ledger). Attempt v1 15:09:09 → **FAILED `UPSTREAM_ERROR`** (Paymob API call failed during checkout creation; audited FAILED, actor STUDENT). Attempt v2 15:09:29 → **REDIRECTED**, Paymob order **640087357** stored as `provider_order_id`, checkout URL issued; no transaction id ever recorded. `webhook_events`: no row near that time (the only rows were test rows, 16:18–16:20 UTC). No webhook `payment_audit` row, no `PAYMENT_ANOMALY` job. HMAC secret, API key, integration and iframe ids are set (values not read). `NEXTAUTH_URL` is NOT set in `.env`.
+- **What the code says:** every SIGNED callback leaves a trace — settled (PROCESSED claim + PAID audit), declined/pending/void/refund (`<txn>:<OUTCOME>` IGNORED + FAILED audit, because order 640087357 resolves to this invoice), unknown order (`:UNMATCHED`), unexpected shape (`invalid:<hash>`). Nothing is stored only when the request (1) never reached the route, (2) failed the HMAC (401 — missing/wrong secret, signature not in `?hmac=`/header, field mismatch), (3) was not JSON (400) or > 64 KB (413), (4) hit `PAYMOB_HMAC_SECRET` missing (503) or a server error.
+- **Implication:** the payment was not processed by us — if Paymob charged the card, the money is at Paymob while our invoice is PENDING (no credits granted). Reconcile from the Paymob dashboard (order 640087357) before anything else; if paid, Admin confirm (manual path) or a Paymob redelivery settles it once (idempotent).
+- **Most likely cause (to verify, not a fix):** the callback never reached the dev machine — the "Transaction processed callback" URL in the Paymob integration must be the public tunnel URL `https://<ngrok host>/api/payments/paymob/webhook`, with `next dev` AND the tunnel running at payment time. Second: a 401 (HMAC). Our route stores nothing for unsigned/bad-HMAC requests by design, so we cannot tell these apart from the DB.
+- **Checks for the owner (no code):** Paymob dashboard → transaction for order 640087357 (status, and its callback/webhook delivery log); the integration's processed-callback URL; the ngrok inspector (http://127.0.0.1:4040) or the dev console for `POST /api/payments/paymob/webhook` and its status code.
+
+### 2026-10-26 — Phase 8 audit
+(Legend: [x] done, [~] partial, [-] obsolete/deferred, [ ] missing — verified against the code and tests on 2026-10-26.) Real defect found and fixed by the audit tests: payroll adjustment/disbursement amounts above the 32-bit column range answered 500 → now 400 (`lib/validation/financial.ts`).

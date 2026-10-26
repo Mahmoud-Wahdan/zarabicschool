@@ -192,3 +192,38 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 5. Encryption of application details/phones/Zoom links (G-A04-1, launch list).
 6. Error monitoring with PII scrubbing; trim `cause.message` logging (G-A09-1/2).
 7. Decide whether an Admin may create a minor without a guardian (G-A01-1).
+
+## Phase 8 automated OWASP tests and new findings (2026-10-26)
+
+**New findings (severity, status):**
+- **G-A07-4 (Medium — FIXED):** credentials could appear in URLs. The login, change-password and two Admin create-user forms had no `method`; a submit before hydration is a native GET that puts `username`/`password` (named fields) in the query string → browser history, server/proxy logs, `Referer`. Fix: `method="post"` on all four forms. Test: `__tests__/lib/credentials-not-in-url.test.tsx`.
+- **G-A10-2 (Medium — FIXED):** 10 route handlers answered **500** for a malformed id (PostgreSQL refused the uuid cast): admin profiles/users PATCH, teacher context, application GET/approve/review, invoice checkout/confirm, session join, subject PATCH. Fix: shared `isUuidParam` → 400 (join: generic 404). Test: `edge-cases.test.ts` VAL-01 sweeps EVERY `[id]` route with three hostile ids.
+- **G-A10-3 (Low — FIXED):** payroll adjustment/disbursement amounts beyond the 32-bit column answered 500 → now 400. Test: `payroll-money.test.ts` PAY-05.
+- **G-A01-3 (Low — FIXED):** `GET /api/subjects` listed active subjects of EVERY academy to anyone (and to signed-in Admins of other academies). Fix: signed-in → own academy; anonymous → the public application academy. Test: `owasp.test.ts` OW-A01-4.
+- **G-A01-4 (Low — FIXED):** two mutation routes answered `FORBIDDEN` instead of `ORIGIN_NOT_ALLOWED` on a cross-origin request (still refused). Fix: shared `requireSameOrigin`. Test: `same-origin-guard.test.ts`.
+- **G-A02-5 (Low — OPEN, owner decision):** Next.js sends `X-Powered-By: Next.js` (framework disclosure). Proposal: `poweredByHeader: false` in `next.config.ts`.
+
+**Automated tests per category (all in `webapp/__tests__`, real dev DB, per-run test academies):**
+
+| Category | Automated tests |
+|---|---|
+| A01 Broken access control (incl. IDOR, SSRF) | `owasp.test.ts` OW-A01-0..4 (every handler has a role guard; unauthenticated sweep; role matrix derived from each handler's own role list — every other role gets 403; money routes Admin-only; subjects tenancy); `same-origin-guard.test.ts` (every mutation × missing/foreign/wrong-port Origin → 403 before any session lookup); cross-academy 404s in `manual-payment`, `phase7-visibility`, `payroll-money`, `reports`, `sessions`; complaints/evaluations/click-timeline visibility in `phase7-visibility.test.ts`; SSRF/open redirect: the join redirect only goes to validated Zoom URLs (`zoom-url.test.ts`, `phase4-live-links.test.ts`, `sessions.test.ts`); webhooks never fetch URLs |
+| A02 Misconfiguration | `owasp.test.ts` OW-A02-1 (security headers on every path) |
+| A03 Supply chain | not automated (manual: `npm audit` before launch; `fast-uri` deferred) |
+| A04 Crypto | `owasp.test.ts` OW-A04-1 (bcrypt cost ≥ 12 everywhere), OW-A04-2 (constant-time webhook signature compare); `payments-webhook.test.ts` WH-07, `whatsapp-delivery.test.ts` WA-01 (bad/missing signature → 401, nothing stored) |
+| A05 Injection | `edge-cases.test.ts` VAL-02 (injection/RTL strings stored literally), VAL-01 (injection-looking ids); `evaluations.test.ts` EV-04 (HTML/Arabic stored literally) |
+| A06 Insecure design | idempotency/double-spend: `reports.test.ts`, `payments-webhook.test.ts` WH-02/03/12, `manual-payment.test.ts` MP-02/03, `payroll-money.test.ts` PAY-02..04, OT-02; rollback: reports "settlement rollback", WH-08 |
+| A07 Authentication | `auth-rbac.test.ts` (username+IP rate limit, inactive users, forced password change), `credentials-not-in-url.test.tsx` |
+| A08 Integrity | append-only: PAY-08 (payroll), AN (announcements), PA-06 still manual for payment_audit via cleanup exception only; signed webhooks WH-*, WA-* |
+| A09 Logging | `owasp.test.ts` OW-A09-1 (no log statement interpolates passwords/phones/tokens/secrets/links/bodies); `messaging-provider.test.ts` MSG-04/05; announcements AN-09 |
+| A10 Exceptional conditions | `edge-cases.test.ts` VAL-01/VAL-03 (no 500 on malformed ids or hostile/huge bodies); `owasp.test.ts` OW-A10-1 (error bodies carry no stack/SQL/Prisma text); DB-timeout behaviour documented (phase-08 "Decision: transaction timeouts") |
+
+**Manual checklist (not automatable here):**
+- [ ] CSP (report-only first), HSTS, Permissions-Policy on the real host (deploy-checklist §8).
+- [ ] `ALLOWED_ORIGINS` exact values on the production host; change-password behind the real proxy (G-A02-3).
+- [ ] `npm audit` clean (or accepted) before launch; `fast-uri` moderate.
+- [ ] Secrets rotated before real data; production `NEXTAUTH_SECRET` new; no `SEED_*` on the host.
+- [ ] Paymob processed-callback URL + HMAC verified in the sandbox (G-A06-3); OpenWA webhook secret registered.
+- [ ] Backup/restore drill; error monitoring with PII scrubbing (G-A09-2).
+- [ ] Browser check: a password manager/autofill + slow network login never shows credentials in the address bar.
+- [ ] Admin/Supervisor MFA or lockout decision (G-A07-2).

@@ -20,8 +20,9 @@ import {
   cleanupSessionFixtures,
   createSessionFixtures,
   closePrisma,
-  type SessionFixtures,
+  type SessionFixtures, writeInitialPurchase,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -36,7 +37,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: sameOriginHeaders({ "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -118,9 +119,7 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
     },
     select: { id: true },
   });
-  await prisma.subscriptionLedger.create({
-    data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
-  });
+  await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta });
   return subscription;
 }
 
@@ -745,5 +744,130 @@ describe("Phase 5 — report submission and review (database-backed)", () => {
       where: { academyId: fx.academyId, teacherId: fx.teacherProfileId, flagType: "LATE_REPORT" },
     });
     expect(lateFlags).toBe(0);
+  });
+});
+
+describe("Phase 8 — settlement rollback (forced failure of the second ledger insert)", () => {
+  it("when the teacher SESSION_CREDIT insert fails after the student deduction, the whole approval rolls back — no partial rows", async () => {
+    // Fault injection through a REAL limit (no code seam): payroll_ledger.amount_minor
+    // is a 32-bit INTEGER. A 120-minute session at 2,000,000,000 minor/hour credits
+    // 4,000,000,000 — the SECOND ledger insert of the settlement transaction fails
+    // after the first one (the student's SESSION_DEDUCTION) was written.
+    const suffix = randomUUID().slice(0, 8);
+    const teacherUser = await prisma.user.create({
+      data: {
+        academyId: fx.academyId,
+        username: `demo_test_rollback_teacher_${suffix}`,
+        displayName: "Demo Test rollback teacher",
+        passwordHash: "x",
+        role: "TEACHER",
+        phone: "+201000000099",
+        timezone: "Africa/Cairo",
+        isActive: true,
+        mustChangePassword: false,
+      },
+      select: { id: true },
+    });
+    const teacher = await prisma.teacher.create({ data: { userId: teacherUser.id, academyId: fx.academyId }, select: { id: true } });
+    await prisma.teacherRate.create({
+      data: {
+        academyId: fx.academyId,
+        teacherId: teacher.id,
+        hourlyRateMinor: 2_000_000_000,
+        currency: "EGP",
+        effectiveFrom: new Date(Date.now() - 120 * 24 * 3600 * 1000),
+        createdById: fx.adminUserId,
+      },
+    });
+    const studentId = fx.studentProfileIds.student12;
+    const end = new Date(Date.now() - 10 * 60 * 1000);
+    const session = await prisma.session.create({
+      data: {
+        academyId: fx.academyId,
+        teacherId: teacher.id,
+        subjectId: fx.subjectId,
+        sessionType: "PRIVATE",
+        scheduledStart: new Date(end.getTime() - 120 * 60 * 1000),
+        scheduledEnd: end,
+        durationMinutes: 120,
+        timezone: "Africa/Cairo",
+        zoomJoinUrl: "https://zoom.us/j/345678901234",
+        createdById: fx.adminUserId,
+        status: "SCHEDULED",
+        students: { create: [{ studentId }] },
+      },
+      select: { id: true },
+    });
+    const subscription = await grantCredit(studentId, 3);
+    await prisma.sessionReservation.create({
+      data: { academyId: fx.academyId, sessionId: session.id, studentId, subscriptionId: subscription.id },
+    });
+    const balanceBefore = (await prisma.subscriptionLedger.aggregate({ where: { subscriptionId: subscription.id }, _sum: { sessionsDelta: true } }))._sum.sessionsDelta;
+
+    const submitted = await submitReport(session.id, studentId, teacherUser.id);
+    expect(submitted.status).toBe(201);
+    const reportId = submitted.body.data.id as string;
+
+    const outcome = await reviewReport(reportId, "APPROVE", fx.adminUserId).catch(() => ({ status: 500, body: null }));
+    expect(outcome.status).not.toBe(200);
+
+    const report = await prisma.report.findUniqueOrThrow({
+      where: { id: reportId },
+      select: { status: true, settledAt: true, archivedAt: true, approvedById: true },
+    });
+    expect(report).toEqual({ status: "SUBMITTED", settledAt: null, archivedAt: null, approvedById: null });
+    expect(await prisma.subscriptionLedger.count({ where: { sessionId: session.id, entryType: "SESSION_DEDUCTION" } })).toBe(0);
+    expect(await prisma.payrollLedger.count({ where: { sessionId: session.id } })).toBe(0);
+    const balanceAfter = (await prisma.subscriptionLedger.aggregate({ where: { subscriptionId: subscription.id }, _sum: { sessionsDelta: true } }))._sum.sessionsDelta;
+    expect(balanceAfter).toBe(balanceBefore);
+    const reservation = await prisma.sessionReservation.findUniqueOrThrow({ where: { sessionId_studentId: { sessionId: session.id, studentId } } });
+    expect(reservation.status).toBe("RESERVED");
+    expect(await prisma.notificationJob.count({ where: { kind: { in: ["BALANCE_NEGATIVE", "SETTLED_WITHOUT_SUBSCRIPTION"] }, academyId: fx.academyId, payload: { path: ["reportId"], equals: reportId } } })).toBe(0);
+  });
+});
+
+describe("Phase 8 — settlement without any ACTIVE package (P8, CONFIRMED with INT-EXP-08 option a)", () => {
+  it("SS-05: a student with NO active package — the teacher is credited, nothing is deducted, every Admin gets SETTLED_WITHOUT_SUBSCRIPTION", async () => {
+    const suffix = randomUUID().slice(0, 8);
+    const user = await prisma.user.create({
+      data: {
+        academyId: fx.academyId,
+        username: `demo_test_nopackage_${suffix}`,
+        displayName: "Demo Test no package",
+        passwordHash: "x",
+        role: "STUDENT",
+        phone: "+201000000097",
+        timezone: "Africa/Cairo",
+        isActive: true,
+        mustChangePassword: false,
+      },
+      select: { id: true },
+    });
+    const student = await prisma.student.create({
+      data: { userId: user.id, academyId: fx.academyId, isAdult: true, enrollmentDate: new Date() },
+      select: { id: true },
+    });
+    const session = await createPastSession({ studentProfileIds: [student.id] });
+    const reportId = await createApprovedReportRow(session.id, student.id);
+    await prisma.$transaction(async (tx) =>
+      settleApprovedReport(tx, {
+        id: reportId,
+        academyId: fx.academyId,
+        sessionId: session.id,
+        studentId: student.id,
+        teacherId: fx.teacherProfileId,
+        attendanceOutcome: "ATTENDED",
+      }),
+    );
+    expect(await prisma.subscriptionLedger.count({ where: { sessionId: session.id } })).toBe(0);
+    const credit = await prisma.payrollLedger.findFirstOrThrow({ where: { sessionId: session.id, entryType: "SESSION_CREDIT" } });
+    expect(credit.amountMinor).toBeGreaterThan(0);
+    const flags = await prisma.notificationJob.findMany({
+      where: { academyId: fx.academyId, kind: "SETTLED_WITHOUT_SUBSCRIPTION", dedupKey: { startsWith: `SETTLED_WITHOUT_SUBSCRIPTION:${reportId}` } },
+      select: { recipientUserId: true },
+    });
+    expect(flags.map((flag) => flag.recipientUserId)).toContain(fx.adminUserId);
+    const settled = await prisma.report.findUniqueOrThrow({ where: { id: reportId }, select: { settledAt: true } });
+    expect(settled.settledAt).not.toBeNull();
   });
 });

@@ -104,3 +104,93 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 - Phase 8 remains Not Started. Playwright coverage, real-Postgres settlement/idempotency/rollback evidence, RTL/accessibility review, security audit, backup/restore verification, monitoring, and deployment runbook are not complete.
 - Payment gateway verification belongs to the launch gate; it is not deferred. The browser checkout return is not authoritative, and signed provider events must be verified before invoice settlement.
+
+### 2026-10-26 — Phase 8 session 1: gap list, priorities, test data safety, first runs
+
+**Order:** Phase 8 runs BEFORE Phase 9 (owner). Tests may create/delete only per-run test academies and `demo_test_*` rows; the demo seed and its ledgers are never touched; no DB reset without the owner's OK; tests never call OpenWA.
+
+**(a) Gap list — what Phase 8 needs vs what exists**
+
+| Item | Before this session | Now |
+|---|---|---|
+| Jest suites (real dev DB, sequential) | 26 suites / 263 tests; 125 failing (stale after B3, H1–H7, A1, follow-up 1, new seed) | 30 suites; stale tests fixed without weakening any rule (see "Run results") |
+| Known failing legacy tests (backlog 1–4) | report visibility, remark-list payload, worker FAILED-vs-SENT, INT-MON-02 | fixed: confirmed submit-time visibility; slug+labels payload; fake MessagingProvider; INT-MON-02 accepts the two documented race outcomes (409, or a 200 edit of the same row) |
+| INT-WH-08 (webhook rollback) | needed a code seam (owner approval) | done WITHOUT a seam: the H5 one-INITIAL_PURCHASE-per-invoice index forces the ledger insert to fail inside settlement |
+| Settlement rollback (2nd ledger insert) | none | done: 32-bit `payroll_ledger.amount_minor` overflow forces the teacher-credit insert to fail after the student deduction |
+| Playwright | 1 spec (not 5); `E2E_*` credentials not set; depends on the OLD seed usernames; writes sessions in the SEED academy | not run — see (c) |
+| Backlog IDs | Session 3–5 IDs unwritten | written now: CP-01/03/05/06/07/08, EV-08/10, CT-01, SS-05, JL-02, SO-03 (sweep), A1 webhook set (WH-01..12), Phase 7 page gates; the rest stay in `test-backlog.md` in priority order |
+| Not started | RTL/UX audit, monitoring/health checks, deploy runbook, backup/restore drill, `fast-uri` audit | unchanged (later Phase 8 steps) |
+
+**(b) Priority coverage (critical domains first)**
+
+| Priority item | Test(s) |
+|---|---|
+| Duplicate claims / repeated approval | reports "repeated approval … alreadyHandled"; WH-02/03 |
+| Concurrent approvals | reports "exactly one of two concurrent approvals wins", "approve vs reject race" |
+| Teacher not assigned | reports "generic 404 for an unassigned teacher and a foreign teacher" |
+| Report before scheduled end | reports "rejects a submission before the scheduled end" |
+| Money fields locked after submission | reports "freezes the money-affecting fields", "REPORT_IMMUTABLE" |
+| Absent ⇒ no ledger rows | reports "absent approval writes STUDENT_ABSENT with no ledger rows", "absent reports settle with zero money" |
+| Rollback when the second ledger insert fails | reports "Phase 8 — settlement rollback" (NEW) |
+| Late settlement / no package (CONFIRMED rule) | INT-EXP-08, SS-05 (NEW) |
+| Paymob HMAC | WH-07 (bad and missing signature → 401, nothing stored) |
+| order.id match | WH-01/01b; WH-06 (unknown order, merchant_order_id ignored) |
+| Amount / currency | WH-04 / WH-04b (200 mismatch, no money, audit + Admin flag) |
+| Replay / idempotency | WH-02, WH-03, WH-10 |
+| Declined ⇒ no money | WH-05; WH-11 (pending, voided, refunded, invalid shape) |
+| Anomaly ⇒ audit row + Admin flag | WH-04/04b, WH-12 |
+| Complaints invisible to the concerned party | CP-01/03/05/07/08 + page gates (auth-rbac) |
+| Evaluations never visible to the teacher | EV-08 (API 403), EV-10 (static: no teacher-reachable reader) |
+| Click timeline Admin/Supervisor only | CT-01 |
+| Supervisor never sees money | reports "supervisor … no money fields"; INT-BILL-01; INT-RATE-03; auth-rbac |
+| Cross-origin guard | `same-origin-guard.test.ts`: every mutation route × (missing, foreign, wrong-port Origin) → 403 ORIGIN_NOT_ALLOWED before any session lookup |
+| Login rate limits | auth-rbac "rate-limits both the username and IP" |
+| Credentials never in URLs | `credentials-not-in-url.test.tsx` (login + change-password render `method="post"`) |
+
+**(c) Playwright (`e2e/phase3.e2e.spec.ts`)** — UI-heavy journeys wait until after the Phase 9 redesign.
+- Stable flows worth keeping (read-only, no data written): "landing page loads in English and Arabic", "protected pages redirect anonymous users", "anonymous API access is rejected", "wrong password does not log in"; role-boundary checks that only read/refuse ("teacher cannot open the admin sessions page", "a student who is not in the session cannot get its Zoom link", "students never receive the host link").
+- Wait / rework: "Admin: create a session (UI)" and every test that CREATES or CANCELS sessions — they write into the seed academy through the running app (conflicts with the data rule) and use old-seed usernames. Needs dedicated E2E accounts in a test academy (owner decision) before they run again.
+
+**(d) Test data safety — guards confirmed before the first run**
+- `jest.setup.js`: refuses to run unless `DATABASE_URL`'s host is a Supabase dev host or exactly `TEST_ALLOWED_DB_HOST` (not set in `.env`).
+- Per-run academies "Zarabicschool Test/Foreign <8 hex>"; cleanup now REFUSES any other academy (`assertTestAcademy`) before deleting anything; append-only tables use the in-transaction, per-academy trigger exception only.
+- `applications-admin` must use the seed academy "Zarabicschool" (the public application route is hard-wired to it); it only creates/deletes `demo_test_`/`demo-test-` users and applications with its own test phone — proven by the seed snapshots.
+- `webhook_events` (no academy) are tracked by exact id (18-digit test ids starting with 9).
+- Seed snapshot (count + md5 of every seed-academy table, seed ledgers) before/after each run: unchanged in runs 1, 2 (and 3, see results).
+- No test phone is on `OPENWA_SEND_ALLOWLIST`; a fake MessagingProvider is installed for every suite.
+
+**(e) Real app bugs found and fixed (owner told)**
+1. Login/change-password/two Admin create forms had no `method` → a pre-hydration submit would put credentials in the URL. Fixed: `method="post"`.
+2. `admin/messages` POST and `admin/settings/whatsapp-number` PUT answered `FORBIDDEN` instead of `ORIGIN_NOT_ALLOWED` on a cross-origin request (still protected). Fixed: shared `requireSameOrigin`.
+3. Complaints "another participant": a student's own siblings counted as another family. Fixed in `lib/complaints/service.ts`.
+4. INT-EXP-08: a late settlement against a still-ACTIVE package outside its period wrote no deduction. Fixed per the owner's CONFIRMED option (a) in `settlement-seam.ts`.
+
+**(f) Paymob checkout E2E — owner decision pending.** Proposal: keep a manual checklist for the hosted page now, and do ONE Paymob test-mode run when test keys exist (it also confirms the A1 callback shape, HMAC field order and the 3-DS pending→success sequence — the open A1 sandbox items).
+
+### Decision: transaction timeouts (owner, 2026-10-26)
+- **Decision:** the app keeps Prisma's default interactive-transaction limits (maxWait 2 s, timeout 5 s). Only the TEST configuration raises them (`__tests__/helpers/db-timeouts.setup.ts`: maxWait 15 s, timeout 30 s, via jest `setupFilesAfterEnv`).
+- **Reason:** tests run from the dev machine against the remote dev database. Measured round trip ≈ 64 ms per statement (pooled `DATABASE_URL` and `DIRECT_URL`, 20 samples, 2026-10-26). A stall (busy pooler, a dev server worker on the same DB) pushed one settlement to 7.7 s in run 3. Settlement is atomic and idempotent, so a timeout is SAFE: the transaction rolls back completely and a retry (Paymob redelivery, or the Admin pressing approve again) settles once.
+- **Statements per settlement transaction (counted from the code, readiness probes cached):**
+  - Paymob webhook, success: 8 statements (event claim, invoice lock, invoice read, subscription, INITIAL_PURCHASE, invoice update, attempt update, PAID audit) + BEGIN/COMMIT = 10 round trips ≈ 0.65 s.
+  - Report approval, attended with reservation: 14 statements (session share-lock ×2, report claim, attendance, session read, reservation read + update, deduction check + insert, balance aggregate, rate lookup, teacher credit, report markers, re-read) + BEGIN/COMMIT = 16 ≈ 1.0 s; +2 per Admin flag, +1–2 for the no-reservation fallback → up to ~20 ≈ 1.3 s.
+  - Headroom against 5 s: about 4–7× in normal conditions. Production latency (app and DB in the same region) is expected to be far lower — to be measured at deploy (deploy checklist).
+
+### 2026-10-26 — Coverage matrix (risk-ranked: money and attendance → permissions → the rest)
+All automated tests run against per-run test academies (`demo_test_*` users) on the dev DB; tests never call OpenWA or Paymob. "Gap" = not covered by an automated test.
+
+| Area | Edge cases | Tests | Status |
+|---|---|---|---|
+| **Ledgers — student credits** | idempotent purchase, one INITIAL_PURCHASE per invoice, concurrency, rollback when a ledger insert fails, negative balance + flag, no package, expiry/no rollover, pay-per-session never expires | WH-01..12, MP-01..07, INT-EXP-01..08, SS-05, reports "settlement rollback", L1-01 | Covered |
+| **Ledgers — teacher pay** | one SESSION_CREDIT per session (group, sequential and concurrent), rate snapshot, per-minute rounding half-up, 32-bit limit, adjustments/disbursements idempotency + currency, append-only, overtime once + rollback | GRP-01..03, PAY-01..09, OT-01..05, reports settlement tests | Covered |
+| Ledgers — student ADMIN_ADJUSTMENT / REFUND writers | — | — | **Gap by design**: no API writes them yet (refund family OPEN) |
+| **Reports** | before end, unassigned teacher, cancelled/missed sessions, duplicate, freeze money fields, edit after approval, rejection/resubmit, concurrent approvals, absent ⇒ no money, group sessions, submit-time visibility | reports.test.ts, visibility, report-attachments, GRP-*, MG-03/04 | Covered |
+| **Monthly reports** | 7-day window (lock), concurrent duplicate, reminders 1st/3rd, Admin flag days 4–7, field visibility | monthly-reports.test.ts, MR-01 | Covered (group-session pairs: covered only through distinct students per teacher) |
+| **Scheduling** | overlaps/boundary touch, past dates, assignment rules, credit reservation + release, consumption order, recurrence across DST, cancel + reschedule moving jobs, Zoom link format | sessions.test.ts, session-requests, scheduling-worker, phase4 | Covered; **gap**: display formatting in non-Cairo timezones is not asserted (Phase 9 item 9.9) |
+| **Roles / cross-academy** | every handler × every disallowed role → 403; unauthenticated → 401; money routes Admin-only; foreign-academy ids → 404; subject list tenancy | OW-A01-0..4, sweeps, per-suite foreign-academy tests | Covered (API). **Gap**: page-level rendering per role only for Phase 7 pages + Supervisor admin redirect |
+| **Payments** | HMAC bad/missing, order-id match, unknown order, merchant_order_id ignored, amount/currency mismatch, declined/pending/void/refund, replay, concurrency, double payment, unexpected shape, rollback, annual plan disabled | WH-01..12, MG-01, INT-CO-* | Covered. **Gap**: the real Paymob callback shape/3-DS sequence (sandbox, Layer 2) |
+| **Notifications** | retries 2/10 min + FAILED after 3, permanent failure, stale PROCESSING never re-sent, late-report chain, late start T+5/T+10, announcement per-tick + per-hour caps + daily limit, no Zoom link in WhatsApp | RTY-01..03, late-report-chain, LS-01..04, AN-*, MG-05, JL-01 | Covered |
+| **Complaints / evaluations / click timeline** | concerned party never sees/handles, unnamed participant, no notification, evaluation window/lock/concurrency, teacher never sees evaluations, timeline operators only | CP-*, EV-01..08/10, CT-01 | Covered |
+| **Input validation** | malformed/injection/over-long ids on every `[id]` route, empty/malformed/huge bodies, Arabic/RTL/emoji/HTML text stored literally, unicode control chars | VAL-01..03, EV-04 | Covered |
+| **Security** | same-origin sweep, credentials not in URLs, headers, bcrypt cost, constant-time signatures, log redaction, no stack traces | OWASP suite (see security-review.md) | Covered (automatable part) |
+| UI / browser | RTL layouts, forms, loading/empty/error states | — | **Gap**: Playwright UI journeys deferred until after the Phase 9 redesign (owner) |
+| Operations | backups/restore, monitoring, production deploy | — | **Gap**: later Phase 8 steps (deploy checklist) |

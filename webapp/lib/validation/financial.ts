@@ -42,9 +42,13 @@ export const overtimeReviewSchema = z.object({
 });
 
 /** Admin manual payroll adjustment (bonus/fine/correction) — reason mandatory. */
+/** payroll_ledger.amount_minor is a 32-bit INTEGER: a larger amount can never be
+ *  stored, so it is a validation error (400), not a database error (500). */
+const PAYROLL_AMOUNT_LIMIT = 2_147_483_647;
+
 export const payrollAdjustmentSchema = z.object({
   teacherId: z.guid(),
-  amountMinor: z.number().int().refine((value) => value !== 0, "The amount must not be zero."),
+  amountMinor: z.number().int().min(-PAYROLL_AMOUNT_LIMIT).max(PAYROLL_AMOUNT_LIMIT).refine((value) => value !== 0, "The amount must not be zero."),
   currency: currencySchema,
   reason: z.string().trim().min(2).max(1000),
 });
@@ -52,7 +56,7 @@ export const payrollAdjustmentSchema = z.object({
 /** Admin records a payout/disbursement — an internal ledger record, never proof of an external transfer. */
 export const payrollDisbursementSchema = z.object({
   teacherId: z.guid(),
-  amountMinor: z.number().int().positive(),
+  amountMinor: z.number().int().positive().max(PAYROLL_AMOUNT_LIMIT),
   currency: currencySchema,
   reason: z.string().trim().min(2).max(1000),
 });

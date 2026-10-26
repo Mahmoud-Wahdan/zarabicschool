@@ -4,7 +4,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { writePaymentAudit } from "../../../../../lib/payments/audit";
 import { PaymobProvider, PaymentProviderError, createUsdProvider } from "../../../../../lib/payments";
 import { canActOnStudentFinance } from "../../../../../lib/guards/finance-access";
-import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isSameOrigin, isUuidParam } from "../../../../../lib/request";
 export const runtime = "nodejs";
 
 // Paymob payment keys are created with expiration: 3600 (lib/payments/paymob.ts);
@@ -30,6 +30,7 @@ export async function POST(
   const { user, error } = await requireApiRoles(["ADMIN", "STUDENT", "GUARDIAN"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     select: {

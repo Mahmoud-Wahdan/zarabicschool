@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../../lib/dal";
 import { prisma } from "../../../../../../lib/prisma";
+import { isUuidParam, errorResponse } from "../../../../../../lib/request";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const teacher = await prisma.teacher.findFirst({
     where: { id, academyId: user.academyId },
     select: { id: true, user: { select: { displayName: true, isActive: true } } },

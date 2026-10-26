@@ -162,7 +162,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+    <form method="post" onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
       <p className="text-label-md text-on-surface-variant">
         {t("account")}: <span dir="ltr" className="font-medium text-on-surface">{username}</span>
       </p>

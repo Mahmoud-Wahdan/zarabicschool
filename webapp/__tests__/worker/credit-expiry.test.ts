@@ -216,11 +216,17 @@ describe("Session 2 — monthly credit EXPIRY worker (no rollover, idempotent)",
   });
 
   it("INT-EXP-05: a balance-0 subscription with no reservations finalizes EXHAUSTED without an EXPIRY entry", async () => {
+    // H1–H7: an invoice/INITIAL_PURCHASE always grants > 0 sessions, so balance 0 is
+    // reached the real way — one purchased session taken back by an Admin adjustment.
     const { subscriptionId } = await createFundedSubscription({
       studentProfileId: fx.studentProfileIds.student3,
       packageType: "MONTHLY_PLAN",
-      sessions: 0,
+      sessions: 1,
     });
+    await prisma.subscriptionLedger.create({
+      data: { academyId: fx.academyId, subscriptionId, entryType: "ADMIN_ADJUSTMENT", sessionsDelta: -1 },
+    });
+    expect(await balanceOf(subscriptionId)).toBe(0);
     await processMonthlyCreditExpiry(new Date(), fx.academyId);
     expect(await prisma.subscriptionLedger.count({ where: { subscriptionId, entryType: "EXPIRY" } })).toBe(0);
     const fresh = await prisma.subscription.findUniqueOrThrow({ where: { id: subscriptionId }, select: { status: true } });
@@ -281,7 +287,8 @@ describe("Session 2 — monthly credit EXPIRY worker (no rollover, idempotent)",
     await settleSession(overrideSession.id, fx.studentProfileIds.student6);
     expect(await balanceOf(subscriptionId)).toBe(-1);
     const adminJob = await prisma.notificationJob.findFirstOrThrow({
-      where: { kind: "BALANCE_NEGATIVE", dedupKey: `BALANCE_NEGATIVE:${subscriptionId}` },
+      // A5: one flag per active Admin, deduped per (package, Admin).
+      where: { kind: "BALANCE_NEGATIVE", dedupKey: `BALANCE_NEGATIVE:${subscriptionId}:${fx.adminUserId}` },
     });
     expect(adminJob.recipientUserId).toBe(fx.adminUserId);
     expect(adminJob.academyId).toBe(fx.academyId);

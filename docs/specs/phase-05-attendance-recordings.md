@@ -153,19 +153,19 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 - [x] Add/maintain `Reports` with teacher/student FKs, lifecycle timestamps, rejection metadata, and no revision table
 - [x] Run migration
-- [ ] REMOVED — Participant join/leave event consumer and duration computation; Zoom is not an attendance source.
-- [ ] REMOVED — 25% duration absence threshold timer; attendance comes from the teacher report.
+- [-] REMOVED — Participant join/leave event consumer and duration computation; Zoom is not an attendance source. — **[audit 2026-10-26] OBSOLETE**: Zoom is not an attendance source (CONTEXT §6).
+- [-] REMOVED — 25% duration absence threshold timer; attendance comes from the teacher report. — **[audit 2026-10-26] OBSOLETE**: attendance comes from the teacher report.
 - [x] Write explicit attendance only from approved report outcomes or audited Admin override
-- [ ] Build Teacher mobile UI for mandatory post-session report submission with student selection for group sessions — reopened 2026-10-14 (F-16: hardcoded English, no gating/prefill; Batch A rebuild)
+- [x] Build Teacher mobile UI for mandatory post-session report submission with student selection for group sessions — reopened 2026-10-14 (F-16: hardcoded English, no gating/prefill; Batch A rebuild) — **[audit 2026-10-26] DONE**: `app/[locale]/teacher/sessions/[id]/report/page.tsx` (localized; UI not covered by automated tests).
 - [x] Step 1: fix review findings F-01…F-21 with one test per fix (F-05→Batch D, F-06/F-17→Batch A, F-12→Batch C, F-16→Batch A; F-18/F-19/F-20 documented) + Phase 3 composite-FK regression repaired
-- [ ] Batch A: attachments (model, migration, StorageProvider REST + fake, magic bytes, signed URLs, 400/413)
-- [ ] Batch A: AcademySettings class-remark list (Admin-only) + submit-time validation
-- [ ] Batch A: role-shaped report visibility data layer (APPROVED gate) + visibility-matrix tests
-- [ ] Batch A: teacher UI rebuild + demo seed extension with real reports
-- [ ] Batch B: approval queue filters + detail (attachments, operational events) + settlement seam + concurrency tests
-- [ ] Batch C: SessionRequest model+migration, outage form, notifications, admin queue, replacement flow
-- [ ] Batch D: Teacher/Student/Guardian attendance views + approval/rejection notifications + TeacherFlags visibility
-- [ ] Write tests: before-end submit, duplicate submit, concurrency, edit-after-approval, rejection/resubmission, attendance-once, absent-writes-nothing-else, visibility matrix, supervisor-no-money, attachment rejects, outage flow, notification-failure isolation, reminder cancellation, no-secrets-in-logs
+- [x] Batch A: attachments (model, migration, StorageProvider REST + fake, magic bytes, signed URLs, 400/413) — **[audit 2026-10-26] DONE**: `app/api/reports/[id]/attachments/route.ts`, Cloudinary `lib/storage/cloudinary-storage.ts` (Supabase replaced 2026-10-25); `report-attachments.test.ts`.
+- [x] Batch A: AcademySettings class-remark list (Admin-only) + submit-time validation — **[audit 2026-10-26] DONE**: `app/api/admin/settings/class-remarks/route.ts`; `report-attachments.test.ts` (slug+labels payload since Session 1).
+- [x] Batch A: role-shaped report visibility data layer (APPROVED gate) + visibility-matrix tests — **[audit 2026-10-26] DONE**: `lib/reports/visibility.ts` — the "APPROVED gate" was REPLACED by visibility at SUBMIT (owner 2026-10-18, CONTEXT §9); tests `visibility.test.ts`, `report-attachments.test.ts`.
+- [x] Batch A: teacher UI rebuild + demo seed extension with real reports — **[audit 2026-10-26] DONE**: teacher report page + `prisma/seed-demo.ts` reports.
+- [x] Batch B: approval queue filters + detail (attachments, operational events) + settlement seam + concurrency tests — **[audit 2026-10-26] DONE**: `app/_components/reports-queue/*`, `lib/reports/settlement-seam.ts`; `reports.test.ts` (concurrency, settlement, rollback).
+- [x] Batch C: SessionRequest model+migration, outage form, notifications, admin queue, replacement flow — **[audit 2026-10-26] DONE**: `app/api/sessions/[id]/session-request/route.ts`, `app/api/session-requests/*`; `session-requests.test.ts`.
+- [~] Batch D: Teacher/Student/Guardian attendance views + approval/rejection notifications + TeacherFlags visibility — **[audit 2026-10-26] PARTIAL**: attendance pages exist for teacher/student/guardian and TeacherFlags show on Admin/Supervisor dashboards; approval/rejection FAMILY notifications were intentionally removed (owner 2026-10-18: notify at submit); pages are not covered by automated UI tests.
+- [x] Write tests: before-end submit, duplicate submit, concurrency, edit-after-approval, rejection/resubmission, attendance-once, absent-writes-nothing-else, visibility matrix, supervisor-no-money, attachment rejects, outage flow, notification-failure isolation, reminder cancellation, no-secrets-in-logs — **[audit 2026-10-26] DONE**: `reports.test.ts`, `visibility.test.ts`, `report-attachments.test.ts`, `session-requests.test.ts`, `late-report-chain.test.ts`.
 
 ## Execution log (updated as soon as real work happens)
 
@@ -242,3 +242,5 @@ Full audit on `feature/phase-5` (14 migrations all APPLIED to the dev DB; the ou
   - **Timing CONFIRMED (owner, 2026-10-26):** reminders on the 1st and 3rd; flag from the 4th (after the last reminder).
 - **Missing monthly report — what the system can already do (nothing new built):** the flag above; the per-teacher missing list on `/admin/monthly-reports` (Admin + Supervisor); and the existing Admin-only payroll `ADMIN_ADJUSTMENT` entry (`/api/payroll/adjustments`, signed amount, reason mandatory) as a MANUAL Admin action — never applied automatically. There is no free-text note on a teacher profile today. **OPEN (owner): any money penalty (amount, deadline).**
 
+### 2026-10-26 — Phase 8 audit
+(Legend: [x] done, [~] partial, [-] obsolete/deferred, [ ] missing — verified against the code and tests on 2026-10-26.)

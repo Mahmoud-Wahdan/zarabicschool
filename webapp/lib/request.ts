@@ -1,6 +1,7 @@
 type IncomingHeaders = Headers | Record<string, unknown> | undefined;
 
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 function getHeader(headers: IncomingHeaders, name: string): string | undefined {
   if (!headers) return undefined;
@@ -85,4 +86,13 @@ export function errorResponse(
     { error: { code, message, ...(fieldErrors ? { fieldErrors } : {}) } },
     { status }
   );
+}
+
+/**
+ * Route ids are UUID columns. A value that is not a UUID can never match a row, and
+ * passing it to Prisma makes PostgreSQL refuse the cast — an unhandled 500. Routes
+ * check it first and answer 400 (or their generic 404). Found by the Phase 8 sweep.
+ */
+export function isUuidParam(value: unknown): value is string {
+  return typeof value === "string" && z.guid().safeParse(value).success;
 }

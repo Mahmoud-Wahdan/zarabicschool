@@ -7,7 +7,7 @@ import {
   approveApplication,
   ProvisioningError,
 } from "../../../../../lib/provisioning";
-import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isSameOrigin, isUuidParam } from "../../../../../lib/request";
 import { approveApplicationSchema } from "../../../../../lib/validation/approve";
 
 export const runtime = "nodejs";
@@ -24,6 +24,7 @@ export async function POST(
   if (error) return error;
 
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
 
   let raw: unknown;
   const contentLength = Number(request.headers.get("content-length") || "0");

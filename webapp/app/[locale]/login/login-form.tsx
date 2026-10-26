@@ -63,8 +63,10 @@ export default function LoginForm() {
     router.refresh();
   }
 
+  // method="post": a submit before hydration falls back to a native form submit,
+  // which must never put the username/password in the URL (history, logs, Referer).
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+    <form method="post" onSubmit={handleSubmit} className="space-y-5" noValidate>
       <div>
         <label htmlFor="username" className="mb-1.5 block text-sm font-semibold text-title-md text-primary">
           {t("username")}

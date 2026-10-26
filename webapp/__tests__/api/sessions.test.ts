@@ -23,8 +23,9 @@ import {
   cleanupSessionFixtures,
   createSessionFixtures,
   closePrisma,
-  type SessionFixtures,
+  type SessionFixtures, writeInitialPurchase,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -71,7 +72,7 @@ function sessionPayload(overrides: Record<string, unknown> = {}, slot: { day: nu
 function apiRequest(path: string, method: string, body: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: sameOriginHeaders({ "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -111,9 +112,7 @@ async function grantCredit(
     select: { id: true },
   });
   if (sessionsDelta !== 0) {
-    await prisma.subscriptionLedger.create({
-      data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
-    });
+    await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta });
   }
   return subscription;
 }
@@ -406,7 +405,9 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
         scheduledEnd: new Date(Date.now() + 69 * 60_000),
         durationMinutes: 60,
         timezone: "Africa/Cairo",
-        zoomJoinUrl: "http://zoom.us/j/123456789",
+        // H9: the DB only stores https links; a lookalike host still fails the
+        // format check at the redirect (legacy/hand-edited stored link).
+        zoomJoinUrl: "https://zoom.us.evil.com/j/123456789",
         createdById: fx.adminUserId,
         status: "SCHEDULED",
         students: { create: [{ studentId: fx.studentProfileIds.student1 }] },
@@ -517,9 +518,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
       },
       select: { id: true },
     });
-    await prisma.subscriptionLedger.create({
-      data: { academyId: fx.academyId, subscriptionId: expiring.id, entryType: "INITIAL_PURCHASE", sessionsDelta: 2 },
-    });
+    await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: expiring.id, sessionsDelta: 2 });
     const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student4] }, { day: 6, hour: 10 });
     expect(body.data.id).toBeTruthy();
     const reservation = await prisma.sessionReservation.findFirstOrThrow({

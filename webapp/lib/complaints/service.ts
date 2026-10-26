@@ -81,11 +81,16 @@ export async function getComplaintParties(filer: Filer, sessionId: string): Prom
   // families' names, so they may NAME only the session's teacher, and may choose the
   // unnamed "another participant in this session" when the session has someone
   // outside their own family (another student or that student's guardian).
+  // Own family = the filer's guardian (a guardian filer is that guardian) and every
+  // roster student of that guardian — siblings are family, not "another participant".
+  const familyGuardianId =
+    filer.role === "GUARDIAN"
+      ? filer.id
+      : session.students.find(({ student }) => student.user.id === filer.id)?.student.guardian?.user.id ?? null;
   const ownFamily = new Set<string>([filer.id]);
+  if (familyGuardianId) ownFamily.add(familyGuardianId);
   for (const { student } of session.students) {
-    const guardianUserId = student.guardian?.user.id;
-    if (student.user.id === filer.id && guardianUserId) ownFamily.add(guardianUserId);
-    if (guardianUserId === filer.id) ownFamily.add(student.user.id);
+    if (familyGuardianId && student.guardian?.user.id === familyGuardianId) ownFamily.add(student.user.id);
   }
   const hasOtherFamily = parties.some((party) => party.role !== "TEACHER" && !ownFamily.has(party.userId));
   return {

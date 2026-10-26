@@ -78,7 +78,19 @@ async function fallbackSubscriptionId(
   const withCredit = subscriptions.find(
     (item) => item.ledgerEntries.reduce((sum, entry) => sum + entry.sessionsDelta, 0) - item.reservations.length > 0,
   );
-  return (withCredit ?? subscriptions[0])?.id ?? null;
+  if (withCredit ?? subscriptions[0]) return (withCredit ?? subscriptions[0]).id;
+  // CONFIRMED (owner, 2026-10-26 — INT-EXP-08 option a; CONTEXT §7 "settle anyway and
+  // flag Admin"): no ACTIVE package covers the session date (e.g. a late settlement
+  // after the period ended while the package is still ACTIVE) → deduct from the
+  // student's ACTIVE package anyway, earliest-expiring first, even into the
+  // negative; the caller raises BALANCE_NEGATIVE. Only a student with NO ACTIVE
+  // package at all is "settled without subscription" (P8).
+  const anyActive = await tx.subscription.findFirst({
+    where: { academyId: report.academyId, studentId: report.studentId, status: "ACTIVE" },
+    orderBy: [{ periodEndsAt: "asc" }, { createdAt: "asc" }],
+    select: { id: true },
+  });
+  return anyActive?.id ?? null;
 }
 
 export async function settleApprovedReport(

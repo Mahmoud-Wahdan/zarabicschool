@@ -208,6 +208,76 @@ export async function createSessionFixtures() {
   };
 }
 
+/**
+ * Grant credit the way production does (H1–H7 hardening, 2026-10-25): every
+ * INITIAL_PURCHASE row needs a positive delta and its OWN PAID invoice (paid_at set,
+ * sessions > 0; one INITIAL_PURCHASE per invoice). The invoice belongs to the
+ * subscription's student in the same per-run test academy.
+ */
+export async function writeInitialPurchase(input: { academyId: string; subscriptionId: string; sessionsDelta: number }) {
+  const subscription = await prisma.subscription.findUniqueOrThrow({
+    where: { id: input.subscriptionId },
+    select: { studentId: true, packageType: true },
+  });
+  const invoice = await prisma.invoice.create({
+    data: {
+      academyId: input.academyId,
+      studentId: subscription.studentId,
+      subscriptionId: input.subscriptionId,
+      amountMinor: BigInt(100000),
+      currency: "EGP",
+      provider: "PAYMOB",
+      packageType: subscription.packageType,
+      sessionsPurchased: input.sessionsDelta,
+      status: "PAID",
+      paidAt: new Date(),
+    },
+    select: { id: true },
+  });
+  return prisma.subscriptionLedger.create({
+    data: {
+      academyId: input.academyId,
+      subscriptionId: input.subscriptionId,
+      invoiceId: invoice.id,
+      entryType: "INITIAL_PURCHASE",
+      sessionsDelta: input.sessionsDelta,
+    },
+    select: { id: true, invoiceId: true },
+  });
+}
+
+/**
+ * Per-run test academies only (owner, 2026-10-26: tests never touch the demo seed).
+ * createSessionFixtures names them "Zarabicschool Test <8 hex>" / "Zarabicschool
+ * Foreign <8 hex>"; anything else — above all the seed academy "Zarabicschool" — is
+ * refused BEFORE a single row is deleted.
+ */
+const TEST_ACADEMY_NAME = /^Zarabicschool (Test|Foreign) [0-9a-f]{8}$/;
+
+export async function assertTestAcademy(academyId: string) {
+  const academy = await prisma.academy.findUnique({ where: { id: academyId }, select: { name: true } });
+  if (!academy) return false;
+  if (!TEST_ACADEMY_NAME.test(academy.name)) {
+    throw new Error(`Refusing to clean academy ${academyId}: it is not a per-run test academy.`);
+  }
+  return true;
+}
+
+/** Append-only tables: the delete runs with the trigger disabled INSIDE one transaction
+ *  scoped to one test academy (the documented exception — never a global disable). */
+async function deleteAppendOnly(table: string, trigger: string, academyId: string) {
+  // A slow remote DB must not abort cleanup half-way (2026-10-26 run 3: "Unable to
+  // start a transaction in the given time" left a test academy behind).
+  await prisma.$transaction(
+    [
+      prisma.$executeRawUnsafe(`ALTER TABLE ${table} DISABLE TRIGGER ${trigger}`),
+      prisma.$executeRawUnsafe(`DELETE FROM ${table} WHERE academy_id = $1::uuid`, academyId),
+      prisma.$executeRawUnsafe(`ALTER TABLE ${table} ENABLE TRIGGER ${trigger}`),
+    ],
+    { maxWait: 30_000, timeout: 60_000 },
+  );
+}
+
 export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
   // The link-audit table arrives with migration 20261012000000_phase4_link_audit
   // (owner-applied). Cleanup is gated the same way as the audit writes so suites stay
@@ -215,13 +285,24 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
   // session/series/user deletes once it does.
   const linkAuditReady = await isLinkAuditReady();
   for (const academyId of [fixtures.academyId, fixtures.foreignAcademyId]) {
+    if (!(await assertTestAcademy(academyId))) continue;
+    // Phase 6–7 tables that reference invoices, sessions or users (they were missing
+    // here: a payment_audit row blocked the invoice delete on 2026-10-26).
+    await prisma.complaint.deleteMany({ where: { academyId } });
+    await prisma.sessionEvaluation.deleteMany({ where: { academyId } });
+    await prisma.monthlyReport.deleteMany({ where: { academyId } });
+    await prisma.adminMessage.deleteMany({ where: { academyId } });
+    await deleteAppendOnly("announcements", "announcements_append_only", academyId);
+    await deleteAppendOnly("payment_audit", "payment_audit_append_only", academyId);
+    await prisma.paymentProof.deleteMany({ where: { academyId } });
+    await prisma.billingSubscription.deleteMany({ where: { academyId } });
+    await prisma.billingPlan.deleteMany({ where: { academyId } });
+    await prisma.exchangeRate.deleteMany({ where: { academyId } });
+    await prisma.applicationRecord.deleteMany({ where: { academyId } });
+    await prisma.application.deleteMany({ where: { academyId } });
     const invoices = await prisma.invoice.findMany({ where: { academyId }, select: { id: true } });
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: invoices.map((invoice) => invoice.id) } } });
-    await prisma.$transaction([
-      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger DISABLE TRIGGER subscription_ledger_append_only"),
-      prisma.subscriptionLedger.deleteMany({ where: { academyId } }),
-      prisma.$executeRawUnsafe("ALTER TABLE subscription_ledger ENABLE TRIGGER subscription_ledger_append_only"),
-    ]);
+    await deleteAppendOnly("subscription_ledger", "subscription_ledger_append_only", academyId);
     await prisma.invoice.deleteMany({ where: { academyId } });
     if (linkAuditReady) {
       await prisma.sessionLinkAudit.deleteMany({ where: { academyId } });
@@ -238,11 +319,7 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     // disable (the documented pattern — never disabled globally) because the
     // RESTRICT FKs would otherwise block session/report/teacher deletes.
     if (await isPayrollReady()) {
-      await prisma.$transaction([
-        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger DISABLE TRIGGER payroll_ledger_append_only"),
-        prisma.payrollLedger.deleteMany({ where: { academyId } }),
-        prisma.$executeRawUnsafe("ALTER TABLE payroll_ledger ENABLE TRIGGER payroll_ledger_append_only"),
-      ]);
+      await deleteAppendOnly("payroll_ledger", "payroll_ledger_append_only", academyId);
       await prisma.teacherRate.deleteMany({ where: { academyId } });
     }
     if (await isAttachmentsReady()) {

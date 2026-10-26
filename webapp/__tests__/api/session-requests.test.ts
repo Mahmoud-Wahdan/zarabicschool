@@ -18,8 +18,9 @@ import {
   cleanupSessionFixtures,
   createSessionFixtures,
   closePrisma,
-  type SessionFixtures,
+  type SessionFixtures, writeInitialPurchase,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -35,7 +36,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body?: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers: sameOriginHeaders(body === undefined ? undefined : { "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -88,9 +89,7 @@ async function grantCredit(studentProfileId: string, sessionsDelta: number) {
     select: { id: true },
   });
   if (sessionsDelta !== 0) {
-    await prisma.subscriptionLedger.create({
-      data: { academyId: fx.academyId, subscriptionId: subscription.id, entryType: "INITIAL_PURCHASE", sessionsDelta },
-    });
+    await writeInitialPurchase({ academyId: fx.academyId, subscriptionId: subscription.id, sessionsDelta });
   }
 }
 

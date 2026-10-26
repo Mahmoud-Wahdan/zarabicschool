@@ -467,7 +467,7 @@ describe("Slice C2 — Admin review, approval, provisioning", () => {
       guardianDetails([
         { name: "Omar", age: 10, subjects: ["demo-quran"] },
         { name: "Salma", age: 8, subjects: ["demo-arabic"] },
-        { name: "Youssef", age: 12, subjects: ["demo-math"] },
+        { name: "Youssef", age: 12, subjects: ["demo-english"] },
       ])
     );
 
@@ -787,11 +787,13 @@ describe("Slice C2 — Admin review, approval, provisioning", () => {
     const digit = nextDigit();
     const appId = await createApplication(
       "GUARDIAN",
-      guardianDetails([{ name: "Omar", age: 10, subjects: ["demo-math"] }])
+      // demo-english exists in the seed academy; the test teacher teaches only
+      // demo-quran/demo-arabic, so the rejection is about the teacher, not the subject.
+      guardianDetails([{ name: "Omar", age: 10, subjects: ["demo-english"] }])
     );
 
     await expect(
-      approve(appId, { teachers: { "child-0": { "demo-math": teacherProfileId } } }, digit)
+      approve(appId, { teachers: { "child-0": { "demo-english": teacherProfileId } } }, digit)
     ).rejects.toMatchObject({ status: 400, code: "VALIDATION_ERROR" });
 
     const appAfter = await prisma.application.findUnique({

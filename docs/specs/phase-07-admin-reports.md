@@ -100,18 +100,18 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
-- [ ] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`, `Complaints`
-- [ ] Run migration
-- [ ] Build admin overview dashboard with operational and financial metrics
-- [ ] Build teacher-to-student progress report form and listing
-- [ ] Build guardian/student view of student progress reports
-- [ ] Build student/guardian teacher evaluation submission interface
+- [x] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`, `Complaints` — **[audit 2026-10-26] DONE**: `prisma/schema.prisma`; migrations 20261026170000–190000.
+- [x] Run migration — **[audit 2026-10-26] DONE**: applied by the owner.
+- [~] Build admin overview dashboard with operational and financial metrics — **[audit 2026-10-26] PARTIAL**: operational KPIs on `app/[locale]/admin/page.tsx`; financial charts are Phase 9 item 9.1.
+- [x] Build teacher-to-student progress report form and listing — **[audit 2026-10-26] DONE**: monthly reports `app/[locale]/teacher/monthly-reports/*`; `monthly-reports.test.ts`.
+- [x] Build guardian/student view of student progress reports — **[audit 2026-10-26] DONE**: `app/[locale]/student/monthly-reports/page.tsx`, `app/[locale]/guardian/monthly-reports/page.tsx`; visibility in `monthly-reports.test.ts`.
+- [x] Build student/guardian teacher evaluation submission interface — **[audit 2026-10-26] DONE**: `app/_components/evaluations/*`; API tests `evaluations.test.ts` EV-01..07 (2026-10-26).
 - [x] Build general complaints submission form on user dashboards and Admin resolution view (2026-10-26)
 - [x] Implement the post-session evaluation prompt (in-app, non-blocking, optional evaluations — 2026-10-26)
 - [x] Build admin evaluation review and rating summaries (Admin + Supervisor, 2026-10-26)
 - [x] Build admin announcements composer (audience = everyone per owner decision, 2026-10-26)
 - [x] Build dashboard announcements widget for every role (2026-10-26)
-- [ ] Write tests: reporting authorization, evaluation submission, announcement scoping, complaints flow
+- [x] Write tests: reporting authorization, evaluation submission, announcement scoping, complaints flow — **[audit 2026-10-26] DONE**: `visibility.test.ts`, `evaluations.test.ts`, `announcements.test.ts`, `phase7-visibility.test.ts`, `late-start-and-monthly-flag.test.ts` (2026-10-26).
 
 ## Execution log (updated as soon as real work happens)
 
@@ -258,3 +258,6 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 5. **Monthly-report timing CONFIRMED:** reminders on the 1st and 3rd, Admin flag from the 4th. Money penalty stays OPEN.
 6. **Security headers** (`next.config.ts`, all paths): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`. No CSP and no HSTS (launch items in `deploy-checklist.md` §8).
 - Migrations touch only `users`, `announcements` (id default drift fix) and `complaints`. **No financial or attendance table.**
+
+### 2026-10-26 — Phase 8 audit
+(Legend: [x] done, [~] partial, [-] obsolete/deferred, [ ] missing — verified against the code and tests on 2026-10-26.) Real defect found and fixed: the evaluations API answered 200 instead of 201 on every first submission (Date objects compared with ===); `submitEvaluation` now reports `created`.

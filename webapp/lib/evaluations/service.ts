@@ -162,13 +162,15 @@ export async function getOwnEvaluationsForSessions(
 /**
  * Create or update the author's evaluation within the 24h window. Idempotent under
  * concurrent first-submits: the P2002 loser re-reads and continues down the update
- * path (still inside the window) instead of erroring.
+ * path (still inside the window) instead of erroring. `created` tells the caller
+ * which happened (201 vs 200) — comparing createdAt/updatedAt cannot: they are Date
+ * objects and come from different clocks (DB default vs client @updatedAt).
  */
 export async function submitEvaluation(
   sessionId: string,
   author: EvaluationAuthor,
   input: { rating: number; comment: string | null },
-): Promise<EvaluationView> {
+): Promise<{ view: EvaluationView; created: boolean }> {
   if (!(await isEvaluationsReady())) {
     throw new EvaluationError("NOT_READY", "Evaluations storage is not applied yet.");
   }
@@ -202,7 +204,7 @@ export async function submitEvaluation(
           },
           select: { id: true, rating: true, comment: true, authorType: true, authorUserId: true, createdAt: true, updatedAt: true },
         });
-    return toView(row);
+    return { view: toView(row), created: !existing };
   } catch (cause) {
     if (
       cause &&
@@ -223,7 +225,7 @@ export async function submitEvaluation(
           data: { rating: input.rating, comment: input.comment },
           select: { id: true, rating: true, comment: true, authorType: true, authorUserId: true, createdAt: true, updatedAt: true },
         });
-        return toView(row);
+        return { view: toView(row), created: false };
       }
       throw new EvaluationError("CONFLICT", "The evaluation could not be saved.");
     }

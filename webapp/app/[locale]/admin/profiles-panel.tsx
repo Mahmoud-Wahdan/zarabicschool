@@ -66,7 +66,7 @@ export default function ProfilesPanel({ type, title, canSetAnnouncements = false
   const showAnnouncements = canSetAnnouncements && rows.some((row) => row.announcementsOptOut !== undefined);
   return (
     <div className="mt-6 space-y-6">
-      <form onSubmit={create} className="dashboard-card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+      <form method="post" onSubmit={create} className="dashboard-card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <input required placeholder={t("username")} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />
         <input required placeholder={t("displayName")} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />
         <input required minLength={12} type="password" placeholder={t("temporaryPassword")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2" />

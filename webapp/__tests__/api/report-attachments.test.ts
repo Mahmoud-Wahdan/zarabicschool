@@ -25,6 +25,7 @@ import {
   closePrisma,
   type SessionFixtures,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -41,7 +42,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body?: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers: sameOriginHeaders(body === undefined ? undefined : { "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -56,7 +57,7 @@ function formDataWithFiles(files: { name: string; bytes: Buffer; type: string }[
   for (const file of files) {
     form.append("files", new File([new Uint8Array(file.bytes)], file.name, { type: file.type }));
   }
-  return new Request("http://localhost:3000/upload", { method: "POST", body: form });
+  return new Request("http://localhost:3000/upload", { method: "POST", headers: sameOriginHeaders(), body: form });
 }
 
 async function createPastSession(studentProfileId: string, minutesAgoEnded = 30) {
@@ -215,7 +216,9 @@ describe("Phase 5 Batch A — report visibility (database-backed)", () => {
     expect(otherTeacherView).toBeNull();
   });
 
-  it("hides unapproved reports from students and guardians but shows them to the teacher", async () => {
+  it("shows a SUBMITTED (unapproved) report at once: guardian and teacher in full, a student with a guardian only homework/notes/attachments", async () => {
+    // CONFIRMED rule (owner 2026-10-18, CONTEXT §9): visibility starts at SUBMIT in
+    // every status; approval gates teacher pay only.
     const session = await createPastSession(fx.studentProfileIds.student3);
     const submitted = await submitReport(session.id, fx.studentProfileIds.student3);
     expect(submitted.status).toBe(201);
@@ -225,22 +228,28 @@ describe("Phase 5 Batch A — report visibility (database-backed)", () => {
       session.id,
       fx.studentProfileIds.student3,
     );
-    expect(studentView).toBeNull();
+    expect(studentView).not.toBeNull();
+    expect(studentView?.status).toBe("SUBMITTED");
+    expect(studentView?.homework).toBeTruthy();
+    expect(studentView?.summary).toBeNull();
+    expect(studentView?.classRemark).toBeNull();
+    expect(studentView?.rejectionReason).toBeNull();
     const guardianView = await getReportForViewer(
       { userId: fx.guardianUserId, academyId: fx.academyId, role: "GUARDIAN" },
       session.id,
       fx.studentProfileIds.student3,
     );
-    expect(guardianView).toBeNull();
+    expect(guardianView?.summary).toBeTruthy();
     const teacherView = await getReportForViewer(
       { userId: fx.teacherUserId, academyId: fx.academyId, role: "TEACHER" },
       session.id,
       fx.studentProfileIds.student3,
     );
-    expect(teacherView).not.toBeNull();
+    expect(teacherView?.summary).toBeTruthy();
 
-    // The API route answers with the generic 404, never a 403 existence oracle.
-    asActor(fx.studentUserIds.student3);
+    // Another student (same guardian, not this report's student) still gets the
+    // generic 404 from the API — never a 403 existence oracle.
+    asActor(fx.studentUserIds.student4);
     const apiResponse = await listAttachmentsRoute(apiRequest(`/api/reports/${submitted.body.data.id}/attachments`, "GET"), {
       params: Promise.resolve({ id: submitted.body.data.id }),
     });
@@ -271,9 +280,13 @@ describe("Phase 5 Batch A — class remark list (database-backed)", () => {
 
   it("lets an Admin change the list and enforces it on new submissions", async () => {
     asActor(fx.adminUserId);
-    const put = await putRemarksRoute(
-      apiRequest("/api/admin/settings/class-remarks", "PUT", { items: ["ممتاز", "جيد", "مقبول", "يحتاج متابعة"] }),
-    );
+    // Session 1 contract: options are { slug, labels in all five report languages }.
+    const labels = (text: string) => ({ ar: text, en: text, fr: text, de: text, tr: text });
+    const items = [
+      { slug: "mumtaz", labels: labels("ممتاز") },
+      { slug: "jayyid", labels: labels("جيد") },
+    ];
+    const put = await putRemarksRoute(apiRequest("/api/admin/settings/class-remarks", "PUT", { items }));
     const putBody = await put.json();
     if (!attachmentsReady) {
       // academy_settings arrives with the same owner-applied migration.
@@ -282,14 +295,14 @@ describe("Phase 5 Batch A — class remark list (database-backed)", () => {
       console.warn("[phase5-test] PENDING MIGRATION — admin remark-list editing assertions deferred until 20261015093512 is applied.");
     } else {
       expect(put.status).toBe(200);
-      expect(putBody.data.items).toEqual(["ممتاز", "جيد", "مقبول", "يحتاج متابعة"]);
+      expect(putBody.data.items).toEqual(items);
     }
 
     // Supervisor is excluded from system settings (owner decision 2026-10-14) — the role
     // gate fires before any storage/readiness check.
     asActor(fx.supervisorUserId);
     const supervisorPut = await putRemarksRoute(
-      apiRequest("/api/admin/settings/class-remarks", "PUT", { items: ["x", "y"] }),
+      apiRequest("/api/admin/settings/class-remarks", "PUT", { items }),
     );
     expect(supervisorPut.status).toBe(403);
     const supervisorGet = await getRemarksRoute();
@@ -297,7 +310,7 @@ describe("Phase 5 Batch A — class remark list (database-backed)", () => {
 
     if (!attachmentsReady) return;
 
-    // Admin changed the list: the English default now fails, the Arabic item passes.
+    // Admin changed the list: the default slug "good" now fails, the new slug passes.
     const session = await createPastSession(fx.studentProfileIds.student5);
     asActor(fx.teacherUserId);
     const withEnglishRemark = await submitReportRoute(
@@ -313,7 +326,7 @@ describe("Phase 5 Batch A — class remark list (database-backed)", () => {
     const withArabicRemark = await submitReportRoute(
       apiRequest(`/api/sessions/${session.id}/students/${fx.studentProfileIds.student5}/report`, "POST", {
         attendanceOutcome: "ATTENDED",
-        classRemark: "جيد",
+        classRemark: "jayyid",
         summary: "Covered the lesson content.",
         homework: "Practice page 12.",
       }),
@@ -321,11 +334,9 @@ describe("Phase 5 Batch A — class remark list (database-backed)", () => {
     );
     expect(withArabicRemark.status).toBe(201);
 
-    // Restore the default list for the rest of the run (settings are per academy).
-    asActor(fx.adminUserId);
-    await putRemarksRoute(
-      apiRequest("/api/admin/settings/class-remarks", "PUT", { items: ["excellent", "good", "acceptable", "needs follow-up"] }),
-    );
+    // Restore the default list for the rest of the run: remove this test academy's
+    // override so the built-in defaults apply again (settings are per academy).
+    await prisma.academySetting.deleteMany({ where: { academyId: fx.academyId, key: putBody.data.key } });
   });
 });
 
@@ -363,7 +374,8 @@ describe("Phase 5 Batch A — report attachments (database-backed, storage faked
     expect(rows).toHaveLength(1);
     expect(rows[0].originalName).toBe("my homework page.PNG");
     expect(rows[0].filePath).not.toContain("my homework");
-    expect(rows[0].filePath.startsWith(`${fx.academyId}/${reportId}/`)).toBe(true);
+    // Server-generated key (Cloudinary layout since Session 4): never the user's name.
+    expect(rows[0].filePath.startsWith(`zarabicschool/${fx.academyId}/sessions/${session.id}/reports/${reportId}/`)).toBe(true);
     expect(storage.objects.has(rows[0].filePath)).toBe(true);
 
     const approved = await approveReport(reportId);

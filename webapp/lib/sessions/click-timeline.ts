@@ -14,9 +14,10 @@ import { prisma } from "../prisma";
  * session/user/time only).
  *
  * Known gaps (documented in the Phase 7 log): the log does not record join vs host
- * link; links opened from the WhatsApp start message (which carries the join link)
- * are not logged; clicks are only possible while the session is SCHEDULED, from
- * 15 minutes before the start until the scheduled end (Admin/Supervisor any time).
+ * link; joins from the Zoom app or a link copied earlier are not logged (WhatsApp
+ * messages carry the platform join URL since 2026-10-26, so those clicks ARE
+ * logged); clicks are only possible while the session is SCHEDULED, from 15 minutes
+ * before the start until the scheduled end (Admin/Supervisor any time).
  */
 export type ClickTimelineEntry = {
   userId: string;

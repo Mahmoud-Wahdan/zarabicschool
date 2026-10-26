@@ -1,15 +1,29 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "../../../lib/prisma";
-import { requireApiRoles } from "../../../lib/dal";
+import { getAuthSession, requireApiRoles } from "../../../lib/dal";
 import { subjectCreateSchema } from "../../../lib/validation/management";
 import { requireSameOrigin } from "../../../lib/request";
 
 export const runtime = "nodejs";
 
+/** The academy the public application form belongs to (same as POST /api/applications). */
+const PUBLIC_APPLICATION_ACADEMY = "Zarabicschool";
+
+/**
+ * Active subjects of ONE academy (tenancy fix, Phase 8 OWASP A01, 2026-10-26): a
+ * signed-in user gets their own academy's subjects; the anonymous public application
+ * form gets the academy it posts to (the application route accepts only that
+ * academy's subjects). Before, every academy's subjects were listed to everyone.
+ */
 export async function GET() {
+  const user = await getAuthSession();
+  const academyId = user
+    ? user.academyId
+    : (await prisma.academy.findUnique({ where: { name: PUBLIC_APPLICATION_ACADEMY }, select: { id: true } }))?.id;
+  if (!academyId) return NextResponse.json([]);
   const subjects = await prisma.subject.findMany({
-    where: { isActive: true },
+    where: { isActive: true, academyId },
     select: {
       id: true,
       slug: true,

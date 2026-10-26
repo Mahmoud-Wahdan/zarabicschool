@@ -20,6 +20,7 @@ import {
   closePrisma,
   type SessionFixtures,
 } from "../helpers/session-fixtures";
+import { sameOriginHeaders } from "../helpers/http";
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
@@ -34,7 +35,7 @@ function asActor(userId: string) {
 function apiRequest(path: string, method: string, body?: unknown) {
   return new Request(`http://localhost:3000${path}`, {
     method,
-    headers: body === undefined ? {} : { "content-type": "application/json" },
+    headers: sameOriginHeaders(body === undefined ? {} : { "content-type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }

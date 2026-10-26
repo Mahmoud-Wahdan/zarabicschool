@@ -15,6 +15,13 @@ const customJestConfig = {
   // serializable-transaction write conflicts, so suites run sequentially.
   maxWorkers: 1,
   setupFiles: ["<rootDir>/jest.setup.js"],
+  // Fake WhatsApp provider for every suite — tests never call OpenWA.
+  // Longer Prisma transaction limits for tests only (remote dev DB latency);
+  // the app keeps Prisma's defaults.
+  setupFilesAfterEnv: [
+    "<rootDir>/__tests__/helpers/fake-messaging.setup.ts",
+    "<rootDir>/__tests__/helpers/db-timeouts.setup.ts",
+  ],
   moduleDirectories: ["node_modules", "<rootDir>/"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",

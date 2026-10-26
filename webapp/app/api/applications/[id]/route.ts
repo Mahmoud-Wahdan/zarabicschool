@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "../../../../lib/prisma";import { requireApiRoles } from "../../../../lib/dal";
-import { errorResponse } from "../../../../lib/request";
+import { errorResponse, isUuidParam } from "../../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -20,6 +20,7 @@ export async function GET(
   if (error) return error;
 
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
 
   const application = await prisma.application.findFirst({
     where: { id, academyId: user.academyId },

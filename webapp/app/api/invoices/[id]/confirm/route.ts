@@ -4,7 +4,7 @@ import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { PaymentProviderError, settleInvoiceConfirmedByAdmin } from "../../../../../lib/payments";
 import { invoiceConfirmSchema } from "../../../../../lib/validation/financial";
-import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isSameOrigin, isUuidParam } from "../../../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -21,6 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = invoiceConfirmSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid confirmation details.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });

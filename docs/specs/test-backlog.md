@@ -16,6 +16,9 @@
    Suspected cause: the fake messaging provider was removed (owner 2026-10-18) but the tests still set `MESSAGING_PROVIDER="fake"` (now ignored by code) and/or delete the `OPENWA_*` variables, so every real OpenWA send returns `{ ok: false }` and the worker correctly records FAILED rows.
    Evidence: provider selection `webapp/lib/messaging/provider.ts:17-18` (always OpenWA); unconfigured send `webapp/lib/messaging/openwa-provider.ts:13-18`; worker FAILED write `webapp/lib/worker/notifications.ts:312-319`; test env setup `webapp/__tests__/worker/scheduling-worker.test.ts:116,182-185` and `webapp/__tests__/worker/late-report-chain.test.ts:95-110`.
 
+3b. **INT-EXP-08 (credit-expiry) — rule CONFIRMED (owner, 2026-10-26, option a); code fixed**
+   A late settlement against a still-ACTIVE package whose period ended deducts anyway (balance −1) + `BALANCE_NEGATIVE`; teacher credited. The seam's fallback previously treated this as "no subscription". Counterpart SS-05 (no ACTIVE package at all → no deduction, `SETTLED_WITHOUT_SUBSCRIPTION`, teacher credited) is now written.
+
 4. **INT-MON-02 (monthly-report concurrency, test-plan-session2.md)**
    Suspected cause: race nondeterminism — accept `[201,409]` or `[201,200]` with the same row id and unchanged `submittedAt`; plus add a deterministic P2002→409 test by stubbing `findFirst` → null so the create path hits the unique constraint.
    Source: `docs/specs/test-plan-session2.md` (INT-MON-02).
@@ -196,3 +199,19 @@
 - **AN-11** — third announcement within 24 h → 429 ANNOUNCEMENT_DAILY_LIMIT, no row, no jobs; two concurrent sends when one slot is left → exactly one succeeds.
 - **AN-12** — PATCH `/api/admin/profiles/:id` `{announcementsOptOut}` as SUPERVISOR → 403; as ADMIN → 200; ADMIN/SUPERVISOR target → 404.
 - **SH-01** — every response (page, API, static) carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`.
+
+## Phase 9 (planned — draft 2026-10-26; written with each slice, IDs reserved)
+- **P9-JW-01..03** — join window 30 min: T−31 → JOIN_NOT_YET_OPEN, T−30 → redirect + click row; Admin/Supervisor exempt; button hint shows the constant.
+- **P9-TZ-01..08** — country → default IANA zone; multi-zone country requires/permits a choice; only allowed editors can change it; lists, dashboards, invoices and WhatsApp texts render in the viewer's/recipient's zone; DST transition day.
+- **P9-DS-01..06** — daily schedule: two ticks → one job; DST day; only cancelled sessions → no job; make-ups listed separately; no Zoom URL in text; missing OpenWA config → FAILED.
+- **P9-HM-01..03** — Admin home counts match the DB; finance charts absent from the Supervisor payload; per-currency sums match the ledgers.
+- **P9-TC-01..04** — teachers table: rate absent for Supervisor; add-teacher writes one effective-dated rate; deactivate never deletes; cross-academy 404.
+- **P9-ST-01..03 / P9-GD-01..02** — students/guardians pages: Supervisor sees no money; minor-without-guardian rule per the owner's answer; family view scoped to the academy.
+- **P9-NT-01..03** — inbox aggregates the queues correctly; read-state per the owner's rule; no money items for Supervisor.
+- **P9-CA-01..03** — calendar: own sessions only for students/guardians; no Zoom URL in markup; timezone rendering.
+- **P9-PF-01..04** — performance: Admin/Supervisor only; punctuality uses the owner's threshold on platform clicks only; evaluation authors by type only; teacher access per the owner's answer.
+- **P9-RC-01..05** — roster changes (9.13): add a student to a GROUP session reserves credit (insufficient → blocked/override); remove releases the reservation; removal blocked once the student has a SUBMITTED/APPROVED report; PRIVATE session has no per-student removal (cancel instead); cancelling/reducing a subscription with upcoming reservations lists the sessions and refuses until they are removed.
+- **P9-DB-01..05** — deductions/bonuses: Admin only (Supervisor 403); append-only; idempotency key; currency = teacher's; reversal only by an opposite entry.
+
+## Phase 8 — written 2026-10-26 (manual payment)
+- **MP-01..07** (`__tests__/api/manual-payment.test.ts`, covers PA-03/PA-04): Admin confirm settles once (PAID, subscription, one INITIAL_PURCHASE, attempt SUCCEEDED, one PAID audit by the Admin); replay → already_settled; concurrent double click → once; Supervisor/teacher/student/guardian 403, foreign Admin 404; CANCELLED → 409; REJECTED proof → 409 PROOF_REJECTED; PENDING proof → CONFIRMED by the Admin, no extra audit row; pay-per-session → no period.
