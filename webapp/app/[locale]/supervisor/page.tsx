@@ -10,6 +10,7 @@ import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 
+import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
 const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
   SCHEDULED: "info",
   COMPLETED: "success",
@@ -43,7 +44,8 @@ export default async function SupervisorDashboard() {
       prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
     ]),
     prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
-    prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: "LATE_REPORT" } }),
+    // Late session reports + missing monthly reports (owner decision 7, 2026-10-26).
+    prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: { in: ["LATE_REPORT", "MONTHLY_REPORT_MISSING"] } } }),
     prisma.session.findMany({
       where: {
         academyId: user.academyId,
@@ -78,6 +80,7 @@ export default async function SupervisorDashboard() {
       timezone={user.timezone}
       navBadges={{ reports: pendingReports }}
     >
+      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
       <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

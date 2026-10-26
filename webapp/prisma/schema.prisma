@@ -375,6 +375,8 @@ model Academy {
   adminMessages             AdminMessage[]             @relation("AdminMessageAcademy")
   sessionJoinClicks         SessionJoinClick[]         @relation("SessionJoinClickAcademy")
   applicationRecords        ApplicationRecord[]        @relation("ApplicationRecordAcademy")
+  announcements             Announcement[]             @relation("AnnouncementAcademy")
+  complaints                Complaint[]                @relation("ComplaintAcademy")
 
   @@map("academies")
 }
@@ -393,6 +395,11 @@ model User {
   isActive                      Boolean                    @default(true) @map("is_active")
   mustChangePassword            Boolean                    @default(true) @map("must_change_password")
   passwordChangedAt             DateTime?                  @map("password_changed_at") @db.Timestamptz(6)
+  // B4 (2026-10-26): who/when last set this password administratively (audit only).
+  passwordSetById               String?                    @map("password_set_by_id") @db.Uuid
+  passwordSetAt                 DateTime?                  @map("password_set_at") @db.Timestamptz(6)
+  passwordSetBy                 User?                      @relation("UserPasswordSetBy", fields: [passwordSetById], references: [id], onDelete: Restrict, map: "users_password_set_by_id_fkey")
+  passwordsSetForUsers          User[]                     @relation("UserPasswordSetBy")
   createdAt                     DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                     DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy                       Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
@@ -428,6 +435,11 @@ model User {
   receivedAdminMessages         AdminMessage[]             @relation("AdminMessageRecipient")
   sentAdminMessages             AdminMessage[]             @relation("AdminMessageCreatedBy")
   sessionEvaluationsAuthored    SessionEvaluation[]        @relation("SessionEvaluationAuthor")
+
+  announcementsCreated Announcement[] @relation("AnnouncementCreatedBy")
+  complaintsFiled      Complaint[]    @relation("ComplaintFiledBy")
+  complaintsConcerning Complaint[]    @relation("ComplaintConcerned")
+  complaintsHandled    Complaint[]    @relation("ComplaintHandledBy")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -588,6 +600,7 @@ model Session {
   assignmentOverriddenBy     User?                  @relation("SessionAssignmentOverriddenBy", fields: [assignmentOverriddenById], references: [id], onDelete: Restrict)
   students                   SessionStudent[]
   joinClicks                 SessionJoinClick[]
+  complaints                 Complaint[]
   linkAudits                 SessionLinkAudit[]
   reports                    Report[]
   reservations               SessionReservation[]
@@ -692,17 +705,22 @@ model Invoice {
 }
 
 model PaymentAttempt {
-  id                String               @id @default(uuid()) @db.Uuid
-  invoiceId         String               @map("invoice_id") @db.Uuid
-  provider          PaymentProvider
-  idempotencyKey    String               @unique @map("idempotency_key")
-  providerReference String?              @map("provider_reference")
-  checkoutUrl       String?              @map("checkout_url")
-  status            PaymentAttemptStatus @default(CREATED)
-  rawEventHash      String?              @unique @map("raw_event_hash")
-  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
-  invoice           Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  id                    String               @id @default(uuid()) @db.Uuid
+  invoiceId             String               @map("invoice_id") @db.Uuid
+  provider              PaymentProvider
+  idempotencyKey        String               @unique @map("idempotency_key")
+  providerReference     String?              @map("provider_reference")
+  checkoutUrl           String?              @map("checkout_url")
+  status                PaymentAttemptStatus @default(CREATED)
+  rawEventHash          String?              @unique @map("raw_event_hash")
+  // A1 (2026-10-26): Paymob ORDER id stored at checkout (HMAC-covered match key) and
+  // the transaction id that settled it. Partial unique indexes in raw SQL
+  // (payment_attempts_provider_order_key / _provider_transaction_key).
+  providerOrderId       String?              @map("provider_order_id") @db.VarChar(64)
+  providerTransactionId String?              @map("provider_transaction_id") @db.VarChar(64)
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  invoice               Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId, status])
   @@index([provider, providerReference])
@@ -884,18 +902,22 @@ model Teacher {
 
 enum TeacherFlagType {
   LATE_REPORT
+  MONTHLY_REPORT_MISSING
 }
 
 model TeacherFlag {
   id        String          @id @default(uuid()) @db.Uuid
   academyId String          @map("academy_id") @db.Uuid
   teacherId String          @map("teacher_id") @db.Uuid
-  sessionId String          @map("session_id") @db.Uuid
+  // LATE_REPORT flags point at a session; MONTHLY_REPORT_MISSING flags point at a
+  // month instead (CHECK teacher_flags_anchor_check + partial unique index, raw SQL).
+  sessionId String?         @map("session_id") @db.Uuid
+  monthKey  String?         @map("month_key") @db.VarChar(7)
   flagType  TeacherFlagType @map("flag_type")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   academy   Academy         @relation(fields: [academyId], references: [id], onDelete: Restrict)
   teacher   Teacher         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
-  session   Session         @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  session   Session?        @relation(fields: [sessionId], references: [id], onDelete: Restrict)
 
   @@unique([sessionId, flagType])
   @@index([teacherId, createdAt])
@@ -990,8 +1012,8 @@ model TeacherRate {
   createdBy       User            @relation("TeacherRateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   payrollEntries  PayrollLedger[]
 
-  @@index([teacherId, effectiveFrom], map: "teacher_rates_teacher_effective_idx")
   @@unique([teacherId, effectiveFrom], map: "teacher_rates_teacher_effective_from_key")
+  @@index([teacherId, effectiveFrom], map: "teacher_rates_teacher_effective_idx")
   @@map("teacher_rates")
 }
 
@@ -1012,6 +1034,10 @@ model PayrollLedger {
   reason                  String?
   // NULL = system-generated (settlement); NOT NULL = Admin-created (audit).
   createdById             String?                @map("created_by") @db.Uuid
+  // A5 (2026-10-26): client Idempotency-Key of an Admin adjustment/disbursement
+  // (partial unique payroll_ledger_idempotency_key_key, raw SQL). A3: one overtime
+  // entry per report (payroll_ledger_one_overtime_per_report_key, raw SQL).
+  idempotencyKey          String?                @map("idempotency_key") @db.Uuid
   createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   academy                 Academy                @relation("PayrollLedgerAcademy", fields: [academyId], references: [id], onDelete: Restrict, map: "payroll_ledger_academy_fkey")
   teacher                 Teacher                @relation("PayrollLedgerTeacher", fields: [teacherId], references: [id], onDelete: Restrict, map: "payroll_ledger_teacher_fkey")
@@ -1198,4 +1224,79 @@ model SessionEvaluation {
   @@index([academyId, createdAt(sort: Desc)])
   @@index([sessionId])
   @@map("session_evaluations")
+}
+
+// Phase 7 (owner, 2026-10-26): Admin/Supervisor announcement to EVERYONE. The row is
+// the in-app copy (widget until expiresAt, history forever); WhatsApp delivery = one
+// notification_jobs row per deduped phone (kind ANNOUNCEMENT, payload {announcementId}).
+// Append-only (trigger announcements_append_only): never edited after sending.
+model Announcement {
+  id                     String   @id @default(uuid()) @db.Uuid
+  academyId              String   @map("academy_id") @db.Uuid
+  createdById            String   @map("created_by_id") @db.Uuid
+  title                  String   @db.VarChar(200)
+  body                   String   @db.VarChar(2000)
+  sentAt                 DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+  expiresAt              DateTime @map("expires_at") @db.Timestamptz(6)
+  whatsappRecipientCount Int      @map("whatsapp_recipient_count")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy                Academy  @relation("AnnouncementAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  createdBy              User     @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([academyId, sentAt(sort: Desc)], map: "announcements_academy_sent_idx")
+  @@index([academyId, expiresAt], map: "announcements_academy_expires_idx")
+  @@map("announcements")
+}
+
+enum ComplaintCategory {
+  TEACHING_QUALITY
+  BEHAVIOUR
+  PUNCTUALITY
+  TECHNICAL
+  BILLING
+  OTHER
+}
+
+enum ComplaintStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum ComplaintPartyRole {
+  TEACHER
+  STUDENT
+  GUARDIAN
+}
+
+// Phase 7 (owner, 2026-10-26): complaint about a party of ONE session. Visible ONLY
+// to Admin/Supervisor (lib/complaints/service.ts); the concerned party never sees it
+// and is never notified automatically.
+model Complaint {
+  id              String             @id @default(uuid()) @db.Uuid
+  academyId       String             @map("academy_id") @db.Uuid
+  sessionId       String             @map("session_id") @db.Uuid
+  filedById       String             @map("filed_by_id") @db.Uuid
+  filedByRole     ComplaintPartyRole @map("filed_by_role")
+  concernedUserId String             @map("concerned_user_id") @db.Uuid
+  concernedRole   ComplaintPartyRole @map("concerned_role")
+  category        ComplaintCategory
+  title           String             @db.VarChar(200)
+  body            String             @db.VarChar(4000)
+  status          ComplaintStatus    @default(NEW)
+  handledById     String?            @map("handled_by_id") @db.Uuid
+  resolutionNote  String?            @map("resolution_note") @db.VarChar(4000)
+  resolvedAt      DateTime?          @map("resolved_at") @db.Timestamptz(6)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy         Academy            @relation("ComplaintAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session         Session            @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  filedBy         User               @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
+  concernedUser   User               @relation("ComplaintConcerned", fields: [concernedUserId], references: [id], onDelete: Restrict)
+  handledBy       User?              @relation("ComplaintHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status, createdAt(sort: Desc)], map: "complaints_academy_status_created_idx")
+  @@index([sessionId], map: "complaints_session_idx")
+  @@index([concernedUserId], map: "complaints_concerned_user_idx")
+  @@map("complaints")
 }

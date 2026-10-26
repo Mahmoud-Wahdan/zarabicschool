@@ -16,6 +16,8 @@ import {
 import Icon from "../ui/icon";
 import StatusBadge from "../ui/status-badge";
 
+import type { ClickTimelineEntry } from "../../../lib/sessions/click-timeline";
+import ClickTimeline from "../sessions/click-timeline";
 const REPORT_LANGUAGE_DISPLAY: Record<ReportLanguageCode, string> = Object.fromEntries(
   REPORT_LANGUAGE_OPTIONS.map((option) => [option.value, option.nativeName]),
 ) as Record<ReportLanguageCode, string>;
@@ -50,6 +52,9 @@ export type QueueReport = {
   // (informational only — never an automatic red mark or penalty).
   language?: ReportLanguageCode;
   rejectionCount?: number;
+  // Phase 7 (owner, 2026-10-26): read-only "link click time" evidence for the
+  // session — Admin/Supervisor only (this queue is operator-only).
+  clickTimeline?: ClickTimelineEntry[];
 };
 
 export type QueueMetrics = {
@@ -71,6 +76,7 @@ export default function ReportsQueuePanel({
   teachers,
   filters,
   locale,
+  timeZone,
   classRemarkOptions = [],
 }: {
   reports: QueueReport[];
@@ -78,6 +84,7 @@ export default function ReportsQueuePanel({
   teachers: { id: string; name: string }[];
   filters: QueueFilter;
   locale: string;
+  timeZone: string;
   classRemarkOptions?: ClassRemarkOptionLike[];
 }) {
   const t = useTranslations("reportsQueue");
@@ -470,6 +477,11 @@ export default function ReportsQueuePanel({
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  ) : null}
+                  {selected.clickTimeline ? (
+                    <div dir={locale === "ar" ? "rtl" : "ltr"} lang={locale}>
+                      <ClickTimeline entries={selected.clickTimeline} timeZone={timeZone} locale={locale} />
                     </div>
                   ) : null}
                   <div>

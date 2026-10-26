@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { sessionChangeRequestSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["TEACHER"]);
   if (error) return error;
   const { id: sessionId } = await params;

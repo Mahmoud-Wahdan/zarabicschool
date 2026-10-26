@@ -5,6 +5,7 @@ import { prisma } from "../../../../lib/prisma";
 import { writeLinkAudit } from "../../../../lib/scheduling/link-audit";
 import { sessionUpdateSchema } from "../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../../lib/request";
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);
@@ -21,6 +22,8 @@ function zoomUrlErrorResponse(value: string) {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
@@ -56,7 +59,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const nextJoinUrl = data.zoomJoinUrl ?? existing.zoomJoinUrl;
   const joinUrlChanged = data.zoomJoinUrl !== undefined && nextJoinUrl !== existing.zoomJoinUrl;
   const hostUrlChanged = data.zoomHostUrl !== undefined && nextHostUrl !== existing.zoomHostUrl;
-  const updated = await prisma.$transaction(async (tx) => {
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+    if (isCancellationTransition) {
+      // A2 reverse direction (review 2026-10-26): lock the session row, then refuse
+      // to cancel a session that already has a settled (APPROVED) report — its
+      // teacher credit/deduction exist, and a CANCELLED session must never carry
+      // money. The approval path share-locks the same row, so the two serialize.
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${id}::uuid FOR UPDATE`;
+      const fresh = await tx.session.findUnique({ where: { id }, select: { status: true } });
+      if (fresh?.status === "COMPLETED" || fresh?.status === "MISSED") throw new SessionStateConflict("CONFLICT", "Completed or missed sessions are immutable.");
+      const settled = await tx.report.count({ where: { sessionId: id, OR: [{ status: "APPROVED" }, { settledAt: { not: null } }] } });
+      if (settled > 0) {
+        throw new SessionStateConflict("SESSION_HAS_SETTLED_REPORTS", "This session has an approved report, so it cannot be cancelled. Use the Admin reversal instead.");
+      }
+    }
     const next = await tx.session.update({
       where: { id },
       data: {
@@ -107,6 +125,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
     return next;
-  });
+    });
+  } catch (cause) {
+    if (cause instanceof SessionStateConflict) {
+      return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: 409 });
+    }
+    throw cause;
+  }
   return NextResponse.json({ data: updated });
+}
+
+class SessionStateConflict extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = "SessionStateConflict";
+  }
 }

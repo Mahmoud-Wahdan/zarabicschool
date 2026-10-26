@@ -8,6 +8,8 @@ import { MAX_ATTACHMENT_BYTES, detectAllowedMime } from "../../../../../lib/stor
 import { paymentProofMetaSchema } from "../../../../../lib/validation/financial";
 import { allowRequest } from "../../../../../lib/rate-limit";
 import { requireStudentFinanceAccess } from "../../../../../lib/guards/student-finance";
+import { requireSameOrigin } from "../../../../../lib/request";
+import { canActOnStudentFinance } from "../../../../../lib/guards/finance-access";
 function isUuid(value: string) {
     return z.guid().safeParse(value).success;
 }
@@ -18,6 +20,8 @@ function isUuid(value: string) {
  * path. A proof is evidence for the Admin — it never settles the invoice itself.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
     const { user, error } = await requireApiRoles(["STUDENT", "GUARDIAN"]);
     if (error) return error;
     if (user.role === "STUDENT") {
@@ -55,9 +59,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }); if (!invoice || invoice.academyId !== user.academyId) {
         return NextResponse.json({ error: { code: "NOT_FOUND", message: "Invoice was not found." } }, { status: 404 });
     }
-    const isOwner =
-        (user.role === "STUDENT" && invoice.student.isAdult && invoice.student.userId === user.id && !invoice.student.guardianId) ||
-        (user.role === "GUARDIAN" && invoice.student.guardian?.userId === user.id);
+    // Payer-only upload: the Admin never uploads a proof (B5 single rule).
+    const isOwner = canActOnStudentFinance(user, invoice.student, { allowAdmin: false });
     if (!isOwner) {
         return NextResponse.json({ error: { code: "NOT_FOUND", message: "Invoice was not found." } }, { status: 404 });
     }

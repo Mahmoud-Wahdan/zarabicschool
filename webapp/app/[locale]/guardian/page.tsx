@@ -6,6 +6,8 @@ import { prisma } from "../../../lib/prisma";
 import { formatSessionDateTime } from "../../../lib/schedules/display";
 import { Link } from "../../../i18n/navigation";
 
+import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
+import EvaluationPromptCard from "../../_components/evaluations/evaluation-prompt-card";
 export async function generateMetadata() {
   const t = await getTranslations("dashboard");
   return { title: `${t("guardian.title")} | Zarabicschool` };
@@ -49,6 +51,8 @@ export default async function GuardianDashboard() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
+      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
+      <EvaluationPromptCard userId={user.id} academyId={user.academyId} role="GUARDIAN" />
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("guardian.title")}</h1>
       <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
         {t("guardian.welcome", { name: user.displayName })}

@@ -5,6 +5,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { writeLinkAudit } from "../../../../../lib/scheduling/link-audit";
 import { sessionLinkUpdateSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);
@@ -21,6 +22,8 @@ function zoomUrlErrorResponse(value: string) {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;

@@ -7,6 +7,7 @@ import {
   PAY_PER_SESSION_SETTING_PREFIX,
 } from "../../../../../../lib/billing/pay-per-session";
 import { payPerSessionConfigSchema } from "../../../../../../lib/validation/billing";
+import { requireSameOrigin } from "../../../../../../lib/request";
 
 /**
  * GET /api/admin/billing/settings/pay-per-session
@@ -25,6 +26,8 @@ export async function GET() {
  * Admin-only: update min and max sessions (min 1, max 16 default — CONTEXT §7.2 / §20.1).
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
 

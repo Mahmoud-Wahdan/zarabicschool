@@ -7,7 +7,9 @@ import { requireStudentFinanceAccess } from "../../../lib/guards/student-finance
 import { writePaymentAudit } from "../../../lib/payments/audit";
 import { prisma } from "../../../lib/prisma";
 import { invoiceCreateSchema } from "../../../lib/validation/financial";
+import { requireSameOrigin } from "../../../lib/request";
 
+import { getPayPerSessionConfig } from "../../../lib/billing/pay-per-session";
 /**
  * List invoices with role-based scoping:
  * - ADMIN: all invoices in academy (optional ?studentId)
@@ -103,11 +105,35 @@ export async function GET(request: Request) {
  * amount from THIS row — never from the client.
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const parsed = invoiceCreateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid invoice details.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
+  }
+  // A4 (owner, 2026-10-26): annual plans cannot be sold until their monthly grant
+  // (PLAN_GRANT, design F) exists — a paid annual invoice would grant nothing after
+  // month 1. Billing plans stay editable; existing annual rows are untouched.
+  if (parsed.data.packageType === "ANNUAL_PLAN") {
+    return NextResponse.json({ error: { code: "ANNUAL_PLAN_DISABLED", message: "Annual plans cannot be invoiced yet." } }, { status: 409 });
+  }
+  // B5 (S7): "على كيفك" session count within the Admin-configured min/max (CONTEXT §7.2).
+  if (parsed.data.packageType === "PAY_PER_SESSION") {
+    const limits = await getPayPerSessionConfig(user.academyId);
+    if (parsed.data.sessionsPurchased < limits.minSessions || parsed.data.sessionsPurchased > limits.maxSessions) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "PAY_PER_SESSION_OUT_OF_RANGE",
+            message: `Pay-per-session invoices must have between ${limits.minSessions} and ${limits.maxSessions} sessions.`,
+            fields: { sessionsPurchased: [`${limits.minSessions}–${limits.maxSessions}`] },
+          },
+        },
+        { status: 400 },
+      );
+    }
   }
   const student = await prisma.student.findFirst({
     where: { id: parsed.data.studentId, academyId: user.academyId },

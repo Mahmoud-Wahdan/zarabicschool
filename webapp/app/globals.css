@@ -1,9 +1,8 @@
 /* Material Symbols Outlined — the icon font used by the approved Stitch exports.
-   It is not in next/font's Google catalog, so it loads via the Google Fonts
-   stylesheet (same URL the Stitch exports use). `display=block` prevents the
-   raw ligature text (e.g. "calendar_month") from flashing before the font loads.
-   This @import must be the first rule so it survives CSS optimization. */
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block");
+   C3 (2026-10-26): ONE source — the self-hosted `material-symbols` package imported
+   in app/[locale]/layout.tsx (variable woff2, font-display: block, so the raw
+   ligature text never flashes). The duplicate render-blocking Google Fonts
+   stylesheet that declared the same family was removed. */
 
 @import "tailwindcss";
 

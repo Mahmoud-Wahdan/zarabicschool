@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
 import { ackViewerNotifications, getViewerBadge } from "../../../../lib/notifications/badge";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,9 @@ export async function GET() {
   return NextResponse.json({ data: badge });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["TEACHER", "STUDENT", "GUARDIAN"]);
   if (error) return error;
   const acked = await ackViewerNotifications(user.id);

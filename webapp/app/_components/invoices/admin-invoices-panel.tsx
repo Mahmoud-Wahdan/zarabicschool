@@ -102,7 +102,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
           </select>
           <select value={create.packageType} onChange={(e) => setCreate({ ...create, packageType: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2">
             <option value="MONTHLY_PLAN">{t("packageMonthly")}</option>
-            <option value="ANNUAL_PLAN">{t("packageAnnual")}</option>
+            {/* ANNUAL_PLAN hidden until PLAN_GRANT exists (A4, owner 2026-10-26); the API refuses it too. */}
             <option value="PAY_PER_SESSION">{t("packagePayPerSession")}</option>
           </select>
           <input type="number" min={1} max={500} required value={create.sessionsPurchased} onChange={(e) => setCreate({ ...create, sessionsPurchased: Number(e.target.value) })} placeholder={t("colSessions")} className="rounded-lg border border-[var(--line)] px-3 py-2" />

@@ -4,8 +4,11 @@ import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { runSerializable } from "../../../../../lib/credits/reservation";
 import { assignmentUpdateSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;

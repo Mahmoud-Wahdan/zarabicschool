@@ -5,6 +5,7 @@ import { requireApiRoles } from "../../../../lib/dal";
 import { requireStudentFinanceAccess } from "../../../../lib/guards/student-finance";
 import { prisma } from "../../../../lib/prisma";
 
+import { canActOnStudentFinance } from "../../../../lib/guards/finance-access";
 function isUuid(value: string) {
   return z.guid().safeParse(value).success;
 }
@@ -78,13 +79,7 @@ export async function GET(
     );
   }
 
-  const isOwner =
-    user.role === "ADMIN" ||
-    (user.role === "STUDENT" &&
-      invoice.student.isAdult &&
-      invoice.student.userId === user.id &&
-      !invoice.student.guardianId) ||
-    (user.role === "GUARDIAN" && invoice.student.guardian?.userId === user.id);
+  const isOwner = canActOnStudentFinance(user, invoice.student);
 
   if (!isOwner) {
     return NextResponse.json(

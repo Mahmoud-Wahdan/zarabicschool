@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireApiRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { privilegedUserCreateSchema } from "../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export async function GET() {
   const { user, error } = await requireApiRole("ADMIN");
@@ -27,6 +28,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
 
@@ -50,7 +53,11 @@ export async function POST(request: Request) {
         role: input.role,
         email: input.email || null,
         phone: input.phone || null,
-        mustChangePassword: false,
+        // B4 (S9, owner answer 5): an Admin-set password is temporary — the new
+        // ADMIN/SUPERVISOR must choose their own at first login.
+        mustChangePassword: true,
+        passwordSetById: user.id,
+        passwordSetAt: new Date(),
         isActive: true,
       },
       select: { id: true, username: true, displayName: true, role: true, isActive: true },

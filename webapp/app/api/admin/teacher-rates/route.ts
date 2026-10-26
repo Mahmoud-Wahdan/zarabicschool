@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { teacherRateCreateSchema } from "../../../../lib/validation/financial";
+import { requireSameOrigin } from "../../../../lib/request";
 
 /**
  * Admin-only effective-dated teacher rates (CONTEXT §7: rate storage = the
@@ -30,6 +31,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const parsed = teacherRateCreateSchema.safeParse(await request.json().catch(() => null));

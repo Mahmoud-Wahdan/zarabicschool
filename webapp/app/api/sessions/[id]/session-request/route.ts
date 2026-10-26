@@ -5,6 +5,7 @@ import { requireApiRoles } from "../../../../../lib/dal";
 import { allowRequest } from "../../../../../lib/rate-limit";
 import { prisma } from "../../../../../lib/prisma";
 import { enqueueSessionRequestNotifications, isSessionRequestsReady } from "../../../../../lib/scheduling/session-requests";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 const sessionRequestSchema = z.object({
   reason: z.string().trim().min(2).max(1000),
@@ -21,6 +22,8 @@ function isUuid(value: string) {
  * (partial unique index; a reviewed request never blocks a new one).
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["STUDENT", "GUARDIAN", "TEACHER"]);
   if (error) return error;
   const { id: sessionId } = await params;
