@@ -8,6 +8,7 @@ Started 2026-10-26 (Session 5). Extend it; never regenerate it. The launch gaps 
 - [ ] `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations only) point at the PRODUCTION database.
 - [ ] `NEXTAUTH_URL` = the public site URL; `NEXTAUTH_SECRET` = a new random value (never the dev one). It is ALSO the base of the join links in WhatsApp messages (`lib/config/platform-url.ts`): a wrong value sends people to a wrong host; an empty one sends no link.
 - [ ] **`ALLOWED_ORIGINS`** — see §2. Without it every change request fails.
+- [ ] `MESSAGING_PROVIDER` **unset** (or `openwa`): `console`/`fake` make the production start FAIL on purpose (owner, 2026-10-27).
 - [ ] `OPENWA_SEND_ALLOWLIST` **unset** (in non-production it restricts who receives WhatsApp; production must not carry it).
 - [ ] `OPENWA_*`, `OPENWA_WEBHOOK_SECRET`, `PAYMOB_*`, `CLOUDINARY_*` set with production values.
 - [ ] No `SEED_*` variables on the production host (the seed refuses production anyway).
