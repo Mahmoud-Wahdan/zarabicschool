@@ -2,6 +2,19 @@
 
 import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 
+import {
+  ANNOUNCEMENT_MAX_PER_BATCH,
+  ANNOUNCEMENT_MAX_PER_HOUR,
+  ANNOUNCEMENT_SEND_JITTER_MS,
+  ANNOUNCEMENT_SEND_SPACING_MS,
+} from "../config/announcements";
+import {
+  ADMIN_LATE_ALERT_MINUTES,
+  LATE_START_SCAN_WINDOW_MINUTES,
+  TEACHER_LATE_REMINDER_MINUTES,
+} from "../config/lateness";
+import { sessionJoinPlatformUrl } from "../config/platform-url";
+import { JOIN_OPENS_BEFORE_START_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { getMessagingProvider } from "../messaging/provider";
@@ -22,8 +35,14 @@ const LATE_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LATE_REPORT_FOLLOWUP_MS = 15 * 60 * 1000;
 const LATE_REPORT_FLAG_MS = 30 * 60 * 1000;
 // Monthly-report missing reminders fire on the 1st and 3rd of each month, in the
-// TEACHER's local calendar (PROPOSAL, owner 2026-10-18 — CONTEXT §9).
+// TEACHER's local calendar (CONFIRMED by the owner 2026-10-26 — CONTEXT §9).
 const MONTHLY_REPORT_REMINDER_DAYS = [1, 3];
+// Still missing after the last reminder → a MONTHLY_REPORT_MISSING teacher flag for
+// the Admin (owner decision 7; timing CONFIRMED 2026-10-26). Days 4–7 of the
+// teacher's local month form a scan window so a worker outage on the 4th does not
+// drop the flag; the partial unique index keeps it to one flag per teacher and month.
+const MONTHLY_REPORT_FLAG_FIRST_DAY = 4;
+const MONTHLY_REPORT_FLAG_LAST_DAY = 7;
 // Delivery hardening (WhatsApp slice, 2026-10-25). A TRANSIENT provider failure
 // (network, OpenWA busy/paced, engine not ready, 5xx) is retried with a growing
 // delay up to MAX_SEND_ATTEMPTS sends in total; a permanent failure (bad number,
@@ -41,6 +60,11 @@ const SEND_SPACING_MS = 1500;
 
 function isReportNudgeKind(kind: string) {
   return kind === "REPORT_REMINDER" || kind === "REPORT_REMINDER_FOLLOWUP";
+}
+
+/** Late-start steps (a) teacher reminder and (b) Admin alert — lib/config/lateness.ts. */
+function isLateStartKind(kind: string) {
+  return kind === "TEACHER_LATE_START" || kind === "TEACHER_LATE_START_ADMIN";
 }
 
 function formatSessionTime(instant: Date, timeZone: string, language: "ar" | "en"): string {
@@ -72,9 +96,9 @@ type JobWithRelations = NotificationJob & {
     scheduledStart: Date;
     scheduledEnd: Date;
     timezone: string;
-    zoomJoinUrl: string;
     status: string;
     subject: { nameAr: string; nameEn: string };
+    teacher?: { userId: string; user: { displayName: string } };
   } | null;
   report?: {
     language: string;
@@ -89,6 +113,8 @@ type JobWithRelations = NotificationJob & {
   } | null;
   /** ADMIN_MESSAGE body, loaded from admin_messages at send time (never stored on the job). */
   adminMessageBody?: string | null;
+  /** ANNOUNCEMENT text, loaded from announcements at send time (never stored on the job). */
+  announcement?: { title: string; body: string } | null;
 };
 
 // Exported for the late-report chain unit tests (message/time assertions).
@@ -132,6 +158,10 @@ export function composeJobMessage(job: JobWithRelations): string {
     };
     return templates[reportLanguage];
   }
+  if (job.kind === "ANNOUNCEMENT" && job.announcement) {
+    // Admin/Supervisor announcement to everyone: their own text, verbatim.
+    return `${job.announcement.title}\n\n${job.announcement.body}`;
+  }
   if (job.kind === "ADMIN_MESSAGE" && job.adminMessageBody) {
     // Admin individual message: the Admin's own text, verbatim (Admin-only feature).
     return job.adminMessageBody;
@@ -155,9 +185,28 @@ export function composeJobMessage(job: JobWithRelations): string {
     // session reminders reference the start (Phase 5 review F-08).
     const anchor = isReportNudgeKind(job.kind) ? job.session.scheduledEnd : job.session.scheduledStart;
     const time = formatSessionTime(anchor, timeZone, language);
+    // Join links (owner, 2026-10-26): NEVER the raw Zoom link in any WhatsApp message.
+    // Only the platform's join redirect, and only while its join window is open at
+    // send time — before the window the text says when it opens instead of a link
+    // that would answer "not yet open".
+    const windowOpen = joinWindowState(job.session.scheduledStart, job.session.scheduledEnd) === "open";
+    const joinUrl = windowOpen && job.sessionId ? sessionJoinPlatformUrl(job.sessionId) : null;
+    if (job.kind === "TEACHER_LATE_START") {
+      return language === "en"
+        ? `Your session (${subject}) started at ${time} (${timeZone}) and the session link has not been opened yet. Please join now from the platform${joinUrl ? `: ${joinUrl}` : "."}`
+        : `بدأت حصتك (${subject}) في ${time} (${timeZone}) ولم يتم فتح رابط الحصة بعد. يرجى الدخول الآن من المنصة${joinUrl ? `: ${joinUrl}` : "."}`;
+    }
+    if (job.kind === "TEACHER_LATE_START_ADMIN") {
+      const teacherName = job.session.teacher?.user.displayName ?? "";
+      return language === "en"
+        ? `Teacher ${teacherName} has not opened the link of the ${subject} session that started at ${time} (${timeZone}).`
+        : `المعلم ${teacherName} لم يفتح رابط حصة ${subject} التي بدأت في ${time} (${timeZone}).`;
+    }
     if (language === "en") {
       if (job.kind === "SESSION_START") {
-        return `Your session (${subject}) has started. Join link: ${job.session.zoomJoinUrl}`;
+        return joinUrl
+          ? `Your session (${subject}) has started. Join from the platform: ${joinUrl}`
+          : `Your session (${subject}) has started. Please join from the platform.`;
       }
       if (job.kind === "REPORT_REMINDER") {
         return `The report for ${subject} (ended ${time}, ${timeZone}) is still missing. Please submit it.`;
@@ -165,10 +214,14 @@ export function composeJobMessage(job: JobWithRelations): string {
       if (job.kind === "REPORT_REMINDER_FOLLOWUP") {
         return `Reminder: the report for ${subject} (ended ${time}) is still missing.`;
       }
-      return `Reminder: your session (${subject}) starts at ${time} (${timeZone}).`;
+      return joinUrl
+        ? `Reminder: your session (${subject}) starts at ${time} (${timeZone}). Join from the platform: ${joinUrl}`
+        : `Reminder: your session (${subject}) starts at ${time} (${timeZone}). The join link opens on the platform ${JOIN_OPENS_BEFORE_START_MINUTES} minutes before the start.`;
     }
     if (job.kind === "SESSION_START") {
-      return `حصتك (${subject}) بدأت الآن. رابط الحضور: ${job.session.zoomJoinUrl}`;
+      return joinUrl
+        ? `حصتك (${subject}) بدأت الآن. ادخل من المنصة: ${joinUrl}`
+        : `حصتك (${subject}) بدأت الآن. يرجى الدخول من المنصة.`;
     }
     if (job.kind === "REPORT_REMINDER") {
       return `لديك تقرير غير مسجل لحصة ${subject} التي انتهت في ${time} (${timeZone}).`;
@@ -176,7 +229,9 @@ export function composeJobMessage(job: JobWithRelations): string {
     if (job.kind === "REPORT_REMINDER_FOLLOWUP") {
       return `التقرير ما زال ناقصاً لحصة ${subject} المنتهية في ${time}. يرجى تسجيله.`;
     }
-    return `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}).`;
+    return joinUrl
+      ? `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}). ادخل من المنصة: ${joinUrl}`
+      : `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}). يُفتح رابط الدخول على المنصة قبل البداية بـ ${JOIN_OPENS_BEFORE_START_MINUTES} دقيقة.`;
   }
   if (job.kind === "SESSION_REQUEST") {
     // Outage/absence requests land in the Admin/Supervisor queue (CONTEXT §6);
@@ -191,6 +246,20 @@ export function composeJobMessage(job: JobWithRelations): string {
     return language === "en"
       ? "A student package balance went negative after a session settlement. Please review it in the payroll dashboard."
       : "أصبح رصيد باقة أحد الطلاب سالبًا بعد تسوية حصة. يرجى مراجعته من لوحة الرواتب.";
+  }
+  if (job.kind === "SETTLED_WITHOUT_SUBSCRIPTION") {
+    // Admin-only flag (Phase 6 A5/P8): an attended session was approved for a student
+    // with no active package — the teacher was credited, nothing was deducted.
+    return language === "en"
+      ? "A session report was approved for a student without an active package: the teacher was credited, no session was deducted. Please review it."
+      : "تم اعتماد تقرير حصة لطالب ليس لديه باقة نشطة: تمت إضافة أجر المعلم ولم يُخصم أي رصيد. يرجى المراجعة.";
+  }
+  if (job.kind === "PAYMENT_ANOMALY") {
+    // Admin-only flag (Phase 6 A1): a signed payment event that did not move money
+    // and needs a human look. Reason code only — no amounts, no payer data.
+    return language === "en"
+      ? "A payment event needs your review (no money was moved automatically). Check the payments audit page."
+      : "حدث دفع يحتاج إلى مراجعتك (لم تُنفَّذ أي حركة مالية تلقائيًا). راجع صفحة سجل المدفوعات.";
   }
   if (job.kind === "OVERTIME_DECISION") {
     // Teacher notice after the Admin reviews an overtime claim — no amounts.
@@ -252,14 +321,23 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   // exist (the enqueue gates on the same readiness check), so the include is
   // conditional and pre-migration sends keep working unchanged.
   const session1Ready = await isSession1ReportsReady();
-  const due = await prisma.notificationJob.findMany({
+  // Announcements never compete with time-critical kinds (session start notices,
+  // late-start reminders): ordinary jobs get the full batch; announcement jobs are
+  // fetched SEPARATELY and only up to the throttle budget (lib/config/announcements.ts:
+  // per-tick cap + rolling-hour cap). Jobs over budget simply stay PENDING.
+  const sentLastHour = await prisma.notificationJob.count({
+    where: { kind: "ANNOUNCEMENT", status: "SENT", sentAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+  });
+  const announcementBudget = Math.max(0, Math.min(ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_HOUR - sentLastHour));
+  const findDue = (kind: Prisma.StringFilter, take: number) => prisma.notificationJob.findMany({
     where: {
       status: "PENDING",
       scheduledFor: { lte: now },
+      kind,
       ...(academyId ? { academyId } : {}),
     },
     orderBy: { scheduledFor: "asc" },
-    take: POLL_BATCH,
+    take,
     // Explicit select (never `include`): the generated client requests every schema
     // column on implicit queries, and `payload`/`report_id` only exist once the
     // owner applies the Session 1 migration. The loop only needs these fields.
@@ -275,9 +353,9 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
           scheduledStart: true,
           scheduledEnd: true,
           timezone: true,
-          zoomJoinUrl: true,
           status: true,
           subject: { select: { nameAr: true, nameEn: true } },
+          teacher: { select: { userId: true, user: { select: { displayName: true } } } },
         },
       },
       ...(session1Ready
@@ -299,10 +377,15 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         : {}),
     },
   });
+  const due = [
+    ...(await findDue({ not: "ANNOUNCEMENT" }, POLL_BATCH)),
+    ...(announcementBudget > 0 ? await findDue({ equals: "ANNOUNCEMENT" }, announcementBudget) : []),
+  ];
   if (!due.length) return;
   const provider = getMessagingProvider();
   const deliveryReady = await isWhatsAppDeliveryReady();
   let sendsThisTick = 0;
+  const announcementTally = { sent: 0, failed: 0 };
   for (const job of due as JobWithRelations[]) {
     const claimed = await prisma.notificationJob.updateMany({
       where: { id: job.id, status: "PENDING" },
@@ -323,6 +406,20 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
       if (!sessionEligible) {
         await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" }, select: { id: true } });
         continue;
+      }
+      if (isLateStartKind(job.kind)) {
+        // Re-check at send time: the session must still be SCHEDULED and running,
+        // and the assigned teacher must still have no link click.
+        const clicked = job.session.teacher
+          ? await prisma.sessionJoinClick.count({ where: { sessionId: job.sessionId!, userId: job.session.teacher.userId } })
+          : 0;
+        // A teacher replaced after enqueue never gets the old teacher's reminder.
+        const teacherChanged = job.kind === "TEACHER_LATE_START" && job.session.teacher?.userId !== job.recipientUser.id;
+        // Real clock: the tick may have slept between sends since `now` was taken.
+        if (job.session.status !== "SCHEDULED" || job.session.scheduledEnd.getTime() <= Date.now() || clicked > 0 || teacherChanged) {
+          await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" }, select: { id: true } });
+          continue;
+        }
       }
       if (isSessionNoticeKind(job.kind) && job.session.scheduledEnd.getTime() <= now.getTime()) {
         // After a worker outage, never send "starts at …" or a join link for a
@@ -381,8 +478,32 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         continue;
       }
     }
-    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody });
-    if (sendsThisTick > 0) await sleep(SEND_SPACING_MS);
+    let announcement: JobWithRelations["announcement"] = null;
+    if (job.kind === "ANNOUNCEMENT") {
+      const payload = (job.payload as { announcementId?: unknown } | null) ?? null;
+      if (typeof payload?.announcementId === "string") {
+        announcement = await prisma.announcement.findUnique({
+          where: { id: payload.announcementId },
+          select: { title: true, body: true },
+        });
+      }
+      if (!announcement) {
+        await prisma.notificationJob.update({
+          where: { id: job.id },
+          data: { status: "FAILED", lastError: "Announcement not found." },
+          select: { id: true },
+        });
+        announcementTally.failed += 1;
+        continue;
+      }
+    }
+    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement });
+    if (job.kind === "ANNOUNCEMENT") {
+      // Heavier spacing + random jitter for bulk sends (ban risk, CONTEXT §8).
+      await sleep(ANNOUNCEMENT_SEND_SPACING_MS + Math.floor(Math.random() * ANNOUNCEMENT_SEND_JITTER_MS));
+    } else if (sendsThisTick > 0) {
+      await sleep(SEND_SPACING_MS);
+    }
     sendsThisTick += 1;
     // The job id is the provider idempotency key: a retried job is never delivered twice.
     const result = await provider.sendText(
@@ -413,6 +534,14 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
           : { status: "FAILED", lastError: result.error ?? "Messaging provider failed." },
       select: { id: true },
     });
+    if (job.kind === "ANNOUNCEMENT") {
+      if (result.ok) announcementTally.sent += 1;
+      else if (!willRetry) announcementTally.failed += 1;
+    }
+  }
+  if (announcementTally.sent || announcementTally.failed) {
+    // Redacted delivery summary: counts only — no text, no numbers, no names.
+    console.info(`[announcements] tick: sent ${announcementTally.sent}, failed ${announcementTally.failed}.`);
   }
 }
 
@@ -496,12 +625,14 @@ export async function processLateReportNotifications(now = new Date(), academyId
 }
 
 /**
- * Monthly-report missing reminders (Session 1 — PROPOSAL, owner 2026-10-18, CONTEXT §9):
+ * Monthly-report missing reminders (Session 1 — CONTEXT §9; 1st/3rd timing CONFIRMED by the owner 2026-10-26):
  * on the 1st and 3rd of each month (the TEACHER's local calendar), every active
  * teacher with at least one missing monthly report for the PREVIOUS month gets ONE
  * reminder. Eligible (teacher, student) pairs = students on at least one of that
  * teacher's non-cancelled sessions in that month; missing = eligible minus already
  * reported. Dedup keys make repeated scans within the same day harmless.
+ * From the 4th to the 7th, a teacher still missing reports gets one
+ * MONTHLY_REPORT_MISSING flag for that month (owner decision 7 — no money effect).
  */
 export async function processMonthlyReportReminders(now = new Date(), academyId?: string) {
   if (!(await isSession1ReportsReady())) return;
@@ -511,15 +642,28 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
     select: { id: true, academyId: true, user: { select: { id: true, timezone: true } } },
   });
   const jobs: Prisma.NotificationJobCreateManyInput[] = [];
+  const flags: Prisma.TeacherFlagCreateManyInput[] = [];
 
   for (const teacher of teachers) {
     const day = localDayOfMonth(now, teacher.user.timezone || "Africa/Cairo");
-    if (day === null || !MONTHLY_REPORT_REMINDER_DAYS.includes(day)) continue;
+    if (day === null) continue;
+    const remindToday = MONTHLY_REPORT_REMINDER_DAYS.includes(day);
+    const flagToday = day >= MONTHLY_REPORT_FLAG_FIRST_DAY && day <= MONTHLY_REPORT_FLAG_LAST_DAY;
+    if (!remindToday && !flagToday) continue;
 
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: teacher.user.timezone || "Africa/Cairo", year: "numeric", month: "2-digit" }).formatToParts(now);
     const year = parts.find((part) => part.type === "year")?.value ?? "";
     const month = parts.find((part) => part.type === "month")?.value ?? "";
     const monthKey = previousMonthKey(`${year}-${month}`);
+
+    if (flagToday) {
+      // Already flagged for this month → nothing left to do for this teacher today.
+      const flagged = await prisma.teacherFlag.findFirst({
+        where: { teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey },
+        select: { id: true },
+      });
+      if (flagged) continue;
+    }
 
     const { start, end } = monthKeyRangeUtc(monthKey);
 
@@ -547,6 +691,10 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
     const missingCount = eligible.filter((row) => !reported.has(row.studentId)).length;
     if (missingCount === 0) continue;
 
+    if (flagToday) {
+      flags.push({ academyId: teacher.academyId, teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey });
+      continue;
+    }
     jobs.push({
       academyId: teacher.academyId,
       sessionId: null,
@@ -560,6 +708,88 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
     });
   }
 
+  if (jobs.length) {
+    await prisma.notificationJob.createMany({ data: jobs, skipDuplicates: true });
+  }
+  if (flags.length) {
+    // ON CONFLICT DO NOTHING against teacher_flags_teacher_type_month_key.
+    await prisma.teacherFlag.createMany({ data: flags, skipDuplicates: true });
+  }
+}
+
+/**
+ * Teacher late start (owner decision 2026-10-26, lib/config/lateness.ts): for every
+ * SCHEDULED, still-running session that started 5–60 minutes ago and whose ASSIGNED
+ * teacher has no platform link click yet:
+ *  (a) from T+5 → one TEACHER_LATE_START WhatsApp job to the teacher;
+ *  (b) from T+10 → one TEACHER_LATE_START_ADMIN job per active Admin.
+ * Idempotent per session through the unique dedup keys (createMany skipDuplicates).
+ * Students and guardians are never involved. No link is ever put in these jobs.
+ */
+export async function processLateStartAlerts(now = new Date(), academyId?: string) {
+  const minute = 60 * 1000;
+  const sessions = await prisma.session.findMany({
+    where: {
+      status: "SCHEDULED",
+      scheduledStart: {
+        gte: new Date(now.getTime() - LATE_START_SCAN_WINDOW_MINUTES * minute),
+        lte: new Date(now.getTime() - TEACHER_LATE_REMINDER_MINUTES * minute),
+      },
+      scheduledEnd: { gt: now },
+      ...(academyId ? { academyId } : {}),
+    },
+    select: {
+      id: true,
+      academyId: true,
+      scheduledStart: true,
+      teacher: { select: { userId: true, user: { select: { isActive: true } } } },
+    },
+  });
+  if (!sessions.length) return;
+  const clicked = new Set(
+    (
+      await prisma.sessionJoinClick.findMany({
+        where: { OR: sessions.map((session) => ({ sessionId: session.id, userId: session.teacher.userId })) },
+        select: { sessionId: true },
+      })
+    ).map((click) => click.sessionId),
+  );
+  const adminsByAcademy = new Map<string, string[]>();
+  const jobs: Prisma.NotificationJobCreateManyInput[] = [];
+  for (const session of sessions) {
+    if (clicked.has(session.id)) continue;
+    const lateMs = now.getTime() - session.scheduledStart.getTime();
+    // (a) only to an active teacher; (b) still alerts the Admins either way.
+    if (session.teacher.user.isActive) {
+      jobs.push({
+        academyId: session.academyId,
+        sessionId: session.id,
+        recipientUserId: session.teacher.userId,
+        kind: "TEACHER_LATE_START",
+        dedupKey: `TEACHER_LATE_START:${session.id}`,
+        scheduledFor: now,
+      });
+    }
+    if (lateMs >= ADMIN_LATE_ALERT_MINUTES * minute) {
+      let admins = adminsByAcademy.get(session.academyId);
+      if (!admins) {
+        admins = (
+          await prisma.user.findMany({ where: { academyId: session.academyId, role: "ADMIN", isActive: true }, select: { id: true } })
+        ).map((admin) => admin.id);
+        adminsByAcademy.set(session.academyId, admins);
+      }
+      for (const adminId of admins) {
+        jobs.push({
+          academyId: session.academyId,
+          sessionId: session.id,
+          recipientUserId: adminId,
+          kind: "TEACHER_LATE_START_ADMIN",
+          dedupKey: `TEACHER_LATE_START_ADMIN:${session.id}:${adminId}`,
+          scheduledFor: now,
+        });
+      }
+    }
+  }
   if (jobs.length) {
     await prisma.notificationJob.createMany({ data: jobs, skipDuplicates: true });
   }
@@ -629,6 +859,11 @@ export async function runWorkerTick(now = new Date()) {
     await processLateReportNotifications(now);
   } catch (cause) {
     console.error("[worker] late report processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processLateStartAlerts(now);
+  } catch (cause) {
+    console.error("[worker] late start processing failed.", cause instanceof Error ? cause.message : cause);
   }
   try {
     await processMonthlyReportReminders(now);

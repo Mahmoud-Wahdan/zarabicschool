@@ -118,6 +118,16 @@ export default async function MonthlyReportsAdminPage({
       }),
   );
   const missing = missingByTeacher.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  // Teachers the worker flagged for this month (MONTHLY_REPORT_MISSING, owner decision 7).
+  // The flag stays as a record even after the late report arrives.
+  const flaggedTeacherIds = new Set(
+    (
+      await prisma.teacherFlag.findMany({
+        where: { academyId: user.academyId, flagType: "MONTHLY_REPORT_MISSING", monthKey },
+        select: { teacherId: true },
+      })
+    ).map((flag) => flag.teacherId),
+  );
 
   const languageDisplay = (code: string) =>
     REPORT_LANGUAGE_OPTIONS.find((option) => option.value === resolveReportLanguage(code))?.nativeName ?? code;
@@ -168,7 +178,15 @@ export default async function MonthlyReportsAdminPage({
           <ul className="mt-2 flex flex-col gap-2">
             {missing.map(({ teacher, missing: students }) => (
               <li key={teacher.id} className="rounded-lg bg-tertiary-fixed/20 border border-outline-variant px-3 py-2">
-                <p className="text-body-md font-bold text-primary">{teacher.user.displayName}</p>
+                <p className="flex flex-wrap items-center gap-2 text-body-md font-bold text-primary">
+                  {teacher.user.displayName}
+                  {flaggedTeacherIds.has(teacher.id) ? (
+                    <span className="inline-flex items-center gap-1 rounded bg-error-container px-2 py-0.5 text-label-sm font-semibold text-on-error-container">
+                      <Icon name="flag" size={14} />
+                      {t("flaggedChip")}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-body-sm text-on-surface">
                   {t("missingCount", { count: students.length })}: {students.map((student) => student.displayName).join(locale === "ar" ? "، " : ", ")}
                 </p>

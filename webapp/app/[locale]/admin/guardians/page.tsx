@@ -16,7 +16,7 @@ export default async function GuardiansPage() {
     <DashboardShell role={user.role} userName={user.displayName}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("guardians.title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("guardians.subtitle")}</p>
-      <ProfilesPanel type="guardian" title={t("guardians.title")} />
+      <ProfilesPanel type="guardian" title={t("guardians.title")} canSetAnnouncements={user.role === "ADMIN"} />
     </DashboardShell>
   );
 }

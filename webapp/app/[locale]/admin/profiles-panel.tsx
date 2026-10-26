@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 type ProfileType = "student" | "guardian" | "teacher";
-type Row = { id: string; username: string; displayName: string; isActive: boolean; studentProfile?: { guardianId: string | null } | null; guardianProfile?: { relationship: string } | null };
+type Row = { id: string; username: string; displayName: string; isActive: boolean; announcementsOptOut?: boolean; studentProfile?: { guardianId: string | null } | null; guardianProfile?: { relationship: string } | null };
 type GuardianOption = { id: string; displayName: string };
 
-export default function ProfilesPanel({ type, title }: { type: ProfileType; title: string }) {
+/** `canSetAnnouncements`: ADMIN only — the "no announcements" flag (owner, 2026-10-26). */
+export default function ProfilesPanel({ type, title, canSetAnnouncements = false }: { type: ProfileType; title: string; canSetAnnouncements?: boolean }) {
   const t = useTranslations("management.form");
   const [rows, setRows] = useState<Row[]>([]);
   const [form, setForm] = useState({ username: "", displayName: "", password: "", relationship: "FATHER", guardianId: "" });
@@ -54,6 +55,15 @@ export default function ProfilesPanel({ type, title }: { type: ProfileType; titl
     if (!response.ok) { setMessage(payload.error?.message ?? t("updateFailed")); return; }
     setRows((current) => current.map((item) => item.id === row.id ? { ...item, isActive: !row.isActive } : item));
   }
+  async function toggleAnnouncements(row: Row) {
+    const next = !row.announcementsOptOut;
+    const response = await fetch(`/api/admin/profiles/${row.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ announcementsOptOut: next }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(payload.error?.message ?? t("updateFailed")); return; }
+    setRows((current) => current.map((item) => item.id === row.id ? { ...item, announcementsOptOut: next } : item));
+  }
+  // Hidden until migration 20261026180000 is applied (the API then omits the field).
+  const showAnnouncements = canSetAnnouncements && rows.some((row) => row.announcementsOptOut !== undefined);
   return (
     <div className="mt-6 space-y-6">
       <form onSubmit={create} className="dashboard-card grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,7 +74,7 @@ export default function ProfilesPanel({ type, title }: { type: ProfileType; titl
         {type !== "teacher" ? <button className="cta-primary rounded-lg px-3 py-2 text-sm">{t("create")}</button> : null}
         {message ? <p role="status" className="text-sm opacity-75 sm:col-span-2 lg:col-span-4">{message}</p> : null}
       </form>
-      <div className="dashboard-card overflow-x-auto p-5"><h2 className="mb-4 font-semibold text-[var(--navy)]">{title}</h2><table className="w-full min-w-[540px] text-start text-sm"><thead className="border-b border-[var(--line)] text-xs opacity-70"><tr><th className="px-3 py-2 text-start">{t("name")}</th><th className="px-3 py-2 text-start">{t("usernameCol")}</th><th className="px-3 py-2 text-start">{t("status")}</th><th className="px-3 py-2 text-start">{t("action")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-b border-[var(--line)] last:border-0"><td className="px-3 py-3">{row.displayName}</td><td className="px-3 py-3 opacity-70">{row.username}</td><td className="px-3 py-3">{row.isActive ? t("active") : t("inactive")}</td><td className="px-3 py-3"><button onClick={() => toggle(row)} className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs font-semibold">{row.isActive ? t("deactivate") : t("activate")}</button></td></tr>)}</tbody></table></div>
+      <div className="dashboard-card overflow-x-auto p-5"><h2 className="mb-4 font-semibold text-[var(--navy)]">{title}</h2><table className="w-full min-w-[540px] text-start text-sm"><thead className="border-b border-[var(--line)] text-xs opacity-70"><tr><th className="px-3 py-2 text-start">{t("name")}</th><th className="px-3 py-2 text-start">{t("usernameCol")}</th><th className="px-3 py-2 text-start">{t("status")}</th>{showAnnouncements ? <th className="px-3 py-2 text-start">{t("announcements")}</th> : null}<th className="px-3 py-2 text-start">{t("action")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-b border-[var(--line)] last:border-0"><td className="px-3 py-3">{row.displayName}</td><td className="px-3 py-3 opacity-70">{row.username}</td><td className="px-3 py-3">{row.isActive ? t("active") : t("inactive")}</td>{showAnnouncements ? <td className="px-3 py-3"><button onClick={() => toggleAnnouncements(row)} title={t("announcementsHint")} className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs font-semibold">{row.announcementsOptOut ? t("announcementsOff") : t("announcementsOn")}</button></td> : null}<td className="px-3 py-3"><button onClick={() => toggle(row)} className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs font-semibold">{row.isActive ? t("deactivate") : t("activate")}</button></td></tr>)}</tbody></table></div>
     </div>
   );
 }

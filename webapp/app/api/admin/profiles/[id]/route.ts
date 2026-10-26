@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../../lib/dal";
+import { isPhase7FollowupReady } from "../../../../../lib/phase7/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { isSession1ReportsReady } from "../../../../../lib/reports/session1-ready";
 import { profileUpdateSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
@@ -13,6 +17,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid profile data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   const target = await prisma.user.findFirst({ where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } }, select: { id: true, role: true } });
   if (!target) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, { status: 404 });
+  // The "no announcements" flag is set by an ADMIN only (owner, 2026-10-26).
+  if (parsed.data.announcementsOptOut !== undefined) {
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Only an Admin can change the announcements setting." } }, { status: 403 });
+    }
+    if (!(await isPhase7FollowupReady())) {
+      return NextResponse.json({ error: { code: "MIGRATION_PENDING", message: "Apply migration 20261026180000 first." } }, { status: 409 });
+    }
+  }
   if (target.role === "STUDENT" && parsed.data.guardianId !== undefined && parsed.data.guardianId) {
     const guardian = await prisma.guardian.findFirst({ where: { id: parsed.data.guardianId, academyId: user.academyId }, select: { id: true } });
     if (!guardian) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Guardian not found." } }, { status: 404 });
@@ -25,9 +38,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ...(parsed.data.phone === undefined ? {} : { phone: parsed.data.phone || null }),
     ...(parsed.data.email === undefined ? {} : { email: parsed.data.email || null }),
     ...(parsed.data.isActive === undefined ? {} : { isActive: parsed.data.isActive }),
+    ...(parsed.data.announcementsOptOut === undefined ? {} : { announcementsOptOut: parsed.data.announcementsOptOut }),
   };
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id }, data });
+    await tx.user.update({ where: { id }, data, select: { id: true } });
     if (target.role === "STUDENT" && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined))) {
       await tx.student.update({
         where: { userId: id },

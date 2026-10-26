@@ -54,7 +54,11 @@
       "whatsapp": "WhatsApp",
       "payroll": "Payroll",
       "overtime": "Overtime Review",
-      "sessionReports": "Session reports"
+      "sessionReports": "Session reports",
+      "complaints": "Complaints",
+      "evaluations": "Evaluation Summaries",
+      "announcements": "Announcements",
+      "fileComplaint": "File a Complaint"
     }
   },
   "whatsappAdmin": {
@@ -1097,6 +1101,7 @@
         "salaryUnavailable": "Approved earnings and payout history live on the payroll page."
       },
       "monthlyHint": "One monthly report per student you taught this month — written in the student's language and visible to the family immediately.",
+      "monthlyMissing": "{count, plural, one {1 monthly report for {month} is still missing.} other {# monthly reports for {month} are still missing.}} Please submit them.",
       "actions": {
         "report": "Report",
         "monthlyReports": "Open monthly reports",
@@ -1348,6 +1353,7 @@
     "missingTitle": "Missing monthly reports",
     "missingHint": "Per teacher: eligible students (taught this month) without a submitted monthly report. Teachers also receive WhatsApp reminders on the 1st and 3rd of the month.",
     "missingCount": "{count, plural, one {1 missing report} other {# missing reports}}",
+    "flaggedChip": "Flagged",
     "listTitle": "Submitted reports",
     "emptyTitle": "No monthly reports this month",
     "emptyText": "Submitted monthly reports for the selected month appear here.",
@@ -1839,7 +1845,11 @@
       "createFailed": "Unable to create the profile.",
       "updateFailed": "Unable to update the profile.",
       "addFailed": "Unable to create the account.",
-      "updateAccountFailed": "Unable to update the account."
+      "updateAccountFailed": "Unable to update the account.",
+      "announcements": "Announcements",
+      "announcementsHint": "Admin only: when off, this person gets no announcement on WhatsApp (they still see it on the platform).",
+      "announcementsOn": "Receives",
+      "announcementsOff": "Off (no WhatsApp)"
     }
   },
   "invoices": {
@@ -1970,5 +1980,155 @@
     "empty": "No reports yet. A report appears here as soon as your teacher submits it.",
     "open": "View report",
     "evaluate": "Evaluate the session"
+  },
+  "clickTimeline": {
+    "title": "Link click times",
+    "disclaimer": "When each person clicked the session link on the platform. A click does not prove they entered or stayed in the session.",
+    "empty": "No link clicks recorded for this session.",
+    "assignedTeacher": "Assigned teacher",
+    "atStart": "at the scheduled start",
+    "afterStart": "{minutes} min after the start",
+    "beforeStart": "{minutes} min before the start",
+    "roles": {
+      "ADMIN": "Admin",
+      "SUPERVISOR": "Supervisor",
+      "TEACHER": "Teacher",
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    }
+  },
+  "complaintsAdmin": {
+    "title": "Complaints",
+    "subtitle": "Only Admin and Supervisor can see complaints. The person concerned is never notified automatically — inform them yourself when appropriate.",
+    "pendingTitle": "Complaints are not available yet",
+    "pendingText": "The Phase 7 database migration has not been applied.",
+    "filterLabel": "Filter by status",
+    "all": "All",
+    "status": {
+      "NEW": "New",
+      "IN_PROGRESS": "In progress",
+      "RESOLVED": "Resolved"
+    },
+    "category": {
+      "TEACHING_QUALITY": "Teaching quality",
+      "BEHAVIOUR": "Behaviour",
+      "PUNCTUALITY": "Punctuality",
+      "TECHNICAL": "Technical",
+      "BILLING": "Billing",
+      "OTHER": "Other"
+    },
+    "role": {
+      "TEACHER": "Teacher",
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    },
+    "emptyTitle": "No complaints",
+    "emptyText": "Complaints filed by students, guardians and teachers appear here.",
+    "filedBy": "Filed by {name} ({role})",
+    "concerning": "about {name} ({role})",
+    "sessionOf": "Session: {time}",
+    "receivedOn": "Received: {time}",
+    "backToList": "All complaints",
+    "categoryLabel": "Category",
+    "filedByLabel": "Filed by",
+    "concernedLabel": "Concerning",
+    "sessionLabel": "Session",
+    "openSession": "Open session record",
+    "receivedLabel": "Received",
+    "resolvedBy": "Resolved by {name}",
+    "handledBy": "Being handled by {name}",
+    "manualInformHint": "Nobody is notified automatically. If the person concerned should know, inform them yourself.",
+    "startAction": "Start handling",
+    "resolutionNoteLabel": "Resolution note (required)",
+    "resolveAction": "Mark as resolved",
+    "actionError": "The action failed. Please try again.",
+    "concerningOther": "About: another participant (not named)",
+    "concernedOther": "Another participant in this session (not named by the filer)",
+    "rosterTitle": "Session participants",
+    "rosterHint": "The filer did not name the person. Use the description and this list to identify them."
+  },
+  "complaintForm": {
+    "title": "File a complaint",
+    "subtitle": "Tell the academy administration about a problem with one of your sessions.",
+    "privacyHint": "Your complaint is read only by the academy administration. The person concerned does not see it.",
+    "pendingTitle": "Complaints are not available yet",
+    "pendingText": "Please try again later.",
+    "noSessionsTitle": "No sessions yet",
+    "noSessionsText": "You can file a complaint about a session you took part in.",
+    "sessionLabel": "Session",
+    "concernedLabel": "About whom",
+    "categoryLabel": "Category",
+    "titleLabel": "Title",
+    "bodyLabel": "Details",
+    "choose": "Choose…",
+    "submit": "Send complaint",
+    "error": "Could not send the complaint. Please try again.",
+    "sentTitle": "Complaint received",
+    "sentText": "Thank you. The academy administration will review it.",
+    "role": {
+      "TEACHER": "Teacher",
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    },
+    "category": {
+      "TEACHING_QUALITY": "Teaching quality",
+      "BEHAVIOUR": "Behaviour",
+      "PUNCTUALITY": "Punctuality",
+      "TECHNICAL": "Technical",
+      "BILLING": "Billing",
+      "OTHER": "Other"
+    },
+    "otherParticipant": "Another participant in this session",
+    "otherParticipantHint": "No name is needed: the administration will identify the person from the session."
+  },
+  "announcementsAdmin": {
+    "title": "Announcements",
+    "subtitle": "Send a message to everyone at the academy by WhatsApp. A copy also appears on everyone's dashboard. A sent announcement cannot be edited.",
+    "pendingTitle": "Announcements are not available yet",
+    "pendingText": "The Phase 7 database migration has not been applied.",
+    "titleLabel": "Title",
+    "bodyLabel": "Message",
+    "expiryLabel": "Show on dashboards until (optional)",
+    "expiryHint": "If empty, the dashboard copy disappears {days} days after sending. The history always keeps it; WhatsApp is not affected.",
+    "reviewAction": "Review recipients",
+    "recipientCount": "{count, plural, one {This will send 1 WhatsApp message.} other {This will send # WhatsApp messages.}}",
+    "recipientDetail": "{users} active users · {noPhone} without a WhatsApp number (dashboard copy only) · {merged} sharing a number with someone else (one message per number).",
+    "confirmLabel": "{count, plural, one {I confirm sending this announcement to 1 WhatsApp number.} other {I confirm sending this announcement to # WhatsApp numbers.}}",
+    "sendAction": "Send announcement",
+    "editAction": "Back to editing",
+    "recipientsChanged": "The number of recipients changed. Please check the new count and confirm again.",
+    "sent": "Announcement sent. WhatsApp messages go out gradually to protect the number.",
+    "error": "Could not send the announcement. Please try again.",
+    "historyTitle": "Sent announcements",
+    "emptyTitle": "No announcements yet",
+    "visibleUntil": "On dashboards until {time}",
+    "expired": "No longer on dashboards",
+    "deliverySummary": "WhatsApp: {sent} sent · {pending} waiting · {failed} failed",
+    "recipientScope": "Teachers, students and guardians only (Admins and Supervisors are not included). Turned off by an Admin: {optedOut}.",
+    "dailyLimit": "The limit of {count} announcements in 24 hours has been reached. Nothing was sent.",
+    "dailyLimitHint": "At most {count} announcements can be sent in any 24 hours."
+  },
+  "announcementsWidget": {
+    "title": "Announcements",
+    "history": "All announcements",
+    "historyTitle": "Announcements",
+    "empty": "No announcements yet."
+  },
+  "evaluationSummaries": {
+    "title": "Evaluation summaries",
+    "subtitle": "Optional student and guardian evaluations per teacher. Visible to Admin and Supervisor only — teachers never see this page. Nothing happens automatically.",
+    "pendingTitle": "Evaluations are not available yet",
+    "emptyTitle": "No teachers yet",
+    "averageLine": "Average {average} / 5 · {count, plural, one {1 evaluation} other {# evaluations}}",
+    "noEvaluations": "No evaluations yet",
+    "author": {
+      "STUDENT": "Student",
+      "GUARDIAN": "Guardian"
+    },
+    "rating": "{rating} / 5"
+  },
+  "evaluationPrompt": {
+    "text": "{count, plural, one {You can evaluate 1 recent session (optional).} other {You can evaluate # recent sessions (optional).}}",
+    "action": "Evaluate"
   }
 }

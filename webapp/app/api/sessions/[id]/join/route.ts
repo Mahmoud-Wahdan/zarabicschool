@@ -8,6 +8,9 @@ import { validateZoomUrl } from "../../../../../lib/validation/zoom-url";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
+  // WhatsApp messages carry this URL (owner, 2026-10-26): a signed-out reader opening
+  // it in a browser is sent to the login page instead of a JSON 401.
+  if (error?.status === 401) return NextResponse.redirect(new URL("/login", request.url));
   if (error) return error;
   if (!allowRequest(`join:${user.id}`, 30, 60 * 1000)) {
     return NextResponse.json(

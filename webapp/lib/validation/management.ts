@@ -70,6 +70,9 @@ export const profileUpdateSchema = z.object({
   // Session 1 (owner, 2026-10-18): the language the teacher writes this student's
   // reports in — editable by Admin/Supervisor on the student profile (CONTEXT §9).
   reportLanguage: reportLanguageSchema.optional(),
+  // Phase 7 follow-up (owner, 2026-10-26): "no announcements" — ADMIN only (the
+  // route refuses it from a Supervisor).
+  announcementsOptOut: z.boolean().optional(),
 });
 
 export const teacherSubjectSchema = z.object({

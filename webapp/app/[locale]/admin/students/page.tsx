@@ -16,7 +16,7 @@ export default async function StudentsPage() {
     <DashboardShell role={user.role} userName={user.displayName}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("students.title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("students.subtitle")}</p>
-      <ProfilesPanel type="student" title={t("students.title")} />
+      <ProfilesPanel type="student" title={t("students.title")} canSetAnnouncements={user.role === "ADMIN"} />
     </DashboardShell>
   );
 }
