@@ -11,6 +11,21 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   allowedDevOrigins: ["192.168.1.41"],
+  // Safe baseline security headers on every response (owner, 2026-10-26). No CSP
+  // and no HSTS yet — both are launch-phase items in docs/specs/deploy-checklist.md.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // The app never frames its own pages; nobody else may frame them (clickjacking).
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin();
