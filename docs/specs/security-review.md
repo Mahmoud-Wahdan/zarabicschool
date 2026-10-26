@@ -201,7 +201,7 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - **G-A10-3 (Low — FIXED):** payroll adjustment/disbursement amounts beyond the 32-bit column answered 500 → now 400. Test: `payroll-money.test.ts` PAY-05.
 - **G-A01-3 (Low — FIXED):** `GET /api/subjects` listed active subjects of EVERY academy to anyone (and to signed-in Admins of other academies). Fix: signed-in → own academy; anonymous → the public application academy. Test: `owasp.test.ts` OW-A01-4.
 - **G-A01-4 (Low — FIXED):** two mutation routes answered `FORBIDDEN` instead of `ORIGIN_NOT_ALLOWED` on a cross-origin request (still refused). Fix: shared `requireSameOrigin`. Test: `same-origin-guard.test.ts`.
-- **G-A02-5 (Low — OPEN, owner decision):** Next.js sends `X-Powered-By: Next.js` (framework disclosure). Proposal: `poweredByHeader: false` in `next.config.ts`.
+- **G-A02-5 (Low — FIXED 2026-10-27, owner approved):** Next.js sent `X-Powered-By: Next.js` (framework disclosure). Fix: `poweredByHeader: false` in `next.config.ts`. Test: `owasp.test.ts` OW-A02-2.
 
 **Automated tests per category (all in `webapp/__tests__`, real dev DB, per-run test academies):**
 

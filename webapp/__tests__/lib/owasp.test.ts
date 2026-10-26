@@ -149,6 +149,10 @@ describe("A02 Security Misconfiguration", () => {
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
     expect(headers["x-frame-options"]).toBe("DENY");
   });
+
+  it("OW-A02-2: the framework is not advertised (no X-Powered-By header)", () => {
+    expect(nextConfig.poweredByHeader).toBe(false);
+  });
 });
 
 describe("A04 Cryptographic Failures", () => {

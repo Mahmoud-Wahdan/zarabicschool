@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // No "X-Powered-By: Next.js" header (framework disclosure; owner, 2026-10-27,
+  // security-review G-A02-5).
+  poweredByHeader: false,
 allowedDevOrigins: ['towable-churrigueresque-rod.ngrok-free.dev'],
   // Safe baseline security headers on every response (owner, 2026-10-26). No CSP
   // and no HSTS yet — both are launch-phase items in docs/specs/deploy-checklist.md.
