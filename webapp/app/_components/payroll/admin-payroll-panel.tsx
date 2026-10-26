@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 type TeacherOption = { id: string; displayName: string };
@@ -18,16 +18,42 @@ export default function AdminPayrollPanel({ teachers }: { teachers: TeacherOptio
   const [adjustment, setAdjustment] = useState({ teacherId: "", amountMinor: "", currency: "EGP", reason: "" });
   const [disbursement, setDisbursement] = useState({ teacherId: "", amountMinor: "", currency: "EGP", reason: "" });
 
-  async function post(url: string, body: unknown, successMessage: string) {
+  // A5: one Idempotency-Key per distinct ledger entry. A retry of the SAME entry
+  // (double click, network error) reuses the key, so the server never writes it
+  // twice; changing any field starts a new key.
+  const ledgerKeys = useRef(new Map<string, string>());
+  function idempotencyKeyFor(url: string, body: unknown) {
+    const fingerprint = `${url}|${JSON.stringify(body)}`;
+    let key = ledgerKeys.current.get(fingerprint);
+    if (!key) {
+      key = crypto.randomUUID();
+      ledgerKeys.current.set(fingerprint, key);
+    }
+    return { fingerprint, key };
+  }
+
+  async function post(url: string, body: unknown, successMessage: string, idempotent = false) {
     setMessage("");
     setBusy(true);
+    const idem = idempotent ? idempotencyKeyFor(url, body) : null;
     try {
-      const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (idem) headers["idempotency-key"] = idem.key;
+      let response: Response;
+      try {
+        response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+      } catch {
+        // Network failure: the key is kept, so retrying the same entry is safe.
+        setMessage("NETWORK_ERROR");
+        return false;
+      }
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         setMessage(payload.error?.message ?? payload.error?.code ?? "ERROR");
         return false;
       }
+      // Recorded: the next identical entry is a NEW payment and gets a new key.
+      if (idem) ledgerKeys.current.delete(idem.fingerprint);
       setMessage(successMessage);
       return true;
     } finally {
@@ -89,6 +115,7 @@ export default function AdminPayrollPanel({ teachers }: { teachers: TeacherOptio
                 reason: adjustment.reason,
               },
               t("adjustmentCreated"),
+              true,
             );
             if (ok) setAdjustment({ ...adjustment, teacherId: "", amountMinor: "", reason: "" });
           }}
@@ -127,6 +154,7 @@ export default function AdminPayrollPanel({ teachers }: { teachers: TeacherOptio
                 reason: disbursement.reason,
               },
               t("disbursementCreated"),
+              true,
             );
             if (ok) setDisbursement({ ...disbursement, teacherId: "", amountMinor: "", reason: "" });
           }}

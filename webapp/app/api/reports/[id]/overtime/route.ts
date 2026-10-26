@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { SettlementError, creditAmountMinor, getRateForSession } from "../../../../../lib/payroll/rates";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 const overtimeSchema = z.object({
   action: z.enum(["APPROVE", "REJECT"]),
@@ -21,6 +22,8 @@ function isUuid(value: string) {
  * double clicks and concurrent reviews idempotent.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const { id } = await params;
@@ -48,21 +51,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: { code: "REPORT_NOT_APPROVED", message: "Overtime is reviewed only after the report is approved." } }, { status: 409 });
   }
 
+  // A3 (P6): the PENDING claim and its payroll entry commit or roll back TOGETHER.
+  // A missing teacher rate (NO_TEACHER_RATE) rolls the claim back, so the claim stays
+  // PENDING and the Admin can retry after setting the rate. The partial unique index
+  // payroll_ledger_one_overtime_per_report_key is the DB backstop: one overtime
+  // entry per report, whatever happens.
   const reviewedAt = new Date();
-  const claimed = await prisma.report.updateMany({
-    where: { id, extraTimeStatus: "PENDING" },
-    data: parsed.data.action === "APPROVE"
-      ? { extraTimeStatus: "APPROVED", extraTimeReviewedById: user.id, extraTimeReviewedAt: reviewedAt }
-      : { extraTimeStatus: "REJECTED", extraTimeReviewedById: user.id, extraTimeReviewedAt: reviewedAt },
-  });
-  if (claimed.count === 0) {
-    const current = await prisma.report.findUniqueOrThrow({ where: { id }, select: { extraTimeStatus: true } });
-    return NextResponse.json({ data: current, alreadyHandled: true });
-  }
-
-  if (parsed.data.action === "APPROVE") {
-    try {
-      await prisma.$transaction(async (tx) => {
+  let claimedNow = false;
+  try {
+    claimedNow = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.report.updateMany({
+        where: { id, extraTimeStatus: "PENDING" },
+        data: parsed.data.action === "APPROVE"
+          ? { extraTimeStatus: "APPROVED", extraTimeReviewedById: user.id, extraTimeReviewedAt: reviewedAt }
+          : { extraTimeStatus: "REJECTED", extraTimeReviewedById: user.id, extraTimeReviewedAt: reviewedAt },
+      });
+      if (claimed.count === 0) return false;
+      if (parsed.data.action === "APPROVE") {
         const rate = await getRateForSession(tx, report.teacherId, report.session.scheduledStart);
         const amountMinor = creditAmountMinor(report.extraTimeMinutes, rate.hourlyRateMinor);
         if (amountMinor !== 0) {
@@ -83,13 +88,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             },
           });
         }
-      });
-    } catch (cause) {
-      if (cause instanceof SettlementError) {
-        return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: cause.status });
       }
-      throw cause;
+      return true;
+    });
+  } catch (cause) {
+    if (cause instanceof SettlementError) {
+      return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: cause.status });
     }
+    throw cause;
+  }
+  if (!claimedNow) {
+    const current = await prisma.report.findUniqueOrThrow({ where: { id }, select: { extraTimeStatus: true } });
+    return NextResponse.json({ data: current, alreadyHandled: true });
   }
 
   // Post-commit teacher notice (never rolls the decision back; no amounts included).

@@ -9,6 +9,7 @@ import { SchedulingValidationError } from "../../../../../lib/scheduling/checks"
 import { isSessionRequestsReady } from "../../../../../lib/scheduling/session-requests";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 const reviewSchema = z.object({
   action: z.enum(["APPROVE", "REJECT"]),
@@ -26,6 +27,8 @@ function isUuid(value: string) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
@@ -152,6 +155,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
       if (claimed.count === 0) return null;
       if (scope === "SESSION" && session.status === "SCHEDULED") {
+        // A2 reverse direction: a session with an approved (settled) report took place
+        // for at least one student and already carries money — never MISSED.
+        await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${session.id}::uuid FOR UPDATE`;
+        const settled = await tx.report.count({ where: { sessionId: session.id, OR: [{ status: "APPROVED" }, { settledAt: { not: null } }] } });
+        if (settled > 0) {
+          throw new SchedulingValidationError(
+            "SESSION_HAS_SETTLED_REPORTS",
+            "This session has an approved report, so it cannot be marked as missed. Use the per-student scope or the Admin reversal.",
+          );
+        }
         // The whole session died — mark it MISSED with the request as the reason.
         await tx.session.update({
           where: { id: session.id },
