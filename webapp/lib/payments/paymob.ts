@@ -1,10 +1,13 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { z } from "zod";
+
 import {
   PaymentProviderError,
   type PaymentCheckout,
   type PaymentCheckoutInput,
   type PaymentProvider,
+  type PaymentOutcome,
   type VerifiedPaymentEvent,
 } from "./types";
 
@@ -90,6 +93,86 @@ async function postJson(url: string, body: Record<string, unknown>) {
   return asRecord(await response.json());
 }
 
+/**
+ * The ONE place that knows the Paymob callback envelope (A1 — keep isolated: the
+ * shape is confirmed in the sandbox later, and a correction must stay a one-function
+ * change). The documented "transaction processed" callback is
+ * `{ "type": "TRANSACTION", "obj": { …transaction… } }` with `?hmac=` in the query;
+ * a flat transaction body is also accepted. Returns the transaction object whose
+ * fields the HMAC covers.
+ */
+export function parsePaymobCallback(rawBody: string): PaymobResponse {
+  let body: PaymobResponse;
+  try {
+    body = asRecord(JSON.parse(rawBody));
+  } catch {
+    throw new PaymentProviderError("Paymob webhook JSON is invalid.", "INVALID_WEBHOOK", 400);
+  }
+  const envelope = body.obj;
+  if (envelope && typeof envelope === "object" && !Array.isArray(envelope)) {
+    return envelope as PaymobResponse;
+  }
+  return body;
+}
+
+/** Signature location: the documented `?hmac=` query parameter, else an `hmac` header. */
+export function readPaymobSignature(requestUrl: string, headers: Headers): string | null {
+  try {
+    const fromQuery = new URL(requestUrl).searchParams.get("hmac");
+    if (fromQuery) return fromQuery;
+  } catch {
+    // fall through to the header
+  }
+  return headers.get("hmac");
+}
+
+// Fields the settlement decision reads — all inside the HMAC field list above.
+const paymobTransactionSchema = z.object({
+  id: z.union([z.number().int().positive(), z.string().regex(/^\d{1,20}$/)]),
+  success: z.boolean(),
+  pending: z.boolean(),
+  is_voided: z.boolean(),
+  is_refunded: z.boolean(),
+  is_auth: z.boolean(),
+  is_capture: z.boolean(),
+  error_occured: z.boolean(),
+  is_void: z.boolean().optional(),
+  is_refund: z.boolean().optional(),
+  amount_cents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  order: z.object({ id: z.union([z.number().int().positive(), z.string().regex(/^\d{1,20}$/)]) }).passthrough(),
+}).passthrough();
+
+type PaymobTransaction = z.infer<typeof paymobTransactionSchema>;
+
+/**
+ * Success = a genuine, captured, non-voided, non-refunded payment (A1 rule 1).
+ * An authorization that was never captured is NOT a success.
+ */
+export function paymobOutcome(txn: PaymobTransaction): PaymentOutcome {
+  // VOIDED/REFUNDED come only from the HMAC-covered is_voided/is_refunded. The
+  // uncovered is_void/is_refund can only BLOCK a success (→ FAILED), never raise a
+  // void/refund anomaly: someone replaying a signed body could add them freely.
+  if (txn.is_voided) return "VOIDED";
+  if (txn.is_refunded) return "REFUNDED";
+  if (txn.pending) return "PENDING";
+  if (txn.is_void === true || txn.is_refund === true) return "FAILED";
+  if (txn.success && !txn.error_occured && !(txn.is_auth && !txn.is_capture)) return "SUCCESS";
+  return "FAILED";
+}
+
+/**
+ * A callback whose HMAC is VALID but whose fields do not match the expected shape
+ * (the shape is unconfirmed until the sandbox run). The route records it and answers
+ * 200 so Paymob does not retry forever; only field NAMES are kept, never values.
+ */
+export class PaymobSignedShapeError extends Error {
+  constructor(readonly rawEventHash: string, readonly fieldNames: string[]) {
+    super("Signed Paymob callback has an unexpected shape.");
+    this.name = "PaymobSignedShapeError";
+  }
+}
+
 export class PaymobProvider implements PaymentProvider {
   private readonly baseUrl = (process.env.PAYMOB_API_URL ?? "https://accept.paymob.com").replace(/\/$/, "");
 
@@ -112,7 +195,9 @@ export class PaymobProvider implements PaymentProvider {
       delivery_needed: false,
       amount_cents: Number(input.amountMinor),
       currency,
-      merchant_order_id: input.invoiceId,
+      // Unique per attempt (P12: Paymob rejects a repeated merchant_order_id).
+      // Informational only — callbacks are matched by the order id, never by this.
+      merchant_order_id: input.merchantOrderId ?? input.invoiceId,
       items: [],
     });
     const orderId = asString(orderResponse.id, "order id");
@@ -149,35 +234,36 @@ export class PaymobProvider implements PaymentProvider {
 
   verifyWebhook(rawBody: string, signature: string | null): VerifiedPaymentEvent {
     const secret = requiredEnv("PAYMOB_HMAC_SECRET");
-    let parsed: PaymobResponse;
-    try {
-      parsed = asRecord(JSON.parse(rawBody));
-    } catch {
-      throw new PaymentProviderError("Paymob webhook JSON is invalid.", "INVALID_WEBHOOK", 400);
-    }
-    if (!verifyHmac(parsed, signature, secret)) {
+    const transaction = parsePaymobCallback(rawBody);
+    // HMAC first: nothing about an unsigned body is trusted or stored.
+    if (!verifyHmac(transaction, signature, secret)) {
       throw new PaymentProviderError("Paymob webhook signature is invalid.", "INVALID_WEBHOOK", 401);
     }
-    const amountCents = Number(readPath(parsed, "amount_cents"));
-    const currency = readPath(parsed, "currency");
-    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || currency !== "EGP") {
-      throw new PaymentProviderError("Paymob webhook amount or currency is invalid.", "INVALID_WEBHOOK", 400);
+    const parsed = paymobTransactionSchema.safeParse(transaction);
+    if (!parsed.success) {
+      const fieldNames = [...new Set(parsed.error.issues.map((issue) => issue.path.join(".") || "(root)"))];
+      throw new PaymobSignedShapeError(createHash("sha256").update(rawBody).digest("hex"), fieldNames);
     }
-    const reference = String(readPath(parsed, "id") ?? "");
-    if (!reference) throw new PaymentProviderError("Paymob webhook reference is missing.", "INVALID_WEBHOOK", 400);
-    const merchantOrderId = readPath(parsed, "merchant_order_id") ?? readPath(parsed, "order.merchant_order_id");
-    const succeeded = readPath(parsed, "success") === true;
+    const txn = parsed.data;
+    const transactionId = String(txn.id);
+    const outcome = paymobOutcome(txn);
+    // Idempotency (P2): a success claims the bare transaction id; any other state is
+    // stored under "<id>:<state>" so a pending (3-DS) or failed callback never blocks
+    // the later success of the SAME transaction.
     return {
       provider: "PAYMOB",
-      providerEventId: reference,
-      providerReference: reference,
-      invoiceId: typeof merchantOrderId === "string" ? merchantOrderId : undefined,
-      amountMinor: BigInt(amountCents),
-      currency: "EGP",
-      succeeded,
-      eventType: succeeded ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
+      providerEventId: outcome === "SUCCESS" ? transactionId : `${transactionId}:${outcome}`,
+      providerReference: transactionId,
+      providerOrderId: String(txn.order.id),
+      // merchant_order_id is NOT covered by the HMAC (P1): never used to find the invoice.
+      invoiceId: undefined,
+      amountMinor: BigInt(txn.amount_cents),
+      currency: txn.currency,
+      succeeded: outcome === "SUCCESS",
+      outcome,
+      eventType: outcome === "SUCCESS" ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
       rawEventHash: createHash("sha256").update(rawBody).digest("hex"),
-      rawPayload: parsed as Record<string, unknown>,
+      rawPayload: transaction as Record<string, unknown>,
     };
   }
 }

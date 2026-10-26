@@ -9,6 +9,7 @@ import { getLocale } from "next-intl/server";
 import { authOptions } from "./auth";
 import { prisma } from "./prisma";
 
+import { studentPaysForSelf } from "./guards/finance-access";
 export type AuthUser = {
   id: string;
   academyId: string;
@@ -133,7 +134,8 @@ export async function requireApiRoles(roles: AuthUser["role"][]) {
 export const studentFinanceBlocked = cache(async (userId: string): Promise<boolean> => {
   const student = await prisma.student.findUnique({
     where: { userId },
-    select: { guardianId: true },
+    select: { guardianId: true, isAdult: true },
   });
-  return student !== null && student.guardianId !== null;
+  // B5: the single rule in lib/guards/finance-access.ts (adult AND no guardian).
+  return student !== null && !studentPaysForSelf(student);
 });

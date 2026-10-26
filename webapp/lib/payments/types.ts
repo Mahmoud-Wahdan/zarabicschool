@@ -7,8 +7,14 @@ export type PaymentEventType =
   | "SUBSCRIPTION_RENEWAL_FAILED"
   | "SUBSCRIPTION_CANCELED";
 
+/** Normalized provider outcome of one signed callback (A1). Only SUCCESS moves money. */
+export type PaymentOutcome = "SUCCESS" | "PENDING" | "FAILED" | "VOIDED" | "REFUNDED";
+
 export type PaymentCheckoutInput = {
   invoiceId: string;
+  /** Unique per payment attempt (`<invoiceId>:v<n>`, always set by the checkout route);
+   * informational at the provider. Falls back to the invoice id when absent. */
+  merchantOrderId?: string;
   amountMinor: bigint;
   currency: PaymentCurrency;
   description: string;
@@ -30,11 +36,14 @@ export type VerifiedPaymentEvent = {
   provider: "PAYMOB" | "USD_GATEWAY";
   providerEventId: string;
   providerReference: string;
+  /** Provider order id (HMAC-covered) — the ONLY key used to find the invoice (A1). */
+  providerOrderId?: string;
   invoiceId?: string;
   providerSubscriptionId?: string;
   amountMinor: bigint;
-  currency: PaymentCurrency;
+  currency: string;
   succeeded: boolean;
+  outcome?: PaymentOutcome;
   rawEventHash: string;
   eventType?: PaymentEventType;
   eventTimestamp?: Date;
