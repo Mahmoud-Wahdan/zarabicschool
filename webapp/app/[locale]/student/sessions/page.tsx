@@ -33,6 +33,20 @@ export default async function StudentSessionsPage() {
   // report and evaluate (the evaluations API re-checks roster + end server-side).
   const isEnded = (session: (typeof sessions)[number]) =>
     session.status !== "CANCELLED" && session.status !== "MISSED" && now >= session.scheduledEnd;
+  // The report link appears only once the teacher has SUBMITTED a report for this
+  // student (any status — CONTEXT §9 submit-time visibility; owner, 2026-10-25).
+  const reportedSessionIds = new Set(
+    (
+      await prisma.report.findMany({
+        where: {
+          sessionId: { in: sessions.filter(isEnded).map((session) => session.id) },
+          student: { userId: user.id },
+          reportType: "SESSION_COMPLETION_REPORT",
+        },
+        select: { sessionId: true },
+      })
+    ).map((report) => report.sessionId),
+  );
   const evaluationsReady = await isEvaluationsReady();
   const evaluations = evaluationsReady
     ? await getOwnEvaluationsForSessions(sessions.filter(isEnded).map((session) => session.id), { userId: user.id, role: "STUDENT" })
@@ -61,7 +75,7 @@ export default async function StudentSessionsPage() {
                 {t(`types.${session.sessionType}`)}
               </p>
               {state ? <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} /> : null}
-              {isEnded(session) ? (
+              {isEnded(session) && reportedSessionIds.has(session.id) ? (
                 <Link href={`/student/sessions/${session.id}/report`} className="mt-2 inline-block text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
                   {tReports("open")}
                 </Link>
