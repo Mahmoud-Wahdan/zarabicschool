@@ -1882,7 +1882,16 @@
       "announcementsOn": "مفعّلة",
       "announcementsOff": "موقوفة (بدون واتساب)",
       "phoneCol": "الهاتف",
-      "whatsappChat": "محادثة {name} على واتساب"
+      "whatsappChat": "محادثة {name} على واتساب",
+      "paymentCol": "الدفع",
+      "remainingCol": "الحصص المتبقية",
+      "paymentStatus": {
+        "PAID": "مدفوعة",
+        "PENDING": "معلقة",
+        "FAILED": "فاشلة",
+        "CANCELLED": "ملغاة",
+        "NONE": "لا توجد فاتورة"
+      }
     }
   },
   "paymentReturn": {

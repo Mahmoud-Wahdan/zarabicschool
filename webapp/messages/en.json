@@ -1882,7 +1882,16 @@
       "announcementsOn": "Receives",
       "announcementsOff": "Off (no WhatsApp)",
       "phoneCol": "Phone",
-      "whatsappChat": "Chat with {name} on WhatsApp"
+      "whatsappChat": "Chat with {name} on WhatsApp",
+      "paymentCol": "Payment",
+      "remainingCol": "Sessions left",
+      "paymentStatus": {
+        "PAID": "Paid",
+        "PENDING": "Pending",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "NONE": "No invoice"
+      }
     }
   },
   "paymentReturn": {

@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getStudentFinanceStatus } from "../../../../lib/billing/student-finance-status";
 import { requireApiRoles } from "../../../../lib/dal";
 import { isPhase7FollowupReady } from "../../../../lib/phase7/readiness";
 import { prisma } from "../../../../lib/prisma";
@@ -46,7 +47,17 @@ export async function GET(request: Request) {
       teacherProfile: { select: { id: true, subjects: { select: { subjectId: true } } } },
     },
   });
-  return NextResponse.json({ data: rows });
+  if (type !== "student") return NextResponse.json({ data: rows });
+  // S-09 / D29: paid/unpaid + remaining sessions per student from the separate
+  // amount-free read model (Admin and Supervisor; never a money field).
+  const studentIds = rows.flatMap((row) => (row.studentProfile ? [row.studentProfile.id] : []));
+  const finance = await getStudentFinanceStatus(user.academyId, studentIds);
+  return NextResponse.json({
+    data: rows.map((row) => ({
+      ...row,
+      financeStatus: row.studentProfile ? finance.get(row.studentProfile.id) ?? null : null,
+    })),
+  });
 }
 
 export async function POST(request: Request) {
