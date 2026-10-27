@@ -23,6 +23,7 @@ import { getJoinWindowMinutes } from "../sessions/join-window";
 import { monthKeyRangeUtc, previousMonthKey } from "../reports/month-key";
 import { resolveReportLanguage, type ReportLanguageCode } from "../reports/report-language";
 import { isSession1ReportsReady } from "../reports/session1-ready";
+import { buildDailyScheduleMessage, DAILY_SCHEDULE_KIND, planDailySchedules, withinDailyScheduleWindow } from "../notifications/daily-schedule";
 import { addWeeksInTimeZone } from "../schedules/recurrence";
 import { generateSeriesWeek, parseSeriesRule, SeriesRuleError, type SeriesForGeneration } from "../schedules/series";
 
@@ -525,12 +526,34 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         continue;
       }
     }
+    // S-08 / D5: composed at send time from {localDate}; never sent at or after 08:00
+    // local (a late tick cancels it — later changes are shown in-app only).
+    let dailyScheduleText: string | null = null;
+    if (job.kind === DAILY_SCHEDULE_KIND) {
+      const localDate = (job.payload as { localDate?: unknown } | null)?.localDate;
+      const timeZone = job.recipientUser.timezone || "Africa/Cairo";
+      const reason =
+        typeof localDate !== "string"
+          ? "Daily schedule without a local date."
+          : !withinDailyScheduleWindow(now, localDate, timeZone)
+            ? "Daily schedule not sent at or after 08:00 local."
+            : null;
+      dailyScheduleText = reason ? null : await buildDailyScheduleMessage(job.recipientUser.id, job.academyId, localDate as string);
+      if (!dailyScheduleText) {
+        await prisma.notificationJob.update({
+          where: { id: job.id },
+          data: { status: "CANCELLED", lastError: reason ?? "No sessions left for that day." },
+          select: { id: true },
+        });
+        continue;
+      }
+    }
     let joinWindowMinutes = joinWindowByAcademy.get(job.academyId);
     if (joinWindowMinutes === undefined) {
       joinWindowMinutes = await getJoinWindowMinutes(job.academyId);
       joinWindowByAcademy.set(job.academyId, joinWindowMinutes);
     }
-    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement }, joinWindowMinutes);
+    const message = dailyScheduleText ?? composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement }, joinWindowMinutes);
     // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
     // heavier announcement spacing is the job's staggered eligible time, not a sleep.
     if (sendsThisTick > 0) {
@@ -913,6 +936,7 @@ export async function runWorkerTick(now = new Date(), academyId?: string) {
     ["late report processing", () => processLateReportNotifications(now, academyId)],
     ["late start processing", () => processLateStartAlerts(now, academyId)],
     ["monthly report reminder processing", () => processMonthlyReportReminders(now, academyId)],
+    ["daily teacher schedule planning", () => planDailySchedules(now, academyId)],
     ["monthly credit expiry", () => processMonthlyCreditExpiry(now, academyId)],
     ["series extension", () => extendDueSeries(now, academyId)],
     ["notification job processing", () => processDueNotificationJobs(now, academyId)],
