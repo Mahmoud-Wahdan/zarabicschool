@@ -20,9 +20,10 @@ import {
 } from "../helpers/session-fixtures";
 
 /**
- * M-2 / D32 (owner, 2026-10-27): the assigned teacher's join link (dashboard button and
- * WhatsApp) opens the session's HOST link when one is stored, otherwise the join link.
- * Students, guardians, Admin and Supervisor keep the join link on the plain URL.
+ * M-2 reversed / D45 (owner, 2026-10-27; replaces D32): the teacher always gets the
+ * JOIN link (dashboard button and WhatsApp). The host link is for the Supervisor and
+ * the Admin only, through `?host=1`; a teacher, student or guardian asking for it gets
+ * the same 404 as an unknown session. Plain URLs give everyone the join link.
  * Per-run test academy only.
  */
 jest.setTimeout(180_000);
@@ -80,10 +81,40 @@ afterAll(async () => {
   await closePrisma();
 });
 
-describe("M-2 teacher host link (D32)", () => {
-  it("HL-01: the assigned teacher's plain join opens the stored host link", async () => {
+describe("M-2 reversed — host link for Admin/Supervisor only (D45)", () => {
+  it("HL-01: the assigned teacher gets the join link even when a host link is stored", async () => {
     const session = await createSession(HOST_URL);
-    expect(await plainJoin(session.id, fx.teacherUserId)).toBe(HOST_URL);
+    expect(await plainJoin(session.id, fx.teacherUserId)).toBe(JOIN_URL);
+  });
+
+  it("HL-07: the teacher asking for the host variant gets the generic 404 (no existence leak)", async () => {
+    const session = await createSession(HOST_URL);
+    asActor(fx.teacherUserId);
+    const response = await joinRoute(
+      new Request(`http://localhost:3000/api/sessions/${session.id}/join?host=1`, { method: "GET" }),
+      { params: Promise.resolve({ id: session.id }) },
+    );
+    expect(response.status).toBe(404);
+    expect((await response.json()).error.code).toBe("NOT_FOUND");
+  });
+
+  it("HL-08: Admin and Supervisor open the host link through the host variant", async () => {
+    const session = await createSession(HOST_URL);
+    for (const userId of [fx.adminUserId, fx.supervisorUserId]) {
+      asActor(userId);
+      const response = await joinRoute(
+        new Request(`http://localhost:3000/api/sessions/${session.id}/join?host=1`, { method: "GET" }),
+        { params: Promise.resolve({ id: session.id }) },
+      );
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(HOST_URL);
+    }
+  });
+
+  it("HL-09 (static): teacher pages no longer tell the teacher about a host link", () => {
+    for (const file of ["app/[locale]/teacher/page.tsx", "app/[locale]/teacher/sessions/page.tsx"]) {
+      expect(readFileSync(join(process.cwd(), file), "utf8")).not.toMatch(/hostNote|zoomHostUrl/);
+    }
   });
 
   it("HL-02: without a host link the teacher gets the join link (never NO_HOST_LINK)", async () => {

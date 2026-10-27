@@ -189,8 +189,8 @@ describe("Phase 4 — join redirect authorization matrix", () => {
     asActor(fx.teacherUserId);
     const response = await joinRoute(joinRequest(matrixSession.id), routeParams(matrixSession.id));
     expect(response.status).toBe(307);
-    // D32 (owner, 2026-10-27): this session stores a host link, so the teacher gets it.
-    expect(response.headers.get("location")).toBe(HOST_URL);
+    // D45 (owner, 2026-10-27, reverses D32): the teacher always gets the join link.
+    expect(response.headers.get("location")).toBe(JOIN_URL);
     const clicks = await prisma.sessionJoinClick.findMany({
       where: { sessionId: matrixSession.id, userId: fx.teacherUserId },
     });
@@ -399,15 +399,17 @@ describe("Phase 4 — invalid stored links at the redirect", () => {
 });
 
 describe("Phase 4 — host-link join variant (?host=1)", () => {
-  it("the assigned teacher starts the meeting via the host link", async () => {
+  it("the assigned teacher gets 404 for the host variant (D45: host link for Admin/Supervisor only)", async () => {
     asActor(fx.teacherUserId);
+    const response = await joinRoute(joinRequest(matrixSession.id, true), routeParams(matrixSession.id));
+    expect(response.status).toBe(404);
+  });
+
+  it("the Supervisor can use the host variant", async () => {
+    asActor(fx.supervisorUserId);
     const response = await joinRoute(joinRequest(matrixSession.id, true), routeParams(matrixSession.id));
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(HOST_URL);
-    const clicks = await prisma.sessionJoinClick.findMany({
-      where: { sessionId: matrixSession.id, userId: fx.teacherUserId },
-    });
-    expect(clicks.length).toBeGreaterThanOrEqual(2);
   });
 
   it("students and guardians get 404 for the host variant (no existence leak)", async () => {
@@ -434,7 +436,7 @@ describe("Phase 4 — host-link join variant (?host=1)", () => {
 
   it("404 NO_HOST_LINK when no host link is stored", async () => {
     const session = await createDirectSession({ startMinutes: -5, endMinutes: 55 });
-    asActor(fx.teacherUserId);
+    asActor(fx.adminUserId);
     const response = await joinRoute(joinRequest(session.id, true), routeParams(session.id));
     expect(response.status).toBe(404);
     const body = await response.json();

@@ -50,10 +50,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Same generic 404 as an unknown session (never a 500, never an existence oracle).
   if (!isUuidParam(id)) return joinError(request, 404, "NOT_FOUND", "Session not found.");
   const isOperator = user.role === "ADMIN" || user.role === "SUPERVISOR";
-  // The host link is for Admin, Supervisor, and the session's assigned teacher only.
-  // Students and guardians are answered with the same 404 as for any unknown session,
-  // so the existence of a host link is never leaked to them.
-  if (wantsHost && (user.role === "STUDENT" || user.role === "GUARDIAN")) {
+  // D45 (owner, 2026-10-27, reverses D32): the host link is for the Admin and the
+  // Supervisor only. Everyone else asking for it is answered with the same 404 as for
+  // any unknown session, so the existence of a host link is never leaked.
+  if (wantsHost && !isOperator) {
     return joinError(request, 404, "NOT_FOUND", "Session not found.");
   }
   const session = await prisma.session.findFirst({
@@ -83,10 +83,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return joinError(request, 403, "JOIN_WINDOW_CLOSED", "The session join window has closed.");
     }
   }
-  // D32 (owner, 2026-10-27): the assigned teacher (the query above already scopes a
-  // TEACHER to own sessions) opens the host link when one is stored, else the join link.
-  const teacherHost = user.role === "TEACHER" && session.zoomHostUrl ? session.zoomHostUrl : null;
-  const targetUrl = wantsHost ? session.zoomHostUrl : (teacherHost ?? session.zoomJoinUrl);
+  // The plain URL gives everyone (the teacher included, D45) the join link.
+  const targetUrl = wantsHost ? session.zoomHostUrl : session.zoomJoinUrl;
   if (!targetUrl) {
     return joinError(request, 404, "NO_HOST_LINK", "This session has no host link stored.");
   }

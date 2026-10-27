@@ -69,7 +69,7 @@ export default async function TeacherSessionsPage() {
               <Icon name="person" size={16} className="align-middle" /> {student.user.displayName}
             </span>
             <span className="flex flex-wrap items-center gap-2">
-              {/* D32: one button — the join route opens the host link for the teacher when stored. */}
+              {/* One button: the join link (D45 — the host link is for Admin/Supervisor only). */}
               {state ? (
                 <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
               ) : null}
@@ -109,9 +109,6 @@ export default async function TeacherSessionsPage() {
               </span>
             </div>
             {roster(session, true)}
-            {session.zoomHostUrl && session.status === "SCHEDULED" ? (
-              <p className="mt-2 text-xs opacity-60">{t("teacher.hostNote")}</p>
-            ) : null}
           </article>
         ))}
         {!todays.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("teacher.todayEmpty")}</p> : null}

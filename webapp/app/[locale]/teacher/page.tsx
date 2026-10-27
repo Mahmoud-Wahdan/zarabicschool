@@ -102,8 +102,8 @@ export default async function TeacherDashboard() {
             // Report buttons per roster student (shared RosterReportAction — the button
             // is disabled until the scheduled end; never for cancelled/missed sessions).
             // The Zoom button follows the academy join window (D4/D28) — never a
-            // hardcoded minute figure in UI text. The plain link opens the host link
-            // for the teacher when one is stored, else the join link (D32).
+            // hardcoded minute figure in UI text. The teacher always gets the join
+            // link; the host link is for Admin/Supervisor only (D45).
             const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
             return (
               <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
