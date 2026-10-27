@@ -112,6 +112,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "whatsapp", icon: "chat", href: "/admin/whatsapp" },
     { key: "payroll", icon: "payments", href: "/admin/payroll" },
     { key: "overtime", icon: "more_time", href: "/admin/overtime" },
+    { key: "performance", icon: "insights", href: "/admin/performance" },
     { key: "accounts", icon: "manage_accounts", href: "/admin/users" },
   ],
   SUPERVISOR: [
@@ -136,6 +137,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "calendar", icon: "date_range", href: "/teacher/calendar" },
     { key: "monthlyReports", icon: "calendar_month", href: "/teacher/monthly-reports" },
     { key: "attendance", icon: "fact_check", href: "/teacher/attendance" },
+    { key: "indicators", icon: "insights", href: "/teacher/indicators" },
     { key: "payroll", icon: "payments", href: "/teacher/payroll" },
     { key: "announcements", icon: "campaign", href: "/announcements" },
     { key: "fileComplaint", icon: "feedback", href: "/complaints/new" },

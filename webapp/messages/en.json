@@ -59,7 +59,9 @@
       "evaluations": "Evaluation Summaries",
       "announcements": "Announcements",
       "fileComplaint": "File a Complaint",
-      "calendar": "Weekly Calendar"
+      "calendar": "Weekly Calendar",
+      "performance": "Teacher Performance",
+      "indicators": "My Indicators"
     }
   },
   "whatsappAdmin": {
@@ -2247,5 +2249,32 @@
     "group": "Group ({count})",
     "noChildren": "No linked children.",
     "childTabs": "Children"
+  },
+  "performance": {
+    "teacherTitle": "My indicators",
+    "teacherSubtitle": "Your own indicators for the month, with the data behind each number. Indicators only — not a rating.",
+    "adminTitle": "Teacher performance",
+    "adminSubtitle": "Indicators per teacher for the month. No combined score.",
+    "rules": "Late start = your first platform click more than 5 minutes after the start. Report on time = first submission within 15 minutes after the end. Only held, ended sessions count.",
+    "indicator": "indicator",
+    "sessionsHeld": "Sessions held",
+    "lateStarts": "Late starts",
+    "noClickCount": "No platform click",
+    "reportsOnTime": "Reports on time",
+    "reportsLate": "Reports late",
+    "reportsMissing": "Reports missing",
+    "monthlyReports": "Monthly reports submitted",
+    "detailsTitle": "Sessions this month",
+    "colStart": "Start",
+    "colFirstClick": "First platform click",
+    "colReports": "Reports",
+    "colTeacher": "Teacher",
+    "noClick": "No click",
+    "late": "late",
+    "reportsCell": "{onTime} on time · {late} late · {missing} missing",
+    "empty": "No held sessions this month.",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "monthNav": "Month navigation"
   }
 }

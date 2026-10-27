@@ -59,7 +59,9 @@
       "evaluations": "ملخص التقييمات",
       "announcements": "الإعلانات",
       "fileComplaint": "تقديم شكوى",
-      "calendar": "التقويم الأسبوعي"
+      "calendar": "التقويم الأسبوعي",
+      "performance": "أداء المعلمين",
+      "indicators": "مؤشراتي"
     }
   },
   "whatsappAdmin": {
@@ -2247,5 +2249,32 @@
     "group": "مجموعة ({count})",
     "noChildren": "لا يوجد أبناء مرتبطون.",
     "childTabs": "الأبناء"
+  },
+  "performance": {
+    "teacherTitle": "مؤشراتي",
+    "teacherSubtitle": "مؤشراتك الخاصة لهذا الشهر مع البيانات وراء كل رقم. مؤشرات فقط — وليست تقييمًا.",
+    "adminTitle": "أداء المعلمين",
+    "adminSubtitle": "مؤشرات كل معلم لهذا الشهر. دون درجة مجمّعة.",
+    "rules": "التأخر في البدء = أول نقرة على المنصة بعد أكثر من 5 دقائق من البداية. التقرير في موعده = أول إرسال خلال 15 دقيقة بعد النهاية. تُحسب الحصص المنعقدة المنتهية فقط.",
+    "indicator": "مؤشر",
+    "sessionsHeld": "الحصص المنعقدة",
+    "lateStarts": "مرات التأخر في البدء",
+    "noClickCount": "بدون نقرة على المنصة",
+    "reportsOnTime": "تقارير في موعدها",
+    "reportsLate": "تقارير متأخرة",
+    "reportsMissing": "تقارير ناقصة",
+    "monthlyReports": "التقارير الشهرية المُرسلة",
+    "detailsTitle": "حصص هذا الشهر",
+    "colStart": "البداية",
+    "colFirstClick": "أول نقرة على المنصة",
+    "colReports": "التقارير",
+    "colTeacher": "المعلم",
+    "noClick": "لا توجد نقرة",
+    "late": "متأخر",
+    "reportsCell": "{onTime} في الموعد · {late} متأخر · {missing} ناقص",
+    "empty": "لا توجد حصص منعقدة هذا الشهر.",
+    "previousMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
+    "monthNav": "التنقل بين الأشهر"
   }
 }
