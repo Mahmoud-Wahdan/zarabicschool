@@ -695,11 +695,17 @@ model Invoice {
   status            InvoiceStatus           @default(PENDING)
   providerReference String?                 @map("provider_reference")
   paidAt            DateTime?               @map("paid_at") @db.Timestamptz(6)
+  // S-7 (automatic renewal): a renewal invoice names its billing subscription and the
+  // period it pays for (partial unique indexes in raw SQL: one per period, one per
+  // Paymob renewal transaction).
+  billingSubscriptionId String?              @map("billing_subscription_id") @db.Uuid
+  billingPeriodStart    DateTime?            @map("billing_period_start") @db.Date
   createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy           Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)
   student           Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
   subscription      Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  billingSubscription BillingSubscription?  @relation("BillingSubscriptionInvoices", fields: [billingSubscriptionId], references: [id], onDelete: Restrict)
   attempts          PaymentAttempt[]
   ledgerEntries     SubscriptionLedger[]
   paymentProofs     PaymentProof[]
@@ -1106,6 +1112,8 @@ model BillingPlan {
   currency         String                  @default("EGP") @db.VarChar(3)
   tier             String?
   isActive         Boolean                 @default(true) @map("is_active")
+  /// The Paymob subscription plan id (S-7); unique when set (partial index in raw SQL).
+  providerPlanId   String?                 @map("provider_plan_id") @db.VarChar(64)
   createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy          Academy                 @relation("BillingPlanAcademy", fields: [academyId], references: [id], onDelete: Restrict)
@@ -1148,12 +1156,15 @@ model BillingSubscription {
   autoRenew              Boolean                   @default(true) @map("auto_renew")
   canceledAt             DateTime?                 @map("canceled_at") @db.Timestamptz(6)
   graceEndsAt            DateTime?                 @map("grace_ends_at") @db.Timestamptz(6)
+  /// D56: day of the month the renewal falls on (1-31; a missing day moves to the month's last day).
+  billingAnchorDay       Int?                      @map("billing_anchor_day") @db.SmallInt
   createdAt              DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy                Academy                   @relation("BillingSubscriptionAcademy", fields: [academyId], references: [id], onDelete: Restrict)
   student                Student                   @relation("BillingSubscriptionStudent", fields: [studentId], references: [id], onDelete: Restrict)
   payerUser              User                      @relation("BillingSubscriptionPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
   plan                   BillingPlan               @relation("BillingPlanSubscriptions", fields: [planId], references: [id], onDelete: Restrict)
+  invoices               Invoice[]                 @relation("BillingSubscriptionInvoices")
 
   @@index([academyId, status])
   @@index([studentId, status])
