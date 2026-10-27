@@ -133,3 +133,11 @@ ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_created_by_fkey" F
 -- Cumulative check (code, same transaction): SUM(amount_minor WHERE status <> 'FAILED') + new ≤ invoices.amount_minor.
 ```
 Design note: a refund calls the provider (Paymob refund API), so the row is written PENDING before the call and finished after it. A crash leaves it PENDING for the Admin to see, and the idempotency key prevents a silent double refund. Card-not-present auto-renewal via Paymob subscriptions untouched (D19, D44).
+
+### S-1b — manual deduction without a report — **APPROVED (D46); migration file `20261027130000_subscription_ledger_manual_deduction` created, the owner applies it.**
+```sql
+ALTER TABLE "subscription_ledger" DROP CONSTRAINT "subscription_ledger_session_deduction_check";
+ALTER TABLE "subscription_ledger" ADD CONSTRAINT "subscription_ledger_session_deduction_check" CHECK (
+  "entry_type" <> 'SESSION_DEDUCTION' OR ("sessions_delta" = -1 AND "session_id" IS NOT NULL)
+);
+```

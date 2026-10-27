@@ -20,7 +20,7 @@
 
 ## Where to resume (2026-10-27, master execution prompt)
 
-- **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D45), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-17 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
+- **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D48), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-17 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
 - **Part 1 (docs): done** (9c0e681). **Part 2 S-00: done** except M-2 (answered → D32, to build). Local commits, none pushed: f5ee13c (#1/#4/#5/#6), 5e736ee (return page), 7c9ed20 (I-1), 4bf4631 (M-1), 2f80028 (M-3/M-4), bf017fa (I-3), ecc3336 (I-2), f5cf69b (#8), 9087657 (#3). Log: `slices/S-00-in-flight.md`.
 - **S-04 done (2026-10-27, f7b544a):** Admin join-window setting (5–120, default 30) + reminder at the window opening with the platform link (replaces T−2h) + re-timing of pending reminders on save (D28). Log: `slices/S-04-join-window.md`.
 - **Verified read-only 2026-10-27:** test invoice 77a79542… = PAID, ACTIVE subscription, exactly one INITIAL_PURCHASE (+8); one SUCCEEDED + one FAILED attempt; audit CREATED/FAILED/PAID. Return page `/ar|en/payments/paymob/return` answers 200 on a fresh `next dev`.
@@ -30,8 +30,8 @@
 - **Full-suite checkpoint 2026-10-27:** 53 suites / 516 tests all green (1193 s, dev stopped); seed identical before/after, nothing left behind (phase-08 log).
 - **OQ-1 answered → D36**; OQ-17 (close a session without a report) OPEN; OQ-9 trial clean-up done (D35).
 - **Owner answers 2026-10-27 (answer_on_phase-09-open-questions.md):** S-1 SQL APPROVED with an extra CHECK (D37) — migration file `20261027120000_attendance_resolutions` created, **NOT applied: the owner applies it**; cleanup helper + ATT-CC-01/02 lock tests added. OQ-2 (D38), OQ-3 (D39), OQ-8 (D40), OQ-11 (D41), OQ-12 (D42), OQ-13 (D43) answered. "MOTO" renamed everywhere in the docs to card-not-present auto-renewal via Paymob subscriptions (D44).
-- **Done 2026-10-27 (owner order):** (1) Africa/Cairo time-input fix 1a36fe0, (2) M-2 reversed ce236b4 (D45), (3) i18n key tests + key fix 2dd1da1, (4) S-09 done f7e5ffe (D29). **Next:** S-10, S-11, S-08 (migration-free); SQL S-2..S-6 one at a time; S-01 code after the owner applies the S-1 migration. Then S-10, S-11, S-08; SQL S-2..S-6 one at a time (S-5/S-6 need an explicit OK); S-01 code after the owner applies the S-1 migration.
-- **Owner actions pending:** apply migration `20261027120000_attendance_resolutions`; OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
+- **Done 2026-10-27 (owner order):** (1) Africa/Cairo time-input fix 1a36fe0, (2) M-2 reversed ce236b4 (D45), (3) i18n key tests + key fix 2dd1da1, (4) S-09 done f7e5ffe (D29). Then: time-zone audit 360e7cc (D48, `slices/TZ-audit.md`), S-01 built eab5938 (5 tests wait for S-1b), S-10 624bbae. **Next:** S-11, S-08; SQL S-2..S-6 one at a time. Then S-10, S-11, S-08; SQL S-2..S-6 one at a time (S-5/S-6 need an explicit OK); S-01 code after the owner applies the S-1 migration.
+- **Owner actions pending:** apply migration `20261027130000_subscription_ledger_manual_deduction` (S-1b, FINANCIAL; 20261027120000 is applied); OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 
 ## Current Active Task (2026-10-26, Session 5 continued on feature/whatsapp)

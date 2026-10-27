@@ -255,3 +255,8 @@
 - **SFV-02** — payment status = latest invoice status; none → null; another academy is never read.
 - **SFV-03** — the Supervisor's student list carries exactly {remainingSessions, paymentStatus} and no money-like key anywhere.
 - **SFV-04** — guardian/teacher lists carry no finance status. **SFV-05** — `canActOnStudentFinance` unchanged for the Supervisor.
+
+## Written 2026-10-27 (time-zone audit, S-01, S-10)
+- **ZF-01..05** — reschedule round trip (open, change nothing, save) on 27 and 30 Oct and in the repeated DST hour; typed 17:00 cases; every `Intl.DateTimeFormat` has a timeZone; no UTC label/option/default; a session created without a zone takes the creator's zone.
+- **ATT-01..11** — manual attendance resolution: effects, NO_SESSIONS_LEFT block, refusals, roles and the Supervisor's 7 days, preview without money, a later report (credit only, no second deduction), mismatch flag, derived state, resolution vs submission race, every no-report deduction linked to a resolution. ATT-01/04/07/10/11 need the S-1b migration.
+- **CAL-01..05** — week from Saturday in the viewer zone across DST, `?week=` parsing, own sessions only per role/child, no Zoom URL, D30 labels.
