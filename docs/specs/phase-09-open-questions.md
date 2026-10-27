@@ -141,3 +141,6 @@ ALTER TABLE "subscription_ledger" ADD CONSTRAINT "subscription_ledger_session_de
   "entry_type" <> 'SESSION_DEDUCTION' OR ("sessions_delta" = -1 AND "session_id" IS NOT NULL)
 );
 ```
+
+### S-1c — every SESSION_DEDUCTION needs a source — **APPROVED (D49); migration file `20261027140000_subscription_ledger_deduction_source` created, the owner applies it.**
+Deferred constraint trigger `subscription_ledger_deduction_source` (function `require_deduction_source()`): a deduction without `report_id` must be referenced by an attendance resolution at COMMIT. CHECK, unique deduction index and append-only trigger unchanged.
