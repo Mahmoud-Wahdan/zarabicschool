@@ -189,7 +189,8 @@ describe("Phase 4 — join redirect authorization matrix", () => {
     asActor(fx.teacherUserId);
     const response = await joinRoute(joinRequest(matrixSession.id), routeParams(matrixSession.id));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(JOIN_URL);
+    // D32 (owner, 2026-10-27): this session stores a host link, so the teacher gets it.
+    expect(response.headers.get("location")).toBe(HOST_URL);
     const clicks = await prisma.sessionJoinClick.findMany({
       where: { sessionId: matrixSession.id, userId: fx.teacherUserId },
     });

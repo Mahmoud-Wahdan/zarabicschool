@@ -101,9 +101,9 @@ export default async function TeacherDashboard() {
           {teacher?.sessions.map((session) => {
             // Report buttons per roster student (shared RosterReportAction — the button
             // is disabled until the scheduled end; never for cancelled/missed sessions).
-            // The Zoom button uses the shared join-window constant — never a
-            // hardcoded minute figure in UI text (owner rule; Phase 9 item 9.10
-            // will change the constant, not the UI).
+            // The Zoom button follows the academy join window (D4/D28) — never a
+            // hardcoded minute figure in UI text. The plain link opens the host link
+            // for the teacher when one is stored, else the join link (D32).
             const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
             return (
               <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
@@ -116,7 +116,6 @@ export default async function TeacherDashboard() {
                         sessionId={session.id}
                         state={state}
                         label={tSessions("openZoom")}
-                        host
                         compact
                       />
                     ) : null}

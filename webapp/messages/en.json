@@ -1568,8 +1568,7 @@
       "upcoming": "All sessions",
       "students": "Students",
       "zoom": "Zoom",
-      "startHost": "Start (host)",
-      "hostNote": "The host link is visible only to you and the operations team.",
+      "hostNote": "This session has a host link: your Zoom button opens it. Only you and the operations team can use it.",
       "ended": "Ended"
     },
     "student": {

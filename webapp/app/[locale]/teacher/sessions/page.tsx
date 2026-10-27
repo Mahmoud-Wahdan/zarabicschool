@@ -69,13 +69,9 @@ export default async function TeacherSessionsPage() {
               <Icon name="person" size={16} className="align-middle" /> {student.user.displayName}
             </span>
             <span className="flex flex-wrap items-center gap-2">
+              {/* D32: one button — the join route opens the host link for the teacher when stored. */}
               {state ? (
-                <>
-                  <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
-                  {session.zoomHostUrl ? (
-                    <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
-                  ) : null}
-                </>
+                <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
               ) : null}
               <RosterReportAction
                 sessionId={session.id}

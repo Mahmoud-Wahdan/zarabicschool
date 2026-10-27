@@ -83,7 +83,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return joinError(request, 403, "JOIN_WINDOW_CLOSED", "The session join window has closed.");
     }
   }
-  const targetUrl = wantsHost ? session.zoomHostUrl : session.zoomJoinUrl;
+  // D32 (owner, 2026-10-27): the assigned teacher (the query above already scopes a
+  // TEACHER to own sessions) opens the host link when one is stored, else the join link.
+  const teacherHost = user.role === "TEACHER" && session.zoomHostUrl ? session.zoomHostUrl : null;
+  const targetUrl = wantsHost ? session.zoomHostUrl : (teacherHost ?? session.zoomJoinUrl);
   if (!targetUrl) {
     return joinError(request, 404, "NO_HOST_LINK", "This session has no host link stored.");
   }
