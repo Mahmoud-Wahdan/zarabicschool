@@ -7,6 +7,8 @@ import {
   ANNOUNCEMENT_MAX_EXPIRY_DAYS,
   ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR,
   ANNOUNCEMENT_MAX_PER_DAY,
+  ANNOUNCEMENT_SEND_JITTER_MS,
+  ANNOUNCEMENT_SEND_SPACING_MS,
 } from "../../../lib/config/announcements";
 import { requireApiRoles } from "../../../lib/dal";
 import { isPhase7Ready } from "../../../lib/phase7/readiness";
@@ -108,14 +110,21 @@ export async function POST(request: Request) {
       select: { id: true, sentAt: true, expiresAt: true, whatsappRecipientCount: true },
     });
     if (recipients.recipientUserIds.length) {
+      // Review #3 (2026-10-27): each job gets its own eligible time, SPACING + random
+      // JITTER after the previous one, so the worker never sleeps between announcements.
+      let offsetMs = 0;
+      const eligibleAt = recipients.recipientUserIds.map((_, index) => {
+        if (index > 0) offsetMs += ANNOUNCEMENT_SEND_SPACING_MS + Math.floor(Math.random() * ANNOUNCEMENT_SEND_JITTER_MS);
+        return new Date(now.getTime() + offsetMs);
+      });
       await tx.notificationJob.createMany({
-        data: recipients.recipientUserIds.map((recipientUserId) => ({
+        data: recipients.recipientUserIds.map((recipientUserId, index) => ({
           academyId: user.academyId,
           sessionId: null,
           recipientUserId,
           kind: "ANNOUNCEMENT",
           dedupKey: `ANNOUNCEMENT:${announcement.id}:${recipientUserId}`,
-          scheduledFor: now,
+          scheduledFor: eligibleAt[index],
           // Redaction rule: ids only — the text stays in announcements.
           payload: { announcementId: announcement.id },
         })),

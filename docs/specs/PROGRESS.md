@@ -21,7 +21,9 @@
 ## Where to resume (2026-10-27, master execution prompt)
 
 - **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D27), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-15 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
-- **Part 1 (docs): done.** **Part 2:** S-00 in progress (commit #1/#4/#5/#6 → return page → #3, #8, I-1, I-2, I-3, M-1..M-4). Then S-04, S-05, S-09, S-10, S-11, S-08 (migration-free) while the owner reviews S-1..S-6; S-01/S-02/S-03/S-06/S-12/S-13 resume after the SQL OK; S-07 after the queries OK; S-14 parallel.
+- **Part 1 (docs): done** (9c0e681). **Part 2 S-00: done** except M-2 (OPEN → OQ-16). Local commits, none pushed: f5ee13c (#1/#4/#5/#6), 5e736ee (return page), 7c9ed20 (I-1), 4bf4631 (M-1), 2f80028 (M-3/M-4), bf017fa (I-3), ecc3336 (I-2), f5cf69b (#8), plus the #3 commit right after. Log: `slices/S-00-in-flight.md`.
+- **Next session starts with S-04** (join window setting + reminder with the platform link; no migration; needs OQ-4, proposal 5–120 min, default 30). Then S-05, S-09, S-10, S-11, S-08 (migration-free) while the owner reviews S-1..S-6; S-01/S-02/S-03/S-06/S-12/S-13 resume after the SQL OK; S-07 after the queries OK; S-14 parallel. Remaining plan items: 14 slices (S-01..S-14) + M-2.
+- **Owner actions pending:** answer OQ-1..OQ-16 and review SQL S-1..S-6 (`phase-09-open-questions.md`); set `APP_PUBLIC_URL` to the ngrok URL (now also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 
 ## Current Active Task (2026-10-26, Session 5 continued on feature/whatsapp)

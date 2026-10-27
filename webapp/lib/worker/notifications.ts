@@ -5,8 +5,7 @@ import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 import {
   ANNOUNCEMENT_MAX_PER_BATCH,
   ANNOUNCEMENT_MAX_PER_HOUR,
-  ANNOUNCEMENT_SEND_JITTER_MS,
-  ANNOUNCEMENT_SEND_SPACING_MS,
+  ANNOUNCEMENT_SENDS_PER_TICK,
 } from "../config/announcements";
 import {
   ADMIN_LATE_ALERT_MINUTES,
@@ -329,13 +328,18 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   // conditional and pre-migration sends keep working unchanged.
   const session1Ready = await isSession1ReportsReady();
   // Announcements never compete with time-critical kinds (session start notices,
-  // late-start reminders): ordinary jobs get the full batch; announcement jobs are
-  // fetched SEPARATELY and only up to the throttle budget (lib/config/announcements.ts:
-  // per-tick cap + rolling-hour cap). Jobs over budget simply stay PENDING.
+  // late-start reminders): ordinary jobs get the full batch and are sent FIRST;
+  // announcement jobs are fetched SEPARATELY, after them, and only up to the throttle
+  // budget (lib/config/announcements.ts: per-tick send count + rolling-hour cap). The
+  // spacing between announcements comes from each job's staggered eligible time, so
+  // the tick never sleeps for them (review #3). Jobs over budget simply stay PENDING.
   const sentLastHour = await prisma.notificationJob.count({
     where: { kind: "ANNOUNCEMENT", status: "SENT", sentAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
   });
-  const announcementBudget = Math.max(0, Math.min(ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_HOUR - sentLastHour));
+  const announcementBudget = Math.max(
+    0,
+    Math.min(ANNOUNCEMENT_SENDS_PER_TICK, ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_HOUR - sentLastHour),
+  );
   const findDue = (kind: Prisma.StringFilter, take: number) => prisma.notificationJob.findMany({
     where: {
       status: "PENDING",
@@ -505,10 +509,9 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
       }
     }
     const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement });
-    if (job.kind === "ANNOUNCEMENT") {
-      // Heavier spacing + random jitter for bulk sends (ban risk, CONTEXT §8).
-      await sleep(ANNOUNCEMENT_SEND_SPACING_MS + Math.floor(Math.random() * ANNOUNCEMENT_SEND_JITTER_MS));
-    } else if (sendsThisTick > 0) {
+    // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
+    // heavier announcement spacing is the job's staggered eligible time, not a sleep.
+    if (sendsThisTick > 0) {
       await sleep(SEND_SPACING_MS);
     }
     sendsThisTick += 1;
@@ -876,40 +879,27 @@ export async function extendDueSeries(now = new Date(), academyId?: string) {
   }
 }
 
-export async function runWorkerTick(now = new Date()) {
-  try {
-    await recoverStaleProcessingJobs(now);
-  } catch (cause) {
-    console.error("[worker] stale job recovery failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await processDueNotificationJobs(now);
-  } catch (cause) {
-    console.error("[worker] notification job processing failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await processLateReportNotifications(now);
-  } catch (cause) {
-    console.error("[worker] late report processing failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await processLateStartAlerts(now);
-  } catch (cause) {
-    console.error("[worker] late start processing failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await processMonthlyReportReminders(now);
-  } catch (cause) {
-    console.error("[worker] monthly report reminder processing failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await processMonthlyCreditExpiry(now);
-  } catch (cause) {
-    console.error("[worker] monthly credit expiry failed.", cause instanceof Error ? cause.message : cause);
-  }
-  try {
-    await extendDueSeries(now);
-  } catch (cause) {
-    console.error("[worker] series extension failed.", cause instanceof Error ? cause.message : cause);
+/**
+ * One worker tick (review #3, owner 2026-10-27): the scans run FIRST so the jobs they
+ * create (T+5 / T+10 lateness, report nudges, monthly reminders) are sent in the same
+ * tick; then due jobs are sent — ordinary kinds before the throttled announcements.
+ * `academyId` limits every step to one academy (tests use per-run academies only).
+ */
+export async function runWorkerTick(now = new Date(), academyId?: string) {
+  const steps: [string, () => Promise<unknown>][] = [
+    ["stale job recovery", () => recoverStaleProcessingJobs(now, academyId)],
+    ["late report processing", () => processLateReportNotifications(now, academyId)],
+    ["late start processing", () => processLateStartAlerts(now, academyId)],
+    ["monthly report reminder processing", () => processMonthlyReportReminders(now, academyId)],
+    ["monthly credit expiry", () => processMonthlyCreditExpiry(now, academyId)],
+    ["series extension", () => extendDueSeries(now, academyId)],
+    ["notification job processing", () => processDueNotificationJobs(now, academyId)],
+  ];
+  for (const [name, step] of steps) {
+    try {
+      await step();
+    } catch (cause) {
+      console.error(`[worker] ${name} failed.`, cause instanceof Error ? cause.message : cause);
+    }
   }
 }

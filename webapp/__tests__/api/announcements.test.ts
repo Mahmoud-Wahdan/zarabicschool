@@ -18,7 +18,7 @@ import { getServerSession } from "next-auth";
 import { POST as announceRoute } from "../../app/api/announcements/route";
 import { PATCH as profilePatchRoute } from "../../app/api/admin/profiles/[id]/route";
 import { computeAnnouncementRecipients, getActiveAnnouncements, getAnnouncementHistory } from "../../lib/announcements/service";
-import { ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_DAY } from "../../lib/config/announcements";
+import { ANNOUNCEMENT_MAX_PER_DAY, ANNOUNCEMENT_SENDS_PER_TICK } from "../../lib/config/announcements";
 import { prisma } from "../../lib/prisma";
 import { resetRateLimits } from "../../lib/rate-limit";
 import { processDueNotificationJobs } from "../../lib/worker/notifications";
@@ -160,11 +160,12 @@ describe("Announcements", () => {
     expect((await getActiveAnnouncements(fx.academyId, new Date(Date.now() + 4 * 24 * 3600 * 1000))).length).toBe(0);
     expect((await getAnnouncementHistory(fx.academyId)).length).toBe(2);
 
-    // Delivery throttle: one tick sends at most ANNOUNCEMENT_MAX_PER_BATCH.
+    // Delivery throttle (review #3, 2026-10-27): one tick sends at most
+    // ANNOUNCEMENT_SENDS_PER_TICK announcements, without sleeping.
     fakeMessaging.reset();
     await processDueNotificationJobs(new Date(), fx.academyId);
     const sent = await prisma.notificationJob.count({ where: { academyId: fx.academyId, kind: "ANNOUNCEMENT", status: "SENT" } });
-    expect(sent).toBe(Math.min(ANNOUNCEMENT_MAX_PER_BATCH, jobs.length));
+    expect(sent).toBe(Math.min(ANNOUNCEMENT_SENDS_PER_TICK, jobs.length));
     expect(await prisma.notificationJob.count({ where: { academyId: fx.academyId, kind: "ANNOUNCEMENT", status: "PENDING" } })).toBe(jobs.length - sent);
 
     // Logs: counts and ids only — never the text or a number.
