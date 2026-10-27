@@ -61,7 +61,7 @@ export default async function AdminBillingPage() {
     activeSubscribersCount: plan._count.subscriptions,
   }));
 
-  const dateFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+  const dateFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
     dateStyle: "medium",
     timeStyle: "short",
   });

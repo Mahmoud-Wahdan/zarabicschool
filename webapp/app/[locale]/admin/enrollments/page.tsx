@@ -44,6 +44,7 @@ export default async function EnrollmentsPage() {
           scheduledStart: session.scheduledStart.toISOString(),
         }))}
         students={students}
+        timeZone={user.timezone || "Africa/Cairo"}
       />
     </DashboardShell>
   );

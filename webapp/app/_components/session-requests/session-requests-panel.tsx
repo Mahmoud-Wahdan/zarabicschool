@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { formatDateTime } from "../../../lib/schedules/display";
 import { utcToWallClockInput, wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 import Icon from "../ui/icon";
 import StatusBadge from "../ui/status-badge";
@@ -42,11 +43,14 @@ export default function SessionRequestsPanel({
   pendingCount,
   migrationPending,
   locale,
+  viewerTimezone,
 }: {
   requests: QueueSessionRequest[];
   pendingCount: number;
   migrationPending: boolean;
   locale: string;
+  /** The reviewer's stored zone: the replacement time is pre-filled, typed and labelled in it. */
+  viewerTimezone: string;
 }) {
   const t = useTranslations("sessionRequests");
   const router = useRouter();
@@ -68,7 +72,7 @@ export default function SessionRequestsPanel({
     setError("");
     setScope("SESSION");
     setStudentId(request.requesterStudentId ?? request.students.find((entry) => entry.isRequester)?.id ?? "");
-    setStartInput(utcToWallClockInput(new Date(request.scheduledStart), request.timezone));
+    setStartInput(utcToWallClockInput(new Date(request.scheduledStart), viewerTimezone));
     setDurationMinutes(Math.max(15, Math.round((new Date(request.scheduledEnd).getTime() - new Date(request.scheduledStart).getTime()) / 60000)));
     setZoomJoinUrl("");
   }
@@ -79,9 +83,9 @@ export default function SessionRequestsPanel({
     setError("");
     let body: Record<string, unknown> = { action };
     if (action === "APPROVE") {
-      // The typed time is the SESSION's wall clock (its zone is shown on the label),
-      // never the browser's zone (Cairo time-input fix, 2026-10-27).
-      const start = wallClockInputToUtc(startInput, selected.timezone);
+      // The typed time is the REVIEWER's wall clock (its zone is shown on the label),
+      // never the browser's or the session's stored zone (time-zone audit, 2026-10-27).
+      const start = wallClockInputToUtc(startInput, viewerTimezone);
       if (Number.isNaN(start.getTime())) {
         setBusy(false);
         setError(t("invalidStart"));
@@ -123,8 +127,7 @@ export default function SessionRequestsPanel({
     router.refresh();
   }
 
-  const dateTime = (iso: string) =>
-    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+  const dateTime = (iso: string) => formatDateTime(iso, viewerTimezone, locale);
 
   if (migrationPending) {
     return (
@@ -232,7 +235,7 @@ export default function SessionRequestsPanel({
                     </label>
                   ) : null}
                   <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
-                    {t("startLabel")} ({selected.timezone})
+                    {t("startLabel")} ({viewerTimezone})
                     <input
                       type="datetime-local"
                       required

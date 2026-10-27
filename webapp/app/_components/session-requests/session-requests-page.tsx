@@ -94,6 +94,7 @@ export default async function SessionRequestsPage({ role }: { role: "ADMIN" | "S
         subtitle={t("subtitle")}
       />
       <SessionRequestsPanel
+        viewerTimezone={user.timezone || "Africa/Cairo"}
         requests={requests}
         pendingCount={pendingCount}
         migrationPending={!ready}

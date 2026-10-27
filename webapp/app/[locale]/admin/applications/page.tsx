@@ -119,7 +119,7 @@ export default async function AdminApplicationsPage({
   }
 
   const formatDate = (value: Date) =>
-    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
       dateStyle: "medium",
       timeStyle: "short",
     }).format(value);

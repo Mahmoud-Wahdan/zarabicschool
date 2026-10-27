@@ -71,7 +71,7 @@ export default async function PaymentAuditPage({
       })
     : [];
 
-  const formatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+  const formatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
     dateStyle: "medium",
     timeStyle: "short",
   });

@@ -120,7 +120,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
           <p className="mt-1 text-body-sm text-on-surface-variant">
             {subjectName} · {session.teacher.user.displayName} ·{" "}
             {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} —{" "}
-            {formatSessionDateTime(session.scheduledEnd, user.timezone, locale)} ({session.timezone})
+            {formatSessionDateTime(session.scheduledEnd, user.timezone, locale)} ({user.timezone})
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                                 <p className="mt-1 text-body-sm text-on-surface" dir="auto">{evaluation.comment}</p>
                               ) : null}
                               <p className="mt-1 text-label-sm text-on-surface-variant">
-                                {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(evaluation.createdAt)}
+                                {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(evaluation.createdAt)}
                               </p>
                             </div>
                           ))
@@ -246,7 +246,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                     {entry.minutesCredited !== null ? ` · ${entry.minutesCredited}m` : ""}
                   </span>
                   <span className="text-label-sm text-on-surface-variant">
-                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
+                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
                   </span>
                 </div>
               ))}
@@ -255,7 +255,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                   <span className="font-semibold text-primary">{t(`deductionType.${entry.entryType}`)}</span>
                   <span className="text-on-surface">{entry.sessionsDelta > 0 ? `+${entry.sessionsDelta}` : entry.sessionsDelta}</span>
                   <span className="text-label-sm text-on-surface-variant">
-                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
+                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
                   </span>
                 </div>
               ))}

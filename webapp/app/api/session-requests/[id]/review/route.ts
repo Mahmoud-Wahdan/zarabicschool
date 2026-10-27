@@ -180,7 +180,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         sessionType: replacementPayload.sessionType,
         scheduledStart: start,
         scheduledEnd: end,
-        timezone: replacementPayload.timezone,
+        timezone: replacementPayload.timezone ?? user.timezone,
         zoomJoinUrl: replacementPayload.zoomJoinUrl,
         zoomHostUrl: replacementPayload.zoomHostUrl || null,
         studentIds: replacementPayload.studentIds,

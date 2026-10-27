@@ -125,7 +125,7 @@ export default async function TeacherMonthlyReportsPage({
                       {submittedAt ? (
                         <p className="text-label-sm text-on-surface-variant">
                           {t("submittedOn", {
-                            time: new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(submittedAt),
+                            time: new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(submittedAt),
                           })}
                         </p>
                       ) : (

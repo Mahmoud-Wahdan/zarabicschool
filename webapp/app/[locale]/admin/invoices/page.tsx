@@ -50,6 +50,7 @@ export default async function AdminInvoicesPage() {
       <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
       <div className="mt-4">
         <AdminInvoicesPanel
+          timeZone={user.timezone || "Africa/Cairo"}
           initialInvoices={invoices.map((invoice) => ({
             id: invoice.id,
             studentId: invoice.studentId,

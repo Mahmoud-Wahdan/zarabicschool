@@ -75,7 +75,7 @@ export default async function StudentInvoicesPage() {
                   </p>
                   <p className="mt-1 text-xs opacity-70">
                     {providerLabel(invoice.provider)} ·{" "}
-                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(invoice.createdAt)}
+                    {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(invoice.createdAt)}
                   </p>
                 </div>
                 <StatusBadge tone={INVOICE_STATUS_TONE[invoice.status] ?? "neutral"}>{t(`status.${invoice.status}`)}</StatusBadge>

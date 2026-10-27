@@ -122,7 +122,9 @@ export const sessionCreateSchema = z.object({
   sessionType: z.enum(["PRIVATE", "GROUP"]),
   scheduledStart: isoDateTime,
   scheduledEnd: isoDateTime,
-  timezone: z.string().trim().min(1).max(80).default("UTC"),
+  // No "UTC" default (time-zone audit, 2026-10-27): the route falls back to the
+  // creator's stored zone.
+  timezone: z.string().trim().min(1).max(80).optional(),
   zoomJoinUrl: zoomUrlField,
   zoomHostUrl: optionalZoomUrlField,
   studentIds: z.array(z.guid()).min(1).max(100),

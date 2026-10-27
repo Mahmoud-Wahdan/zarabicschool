@@ -191,7 +191,7 @@ export default async function AdminPayrollPage() {
                 {ledger.map((entry) => (
                   <tr key={entry.id} className="border-b border-[var(--line)] last:border-0">
                     <td className="px-3 py-3 opacity-70">
-                      {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "short", timeStyle: "short" }).format(entry.createdAt)}
+                      {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "short", timeStyle: "short" }).format(entry.createdAt)}
                     </td>
                     <td className="px-3 py-3">{teacherNames.get(entry.teacherId)}</td>
                     <td className="px-3 py-3">{t(`entryType.${entry.entryType}`)}</td>

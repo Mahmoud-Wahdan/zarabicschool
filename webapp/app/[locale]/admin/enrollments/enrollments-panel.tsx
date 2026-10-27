@@ -17,9 +17,12 @@ type Student = { id: string; user: { displayName: string } };
 export default function EnrollmentsPanel({
   sessions,
   students,
+  timeZone,
 }: {
   sessions: Session[];
   students: Student[];
+  /** The viewer's stored zone — session times render in it (time-zone audit, 2026-10-27). */
+  timeZone: string;
 }) {
   const t = useTranslations("management.enrollments");
   const locale = useLocale();
@@ -30,7 +33,7 @@ export default function EnrollmentsPanel({
 
   function label(session: Session) {
     const subject = locale === "ar" ? session.subject.nameAr : session.subject.nameEn;
-    const when = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart));
+    const when = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart));
     return `${subject} · ${session.teacher.user.displayName} · ${when}`;
   }
 
@@ -83,7 +86,7 @@ export default function EnrollmentsPanel({
             <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
               <strong>{locale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
               <span className="mx-2 opacity-60">·</span>
-              {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
+              {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
               <p className="mt-2 opacity-70">
                 {session.students.map((enrollment) => students.find((student) => student.id === enrollment.studentId)?.user.displayName ?? enrollment.studentId).join(locale === "ar" ? "، " : ", ") || t("noStudents")}
               </p>

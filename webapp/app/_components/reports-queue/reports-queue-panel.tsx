@@ -137,7 +137,7 @@ export default function ReportsQueuePanel({
   }
 
   const dateTime = (iso: string, withTime = true) =>
-    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone,
       weekday: withTime ? undefined : "short",
       day: "numeric",
       month: "short",

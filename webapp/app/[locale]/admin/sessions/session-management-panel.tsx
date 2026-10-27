@@ -7,6 +7,7 @@ import { Link } from "../../../../i18n/navigation";
 import Icon from "../../../_components/ui/icon";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
+import { rangeFromInputs, rangeToInputs } from "../../../../lib/schedules/form-times";
 import { validateZoomUrl, type ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
 import {
   useSmartSessionForm,
@@ -17,7 +18,8 @@ type Session = { id: string; scheduledStart: string; scheduledEnd: string; statu
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
-const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai", "Europe/London", "America/New_York", "UTC"];
+// No bare UTC entry (time-zone audit, 2026-10-27): forms work in real zone names.
+const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai", "Europe/London", "America/New_York"];
 
 const inputClass = "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2";
 
@@ -137,11 +139,14 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       setBusy(false);
       return;
     }
-    const response = await fetch(`/api/sessions/${reschedule.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ scheduledStart: wallClockInputToUtc(reschedule.start, target.timezone).toISOString(), scheduledEnd: wallClockInputToUtc(reschedule.end, target.timezone).toISOString() }) });
+    // Pre-filled and parsed in the VIEWER's zone (the zone the list shows and the label
+    // names) — never the session's stored zone (time-zone audit, 2026-10-27).
+    const range = rangeFromInputs(reschedule.start, reschedule.end, viewerTimezone, { start: target.scheduledStart, end: target.scheduledEnd });
+    const response = await fetch(`/api/sessions/${reschedule.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ scheduledStart: range.start, scheduledEnd: range.end }) });
     const payload = await response.json().catch(() => ({}));
     setMessage(response.ok ? t("messages.rescheduled") : payload.error?.message ?? t("errors.submit"));
     if (response.ok) {
-      setSessions((current) => current.map((session) => session.id === reschedule.id ? { ...session, scheduledStart: wallClockInputToUtc(reschedule.start, target.timezone).toISOString(), scheduledEnd: wallClockInputToUtc(reschedule.end, target.timezone).toISOString() } : session));
+      setSessions((current) => current.map((session) => session.id === reschedule.id ? { ...session, scheduledStart: range.start, scheduledEnd: range.end } : session));
       setReschedule(null);
     }
     setBusy(false);
@@ -285,8 +290,8 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
             <option value="">{t("filters.anyStatus")}</option>
             {["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
-          <label className="text-sm">{t("filters.from")}<input type="datetime-local" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className={inputClass} /></label>
-          <label className="text-sm">{t("filters.to")}<input type="datetime-local" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className={inputClass} /></label>
+          <label className="text-sm">{t("filters.from")} ({viewerTimezone})<input type="datetime-local" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className={inputClass} /></label>
+          <label className="text-sm">{t("filters.to")} ({viewerTimezone})<input type="datetime-local" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className={inputClass} /></label>
           <select value={filters.teacherId} onChange={(event) => setFilters({ ...filters, teacherId: event.target.value })} className={inputClass}>
             <option value="">{t("filters.anyTeacher")}</option>
             {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
@@ -366,7 +371,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                 ) : null}
                 {session.status === "SCHEDULED" ? (
                   <>
-                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, start: "", end: "" })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>
+                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, ...rangeToInputs(session.scheduledStart, session.scheduledEnd, viewerTimezone) })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>
                     <button
                       type="button"
                       onClick={() => setLinkEdit(linkEdit?.id === session.id ? null : { id: session.id, joinUrl: session.zoomJoinUrl, hostUrl: session.zoomHostUrl ?? "" })}
@@ -387,8 +392,8 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
             ) : null}
             {reschedule?.id === session.id ? (
               <form onSubmit={applyReschedule} className="mt-3 grid gap-3 border-t border-[var(--line)] pt-3 sm:grid-cols-3">
-                <label className="text-sm">{t("reschedule.newStart")} ({session.timezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
-                <label className="text-sm">{t("reschedule.newEnd")} ({session.timezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
+                <label className="text-sm">{t("reschedule.newStart")} ({viewerTimezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
+                <label className="text-sm">{t("reschedule.newEnd")} ({viewerTimezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
                 <button disabled={busy} className="cta-primary mt-6 h-10 rounded-xl px-4">{t("reschedule.save")}</button>
               </form>
             ) : null}
@@ -472,15 +477,15 @@ function SmartFormFields({
         </select>
       </label>
 
-      <label className="text-sm">{t("labels.starts")}
+      <label className="text-sm">{t("labels.starts")} ({form.timezone})
         <input required type="datetime-local" value={form.scheduledStart} onChange={(event) => form.setScheduledStart(event.target.value)} className={inputClass} />
       </label>
-      <label className="text-sm">{t("labels.ends")}
+      <label className="text-sm">{t("labels.ends")} ({form.timezone})
         <input required type="datetime-local" value={form.scheduledEnd} onChange={(event) => form.setScheduledEnd(event.target.value)} className={inputClass} />
       </label>
       <label className="text-sm">{t("labels.timezone")}
         <select value={form.timezone} onChange={(event) => form.setTimezone(event.target.value)} className={inputClass}>
-          {TIMEZONES.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone}</option>)}
+          {[...new Set([form.timezone, ...TIMEZONES])].map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone}</option>)}
         </select>
       </label>
 

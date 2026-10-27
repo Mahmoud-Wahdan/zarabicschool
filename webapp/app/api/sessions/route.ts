@@ -127,7 +127,7 @@ export async function POST(request: Request) {
           scheduledStart: start,
           scheduledEnd: end,
           durationMinutes,
-          timezone: data.timezone,
+          timezone: data.timezone ?? user.timezone,
           zoomJoinUrl: data.zoomJoinUrl,
           zoomHostUrl: data.zoomHostUrl || null,
           assignmentOverriddenById: participants.overrodeAssignment ? user.id : null,

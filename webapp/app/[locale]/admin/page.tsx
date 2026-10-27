@@ -68,7 +68,7 @@ export default async function AdminDashboard() {
   const donePercent = totalToday ? Math.round((completedToday / totalToday) * 100) : 0;
   const upcomingPercent = totalToday ? Math.round((upcomingToday / totalToday) * 100) : 0;
 
-  const timeFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+  const timeFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
     hour: "numeric",
     minute: "2-digit",
   });

@@ -156,7 +156,7 @@ export default async function AdminFinancialsPage() {
                       </StatusBadge>
                     </td>
                     <td className="text-on-surface-variant">
-                      {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+                      {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
                         day: "numeric",
                         month: "short",
                         year: "numeric",
@@ -196,7 +196,7 @@ export default async function AdminFinancialsPage() {
                     <td className="font-semibold">{remainingBySubscription.get(subscription.id) ?? 0}</td>
                     <td className="text-on-surface-variant">
                       {subscription.periodStartsAt && subscription.periodEndsAt
-                        ? new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", {
+                        ? new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
                             day: "numeric",
                             month: "short",
                           }).formatRange(subscription.periodStartsAt, subscription.periodEndsAt)

@@ -19,7 +19,7 @@ type InvoiceRow = {
 
 type StudentOption = { id: string; displayName: string };
 
-export default function AdminInvoicesPanel({ initialInvoices, students }: { initialInvoices: InvoiceRow[]; students: StudentOption[] }) {
+export default function AdminInvoicesPanel({ initialInvoices, students, timeZone }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const [invoices, setInvoices] = useState(initialInvoices);
@@ -127,7 +127,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students }: { init
                 </p>
                 <p className="mt-1 text-xs opacity-70">
                   {providerLabel(invoice.provider)} ·{" "}
-                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(invoice.createdAt))}
+                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(invoice.createdAt))}
                 </p>
               </div>
               <span className={`rounded-full px-2 py-1 text-xs font-semibold ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>

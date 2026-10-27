@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         sessionType: data.sessionType,
         scheduledStart: start,
         scheduledEnd: end,
-        timezone: data.timezone,
+        timezone: data.timezone ?? user.timezone,
         zoomJoinUrl: data.zoomJoinUrl,
         zoomHostUrl: data.zoomHostUrl || null,
         studentIds: data.studentIds,
