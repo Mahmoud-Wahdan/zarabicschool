@@ -1747,7 +1747,16 @@
       "submit": "Unable to save. Please try again.",
       "invalidTime": "Please choose a valid start and end time."
     },
-    "cancelReason": "Cancelled by operations"
+    "cancelReason": "Cancelled by operations",
+    "joinWindow": {
+      "title": "Join window",
+      "hint": "How many minutes before the start the join link opens for teachers, students and guardians ({min}–{max}). The WhatsApp reminder with the platform link is sent at that moment.",
+      "label": "Minutes before the start",
+      "save": "Save",
+      "saved": "Saved: {minutes} minutes. {count, plural, =0 {No queued reminder needed a new time.} one {# queued reminder moved.} other {# queued reminders moved.}}",
+      "invalid": "Enter a whole number from {min} to {max}.",
+      "error": "Could not save. Try again."
+    }
   },
   "assignmentsAdmin": {
     "labels": {

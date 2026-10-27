@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { JOIN_OPENS_BEFORE_START_MINUTES, type JoinWindowState } from "../../lib/config/session-join";
+import { DEFAULT_JOIN_WINDOW_MINUTES, type JoinWindowState } from "../../lib/config/session-join";
 
 /**
  * Window-aware "Open Zoom" control for role session pages (server component — no client
@@ -15,23 +15,26 @@ export default async function SessionJoinLink({
   label,
   host = false,
   compact = false,
+  windowMinutes = DEFAULT_JOIN_WINDOW_MINUTES,
 }: {
   sessionId: string;
   state: JoinWindowState;
   label: string;
   host?: boolean;
   compact?: boolean;
+  /** The academy join window (D4) shown in the "opens N minutes before" hint. */
+  windowMinutes?: number;
 }) {
   const t = await getTranslations("sessions");
   if (state === "before") {
     return (
       <span
-        title={t("window.notYetOpen", { minutes: JOIN_OPENS_BEFORE_START_MINUTES })}
-        aria-label={t("window.notYetOpen", { minutes: JOIN_OPENS_BEFORE_START_MINUTES })}
+        title={t("window.notYetOpen", { minutes: windowMinutes })}
+        aria-label={t("window.notYetOpen", { minutes: windowMinutes })}
         className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-xs opacity-60"
       >
         <span className="material-symbols-outlined text-sm" aria-hidden="true">videocam_off</span>
-        {t("window.notYetOpen", { minutes: JOIN_OPENS_BEFORE_START_MINUTES })}
+        {t("window.notYetOpen", { minutes: windowMinutes })}
       </span>
     );
   }

@@ -7,6 +7,7 @@ import Icon from "../../../_components/ui/icon";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
+import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 
 export default async function GuardianSessionsPage() {
@@ -14,6 +15,7 @@ export default async function GuardianSessionsPage() {
   const locale = await getLocale();
   const t = await getTranslations("sessions");
   const now = new Date();
+  const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
   const [children, sessions] = await Promise.all([
     prisma.student.findMany({
       where: { academyId: user.academyId, guardian: { userId: user.id } },
@@ -49,7 +51,7 @@ export default async function GuardianSessionsPage() {
           <section key={child.id} className="mt-6 space-y-3">
             <h2 className="text-lg font-bold text-[var(--navy)]">{child.user.displayName}</h2>
             {childSessions.map((session) => {
-              const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
+              const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
               return (
                 <article key={`${child.id}:${session.id}`} className="lift-card dashboard-card p-5">
                   <div className="flex flex-wrap justify-between gap-3">
@@ -59,7 +61,7 @@ export default async function GuardianSessionsPage() {
                   <p className="mt-2 text-sm opacity-70">
                     {session.teacher.user.displayName} · {t(`statuses.${session.status}`)} · {t(`types.${session.sessionType}`)}
                   </p>
-                  {state ? <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} /> : null}
+                  {state ? <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("openZoom")} /> : null}
                   {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
                 </article>
               );

@@ -4,7 +4,7 @@ import { routing, type AppLocale } from "../../../../../i18n/routing";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { allowRequest } from "../../../../../lib/rate-limit";
-import { JOIN_OPENS_BEFORE_START_MS } from "../../../../../lib/config/session-join";
+import { getJoinWindowMinutes } from "../../../../../lib/sessions/join-window";
 import { platformUrl } from "../../../../../lib/config/platform-url";
 import { validateZoomUrl } from "../../../../../lib/validation/zoom-url";
 import { isUuidParam } from "../../../../../lib/request";
@@ -72,11 +72,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
   if (!session) return joinError(request, 404, "NOT_FOUND", "Session not found.");
   if (!isOperator) {
-    // CONFIRMED join window: opens 15 minutes before the scheduled start, closes at the
-    // scheduled end (config constant). Admin/Supervisor are exempt.
+    // Join window (D4): opens the Admin-set number of minutes before the scheduled
+    // start (default 30), closes at the scheduled end. Admin/Supervisor are exempt.
+    const windowMinutes = await getJoinWindowMinutes(user.academyId);
     const now = Date.now();
-    if (now < session.scheduledStart.getTime() - JOIN_OPENS_BEFORE_START_MS) {
-      return joinError(request, 403, "JOIN_NOT_YET_OPEN", "The session join opens 15 minutes before the scheduled start.");
+    if (now < session.scheduledStart.getTime() - windowMinutes * 60 * 1000) {
+      return joinError(request, 403, "JOIN_NOT_YET_OPEN", `The session join opens ${windowMinutes} minutes before the scheduled start.`);
     }
     if (now > session.scheduledEnd.getTime()) {
       return joinError(request, 403, "JOIN_WINDOW_CLOSED", "The session join window has closed.");

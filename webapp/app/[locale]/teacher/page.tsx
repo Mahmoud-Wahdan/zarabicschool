@@ -7,6 +7,7 @@ import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { joinWindowState } from "../../../lib/config/session-join";
+import { getJoinWindowMinutes } from "../../../lib/sessions/join-window";
 import { currentMonthKey, formatMonthLabel, previousMonthKey } from "../../../lib/reports/month-key";
 import { eligibleMonthlyStudents } from "../../../lib/reports/monthly";
 import { getTeacherRosterReportStatuses, rosterKey } from "../../../lib/reports/roster-status";
@@ -27,6 +28,7 @@ export default async function TeacherDashboard() {
     getTranslations("appShell"),
   ]);
   const now = new Date();
+  const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
 
   // "Today" = the teacher's local calendar day (DST-safe, same wall-clock helper as
   // the sessions page — Phase 3/4 convention).
@@ -102,7 +104,7 @@ export default async function TeacherDashboard() {
             // The Zoom button uses the shared join-window constant — never a
             // hardcoded minute figure in UI text (owner rule; Phase 9 item 9.10
             // will change the constant, not the UI).
-            const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
+            const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
             return (
               <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -110,7 +112,7 @@ export default async function TeacherDashboard() {
                   <span className="flex flex-wrap items-center gap-2">
                     <span>{formatTime(session.scheduledStart)}</span>
                     {state ? (
-                      <SessionJoinLink
+                      <SessionJoinLink windowMinutes={joinWindowMinutes}
                         sessionId={session.id}
                         state={state}
                         label={tSessions("openZoom")}

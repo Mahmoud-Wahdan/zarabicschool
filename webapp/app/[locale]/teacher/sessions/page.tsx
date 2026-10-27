@@ -8,6 +8,7 @@ import Icon from "../../../_components/ui/icon";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
+import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 import { getTeacherRosterReportStatuses, rosterKey } from "../../../../lib/reports/roster-status";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
@@ -17,6 +18,7 @@ export default async function TeacherSessionsPage() {
   const locale = await getLocale();
   const t = await getTranslations("sessions");
   const now = new Date();
+  const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
   // C6 (plan approved 2026-10-25): a bounded window (7 days back … 30 days ahead)
   // instead of "the oldest 100", which hid today's sessions from a teacher with a
   // long history. The cap stays as a safety net.
@@ -58,7 +60,7 @@ export default async function TeacherSessionsPage() {
   };
 
   const roster = (session: (typeof sessions)[number], withZoom: boolean) => {
-    const state = withZoom && session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
+    const state = withZoom && session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
     return (
       <ul className="mt-3 space-y-2">
         {session.students.map(({ student }) => (
@@ -69,9 +71,9 @@ export default async function TeacherSessionsPage() {
             <span className="flex flex-wrap items-center gap-2">
               {state ? (
                 <>
-                  <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
+                  <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.zoom")} compact />
                   {session.zoomHostUrl ? (
-                    <SessionJoinLink sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
+                    <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("teacher.startHost")} host compact />
                   ) : null}
                 </>
               ) : null}

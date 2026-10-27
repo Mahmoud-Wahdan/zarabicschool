@@ -4,6 +4,8 @@ import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { findLinkOverlaps } from "../../../../lib/scheduling/link-overlap";
 import SessionManagementPanel from "./session-management-panel";
+import JoinWindowSetting from "../../../_components/sessions/join-window-setting";
+import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 
 export default async function SessionsPage() {
   const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
@@ -60,6 +62,8 @@ export default async function SessionsPage() {
   ]);
   // Same-link overlap WARNING ids (never a block): shown in the admin list.
   const linkOverlap = findLinkOverlaps(sessions);
+  // D4: the join window is a system setting — Admin only (never the Supervisor).
+  const joinWindowMinutes = user.role === "ADMIN" ? await getJoinWindowMinutes(user.academyId) : null;
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
       <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
@@ -67,6 +71,7 @@ export default async function SessionsPage() {
         <h1 className="mt-2 text-3xl font-bold">{t("page.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-white/80">{t("page.subtitle")}</p>
       </section>
+      {joinWindowMinutes !== null ? <JoinWindowSetting initialMinutes={joinWindowMinutes} /> : null}
       <SessionManagementPanel
         viewerTimezone={user.timezone}
         locale={locale}

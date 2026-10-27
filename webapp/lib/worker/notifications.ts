@@ -13,12 +13,13 @@ import {
   TEACHER_LATE_REMINDER_MINUTES,
 } from "../config/lateness";
 import { sessionJoinPlatformUrl } from "../config/platform-url";
-import { JOIN_OPENS_BEFORE_START_MINUTES, joinWindowState } from "../config/session-join";
+import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { getMessagingProvider } from "../messaging/provider";
 import { isWhatsAppDeliveryReady } from "../messaging/readiness";
 import { prisma } from "../prisma";
+import { getJoinWindowMinutes } from "../sessions/join-window";
 import { monthKeyRangeUtc, previousMonthKey } from "../reports/month-key";
 import { resolveReportLanguage, type ReportLanguageCode } from "../reports/report-language";
 import { isSession1ReportsReady } from "../reports/session1-ready";
@@ -117,7 +118,7 @@ type JobWithRelations = NotificationJob & {
 };
 
 // Exported for the late-report chain unit tests (message/time assertions).
-export function composeJobMessage(job: JobWithRelations): string {
+export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEFAULT_JOIN_WINDOW_MINUTES): string {
   // Templates in Arabic + English by the RECIPIENT's language; times rendered in the
   // RECIPIENT's IANA timezone when known, falling back to the session's (Batch D).
   const language: "ar" | "en" = job.recipientUser.preferredLanguage === "en" ? "en" : "ar";
@@ -188,7 +189,7 @@ export function composeJobMessage(job: JobWithRelations): string {
     // Only the platform's join redirect, and only while its join window is open at
     // send time — before the window the text says when it opens instead of a link
     // that would answer "not yet open".
-    const windowOpen = joinWindowState(job.session.scheduledStart, job.session.scheduledEnd) === "open";
+    const windowOpen = joinWindowState(job.session.scheduledStart, job.session.scheduledEnd, new Date(), joinWindowMinutes) === "open";
     const joinUrl = windowOpen && job.sessionId ? sessionJoinPlatformUrl(job.sessionId) : null;
     if (job.kind === "TEACHER_LATE_START") {
       return language === "en"
@@ -215,7 +216,7 @@ export function composeJobMessage(job: JobWithRelations): string {
       }
       return joinUrl
         ? `Reminder: your session (${subject}) starts at ${time} (${timeZone}). Join from the platform: ${joinUrl}`
-        : `Reminder: your session (${subject}) starts at ${time} (${timeZone}). The join link opens on the platform ${JOIN_OPENS_BEFORE_START_MINUTES} minutes before the start.`;
+        : `Reminder: your session (${subject}) starts at ${time} (${timeZone}). The join link opens on the platform ${joinWindowMinutes} minutes before the start.`;
     }
     if (job.kind === "SESSION_START") {
       return joinUrl
@@ -230,7 +231,7 @@ export function composeJobMessage(job: JobWithRelations): string {
     }
     return joinUrl
       ? `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}). ادخل من المنصة: ${joinUrl}`
-      : `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}). يُفتح رابط الدخول على المنصة قبل البداية بـ ${JOIN_OPENS_BEFORE_START_MINUTES} دقيقة.`;
+      : `تذكير: حصتك (${subject}) تبدأ في ${time} (${timeZone}). يُفتح رابط الدخول على المنصة قبل البداية بـ ${joinWindowMinutes} دقيقة.`;
   }
   if (job.kind === "SESSION_REQUEST") {
     // Outage/absence requests land in the Admin/Supervisor queue (CONTEXT §6);
@@ -396,6 +397,9 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   const provider = getMessagingProvider();
   const deliveryReady = await isWhatsAppDeliveryReady();
   let sendsThisTick = 0;
+  // Join window per academy (D4), read once per tick: the reminder text and its
+  // platform link follow the Admin setting at send time.
+  const joinWindowByAcademy = new Map<string, number>();
   const announcementTally = { sent: 0, failed: 0 };
   for (const job of due as JobWithRelations[]) {
     const claimed = await prisma.notificationJob.updateMany({
@@ -508,7 +512,12 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         continue;
       }
     }
-    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement });
+    let joinWindowMinutes = joinWindowByAcademy.get(job.academyId);
+    if (joinWindowMinutes === undefined) {
+      joinWindowMinutes = await getJoinWindowMinutes(job.academyId);
+      joinWindowByAcademy.set(job.academyId, joinWindowMinutes);
+    }
+    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement }, joinWindowMinutes);
     // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
     // heavier announcement spacing is the job's staggered eligible time, not a sleep.
     if (sendsThisTick > 0) {

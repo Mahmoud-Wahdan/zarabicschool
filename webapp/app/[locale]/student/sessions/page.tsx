@@ -8,6 +8,7 @@ import Icon from "../../../_components/ui/icon";
 import { requireRole, studentFinanceBlocked } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
+import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 import { getOwnEvaluationsForSessions, isEvaluationsReady } from "../../../../lib/evaluations/service";
 import { Link } from "../../../../i18n/navigation";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
@@ -18,6 +19,7 @@ export default async function StudentSessionsPage() {
   const locale = await getLocale();
   const t = await getTranslations("sessions");
   const now = new Date();
+  const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
   const sessions = await prisma.session.findMany({
     where: { academyId: user.academyId, students: { some: { student: { userId: user.id } } } },
     orderBy: { scheduledStart: "asc" },
@@ -62,7 +64,7 @@ export default async function StudentSessionsPage() {
       </section>
       <div className="mt-6 space-y-3">
         {sessions.map((session) => {
-          const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now) : null;
+          const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
           return (
             <article key={session.id} className="lift-card dashboard-card p-5">
               <div className="flex flex-wrap justify-between gap-3">
@@ -74,7 +76,7 @@ export default async function StudentSessionsPage() {
                 {session.status === "SCHEDULED" && now >= session.scheduledEnd ? t("teacher.ended") : t(`statuses.${session.status}`)} ·{" "}
                 {t(`types.${session.sessionType}`)}
               </p>
-              {state ? <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} /> : null}
+              {state ? <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("openZoom")} /> : null}
               {isEnded(session) && reportedSessionIds.has(session.id) ? (
                 <Link href={`/student/sessions/${session.id}/report`} className="mt-2 inline-block text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
                   {tReports("open")}

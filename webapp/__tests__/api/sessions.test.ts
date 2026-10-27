@@ -338,7 +338,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
       studentIds: [fx.studentProfileIds.student1],
     }, { day: 4, hour: 12 });
     const sessionId = body.data.id as string;
-    // Phase 4 (CONFIRMED): the join redirect opens only 15 minutes before the scheduled
+    // Phase 4 (CONFIRMED): the join redirect opens only 30 minutes (default, D4) before the scheduled
     // start. Move the session into the window so this scenario keeps testing the
     // authorization matrix (307/404/409), not the window itself (covered in
     // __tests__/api/phase4-live-links.test.ts).
@@ -498,7 +498,7 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     const jobs = await prisma.notificationJob.findMany({ where: { sessionId, kind: "SESSION_REMINDER" }, select: { scheduledFor: true } });
     expect(jobs.length).toBeGreaterThan(0);
     for (const job of jobs) {
-      expect(job.scheduledFor.getTime()).toBe(newStart.getTime() - 2 * 3600 * 1000);
+      expect(job.scheduledFor.getTime()).toBe(newStart.getTime() - 30 * 60 * 1000);
     }
   });
 

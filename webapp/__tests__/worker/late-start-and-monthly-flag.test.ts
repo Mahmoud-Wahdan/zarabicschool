@@ -166,7 +166,7 @@ describe("WhatsApp join links (JL-01)", () => {
     } as unknown as Parameters<typeof composeJobMessage>[0];
   }
 
-  it("JL-01: start/late-start messages carry the platform join URL, never zoom.us; the T−2h reminder has no link and says when it opens", () => {
+  it("JL-01: start/late-start messages carry the platform join URL, never zoom.us; a reminder before the window has no link and says when it opens", () => {
     process.env.APP_PUBLIC_URL = "https://academy.example";
     for (const language of ["en", "ar"] as const) {
       for (const kind of ["SESSION_START", "TEACHER_LATE_START"]) {
@@ -176,7 +176,7 @@ describe("WhatsApp join links (JL-01)", () => {
       }
       const reminder = composeJobMessage(job("SESSION_REMINDER", 120, language));
       expect(reminder).not.toContain("http");
-      expect(reminder).toContain("15");
+      expect(reminder).toContain("30");
     }
     delete process.env.APP_PUBLIC_URL;
     delete process.env.NEXTAUTH_URL;

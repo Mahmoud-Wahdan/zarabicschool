@@ -239,7 +239,7 @@ describe("Phase 4 — join redirect authorization matrix", () => {
   });
 });
 
-describe("Phase 4 — join time window (T-15 minutes → scheduled end)", () => {
+describe("Phase 4 — join time window (default T-30 minutes → scheduled end, D4)", () => {
   it("an enrolled student can join inside the window", async () => {
     asActor(fx.studentUserIds.student1);
     const response = await joinRoute(joinRequest(matrixSession.id), routeParams(matrixSession.id));
@@ -260,15 +260,15 @@ describe("Phase 4 — join time window (T-15 minutes → scheduled end)", () => 
     expect(body.error.code).toBe("JOIN_NOT_YET_OPEN");
   });
 
-  it("the window opens 15 minutes before the scheduled start", async () => {
+  it("the window opens 30 minutes (default, D4) before the scheduled start", async () => {
     const before = await createDirectSession({
-      startMinutes: 16,
-      endMinutes: 76,
+      startMinutes: 31,
+      endMinutes: 91,
       studentProfileIds: [fx.studentProfileIds.student2],
     });
     const inside = await createDirectSession({
-      startMinutes: 14,
-      endMinutes: 74,
+      startMinutes: 29,
+      endMinutes: 89,
       studentProfileIds: [fx.studentProfileIds.student2],
     });
     asActor(fx.studentUserIds.student2);

@@ -1,4 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client";
+import { getJoinWindowMinutes } from "../sessions/join-window";
 
 export async function enqueueSessionJobs(
   tx: Prisma.TransactionClient,
@@ -10,6 +11,9 @@ export async function enqueueSessionJobs(
   guardianUserIds: string[],
 ) {
   const recipientUserIds = [...new Set([teacherUserId, ...studentUserIds, ...guardianUserIds])];
+  // D4 (owner, 2026-10-27): the reminder goes out when the join window opens and
+  // carries the platform join link; it replaces the old T−2h reminder.
+  const windowMinutes = await getJoinWindowMinutes(academyId, tx);
   const jobs = recipientUserIds.flatMap((recipientUserId) => [
     {
       academyId,
@@ -17,7 +21,7 @@ export async function enqueueSessionJobs(
       recipientUserId,
       kind: "SESSION_REMINDER",
       dedupKey: `SESSION_REMINDER:${sessionId}:${recipientUserId}`,
-      scheduledFor: new Date(scheduledStart.getTime() - 2 * 60 * 60 * 1000),
+      scheduledFor: new Date(scheduledStart.getTime() - windowMinutes * 60 * 1000),
     },
     {
       academyId,
