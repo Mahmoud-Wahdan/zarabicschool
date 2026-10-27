@@ -249,3 +249,9 @@
 - **TZ-01..05** — Africa/Cairo typed times and "today" on 2026-10-27 (UTC+3) and 2026-10-30 (UTC+2), the 25-hour change day, and a static check that no caller uses the host or browser zone.
 - **HL-07/08/09** — D45: teacher `?host=1` → 404; Admin/Supervisor `?host=1` → host link; teacher pages show no host note. HL-01 now expects the join link.
 - **I18N-01..03** — en/ar key parity; scanner self-check; every literal `t("key")` exists in both catalogs.
+
+## Written 2026-10-27 (S-09 Supervisor finance visibility, D29)
+- **SFV-01** — remaining sessions = ACTIVE credit minus RESERVED; an expired package does not count.
+- **SFV-02** — payment status = latest invoice status; none → null; another academy is never read.
+- **SFV-03** — the Supervisor's student list carries exactly {remainingSessions, paymentStatus} and no money-like key anywhere.
+- **SFV-04** — guardian/teacher lists carry no finance status. **SFV-05** — `canActOnStudentFinance` unchanged for the Supervisor.
