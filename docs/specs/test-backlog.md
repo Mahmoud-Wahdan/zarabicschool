@@ -260,3 +260,9 @@
 - **ZF-01..05** — reschedule round trip (open, change nothing, save) on 27 and 30 Oct and in the repeated DST hour; typed 17:00 cases; every `Intl.DateTimeFormat` has a timeZone; no UTC label/option/default; a session created without a zone takes the creator's zone.
 - **ATT-01..11** — manual attendance resolution: effects, NO_SESSIONS_LEFT block, refusals, roles and the Supervisor's 7 days, preview without money, a later report (credit only, no second deduction), mismatch flag, derived state, resolution vs submission race, every no-report deduction linked to a resolution. ATT-01/04/07/10/11 need the S-1b migration.
 - **CAL-01..05** — week from Saturday in the viewer zone across DST, `?week=` parsing, own sessions only per role/child, no Zoom URL, D30 labels.
+
+## Written 2026-10-27 (S-1b/S-1c, S-11, S-08)
+- **ATT-12** — the database rejects a SESSION_DEDUCTION with no report and no resolution (green after S-1c).
+- **PF-01..05** — late start (> start + 5 min, no click apart), report on time (first submission ≤ end + 15 min), month in the viewer zone, own sessions/clicks only, access and no complaints/evaluations.
+- **HM-01..04** — month/quarter/half buckets in the viewer zone, EGP + PAID + academy only, home counts, revenue Admin-only.
+- **DS-01..07** — D31 Arabic wording, English mirror, no links, send window to 08:00 local (DST), planning payload `{localDate}` + idempotent, late job cancelled, day's sessions in the teacher zone with make-ups apart.
