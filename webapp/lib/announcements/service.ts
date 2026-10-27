@@ -25,11 +25,17 @@ export async function computeAnnouncementRecipients(academyId: string) {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: { id: true, phone: true, ...(optOutReady ? { announcementsOptOut: true } : {}) },
   });
+  const isOptedOut = (user: (typeof users)[number]) => Boolean((user as { announcementsOptOut?: boolean }).announcementsOptOut);
+  // I-3 (2026-10-27): the opt-out protects the NUMBER — another account on the same
+  // number (a guardian and a child sharing a phone) receives nothing either.
+  const optedOutNumbers = new Set(
+    users.filter(isOptedOut).map((user) => toInternationalDigits(user.phone)).filter((digits): digits is string => Boolean(digits)),
+  );
   const byNumber = new Map<string, string>();
   let withoutPhone = 0;
   let optedOut = 0;
   for (const user of users) {
-    if ((user as { announcementsOptOut?: boolean }).announcementsOptOut) {
+    if (isOptedOut(user)) {
       optedOut += 1;
       continue;
     }
@@ -38,6 +44,7 @@ export async function computeAnnouncementRecipients(academyId: string) {
       withoutPhone += 1;
       continue;
     }
+    if (optedOutNumbers.has(digits)) continue;
     if (!byNumber.has(digits)) byNumber.set(digits, user.id);
   }
   const recipientUserIds = [...byNumber.values()];
