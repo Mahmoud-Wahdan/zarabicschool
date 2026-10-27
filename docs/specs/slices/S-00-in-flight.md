@@ -10,7 +10,7 @@
 - [x] (a) commit review slices #1/#4/#5/#6 — f5ee13c
 - [x] (b) return page + status display (RET-01..05)
 - [ ] (c) #3 announcement scheduling
-- [ ] (d) #8 origin checks
+- [x] (d) #8 origin checks
 - [x] (e) I-1 join link redirects + login callbackUrl (also wires "sign in and return" on the return page)
 - [x] (f) I-2 settlement fallback flags the Admin
 - [x] (g) I-3 opt-out drops shared numbers
@@ -27,4 +27,5 @@
 - 2026-10-27: (j) M-3 — `allowedDevOrigins` = the APP_PUBLIC_URL host (`lib/config/dev-origins.ts`, DEV-01 first, failed on the missing module). **Owner note:** reaching `next dev` through ngrok now needs `APP_PUBLIC_URL` set to the ngrok URL (the one allowed `.env` line). (k) M-4 — provider comment brought up to date; the `console` check is trimmed + lower-cased like the production start check (MSG-09 first, failed, then green). 2 suites / 14 tests green; tsc + lint clean.
 - 2026-10-27: (g) I-3 — AN-OPT-01 first (failed: the child on the opted-out guardian's number was still a recipient), then `computeAnnouncementRecipients` skips every number owned by an opted-out user, in both directions. 2 suites / 5 tests green (incl. AN-04..13); tsc + lint clean.
 - 2026-10-27: (f) I-2 — INT-EXP-09/10 first (09 failed: no flag when the out-of-period fallback left the balance ≥ 0). `fallbackSubscriptionId` now reports `outsidePeriod`; settlement enqueues `SETTLED_OUTSIDE_PACKAGE_PERIOD` (one per active Admin, dedup per report, payload `{reportId}`), worker text ar/en, no amounts. No schema change (`notification_jobs.kind` is text). credit-expiry 10/10 + reports 28/28 green; tsc + lint clean.
+- 2026-10-27: (d) #8 — ORG-01..03 first (01/02 failed with 403 behind a proxy: public Origin/Host, internal request.url). Removed the duplicate origin checks in `api/applications` POST and `api/auth/change-password`; `requireSameOrigin` (Host in dev, ALLOWED_ORIGINS in production, missing Origin refused) is the only guard; a foreign Origin is still 403 (ORG-03). 5 suites / 43 tests green (incl. OWASP, auth-rbac, edge cases, application validation); tsc + lint clean.
 - 2026-10-27: (i) M-2 — spec check: `zoom_host_url` is optional and the `?host=1` variant exists, but no rule makes the teacher's links use it (CONTEXT §84 open assumption) → OQ-16, nothing built.
