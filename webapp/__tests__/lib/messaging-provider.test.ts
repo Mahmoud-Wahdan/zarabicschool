@@ -40,6 +40,12 @@ describe("provider selection", () => {
     expect(realSelector()()).toBe(openWaProvider);
   });
 
+  it("MSG-09: the value is normalized like the production start check (' Console ' selects the console provider)", () => {
+    env.NODE_ENV = "development";
+    env.MESSAGING_PROVIDER = " Console ";
+    expect(realSelector()()).toBe(consoleProvider);
+  });
+
   it("MSG-03: unset or unknown values select OpenWA", () => {
     env.NODE_ENV = "development";
     delete env.MESSAGING_PROVIDER;

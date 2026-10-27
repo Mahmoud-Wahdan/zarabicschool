@@ -6,6 +6,8 @@ dotenvConfig({ path: resolve(__dirname, ".env") });
 
 import type { NextConfig } from "next";
 
+import { devAllowedOrigins } from "./lib/config/dev-origins";
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
@@ -13,7 +15,8 @@ const nextConfig: NextConfig = {
   // No "X-Powered-By: Next.js" header (framework disclosure; owner, 2026-10-27,
   // security-review G-A02-5).
   poweredByHeader: false,
-allowedDevOrigins: ['towable-churrigueresque-rod.ngrok-free.dev'],
+  // Dev tunnel host = the APP_PUBLIC_URL host (M-3, 2026-10-27), never hard-coded.
+  allowedDevOrigins: devAllowedOrigins(),
   // Safe baseline security headers on every response (owner, 2026-10-26). No CSP
   // and no HSTS yet — both are launch-phase items in docs/specs/deploy-checklist.md.
   async headers() {

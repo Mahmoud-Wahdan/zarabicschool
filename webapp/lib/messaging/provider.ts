@@ -5,12 +5,15 @@ import { openWaProvider } from "./openwa-provider";
 import type { MessagingProvider } from "./types";
 
 /**
- * OpenWA is the only production messaging provider (the old fake provider was
- * removed, owner decision 2026-10-18). Outside production, MESSAGING_PROVIDER=console
- * selects the local console provider (owner-approved, 2026-10-26): it logs ids and
- * lengths only and sends nothing. In production the variable is IGNORED — OpenWA
- * always. A future second provider is resolved here and nowhere else — callers never
- * import a concrete provider.
+ * OpenWA is the only production messaging provider. Outside production,
+ * MESSAGING_PROVIDER=console selects the local console provider (owner-approved,
+ * 2026-10-26/27): it sends nothing and prints the full development message with
+ * temporary passwords and raw Zoom links masked, the recipient as user id + last 3
+ * digits. In production the selector always returns OpenWA, and a production start
+ * with console/fake configured fails earlier (lib/config/messaging-mode.ts, the same
+ * trimmed, lower-cased comparison). "fake" exists only inside the Jest suite. A future
+ * second provider is resolved here and nowhere else — callers never import a
+ * concrete provider.
  *
  * A missing OPENWA_* configuration never throws and never rolls anything
  * back: OpenWAProvider answers { ok: false, error: "OpenWA is not configured." }
@@ -18,7 +21,7 @@ import type { MessagingProvider } from "./types";
  * table doubles as the NotificationLog — no message content is ever stored).
  */
 export function getMessagingProvider(): MessagingProvider {
-  if (process.env.NODE_ENV !== "production" && process.env.MESSAGING_PROVIDER === "console") {
+  if (process.env.NODE_ENV !== "production" && process.env.MESSAGING_PROVIDER?.trim().toLowerCase() === "console") {
     return consoleProvider;
   }
   return openWaProvider;
