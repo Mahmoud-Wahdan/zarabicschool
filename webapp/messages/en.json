@@ -1874,7 +1874,9 @@
       "announcementsHint": "Admin only: when off, this person gets no announcement on WhatsApp (they still see it on the platform).",
       "announcementsOn": "Receives",
       "announcementsOff": "Off (no WhatsApp)"
-    }
+    },
+    "phoneCol": "Phone",
+    "whatsappChat": "Chat with {name} on WhatsApp"
   },
   "paymentReturn": {
     "title": "Payment status",

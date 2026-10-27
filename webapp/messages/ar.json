@@ -1874,7 +1874,9 @@
       "announcementsHint": "للمدير فقط: عند الإيقاف لا تصل الإعلانات لهذا الشخص على واتساب (يراها على المنصة).",
       "announcementsOn": "مفعّلة",
       "announcementsOff": "موقوفة (بدون واتساب)"
-    }
+    },
+    "phoneCol": "الهاتف",
+    "whatsappChat": "محادثة {name} على واتساب"
   },
   "paymentReturn": {
     "title": "حالة الدفع",
