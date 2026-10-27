@@ -283,6 +283,45 @@ describe("S-01 manual attendance resolution", () => {
     expect(sql.toString("utf8")).toMatch(/"entry_type" <> 'SESSION_DEDUCTION' OR \("sessions_delta" = -1 AND "session_id" IS NOT NULL\)/);
   });
 
+  it("ATT-12: the DATABASE rejects a SESSION_DEDUCTION with no report and no attendance resolution (always rolled back)", async () => {
+    const student = fx.studentProfileIds.student11;
+    const subscriptionId = await credit(student, 2);
+    const sessionId = await endedSession(student);
+    const ROLLBACK = "ATT-12 rollback";
+    let outcome: "accepted" | "rejected" = "accepted";
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.subscriptionLedger.create({
+          data: { academyId: fx.academyId, subscriptionId, sessionId, entryType: "SESSION_DEDUCTION", sessionsDelta: -1 },
+        });
+        // Reaching here means the row was accepted so far; a deferred check fires at
+        // COMMIT, so commit is attempted only via this marker-free path below.
+        throw new Error(ROLLBACK);
+      });
+    } catch (cause) {
+      if ((cause as Error).message !== ROLLBACK) outcome = "rejected";
+    }
+    // Insert-time acceptance alone is not proof: try a real commit inside a savepoint-free tx and check it fails.
+    if (outcome === "accepted") {
+      try {
+        const row = await prisma.$transaction(async (tx) =>
+          tx.subscriptionLedger.create({
+            data: { academyId: fx.academyId, subscriptionId, sessionId, entryType: "SESSION_DEDUCTION", sessionsDelta: -1 },
+            select: { id: true },
+          }),
+        );
+        // Accepted at commit: the rule is weaker than required. Leave the row to the
+        // per-academy cleanup (test academy only) and fail.
+        expect({ committedOrphanDeduction: row.id }).toBeUndefined();
+      } catch (cause) {
+        if ((cause as { matcherResult?: unknown }).matcherResult) throw cause;
+        outcome = "rejected";
+      }
+    }
+    expect(outcome).toBe("rejected");
+    expect(await prisma.subscriptionLedger.count({ where: { sessionId } })).toBe(0);
+  });
+
   it("ATT-10: a resolution racing a report submission on the same session never double-deducts", async () => {
     const student = fx.studentProfileIds.student10;
     const subscriptionId = await credit(student, 4);
