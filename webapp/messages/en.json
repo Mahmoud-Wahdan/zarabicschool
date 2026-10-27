@@ -58,7 +58,8 @@
       "complaints": "Complaints",
       "evaluations": "Evaluation Summaries",
       "announcements": "Announcements",
-      "fileComplaint": "File a Complaint"
+      "fileComplaint": "File a Complaint",
+      "calendar": "Weekly Calendar"
     }
   },
   "whatsappAdmin": {
@@ -2231,5 +2232,20 @@
       "RESOLVED_REPORT_PENDING": "Attendance resolved manually — teacher report pending"
     },
     "resolvedBy": "Resolved manually by {name} ({role}) on {time}: {reason}"
+  },
+  "calendar": {
+    "title": "Weekly calendar",
+    "subtitle": "Your sessions for the week, in your time zone. View only — join from My Sessions.",
+    "guardianSubtitle": "Your children’s sessions for the week, in your time zone. View only.",
+    "weekOf": "Week of {date}",
+    "zone": "Times in {zone}",
+    "weekNav": "Week navigation",
+    "previous": "Previous week",
+    "thisWeek": "This week",
+    "next": "Next week",
+    "free": "No sessions",
+    "group": "Group ({count})",
+    "noChildren": "No linked children.",
+    "childTabs": "Children"
   }
 }

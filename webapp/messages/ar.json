@@ -58,7 +58,8 @@
       "complaints": "الشكاوى",
       "evaluations": "ملخص التقييمات",
       "announcements": "الإعلانات",
-      "fileComplaint": "تقديم شكوى"
+      "fileComplaint": "تقديم شكوى",
+      "calendar": "التقويم الأسبوعي"
     }
   },
   "whatsappAdmin": {
@@ -2231,5 +2232,20 @@
       "RESOLVED_REPORT_PENDING": "سُجّل الحضور يدويًا — بانتظار تقرير المعلم"
     },
     "resolvedBy": "سجّله يدويًا {name} ({role}) في {time}: {reason}"
+  },
+  "calendar": {
+    "title": "التقويم الأسبوعي",
+    "subtitle": "حصصك لهذا الأسبوع بتوقيتك. للعرض فقط — ادخل الحصة من صفحة حصصي.",
+    "guardianSubtitle": "حصص أبنائك لهذا الأسبوع بتوقيتك. للعرض فقط.",
+    "weekOf": "أسبوع {date}",
+    "zone": "الأوقات بتوقيت {zone}",
+    "weekNav": "التنقل بين الأسابيع",
+    "previous": "الأسبوع السابق",
+    "thisWeek": "هذا الأسبوع",
+    "next": "الأسبوع التالي",
+    "free": "لا توجد حصص",
+    "group": "مجموعة ({count})",
+    "noChildren": "لا يوجد أبناء مرتبطون.",
+    "childTabs": "الأبناء"
   }
 }

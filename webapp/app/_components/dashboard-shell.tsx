@@ -133,6 +133,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   TEACHER: [
     { key: "dashboard", icon: "dashboard", href: "/teacher" },
     { key: "mySessions", icon: "calendar_month", href: "/teacher/sessions" },
+    { key: "calendar", icon: "date_range", href: "/teacher/calendar" },
     { key: "monthlyReports", icon: "calendar_month", href: "/teacher/monthly-reports" },
     { key: "attendance", icon: "fact_check", href: "/teacher/attendance" },
     { key: "payroll", icon: "payments", href: "/teacher/payroll" },
@@ -142,6 +143,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   GUARDIAN: [
     { key: "dashboard", icon: "dashboard", href: "/guardian" },
     { key: "familySchedule", icon: "calendar_month", href: "/guardian/sessions" },
+    { key: "calendar", icon: "date_range", href: "/guardian/calendar" },
     { key: "attendance", icon: "event_available", href: "/guardian/attendance" },
     { key: "guardianReports", icon: "menu_book", href: "/guardian/reports" },
     { key: "invoices", icon: "request_quote", href: "/guardian/invoices" },
@@ -151,6 +153,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   STUDENT: [
     { key: "dashboard", icon: "dashboard", href: "/student" },
     { key: "mySessions", icon: "calendar_month", href: "/student/sessions" },
+    { key: "calendar", icon: "date_range", href: "/student/calendar" },
     { key: "sessionReports", icon: "description", href: "/student/reports" },
     { key: "attendance", icon: "event_available", href: "/student/attendance" },
     { key: "monthlyReports", icon: "calendar_month", href: "/student/monthly-reports" },
