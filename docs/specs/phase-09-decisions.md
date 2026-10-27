@@ -42,3 +42,4 @@
 | D32 | **Teacher host link (M-2, OQ-16):** the teacher's join button (dashboard and WhatsApp) opens the session's host link when one is stored, otherwise the join link; students/guardians keep the join link only; same window and click log. | CONFIRMED | 2026-10-27 |
 | D33 | **M-5 (OQ-10):** the payroll amount cap stays the 32-bit maximum (2,147,483,647 minor) and is documented in `lib/validation/financial.ts`; NOT aligned with the 100,000,000 cap. | CONFIRMED | 2026-10-27 |
 | D34 | **OQ-15 dropped:** no commit-message rewrite; the four commits with trailers in the subject stay as they are. | CONFIRMED | 2026-10-27 |
+| D35 | **Trial clean-up (OQ-9), docs only:** CONTEXT §17 "Free trial session" row struck through and marked SUPERSEDED by D15; phase-09-refinements 9.3 trial parts, S15 and Q15 struck through with the same note (history kept); "no trial sessions" (CONTEXT §7 *Resolved*, §17) stands. | CONFIRMED (owner asked to apply) | 2026-10-27 |

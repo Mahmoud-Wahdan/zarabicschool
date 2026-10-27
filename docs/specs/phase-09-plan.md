@@ -65,7 +65,7 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | Q16 refuse add to ended session | D16, c9a19af | done |
 | E2E accounts after Phase 9 | D22 | later |
 | INT-EXP-08 defensive rule | D21 | done (kept) |
-| Trial | D15, OQ-9 | nothing built; doc clean-up OPEN |
+| Trial | D15, OQ-9 → D35 | nothing built; doc clean-up done |
 | Assignments problems | OQ-14 | OPEN (owner list) |
 | Commit trailer formatting | OQ-15 → D34 | dropped (no rewrite) |
 | D1–D27 | slices above | see the register |
