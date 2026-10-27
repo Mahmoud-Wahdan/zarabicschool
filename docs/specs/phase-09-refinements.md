@@ -1,5 +1,7 @@
 # Phase 9 — Refinements & UI/UX Polish
 
+> **Superseded for planning (2026-10-27).** Current sources: decisions `phase-09-decisions.md` (D1–D27), plan + traceability `phase-09-plan.md` (slices S-00..S-14), open questions + SQL `phase-09-open-questions.md`. Everything below is HISTORY (owner requests 2026-10-14..26, the drafts and Q1–Q16); where it disagrees with the register, the register wins (e.g. D3 replaces `users.country`, D15 removes trials).
+
 > Status: **Not Started — documented only (owner, 2026-10-14).** Starts AFTER the system is functionally complete (Phases 5–8 done). Nothing here is built early. Everything is PROPOSAL until the owner confirms it; items marked OPEN need an owner decision. No mock data (CONTEXT §13/§21): every screen reads the real database through `lib/data/*`.
 > Supervisor rule applies everywhere: Supervisor never receives money fields (CONTEXT §4, §21.5).
 

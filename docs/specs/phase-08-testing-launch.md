@@ -208,7 +208,8 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 - **Console provider:** full message body in dev with temporary passwords and raw Zoom links masked; recipient = user id + last 3 digits; production start FAILS with `MESSAGING_PROVIDER=console|fake` (`lib/config/messaging-mode.ts`, called from `instrumentation.ts`); tests MSG-04..08.
 
 **Paymob manual checklist (before/at Layer 2):**
-- [ ] Paymob dashboard: integration "Transaction processed callback" = `https://<public host>/api/payments/paymob/webhook`; "Transaction response callback" = the platform return page.
+- [ ] Paymob dashboard: integration "Transaction processed callback" = `https://<public host>/api/payments/paymob/webhook` (local testing: the public ngrok URL — Paymob's servers cannot reach localhost); "Transaction response callback" = the platform return page (local testing: `http://localhost:3000/ar/payments/paymob/return`, the ngrok URL as fallback) — D23.
+- Test-card notes (owner, 2026-10-27, D24): Mastercard ending 2346 works; Visa ending 1111 was declined (code 14). MOTO and auto-renewal stay on hold until Paymob answers (D19).
 - [ ] `PAYMOB_HMAC_SECRET` in the env equals the dashboard HMAC secret (compare without printing).
 - [ ] `APP_PUBLIC_URL` / tunnel running and reachable at payment time; `next dev` running.
 - [ ] One test-card payment: webhook row PROCESSED, invoice PAID, one INITIAL_PURCHASE, PAID audit row.

@@ -12,7 +12,8 @@ Started 2026-10-26 (Session 5). Extend it; never regenerate it. The launch gaps 
 - [ ] `OPENWA_SEND_ALLOWLIST` **unset** (in non-production it restricts who receives WhatsApp; production must not carry it).
 - [ ] `OPENWA_*`, `OPENWA_WEBHOOK_SECRET`, `PAYMOB_*`, `CLOUDINARY_*` set with production values.
 - [ ] No `SEED_*` variables on the production host (the seed refuses production anyway).
-- [ ] Secrets rotated before launch (action item from the 2026-10-25 secret scan).
+- [ ] **LAUNCH BLOCKER — secrets rotated before launch** (action item from the 2026-10-25 secret scan; deferred to the deployment phase by the owner, 2026-10-27, decision D21 in `phase-09-decisions.md`): every secret in `.env` (DB, NextAuth, Paymob, OpenWA, Cloudinary) is rotated and the old values revoked.
+- [ ] `APP_PUBLIC_URL` set to the public HTTPS origin (WhatsApp join links and the payment return page are built from it).
 
 ## 2. `ALLOWED_ORIGINS` (same-origin guard on every POST/PATCH/PUT/DELETE)
 
