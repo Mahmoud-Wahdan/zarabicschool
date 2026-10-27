@@ -15,7 +15,7 @@
 - [x] (f) I-2 settlement fallback flags the Admin
 - [x] (g) I-3 opt-out drops shared numbers
 - [x] (h) M-1 `isUuidParam` on 8 routes
-- [ ] (i) M-2 teacher host link — spec check done: the rule is OPEN → OQ-16, not built
+- [x] (i) M-2 teacher host link — D32, 469fe82
 - [x] (j) M-3 ngrok host from env
 - [x] (k) M-4 provider comment + "console" normalization
 
@@ -32,3 +32,4 @@
 - **S-00 status at stop (2026-10-27):** all items done except (i) M-2 (OPEN → OQ-16). S-00 is complete apart from the owner's answer.
 - 2026-10-27: (i) M-2 — spec check: `zoom_host_url` is optional and the `?host=1` variant exists, but no rule makes the teacher's links use it (CONTEXT §84 open assumption) → OQ-16, nothing built.
 - 2026-10-27: (i) M-2 — owner answered OQ-16 → D32 (teacher button opens the host link when stored, else the join link). To build as the next small item.
+- 2026-10-27: (i) M-2 built — HL-01 failed first (teacher got the join link), HL-06 static check failed (teacher dashboard linked `?host=1`, a NO_HOST_LINK dead end when no host link is stored). The join route now sends the assigned TEACHER to the host link when stored, else the join link; one Zoom button on both teacher pages ("Start (host)" removed, host note reworded). Phase 4 teacher-join expectation follows D32. 5 suites / 74 tests + 2 suites / 39 tests green; tsc + lint clean. Commit 469fe82. **S-00 complete.**

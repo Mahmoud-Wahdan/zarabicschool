@@ -234,3 +234,7 @@
 - **JW-04** — reminder queued at start − window (no T−2h); start message unchanged.
 - **JW-05** — saving re-times PENDING reminders of future sessions only (SENT and started untouched).
 - **JW-06** — inside the configured window the reminder carries the platform link, never zoom.us; before it, the text names the configured minutes.
+
+## Written 2026-10-27 (M-2 teacher host link, D32)
+- **HL-01..05** — assigned teacher's plain join → host link when stored, else join link; students/guardians/Admin/Supervisor keep the join link; click still logged.
+- **HL-06** (static) — teacher pages never link `?host=1`.
