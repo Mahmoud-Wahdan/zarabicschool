@@ -4,7 +4,7 @@ import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { runSerializable } from "../../../../../lib/credits/reservation";
 import { assignmentUpdateSchema } from "../../../../../lib/validation/management";
-import { requireSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -12,6 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = assignmentUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Provide action END or CHANGE_TEACHER." } }, { status: 400 });

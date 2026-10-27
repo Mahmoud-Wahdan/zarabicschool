@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { sessionChangeRequestSchema } from "../../../../../lib/validation/management";
-import { requireSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -11,6 +11,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { user, error } = await requireApiRoles(["TEACHER"]);
   if (error) return error;
   const { id: sessionId } = await params;
+  if (!isUuidParam(sessionId)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = sessionChangeRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid change request.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });

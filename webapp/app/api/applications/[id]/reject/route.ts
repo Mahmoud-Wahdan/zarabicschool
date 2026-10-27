@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { prisma } from "../../../../../lib/prisma";
 import { requireApiRoles } from "../../../../../lib/dal";
-import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isSameOrigin, isUuidParam } from "../../../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -27,6 +27,7 @@ export async function POST(
   if (error) return error;
 
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
 
   let raw: unknown;
   try {

@@ -6,7 +6,7 @@ import { writeLinkAudit } from "../../../../../../lib/scheduling/link-audit";
 import { findLinkOverlaps, type LinkOverlapInput } from "../../../../../../lib/scheduling/link-overlap";
 import { sessionLinkUpdateSchema } from "../../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../../lib/validation/zoom-url";
-import { requireSameOrigin } from "../../../../../../lib/request";
+import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../../lib/request";
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);
@@ -28,6 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = sessionLinkUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(

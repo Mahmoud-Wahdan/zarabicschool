@@ -7,7 +7,7 @@ import { createReplacementSession, enqueueReplacementJobs } from "../../../../..
 import { SchedulingValidationError } from "../../../../../lib/scheduling/checks";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
-import { requireSameOrigin } from "../../../../../lib/request";
+import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -15,6 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id: sourceSessionId } = await params;
+  if (!isUuidParam(sourceSessionId)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = replacementSessionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid replacement session details.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   const source = await prisma.session.findFirst({
