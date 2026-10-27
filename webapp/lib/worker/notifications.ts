@@ -644,6 +644,11 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
   const jobs: Prisma.NotificationJobCreateManyInput[] = [];
   const flags: Prisma.TeacherFlagCreateManyInput[] = [];
 
+  // Same rule as before; batched (owner 2026-10-27, review #6): the scan runs every
+  // tick, so instead of 3 queries PER TEACHER it runs 3 queries per previous-month key
+  // (normally one key: all teachers share it) — existing flags, eligible pairs, reports.
+  type Due = { teacherId: string; academyId: string; userId: string; day: number; flagToday: boolean };
+  const dueByMonth = new Map<string, Due[]>();
   for (const teacher of teachers) {
     const day = localDayOfMonth(now, teacher.user.timezone || "Africa/Cairo");
     if (day === null) continue;
@@ -655,57 +660,75 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
     const year = parts.find((part) => part.type === "year")?.value ?? "";
     const month = parts.find((part) => part.type === "month")?.value ?? "";
     const monthKey = previousMonthKey(`${year}-${month}`);
+    const group = dueByMonth.get(monthKey) ?? [];
+    group.push({ teacherId: teacher.id, academyId: teacher.academyId, userId: teacher.user.id, day, flagToday });
+    dueByMonth.set(monthKey, group);
+  }
 
-    if (flagToday) {
-      // Already flagged for this month → nothing left to do for this teacher today.
-      const flagged = await prisma.teacherFlag.findFirst({
-        where: { teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey },
-        select: { id: true },
-      });
-      if (flagged) continue;
-    }
+  for (const [monthKey, group] of dueByMonth) {
+    // Already flagged for this month → nothing left to do for that teacher today.
+    const flagDayIds = group.filter((due) => due.flagToday).map((due) => due.teacherId);
+    const alreadyFlagged = new Set(
+      flagDayIds.length
+        ? (
+            await prisma.teacherFlag.findMany({
+              where: { teacherId: { in: flagDayIds }, flagType: "MONTHLY_REPORT_MISSING", monthKey },
+              select: { teacherId: true },
+            })
+          ).map((row) => row.teacherId)
+        : [],
+    );
+    const candidates = group.filter((due) => !(due.flagToday && alreadyFlagged.has(due.teacherId)));
+    if (!candidates.length) continue;
+    const candidateIds = candidates.map((due) => due.teacherId);
 
     const { start, end } = monthKeyRangeUtc(monthKey);
-
     const eligible = await prisma.sessionStudent.findMany({
       where: {
         session: {
-          teacherId: teacher.id,
+          teacherId: { in: candidateIds },
           status: { notIn: ["CANCELLED", "MISSED"] },
           scheduledStart: { gte: start, lt: end },
         },
       },
-      select: { studentId: true },
-      distinct: ["studentId"],
+      select: { studentId: true, session: { select: { teacherId: true } } },
     });
-    if (!eligible.length) continue;
-
     const reported = new Set(
       (
         await prisma.monthlyReport.findMany({
-          where: { teacherId: teacher.id, monthKey },
-          select: { studentId: true },
+          where: { teacherId: { in: candidateIds }, monthKey },
+          select: { teacherId: true, studentId: true },
         })
-      ).map((row) => row.studentId),
+      ).map((row) => `${row.teacherId}:${row.studentId}`),
     );
-    const missingCount = eligible.filter((row) => !reported.has(row.studentId)).length;
-    if (missingCount === 0) continue;
-
-    if (flagToday) {
-      flags.push({ academyId: teacher.academyId, teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey });
-      continue;
+    const missingByTeacher = new Map<string, Set<string>>();
+    for (const row of eligible) {
+      const pair = `${row.session.teacherId}:${row.studentId}`;
+      if (reported.has(pair)) continue;
+      const missing = missingByTeacher.get(row.session.teacherId) ?? new Set<string>();
+      missing.add(row.studentId);
+      missingByTeacher.set(row.session.teacherId, missing);
     }
-    jobs.push({
-      academyId: teacher.academyId,
-      sessionId: null,
-      recipientUserId: teacher.user.id,
-      kind: "MONTHLY_REPORT_REMINDER",
-      dedupKey: `MONTHLY_REPORT_REMINDER:${teacher.id}:${monthKey}:d${day}`,
-      scheduledFor: now,
-      // Redacted composition context: month key + count only (CONTEXT §5/§24 —
-      // ids/keys, never message content).
-      payload: { monthKey, missingCount },
-    });
+
+    for (const due of candidates) {
+      const missingCount = missingByTeacher.get(due.teacherId)?.size ?? 0;
+      if (missingCount === 0) continue;
+      if (due.flagToday) {
+        flags.push({ academyId: due.academyId, teacherId: due.teacherId, flagType: "MONTHLY_REPORT_MISSING", monthKey });
+        continue;
+      }
+      jobs.push({
+        academyId: due.academyId,
+        sessionId: null,
+        recipientUserId: due.userId,
+        kind: "MONTHLY_REPORT_REMINDER",
+        dedupKey: `MONTHLY_REPORT_REMINDER:${due.teacherId}:${monthKey}:d${due.day}`,
+        scheduledFor: now,
+        // Redacted composition context: month key + count only (CONTEXT §5/§24 —
+        // ids/keys, never message content).
+        payload: { monthKey, missingCount },
+      });
+    }
   }
 
   if (jobs.length) {
@@ -766,7 +789,9 @@ export async function processLateStartAlerts(now = new Date(), academyId?: strin
         sessionId: session.id,
         recipientUserId: session.teacher.userId,
         kind: "TEACHER_LATE_START",
-        dedupKey: `TEACHER_LATE_START:${session.id}`,
+        // Per (session, ASSIGNED teacher) — owner 2026-10-27: a teacher replaced
+        // after the T+5 reminder is reminded once too (the old one is cancelled at send).
+        dedupKey: `TEACHER_LATE_START:${session.id}:${session.teacher.userId}`,
         scheduledFor: now,
       });
     }

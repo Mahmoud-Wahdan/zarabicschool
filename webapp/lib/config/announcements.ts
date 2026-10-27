@@ -22,3 +22,5 @@ export const ANNOUNCEMENT_MAX_PER_HOUR = 60;
  * per-academy lock so two concurrent sends cannot both pass.
  */
 export const ANNOUNCEMENT_MAX_PER_DAY = 2;
+/** Technical repeat cap per author: at most 5 ACCEPTED announcements per hour (refused attempts never count). */
+export const ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR = 5;

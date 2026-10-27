@@ -174,4 +174,16 @@ describe("Announcements", () => {
     expect(logged).not.toMatch(/\+?20100000/);
     info.mockRestore();
   });
+
+  it("AN-13: refused attempts (stale count, bad expiry) do NOT use up the 5-per-hour limit — only accepted announcements count", async () => {
+    // Runs last: the academy's 2-per-24h quota is already used, so a request that
+    // passes the hourly limit is answered ANNOUNCEMENT_DAILY_LIMIT, never RATE_LIMITED.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const refused = await announce(fx.supervisorUserId, { title: "Stale", body: "Stale body", confirmRecipientCount: 99999 });
+      expect(refused.status).toBe(409);
+    }
+    const sixth = await announce(fx.supervisorUserId, { title: "Sixth", body: "Sixth body", confirmRecipientCount: await confirmedCount() });
+    expect(sixth.body.error?.code).not.toBe("RATE_LIMITED");
+    expect(sixth.body.error?.code).toBe("ANNOUNCEMENT_DAILY_LIMIT");
+  });
 });

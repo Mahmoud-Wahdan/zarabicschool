@@ -88,6 +88,20 @@ describe("Teacher late start", () => {
     expect(recipients).not.toContain(fx.guardianUserId);
   });
 
+  it("LS-05: a teacher replaced after the T+5 reminder is reminded once too; the old teacher's pending reminder is cancelled", async () => {
+    const s = await session({ startMinutesAgo: 6 });
+    await processLateStartAlerts(new Date(), fx.academyId);
+    await prisma.session.update({ where: { id: s.id }, data: { teacherId: fx.teacher2ProfileId } });
+    await processLateStartAlerts(new Date(), fx.academyId);
+    await processLateStartAlerts(new Date(), fx.academyId);
+    const reminders = (await lateJobs(s.id)).filter((job) => job.kind === "TEACHER_LATE_START");
+    expect(reminders.filter((job) => job.recipientUserId === fx.teacher2UserId)).toHaveLength(1);
+    await processDueNotificationJobs(new Date(), fx.academyId);
+    const after = (await lateJobs(s.id)).filter((job) => job.kind === "TEACHER_LATE_START");
+    expect(after.find((job) => job.recipientUserId === fx.teacherUserId)?.status).toBe("CANCELLED");
+    expect(after.find((job) => job.recipientUserId === fx.teacher2UserId)?.status).toBe("SENT");
+  });
+
   it("LS-04: completed/cancelled sessions and sessions that started more than 60 minutes ago are never scanned", async () => {
     const completed = await session({ startMinutesAgo: 15, status: "COMPLETED" });
     const cancelled = await session({ startMinutesAgo: 15, status: "CANCELLED" });
@@ -109,6 +123,29 @@ describe("Monthly-report Admin flag (days 4–7, CONFIRMED)", () => {
     expect(await flags()).toEqual([{ teacherId: fx.teacherProfileId, monthKey: "2026-12" }]);
     // No money is involved anywhere (penalty OPEN): no payroll rows for the teacher.
     expect(await prisma.payrollLedger.count({ where: { academyId: fx.academyId, entryType: "ADMIN_ADJUSTMENT" } })).toBe(0);
+  });
+});
+
+describe("Monthly-flag scan cost (owner 2026-10-27, review #6: cheap on days 4–7, same rule)", () => {
+  it("MR-02: one tick on a flag day queries eligibility, reports and existing flags ONCE for all teachers — not once per teacher", async () => {
+    // Four extra active teachers in the per-run academy, none flagged yet.
+    for (let index = 0; index < 4; index += 1) {
+      const user = await prisma.user.create({
+        data: { academyId: fx.academyId, username: `demo_test_cost_t${index}_${fx.suffix}`, displayName: `Demo Test cost ${index}`, passwordHash: "x", role: "TEACHER", timezone: "Africa/Cairo", isActive: true, mustChangePassword: false },
+        select: { id: true },
+      });
+      await prisma.teacher.create({ data: { userId: user.id, academyId: fx.academyId } });
+    }
+    const eligibility = jest.spyOn(prisma.sessionStudent, "findMany");
+    const reports = jest.spyOn(prisma.monthlyReport, "findMany");
+    const flagLookups = jest.spyOn(prisma.teacherFlag, "findFirst");
+    await processMonthlyReportReminders(new Date(Date.UTC(2027, 1, 5, 10, 0, 0)), fx.academyId);
+    expect(eligibility.mock.calls.length).toBeLessThanOrEqual(1);
+    expect(reports.mock.calls.length).toBeLessThanOrEqual(1);
+    expect(flagLookups).not.toHaveBeenCalled();
+    eligibility.mockRestore();
+    reports.mockRestore();
+    flagLookups.mockRestore();
   });
 });
 

@@ -461,7 +461,8 @@
     "opsFinancials": "المالية والاشتراكات",
     "opsFinancialsText": "الفواتير والمدفوعات وأرصدة الاشتراكات",
     "opsAccounts": "حسابات الإدارة",
-    "opsAccountsText": "إدارة حسابات SuperAdmin والمشرفين"
+    "opsAccountsText": "إدارة حسابات SuperAdmin والمشرفين",
+    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}"
   },
   "supervisorDash": {
     "eyebrow": "غرفة الرصد الأكاديمي",
@@ -495,7 +496,8 @@
       "COMPLETED": "منتهية",
       "MISSED": "فائتة",
       "CANCELLED": "ملغاة"
-    }
+    },
+    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}"
   },
   "landing": {
     "nav": {

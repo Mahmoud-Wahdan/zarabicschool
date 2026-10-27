@@ -5,12 +5,12 @@ import { computeAnnouncementRecipients, getAnnouncementHistory } from "../../../
 import {
   ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS,
   ANNOUNCEMENT_MAX_EXPIRY_DAYS,
+  ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR,
   ANNOUNCEMENT_MAX_PER_DAY,
 } from "../../../lib/config/announcements";
 import { requireApiRoles } from "../../../lib/dal";
 import { isPhase7Ready } from "../../../lib/phase7/readiness";
 import { prisma } from "../../../lib/prisma";
-import { allowRequest } from "../../../lib/rate-limit";
 import { errorResponse, requireSameOrigin } from "../../../lib/request";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -50,9 +50,14 @@ export async function POST(request: Request) {
   if (!(await isPhase7Ready())) {
     return errorResponse(409, "PHASE7_MIGRATION_PENDING", "Apply migration 20261026170000 first.");
   }
-  // Technical safety cap against accidental repeats; the business frequency rule
+  // Technical safety cap against accidental repeats, counted from ACCEPTED
+  // announcements only (owner 2026-10-27): refused attempts (stale count, bad
+  // expiry, validation) never use it up. The business frequency rule
   // (ANNOUNCEMENT_MAX_PER_DAY) is enforced per academy inside the transaction below.
-  if (!allowRequest(`announcement:${user.id}`, 5, 60 * 60 * 1000)) {
+  const acceptedLastHour = await prisma.announcement.count({
+    where: { academyId: user.academyId, createdById: user.id, sentAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  if (acceptedLastHour >= ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR) {
     return errorResponse(429, "RATE_LIMITED", "Too many announcements. Try again later.");
   }
   const parsed = createSchema.safeParse(await request.json().catch(() => null));

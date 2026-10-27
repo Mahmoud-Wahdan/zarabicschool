@@ -215,3 +215,14 @@
 
 ## Phase 8 — written 2026-10-26 (manual payment)
 - **MP-01..07** (`__tests__/api/manual-payment.test.ts`, covers PA-03/PA-04): Admin confirm settles once (PAID, subscription, one INITIAL_PURCHASE, attempt SUCCEEDED, one PAID audit by the Admin); replay → already_settled; concurrent double click → once; Supervisor/teacher/student/guardian 403, foreign Admin 404; CANCELLED → 409; REJECTED proof → 409 PROOF_REJECTED; PENDING proof → CONFIRMED by the Admin, no extra audit row; pay-per-session → no period.
+
+## Tech debt from the code review of 2026-10-27 (owner: do NOT change now)
+- **TD-07 (money code, efficiency only):** `lib/reports/settlement-seam.ts` `fallbackSubscriptionId` loads every ledger row of each candidate package to sum it in code inside the approval transaction (which holds the session share lock). Correct today; slower with long-lived pay-per-session packages. Use a DB aggregate (`_sum`) + reservation `_count`. **Revisit after Layer 2, together with the transaction-timeout question** (phase-08 "Decision: transaction timeouts").
+- **TD-09 (cleanup):** the "notify every active Admin" writer exists twice — `enqueueAdminFlag` (settlement-seam) and `enqueuePaymentAnomaly` (lib/payments/settlement). Move to one shared helper so the two cannot drift.
+- **TD-10 (cleanup):** report approval takes the session `FOR SHARE` lock twice (review route + `settleApprovedReport`). Keep the lock in one place and document the precondition so the lock order is defined once.
+
+## Written 2026-10-27 (code-review slices)
+- **LS-05** — replaced teacher after T+5 → reminded once; old teacher's pending reminder CANCELLED.
+- **AN-13** — refused announcement attempts never use the per-author hourly cap.
+- **FLG-01** — dashboard counts: LATE_REPORT vs MONTHLY_REPORT_MISSING separately, per academy.
+- **MR-02** — one monthly-scan tick on a flag day: eligibility/reports queried once, no per-teacher flag lookups.

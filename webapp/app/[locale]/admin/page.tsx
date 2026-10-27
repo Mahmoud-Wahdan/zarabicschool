@@ -9,6 +9,7 @@ import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
 export async function generateMetadata() {
@@ -35,7 +36,7 @@ export default async function AdminDashboard() {
   const endOfDay = new Date(startOfDay);
   endOfDay.setDate(endOfDay.getDate() + 1);
 
-  const [applications, students, guardians, teachers, subjects, pendingReports, redMarks, todaysSessions] =
+  const [applications, students, guardians, teachers, subjects, pendingReports, flagCounts, todaysSessions] =
     await Promise.all([
       prisma.application.count({ where: { academyId: user.academyId, status: { in: ["NEW", "REVIEWED"] } } }),
       prisma.student.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
@@ -43,8 +44,8 @@ export default async function AdminDashboard() {
       prisma.teacher.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
       prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
       prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
-      // Late session reports + missing monthly reports (owner decision 7, 2026-10-26).
-      prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: { in: ["LATE_REPORT", "MONTHLY_REPORT_MISSING"] } } }),
+      // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
+      getTeacherFlagCounts(user.academyId),
       prisma.session.findMany({
         where: {
           academyId: user.academyId,
@@ -151,10 +152,14 @@ export default async function AdminDashboard() {
           label={t("kpiRedMarks")}
           icon="flag"
           iconTone="tertiary"
-          value={redMarks}
+          value={flagCounts.lateReports}
           valueLabel={t("kpiRedMarksUnit")}
-          badge={{ tone: redMarks > 0 ? "danger" : "neutral", text: t("kpiRedMarksNote") }}
-        />
+          badge={{ tone: flagCounts.lateReports > 0 ? "danger" : "neutral", text: t("kpiRedMarksNote") }}
+        >
+          <Link href="/admin/monthly-reports" className="text-label-sm text-on-surface-variant underline-offset-2 hover:underline">
+            {t("kpiMonthlyMissing", { count: flagCounts.missingMonthly })}
+          </Link>
+        </MetricTile>
       </div>
 
       <section className="z-card flex flex-col gap-4 rounded-xl p-4 sm:p-6">

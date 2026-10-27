@@ -261,3 +261,10 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 
 ### 2026-10-26 — Phase 8 audit
 (Legend: [x] done, [~] partial, [-] obsolete/deferred, [ ] missing — verified against the code and tests on 2026-10-26.) Real defect found and fixed: the evaluations API answered 200 instead of 201 on every first submission (Date objects compared with ===); `submitEvaluation` now reports `created`.
+
+### 2026-10-27 — Code-review slices (owner decisions, test-first)
+- **#1 Late-start reminder per assigned teacher:** dedup key is now `TEACHER_LATE_START:<sessionId>:<teacherUserId>`, so a teacher who replaces another after T+5 is reminded once too; the old teacher's pending reminder is still cancelled at send time. Test LS-05. Transition note: a session that is mid-lateness at deploy time may remind its teacher once more (old key format).
+- **#4 Announcement repeat cap:** the 5-per-hour cap per author now counts ACCEPTED announcements only (from the `announcements` table, durable across restarts) — refused attempts (stale count, bad expiry, validation) never use it up. Constant `ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR = 5`. Test AN-13.
+- **#5 Dashboard flag counts (option a):** the Admin/Supervisor red-mark tile counts LATE session-report flags only (matching the reports queue it links to); missing monthly reports are a separate line linking to the monthly-reports page (`lib/reports/teacher-flag-counts.ts`). Test FLG-01.
+- **#6 Monthly-flag scan cost:** same rule (days 4–7 of the teacher's local month, one flag per teacher and month), now batched: 3 queries per tick per previous-month key instead of 3 per teacher. Tests MR-02 (cost) + MR-01/INT-MON-05 (rule unchanged).
+- **#3 and #8:** plans shown to the owner; no code until approved.

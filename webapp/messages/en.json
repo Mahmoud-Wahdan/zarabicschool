@@ -461,7 +461,8 @@
     "opsFinancials": "Financials & subscriptions",
     "opsFinancialsText": "Invoices, payments, and subscription balances",
     "opsAccounts": "Admin accounts",
-    "opsAccountsText": "Manage SuperAdmin and supervisor accounts"
+    "opsAccountsText": "Manage SuperAdmin and supervisor accounts",
+    "kpiMonthlyMissing": "{count} monthly reports missing"
   },
   "supervisorDash": {
     "eyebrow": "Academic monitoring room",
@@ -495,7 +496,8 @@
       "COMPLETED": "Completed",
       "MISSED": "Missed",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "kpiMonthlyMissing": "{count} monthly reports missing"
   },
   "landing": {
     "nav": {
