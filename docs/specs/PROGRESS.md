@@ -26,7 +26,8 @@
 - **Verified read-only 2026-10-27:** test invoice 77a79542… = PAID, ACTIVE subscription, exactly one INITIAL_PURCHASE (+8); one SUCCEEDED + one FAILED attempt; audit CREATED/FAILED/PAID. Return page `/ar|en/payments/paymob/return` answers 200 on a fresh `next dev`.
 - **Owner answers 2026-10-27:** OQ-4 (D28), OQ-5 (D31), OQ-6 (D29), OQ-7 (D30), OQ-16/M-2 (D32), M-5 keep the 32-bit cap (D33), OQ-15 dropped (D34).
 - **M-2 done (469fe82, D32); S-00 complete.**
-- **Next:** S-05, S-09, S-10, S-11, S-08 (migration-free). SQL S-1..S-6 go to the owner one at a time (S-1/S-5/S-6 need an explicit OK); S-01/S-02/S-03/S-06/S-12/S-13 after their SQL OK; S-07 after the queries OK; S-14 parallel.
+- **S-05 done (D17):** phone + wa.me icon in the staff people lists.
+- **Next:** S-09, S-10, S-11, S-08 (migration-free). SQL S-1..S-6 go to the owner one at a time (S-1/S-5/S-6 need an explicit OK); S-01/S-02/S-03/S-06/S-12/S-13 after their SQL OK; S-07 after the queries OK; S-14 parallel.
 - **Owner actions pending:** answer OQ-1, OQ-2, OQ-3, OQ-8, OQ-9, OQ-11..OQ-14 and review SQL S-1..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 

@@ -238,3 +238,7 @@
 ## Written 2026-10-27 (M-2 teacher host link, D32)
 - **HL-01..05** — assigned teacher's plain join → host link when stored, else join link; students/guardians/Admin/Supervisor keep the join link; click still logged.
 - **HL-06** (static) — teacher pages never link `?host=1`.
+
+## Written 2026-10-27 (S-05 WhatsApp icon, D17)
+- **WAI-01..03** — wa.me link with international digits (Egyptian local, international kept), new tab + `noopener noreferrer` + aria-label; unaddressable/missing → no link.
+- **WAI-04/05** (static) — no logging / no messaging provider in the component; the staff list renders it and the API stays Admin/Supervisor only.
