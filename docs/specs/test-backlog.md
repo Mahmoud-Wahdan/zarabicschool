@@ -226,3 +226,11 @@
 - **AN-13** — refused announcement attempts never use the per-author hourly cap.
 - **FLG-01** — dashboard counts: LATE_REPORT vs MONTHLY_REPORT_MISSING separately, per academy.
 - **MR-02** — one monthly-scan tick on a flag day: eligibility/reports queried once, no per-teacher flag lookups.
+
+## Written 2026-10-27 (S-04 join window)
+- **JW-01** — no setting → window 30 min (T−29 joins, T−31 JOIN_NOT_YET_OPEN).
+- **JW-02** — the join route follows the Admin setting (60 / 10).
+- **JW-03** — Admin-only GET/PUT; Supervisor/teacher 403; 4 / 121 / 30.5 / "30" / null → 400; foreign Origin 403.
+- **JW-04** — reminder queued at start − window (no T−2h); start message unchanged.
+- **JW-05** — saving re-times PENDING reminders of future sessions only (SENT and started untouched).
+- **JW-06** — inside the configured window the reminder carries the platform link, never zoom.us; before it, the text names the configured minutes.

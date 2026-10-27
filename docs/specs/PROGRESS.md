@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-26
+> Last updated: 2026-10-27
 
 ## Phase Status
 
@@ -20,10 +20,13 @@
 
 ## Where to resume (2026-10-27, master execution prompt)
 
-- **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D27), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-15 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
-- **Part 1 (docs): done** (9c0e681). **Part 2 S-00: done** except M-2 (OPEN → OQ-16). Local commits, none pushed: f5ee13c (#1/#4/#5/#6), 5e736ee (return page), 7c9ed20 (I-1), 4bf4631 (M-1), 2f80028 (M-3/M-4), bf017fa (I-3), ecc3336 (I-2), f5cf69b (#8), plus the #3 commit right after. Log: `slices/S-00-in-flight.md`.
-- **Next session starts with S-04** (join window setting + reminder with the platform link; no migration; needs OQ-4, proposal 5–120 min, default 30). Then S-05, S-09, S-10, S-11, S-08 (migration-free) while the owner reviews S-1..S-6; S-01/S-02/S-03/S-06/S-12/S-13 resume after the SQL OK; S-07 after the queries OK; S-14 parallel. Remaining plan items: 14 slices (S-01..S-14) + M-2.
-- **Owner actions pending:** answer OQ-1..OQ-16 and review SQL S-1..S-6 (`phase-09-open-questions.md`); set `APP_PUBLIC_URL` to the ngrok URL (now also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
+- **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D34), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-16 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
+- **Part 1 (docs): done** (9c0e681). **Part 2 S-00: done** except M-2 (answered → D32, to build). Local commits, none pushed: f5ee13c (#1/#4/#5/#6), 5e736ee (return page), 7c9ed20 (I-1), 4bf4631 (M-1), 2f80028 (M-3/M-4), bf017fa (I-3), ecc3336 (I-2), f5cf69b (#8), 9087657 (#3). Log: `slices/S-00-in-flight.md`.
+- **S-04 done (2026-10-27, f7b544a):** Admin join-window setting (5–120, default 30) + reminder at the window opening with the platform link (replaces T−2h) + re-timing of pending reminders on save (D28). Log: `slices/S-04-join-window.md`.
+- **Verified read-only 2026-10-27:** test invoice 77a79542… = PAID, ACTIVE subscription, exactly one INITIAL_PURCHASE (+8); one SUCCEEDED + one FAILED attempt; audit CREATED/FAILED/PAID. Return page `/ar|en/payments/paymob/return` answers 200 on a fresh `next dev`.
+- **Owner answers 2026-10-27:** OQ-4 (D28), OQ-5 (D31), OQ-6 (D29), OQ-7 (D30), OQ-16/M-2 (D32), M-5 keep the 32-bit cap (D33), OQ-15 dropped (D34).
+- **Next:** M-2 (D32, small), then S-05, S-09, S-10, S-11, S-08 (migration-free). SQL S-1..S-6 go to the owner one at a time (S-1/S-5/S-6 need an explicit OK); S-01/S-02/S-03/S-06/S-12/S-13 after their SQL OK; S-07 after the queries OK; S-14 parallel.
+- **Owner actions pending:** answer OQ-1, OQ-2, OQ-3, OQ-8, OQ-9, OQ-11..OQ-14 and review SQL S-1..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 
 ## Current Active Task (2026-10-26, Session 5 continued on feature/whatsapp)
@@ -62,6 +65,7 @@
 8. WhatsApp messages never carry a Zoom link — only the platform join URL, and only inside the join window (CONTEXT §6/§8 currently describe the start message "with the join link").
 9. Complaints: students/guardians name only the teacher or choose an unnamed "another participant in this session"; teachers name roster students/guardians.
 10. Announcements: recipients = teachers, students, guardians (not Admin/Supervisor); Admin-only per-user "no announcements" flag (self-service opt-out OPEN); max 2 per rolling 24 h.
+12. §6 notification chain + §21.6 (owner, 2026-10-27, D4/D28): the "about 2 hours before" reminder is REPLACED by a reminder when the join window opens (Admin setting, default 30 min, range 5–120) with the platform join link; the start message stays; the "15" join-window figure is now the setting. Teacher join button opens the host link when stored (D32).
 
 ## Previous Task (2026-10-25, Session 5 on feature/whatsapp)
 

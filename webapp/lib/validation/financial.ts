@@ -43,7 +43,10 @@ export const overtimeReviewSchema = z.object({
 
 /** Admin manual payroll adjustment (bonus/fine/correction) — reason mandatory. */
 /** payroll_ledger.amount_minor is a 32-bit INTEGER: a larger amount can never be
- *  stored, so it is a validation error (400), not a database error (500). */
+ *  stored, so it is a validation error (400), not a database error (500).
+ *  M-5 (owner, 2026-10-27): this cap is KEPT on purpose — it is NOT aligned with the
+ *  100,000,000 sanity cap of invoices and hourly rates. One entry may therefore be up
+ *  to 21,474,836.47 in major units; revisit together with BIGINT at SaaS time (CONTEXT §7 item 9). */
 const PAYROLL_AMOUNT_LIMIT = 2_147_483_647;
 
 export const payrollAdjustmentSchema = z.object({
