@@ -215,3 +215,7 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 - [ ] One test-card payment: webhook row PROCESSED, invoice PAID, one INITIAL_PURCHASE, PAID audit row.
 - [ ] One declined test card: `<txn>:FAILED` IGNORED row, invoice PENDING, no money.
 - [ ] Reconcile order 640087357 (invoice 2e4ca7e1…) in the dashboard first (charged or not).
+
+### 2026-10-27 — Full-suite checkpoint (after S-00, S-04, M-2, S-05; dev stopped)
+- **53 suites / 516 tests — 516 passed, 0 failed, 0 skipped, 1193 s** (`npm test -- --ci`, real dev DB, per-run test academies; tsc 0, lint 0 at each commit).
+- Seed check (read-only snapshot, count + md5 per seed-academy table, 37 tables): **identical before and after** — 195 seed rows; subscription ledger 9 rows / sum 36 (the 8 / 28 of 2026-10-26 + the owner's real test payment +8); payroll ledger 4 rows / 47250. Left behind: 0 test academies, 0 `demo_test_*` users, 0 test webhook events.
