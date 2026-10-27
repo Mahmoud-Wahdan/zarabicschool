@@ -31,7 +31,7 @@ import { SettlementError, creditAmountMinor, getRateForSession } from "../payrol
 async function enqueueAdminFlag(
   tx: Prisma.TransactionClient,
   academyId: string,
-  kind: "BALANCE_NEGATIVE" | "SETTLED_WITHOUT_SUBSCRIPTION",
+  kind: "BALANCE_NEGATIVE" | "SETTLED_WITHOUT_SUBSCRIPTION" | "SETTLED_OUTSIDE_PACKAGE_PERIOD",
   dedupBase: string,
   payload?: Prisma.InputJsonValue,
 ) {
@@ -56,7 +56,7 @@ async function fallbackSubscriptionId(
   tx: Prisma.TransactionClient,
   report: { academyId: string; studentId: string },
   sessionDate: Date,
-): Promise<string | null> {
+): Promise<{ id: string; outsidePeriod: boolean } | null> {
   const subscriptions = await tx.subscription.findMany({
     where: {
       academyId: report.academyId,
@@ -78,19 +78,20 @@ async function fallbackSubscriptionId(
   const withCredit = subscriptions.find(
     (item) => item.ledgerEntries.reduce((sum, entry) => sum + entry.sessionsDelta, 0) - item.reservations.length > 0,
   );
-  if (withCredit ?? subscriptions[0]) return (withCredit ?? subscriptions[0]).id;
+  if (withCredit ?? subscriptions[0]) return { id: (withCredit ?? subscriptions[0]).id, outsidePeriod: false };
   // CONFIRMED (owner, 2026-10-26 — INT-EXP-08 option a; CONTEXT §7 "settle anyway and
   // flag Admin"): no ACTIVE package covers the session date (e.g. a late settlement
   // after the period ended while the package is still ACTIVE) → deduct from the
   // student's ACTIVE package anyway, earliest-expiring first, even into the
   // negative; the caller raises BALANCE_NEGATIVE. Only a student with NO ACTIVE
-  // package at all is "settled without subscription" (P8).
+  // package at all is "settled without subscription" (P8). I-2 (2026-10-27): this
+  // out-of-period fallback always flags the Admin, even when the balance stays ≥ 0.
   const anyActive = await tx.subscription.findFirst({
     where: { academyId: report.academyId, studentId: report.studentId, status: "ACTIVE" },
     orderBy: [{ periodEndsAt: "asc" }, { createdAt: "asc" }],
     select: { id: true },
   });
-  return anyActive?.id ?? null;
+  return anyActive ? { id: anyActive.id, outsidePeriod: true } : null;
 }
 
 export async function settleApprovedReport(
@@ -144,7 +145,11 @@ export async function settleApprovedReport(
     // date, earliest-expiring first, preferring one with credit left.
     // A RELEASED reservation no longer holds credit, so it does not pick the package.
     const heldSubscriptionId = reservation && reservation.status !== "RELEASED" ? reservation.subscriptionId : null;
-    const subscriptionId = heldSubscriptionId ?? (await fallbackSubscriptionId(tx, report, session.scheduledStart));
+    const fallback = heldSubscriptionId ? null : await fallbackSubscriptionId(tx, report, session.scheduledStart);
+    const subscriptionId = heldSubscriptionId ?? fallback?.id ?? null;
+    if (fallback?.outsidePeriod) {
+      await enqueueAdminFlag(tx, report.academyId, "SETTLED_OUTSIDE_PACKAGE_PERIOD", `SETTLED_OUTSIDE_PACKAGE_PERIOD:${report.id}`, { reportId: report.id });
+    }
     if (!subscriptionId) {
       // P8: nothing to deduct from — the teacher side still settles (the session
       // happened); the Admin decides what to do with the student side.

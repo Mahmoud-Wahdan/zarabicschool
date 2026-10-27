@@ -254,6 +254,13 @@ export function composeJobMessage(job: JobWithRelations): string {
       ? "A session report was approved for a student without an active package: the teacher was credited, no session was deducted. Please review it."
       : "تم اعتماد تقرير حصة لطالب ليس لديه باقة نشطة: تمت إضافة أجر المعلم ولم يُخصم أي رصيد. يرجى المراجعة.";
   }
+  if (job.kind === "SETTLED_OUTSIDE_PACKAGE_PERIOD") {
+    // Admin-only flag (I-2, 2026-10-27): no package covered the session date, so the
+    // session was deducted from the student's ACTIVE package outside its period.
+    return language === "en"
+      ? "A session was deducted from a student package outside that package's period (no package covered the session date). Please review it."
+      : "تم خصم حصة من باقة طالب خارج فترة الباقة (لم تغطِّ أي باقة تاريخ الحصة). يرجى المراجعة.";
+  }
   if (job.kind === "PAYMENT_ANOMALY") {
     // Admin-only flag (Phase 6 A1): a signed payment event that did not move money
     // and needs a human look. Reason code only — no amounts, no payer data.

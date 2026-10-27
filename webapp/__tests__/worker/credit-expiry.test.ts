@@ -293,4 +293,39 @@ describe("Session 2 — monthly credit EXPIRY worker (no rollover, idempotent)",
     expect(adminJob.recipientUserId).toBe(fx.adminUserId);
     expect(adminJob.academyId).toBe(fx.academyId);
   });
+
+  it("INT-EXP-09 (I-2): a settlement that falls back to a package OUTSIDE its period flags every Admin even when the balance stays ≥ 0", async () => {
+    // Period ended yesterday (helper default); credit left; the session is today, without a reservation.
+    const { subscriptionId } = await createFundedSubscription({
+      studentProfileId: fx.studentProfileIds.student7,
+      packageType: "MONTHLY_PLAN",
+      sessions: 3,
+    });
+    const session = await createPastSession(fx.studentProfileIds.student7);
+    await settleSession(session.id, fx.studentProfileIds.student7);
+    expect(await balanceOf(subscriptionId)).toBe(2);
+    const report = await prisma.report.findFirstOrThrow({ where: { sessionId: session.id }, select: { id: true } });
+    const jobs = await prisma.notificationJob.findMany({
+      // INT-EXP-08's override settlement above was out of period too — scope to this report.
+      where: { academyId: fx.academyId, kind: "SETTLED_OUTSIDE_PACKAGE_PERIOD", payload: { path: ["reportId"], equals: report.id } },
+      select: { recipientUserId: true, dedupKey: true, payload: true },
+    });
+    expect(jobs.map((job) => job.recipientUserId)).toEqual([fx.adminUserId]);
+    expect(jobs[0].dedupKey).toBe(`SETTLED_OUTSIDE_PACKAGE_PERIOD:${report.id}:${fx.adminUserId}`);
+    expect(jobs[0].payload).toEqual({ reportId: report.id });
+  });
+
+  it("INT-EXP-10 (I-2): a settlement inside the package period raises no such flag", async () => {
+    const { subscriptionId } = await createFundedSubscription({
+      studentProfileId: fx.studentProfileIds.student8,
+      packageType: "MONTHLY_PLAN",
+      sessions: 3,
+      periodEndsAt: new Date(Date.now() + 10 * 24 * 3600 * 1000),
+    });
+    const session = await createPastSession(fx.studentProfileIds.student8);
+    await settleSession(session.id, fx.studentProfileIds.student8);
+    expect(await balanceOf(subscriptionId)).toBe(2);
+    const report = await prisma.report.findFirstOrThrow({ where: { sessionId: session.id }, select: { id: true } });
+    expect(await prisma.notificationJob.count({ where: { kind: "SETTLED_OUTSIDE_PACKAGE_PERIOD", dedupKey: { startsWith: `SETTLED_OUTSIDE_PACKAGE_PERIOD:${report.id}` } } })).toBe(0);
+  });
 });
