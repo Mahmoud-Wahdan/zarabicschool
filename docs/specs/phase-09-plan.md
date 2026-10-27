@@ -15,7 +15,7 @@ The owner's order is kept, with one adjustment: **a slice that needs a migration
 | # | Slice | Decisions | Scope / acceptance | Data / schema | Auth & security | Tests (planned) | Depends on | Status |
 |---|---|---|---|---|---|---|---|---|
 | S-00 | In-flight work | D19a, D25, D23 | (a) commit review slices #1/#4/#5/#6; (b) return page + status display; (c) #3 announcement scheduling; (d) #8 origin checks; (e) I-1 join-link HTML redirects + callbackUrl; (f) I-2 settlement fallback flags the Admin; (g) I-3 opt-out drops shared numbers; (h) M-1 `isUuidParam` on 8 routes; (i) M-2 teacher host link (after the spec check); (j) M-3 ngrok host from env; (k) M-4 provider comment + normalized "console" check | none (I-2 uses the existing Admin notice path; stop if a new flag type needs SQL) | return page: lookup only, checkout authorization, generic otherwise, never settles | RET-01..04, AN-14..15, ORG-01..02, JL-05..07, INT-FB-01, AN-OPT-01, UUID-01..08, PRV-01 | — | done — S-00 complete (last item M-2 469fe82) |
-| S-01 | Attendance | D2, D2a | roster-only form + server check (already enforced: report page lists `session.students`, the route 404s off-roster; add regression tests); manual resolution screen/API with every D2 safeguard | **S-1 (ATTENDANCE)** | Admin; Supervisor ≤ 7 days; confirmation step; audit + Admin notice; no payroll write | ATT-01..08 | OQ-1 → D36, S-1 OK | roster tests now; resolution waits for S-1 |
+| S-01 | Attendance | D2, D2a | roster-only form + server check (already enforced: report page lists `session.students`, the route 404s off-roster; add regression tests); manual resolution screen/API with every D2 safeguard | **S-1 (ATTENDANCE)** | Admin; Supervisor ≤ 7 days; confirmation step; audit + Admin notice; no payroll write | ATT-01..08 | OQ-1 → D36, S-1 APPROVED → D37 (file created; owner applies) | resolution code after the owner applies the migration |
 | S-02 | Teacher approval + minor guardian | D9, D10 | Admin add-teacher with rate; Supervisor add → PENDING + Admin notice; approve sets rate + activates; scheduling/assignment refuse PENDING teachers; add-student refuses a minor without a guardian | **S-2** (teachers) | rate Admin-only; Supervisor never sends a rate | TCH-01..06, STU-G-01..02 | OQ-2, S-2 OK (D10 part none) | D10 now; D9 waits for S-2 |
 | S-03 | Time zone | D3, D3a | device detection on sign-in; profile + Admin edit; every session time rendered in the viewer zone (`Intl`), WhatsApp in the recipient zone | **S-3** (users) | the user edits own; Admin edits any; Supervisor no | TZ-01..06 incl. a DST day | OQ-3, S-3 OK | design; waits for S-3 (display part can ship on `users.timezone` now) |
 | S-04 | Join window + reminder | D4, D26, D28 | Admin setting `join_window_minutes` (default 30); all roles; reminder at T−window with the PLATFORM link; login returns to the session (shares I-1 callbackUrl) | none (`academy_settings` key) | link never in WhatsApp; window changes WHEN not WHO | JW-01..05 (+ update Phase 4 tests that assume 15) | S-00(e), OQ-4 | done (f7b544a) — D28 |
@@ -58,7 +58,7 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | Secrets rotation | deploy-checklist launch blocker (D21) | deferred to deployment |
 | Stitch migration | S-14 (D1) | parallel track |
 | Impeccable | after S-14 (D1) | later, not installed |
-| MOTO / auto-renewal hold | D19 | on hold until Paymob answers |
+| Card-not-present auto-renewal (Paymob subscriptions) hold | D19, D44 | on hold until Paymob answers |
 | Paymob callback config (localhost return, ngrok processed) | D23 | recorded; owner sets it in the dashboard |
 | Layer 2 checklist + test cards | D24 + phase-08 Layer 2 checklist | waits for the owner's "go" |
 | Paymob diagnosis invoice 2e4ca7e1 (no webhook ever stored) | phase-08 log; fixed by D23 config + S-00(b) | owner to re-run after config |
@@ -82,3 +82,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 ## Change log
 - 2026-10-27: created from the master prompt (Part 1). Replaces the "Plan (draft)" sections of `phase-09-refinements.md` (kept there as history).
 - 2026-10-27: S-04 done (f7b544a); OQ-4/5/6/7/10/16 answered (D28–D33), OQ-15 dropped (D34).
+- 2026-10-27: owner answers file — S-1 approved (D37, migration file only), OQ-2/3/8/11/12/13 → D38–D43, auto-renewal naming D44.

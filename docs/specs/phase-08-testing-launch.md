@@ -209,7 +209,7 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 
 **Paymob manual checklist (before/at Layer 2):**
 - [ ] Paymob dashboard: integration "Transaction processed callback" = `https://<public host>/api/payments/paymob/webhook` (local testing: the public ngrok URL — Paymob's servers cannot reach localhost); "Transaction response callback" = the platform return page (local testing: `http://localhost:3000/ar/payments/paymob/return`, the ngrok URL as fallback) — D23.
-- Test-card notes (owner, 2026-10-27, D24): Mastercard ending 2346 works; Visa ending 1111 was declined (code 14). MOTO and auto-renewal stay on hold until Paymob answers (D19).
+- Test-card notes (owner, 2026-10-27, D24): Mastercard ending 2346 works; Visa ending 1111 was declined (code 14). Card-not-present auto-renewal via Paymob subscriptions stays on hold until Paymob answers (D19, D44).
 - [ ] `PAYMOB_HMAC_SECRET` in the env equals the dashboard HMAC secret (compare without printing).
 - [ ] `APP_PUBLIC_URL` / tunnel running and reachable at payment time; `next dev` running.
 - [ ] One test-card payment: webhook row PROCESSED, invoice PAID, one INITIAL_PURCHASE, PAID audit row.

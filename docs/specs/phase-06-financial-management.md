@@ -347,7 +347,7 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 - **API contract:** `POST /api/payments/paymob/webhook` (unchanged route; no session auth). 401 bad/missing HMAC (nothing stored), 400 malformed JSON, 200 for everything signed (`settled` / `already_processed` / `ignored` / `unmatched` / `mismatch`). Zod schema for the parsed `obj`: `{ id: number, success: boolean, pending: boolean, is_voided, is_refunded, is_auth, is_capture, error_occured: boolean, amount_cents: int>0, currency: string, order: { id: number, merchant_order_id?: string } }`.
 - **Security:** HMAC (SHA-512, timing-safe) stays first; replay = same event id → `already_processed`; settlement transaction + row lock unchanged; only the webhook and the Admin confirm action can set PAID.
 - **Failure behaviour:** DB error → 500 → Paymob retries → idempotent. Unknown order id → `unmatched` stored, no money.
-- **Owner must confirm in the Paymob sandbox (needs sandbox):** (a) the processed-callback shape — `{type:"TRANSACTION", obj:{…}}` with `?hmac=` in the QUERY string vs our current `hmac` header + flat body (P4: if Paymob uses the query, every real callback is 401 today); (b) the exact HMAC field list/order for the processed callback; (c) the sequence for a 3-DS card: is a `pending:true` callback sent first with the same transaction id?; (d) whether void/refund arrive as new transactions or updates of the same id; (e) that a second payment key on the same order works after expiry; (f) whether a Paymob **MOTO integration** exists in the dashboard (owner question).
+- **Owner must confirm in the Paymob sandbox (needs sandbox):** (a) the processed-callback shape — `{type:"TRANSACTION", obj:{…}}` with `?hmac=` in the QUERY string vs our current `hmac` header + flat body (P4: if Paymob uses the query, every real callback is 401 today); (b) the exact HMAC field list/order for the processed callback; (c) the sequence for a 3-DS card: is a `pending:true` callback sent first with the same transaction id?; (d) whether void/refund arrive as new transactions or updates of the same id; (e) that a second payment key on the same order works after expiry; (f) answered (owner, 2026-10-27, D44): the target is **card-not-present auto-renewal via Paymob subscriptions** (plan requested from the account manager), not built.
 - **Manual checks:** sandbox success → PAID once; replay the same callback → `already_processed`; tamper amount → 401 (HMAC) / craft wrong-amount sandbox order → `mismatch`, invoice PENDING; declined card → invoice PENDING, later success settles.
 - **Risks:** the callback shape is unverified until the sandbox run; until A1 ships, NO real payment should be accepted.
 - **Tests:** PM-01..PM-10 (each success-predicate flag false/true; order-id match; merchant_order_id ignored; amount/currency mismatch; pending→success same txn; success on PAID invoice; replay; concurrent duplicate).
@@ -472,7 +472,7 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 1. PLAN_GRANT rules (F): 8/month or the plan's allotment; anniversary vs calendar month; timezone; month-end rule.
 2. Refund rules: full or partial; what happens to sessions already used/reserved.
 3. USD gateway: Dodo vs Xpay vs postponed (CONTEXT §17 conflict).
-4. Does a Paymob **MOTO** integration exist in your dashboard?
+4. ~~Paymob integration question~~ Answered (owner, 2026-10-27, D44): **card-not-present auto-renewal via Paymob subscriptions** (plan requested from the account manager, renewals charged by Paymob); not built, waiting for Paymob.
 5. A2: refuse MISSED sessions too (proposal yes)?
 6. A4: also block creating new ANNUAL plans (proposal yes) or only invoices/checkout?
 7. E: rate limit "1 per invoice per day, 3 in total" OK? New audit event `LINK_SENT` (migration) OK?
@@ -496,9 +496,9 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 
 ### Waiting on Paymob/owner (2026-10-25)
 
-- **MOTO check:** none of the Session 5 slices A0–A5, B1–B5, C, D calls a Paymob MOTO API — they only touch our webhook parsing, settlement, routes, schema and UI. They are not blocked on MOTO.
-- **Waiting on the Paymob sandbox (not MOTO):** A1's callback shape (`obj` envelope + `?hmac=` query vs header) and the 3-DS pending→success sequence. A1 is built against the documented processed-callback format, with the parsing isolated so that a sandbox correction is a one-function change.
-- **Not built — waiting on the owner:** E payment-link message (rules given 2026-10-25, migration for the `LINK_SENT` audit type needs OK), F PLAN_GRANT (rules given, design only), refund (rules given, design only), Phase 6b renewals/grace, USD gateway (postponed), anything using a Paymob MOTO integration.
+- **Auto-renewal check:** none of the Session 5 slices A0–A5, B1–B5, C, D calls a Paymob subscriptions (card-not-present auto-renewal) API — they only touch our webhook parsing, settlement, routes, schema and UI. They are not blocked on it (D44).
+- **Waiting on the Paymob sandbox (not auto-renewal):** A1's callback shape (`obj` envelope + `?hmac=` query vs header) and the 3-DS pending→success sequence. A1 is built against the documented processed-callback format, with the parsing isolated so that a sandbox correction is a one-function change.
+- **Not built — waiting on the owner:** E payment-link message (rules given 2026-10-25, migration for the `LINK_SENT` audit type needs OK), F PLAN_GRANT (rules given, design only), refund (rules given, design only), Phase 6b renewals/grace, USD gateway (postponed), card-not-present auto-renewal via Paymob subscriptions (D44).
 
 ### 2026-10-26 — Session 5 phase (b): slices A0–A5, B1–B5, C, D implemented (uncommitted, owner reviews before any commit)
 
