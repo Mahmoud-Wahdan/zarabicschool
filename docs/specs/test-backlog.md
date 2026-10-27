@@ -242,3 +242,10 @@
 ## Written 2026-10-27 (S-05 WhatsApp icon, D17)
 - **WAI-01..03** — wa.me link with international digits (Egyptian local, international kept), new tab + `noopener noreferrer` + aria-label; unaddressable/missing → no link.
 - **WAI-04/05** (static) — no logging / no messaging provider in the component; the staff list renders it and the API stays Admin/Supervisor only.
+
+## Written 2026-10-27 (owner answers file)
+- **ATT-S1-01/02** (static) — S-1 migration BOM-free with the extra CHECK and the append-only trigger; cleanup handles `attendance_resolutions` before `subscription_ledger`, gated until the owner applies it.
+- **ATT-CC-01/02** — report submission and approval wait on the session row lock (`FOR UPDATE`) the resolution write path takes. The end-to-end resolution-vs-report race is written with S-01 once the migration is applied.
+- **TZ-01..05** — Africa/Cairo typed times and "today" on 2026-10-27 (UTC+3) and 2026-10-30 (UTC+2), the 25-hour change day, and a static check that no caller uses the host or browser zone.
+- **HL-07/08/09** — D45: teacher `?host=1` → 404; Admin/Supervisor `?host=1` → host link; teacher pages show no host note. HL-01 now expects the join link.
+- **I18N-01..03** — en/ar key parity; scanner self-check; every literal `t("key")` exists in both catalogs.

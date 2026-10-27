@@ -47,11 +47,16 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | I-2 settlement "any ACTIVE package" fallback flags the Admin | S-00(f) | done (ecc3336, no SQL) |
 | I-3 opt-out drops numbers of opted-out users | S-00(g) | done (bf017fa) |
 | M-1 `isUuidParam` on 8 routes | S-00(h) | done (4bf4631) |
-| M-2 teacher join `?host=1` | S-00(i) | done (469fe82) — D32 |
+| M-2 teacher join `?host=1` | S-00(i) | done (469fe82) — D32; reversed (ce236b4) — D45 |
 | M-3 ngrok host from env | S-00(j) | done (2f80028) |
 | M-4 provider comment + "console" normalization | S-00(k) | done (2f80028) |
 | M-5 payroll cap vs 100,000,000 | OQ-10 → D33 | kept + documented (lib/validation/financial.ts) |
-| M-6 complaint roster snapshot | OQ-11 | OPEN |
+| M-6 complaint roster snapshot | OQ-11 → D41 | answered — SQL when S-07 starts |
+| S-1 attendance_resolutions migration | D37 | file created (52cef9b), owner applies |
+| Africa/Cairo time-input bug | owner 2026-10-27 | done (1a36fe0) |
+| M-2 reversal (teacher join link; host for Admin/Supervisor) | D45 | done (ce236b4) |
+| en/ar message-key parity + phoneCol/whatsappChat | owner 2026-10-27 | done (2dd1da1) |
+| "MOTO" renamed to card-not-present auto-renewal | D44 | docs done (9ad00a9) |
 | X-Powered-By off | commit be2862c | done |
 | Console WhatsApp provider (masked) | commit fdc7e16 | done |
 | `APP_PUBLIC_URL` (the one allowed `.env` line) | `.env.example`, deploy-checklist; owner sets the value | owner to-do |
@@ -83,3 +88,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-27: created from the master prompt (Part 1). Replaces the "Plan (draft)" sections of `phase-09-refinements.md` (kept there as history).
 - 2026-10-27: S-04 done (f7b544a); OQ-4/5/6/7/10/16 answered (D28–D33), OQ-15 dropped (D34).
 - 2026-10-27: owner answers file — S-1 approved (D37, migration file only), OQ-2/3/8/11/12/13 → D38–D43, auto-renewal naming D44.
+- 2026-10-27: Cairo time-input fix (1a36fe0); M-2 reversed (ce236b4, D45); i18n key tests + S-05 key fix (2dd1da1).

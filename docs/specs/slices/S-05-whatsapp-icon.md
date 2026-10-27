@@ -8,3 +8,4 @@
 
 ## Log
 - 2026-10-27: WAI-01..05 first (suite failed: module missing); WAI-04 was too broad (matched the word OpenWA in a comment) → it now strips comments. 2 suites / 16 tests green (incl. OWASP); tsc + lint clean. Commit see `git log` (feat(people) … S-05).
+- 2026-10-27 (follow-up): the column labels showed missing-message keys — `phoneCol`/`whatsappChat` had been added under `management` while the panel reads `management.form`. Moved; the new I18N-03 used-key test would have caught it. 2dd1da1.
