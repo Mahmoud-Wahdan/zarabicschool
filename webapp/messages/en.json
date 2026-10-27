@@ -1854,6 +1854,21 @@
       "announcementsOff": "Off (no WhatsApp)"
     }
   },
+  "paymentReturn": {
+    "title": "Payment status",
+    "amount": "Amount",
+    "state": {
+      "PAID": "Payment received. Your package is active.",
+      "PROCESSING": "We are waiting for the payment confirmation. This page updates by itself.",
+      "DECLINED": "The payment was declined. No money was taken. You can try again from your invoices.",
+      "FAILED": "This invoice could not be paid. Please contact the academy.",
+      "CANCELLED": "This invoice was cancelled."
+    },
+    "stillProcessing": "The confirmation has not arrived yet. Check your invoices in a few minutes; you will not be charged twice.",
+    "generic": "We could not show a payment for this link. Sign in with the account that paid, then open your invoices.",
+    "toInvoices": "Go to my invoices",
+    "toLogin": "Sign in"
+  },
   "invoices": {
     "title": "Invoices & payments",
     "subtitle": "Packages, invoices, and payment status.",
