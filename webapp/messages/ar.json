@@ -465,7 +465,13 @@
     "opsFinancialsText": "الفواتير والمدفوعات وأرصدة الاشتراكات",
     "opsAccounts": "حسابات الإدارة",
     "opsAccountsText": "إدارة حسابات SuperAdmin والمشرفين",
-    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}"
+    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}",
+    "homeStudents": "الطلاب النشطون",
+    "homeStudentsUnit": "طالب",
+    "homeTeachers": "المعلمون النشطون",
+    "homeTeachersUnit": "معلم",
+    "homeWeekSessions": "حصص هذا الأسبوع",
+    "homeWeekSessionsUnit": "حصة"
   },
   "supervisorDash": {
     "eyebrow": "غرفة الرصد الأكاديمي",
@@ -2276,5 +2282,20 @@
     "previousMonth": "الشهر السابق",
     "nextMonth": "الشهر التالي",
     "monthNav": "التنقل بين الأشهر"
+  },
+  "revenueChart": {
+    "title": "الإيرادات (جنيه مصري)",
+    "subtitle": "الفواتير المدفوعة بالجنيه المصري حسب شهر الدفع. دون تحويل للدولار.",
+    "periodNav": "فترة الإيرادات",
+    "period": {
+      "month": "شهري",
+      "quarter": "ربع سنوي",
+      "half": "نصف سنوي"
+    },
+    "quarterLabel": "الربع {n} {year}",
+    "halfLabel": "النصف {n} {year}",
+    "tableView": "عرض كجدول",
+    "colPeriod": "الفترة",
+    "colRevenue": "الإيرادات"
   }
 }

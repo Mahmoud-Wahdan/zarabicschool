@@ -11,6 +11,8 @@ import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { zonedDayRangeUtc, zonedYmd } from "../../../lib/schedules/recurrence";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
+import { getEgpRevenue, getHomeCounts, parsePeriod } from "../../../lib/finance/revenue";
+import RevenueChart from "../../_components/charts/revenue-chart";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
 export async function generateMetadata() {
@@ -25,7 +27,7 @@ const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
   CANCELLED: "neutral",
 };
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string }> }) {
   const user = await requireRole("ADMIN");
   const locale = await getLocale();
   const t = await getTranslations("adminDash");
@@ -36,6 +38,12 @@ export default async function AdminDashboard() {
   // host's setHours day is wrong on a UTC server and shifts with DST.
   const viewerZone = user.timezone || "Africa/Cairo";
   const { start: startOfDay, end: endOfDay } = zonedDayRangeUtc(zonedYmd(now, viewerZone), viewerZone);
+  // S-11 / D8: home cards + EGP revenue (Admin only).
+  const revenuePeriod = parsePeriod((await searchParams).revenue);
+  const [homeCounts, revenue] = await Promise.all([
+    getHomeCounts(user.academyId, now, viewerZone),
+    getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
+  ]);
 
   const [applications, students, guardians, teachers, subjects, pendingReports, flagCounts, todaysSessions] =
     await Promise.all([
@@ -162,6 +170,14 @@ export default async function AdminDashboard() {
           </Link>
         </MetricTile>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <MetricTile label={t("homeStudents")} icon="school" value={homeCounts.students} valueLabel={t("homeStudentsUnit")} />
+        <MetricTile label={t("homeTeachers")} icon="co_present" iconTone="info" value={homeCounts.teachers} valueLabel={t("homeTeachersUnit")} />
+        <MetricTile label={t("homeWeekSessions")} icon="date_range" iconTone="tertiary" value={homeCounts.sessionsThisWeek} valueLabel={t("homeWeekSessionsUnit")} />
+      </div>
+
+      <RevenueChart buckets={revenue} period={revenuePeriod} locale={locale} />
 
       <section className="z-card flex flex-col gap-4 rounded-xl p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

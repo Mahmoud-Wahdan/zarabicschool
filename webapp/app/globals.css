@@ -58,6 +58,9 @@
   --surface-variant: #d9e3f6;
   --surface-dim: #d0dbed;
   --surface-bright: #f8f9ff;
+  /* Chart tokens (S-11 / D8): revenue bars passed the dataviz palette validator vs #ffffff. */
+  --chart-revenue: #008f7f;
+  --chart-grid: #e6e8ee;
   --surface-container-lowest: #ffffff;
   --surface-container-low: #eff4ff;
   --surface-container: #e6eeff;

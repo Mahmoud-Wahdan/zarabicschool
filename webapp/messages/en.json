@@ -465,7 +465,13 @@
     "opsFinancialsText": "Invoices, payments, and subscription balances",
     "opsAccounts": "Admin accounts",
     "opsAccountsText": "Manage SuperAdmin and supervisor accounts",
-    "kpiMonthlyMissing": "{count} monthly reports missing"
+    "kpiMonthlyMissing": "{count} monthly reports missing",
+    "homeStudents": "Active students",
+    "homeStudentsUnit": "students",
+    "homeTeachers": "Active teachers",
+    "homeTeachersUnit": "teachers",
+    "homeWeekSessions": "Sessions this week",
+    "homeWeekSessionsUnit": "sessions"
   },
   "supervisorDash": {
     "eyebrow": "Academic monitoring room",
@@ -2276,5 +2282,20 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "monthNav": "Month navigation"
+  },
+  "revenueChart": {
+    "title": "Revenue (EGP)",
+    "subtitle": "Paid invoices in Egyptian pounds, by the month they were paid. No dollar conversion.",
+    "periodNav": "Revenue period",
+    "period": {
+      "month": "Monthly",
+      "quarter": "Quarterly",
+      "half": "Half-year"
+    },
+    "quarterLabel": "Q{n} {year}",
+    "halfLabel": "H{n} {year}",
+    "tableView": "Show as a table",
+    "colPeriod": "Period",
+    "colRevenue": "Revenue"
   }
 }
