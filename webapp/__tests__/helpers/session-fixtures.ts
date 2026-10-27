@@ -17,6 +17,14 @@ async function isPayrollReady(): Promise<boolean> {
   return rows[0]?.count === 1;
 }
 
+/** S-1 attendance_resolutions gate (owner-applied migration 20261027120000). */
+async function isAttendanceResolutionsReady(): Promise<boolean> {
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'attendance_resolutions'",
+  )) as { count: number }[];
+  return rows[0]?.count === 1;
+}
+
 export async function createSessionFixtures() {
   const suffix = randomUUID().slice(0, 8);
   const passwordHash = await bcrypt.hash("Demo-Test-Pass-1!", 4);
@@ -302,6 +310,11 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     await prisma.application.deleteMany({ where: { academyId } });
     const invoices = await prisma.invoice.findMany({ where: { academyId }, select: { id: true } });
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: invoices.map((invoice) => invoice.id) } } });
+    // S-1: append-only resolutions reference subscription_ledger (FK RESTRICT), so
+    // they go first, through the same per-academy trigger exception.
+    if (await isAttendanceResolutionsReady()) {
+      await deleteAppendOnly("attendance_resolutions", "attendance_resolutions_append_only", academyId);
+    }
     await deleteAppendOnly("subscription_ledger", "subscription_ledger_append_only", academyId);
     await prisma.invoice.deleteMany({ where: { academyId } });
     if (linkAuditReady) {

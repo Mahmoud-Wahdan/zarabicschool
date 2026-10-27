@@ -377,6 +377,7 @@ model Academy {
   applicationRecords        ApplicationRecord[]        @relation("ApplicationRecordAcademy")
   announcements             Announcement[]             @relation("AnnouncementAcademy")
   complaints                Complaint[]                @relation("ComplaintAcademy")
+  attendanceResolutions     AttendanceResolution[]     @relation("AttendanceResolutionAcademy")
 
   @@map("academies")
 }
@@ -443,6 +444,7 @@ model User {
   complaintsFiled      Complaint[]    @relation("ComplaintFiledBy")
   complaintsConcerning Complaint[]    @relation("ComplaintConcerned")
   complaintsHandled    Complaint[]    @relation("ComplaintHandledBy")
+  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionResolvedBy")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -540,6 +542,7 @@ model Student {
   assignments          StudentTeacherAssignment[]
   billingSubscriptions BillingSubscription[]      @relation("BillingSubscriptionStudent")
   evaluations          SessionEvaluation[]
+  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionStudent")
 
   @@index([academyId])
   @@index([guardianId])
@@ -615,6 +618,7 @@ model Session {
   replacementSessionRequests SessionRequest[]       @relation("SessionRequestReplacement")
   payrollEntries             PayrollLedger[]        @relation("PayrollLedgerSession")
   evaluations                SessionEvaluation[]
+  attendanceResolutions      AttendanceResolution[] @relation("AttendanceResolutionSession")
 
   @@unique([recurrenceGroupId, recurrenceWeekIndex])
   @@index([academyId, scheduledStart, status])
@@ -745,6 +749,7 @@ model SubscriptionLedger {
   invoice        Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   session        Session?                    @relation("LedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
   report         Report?                     @relation("LedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
+  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionLedger")
 
   @@index([subscriptionId, createdAt])
   @@index([sessionId])
@@ -1304,4 +1309,31 @@ model Complaint {
   @@index([sessionId], map: "complaints_session_idx")
   @@index([concernedUserId], map: "complaints_concerned_user_idx")
   @@map("complaints")
+}
+
+// D2 / D36 (owner, 2026-10-27; SQL S-1 approved): a manual ATTENDED / STUDENT_ABSENT
+// resolution by the Admin (or the Supervisor within 7 days of the scheduled end).
+// Append-only audit (prevent_ledger_mutation trigger); one per roster entry. It
+// writes the student's attendance + deduction only — never a payroll entry, and it
+// does not count as a report. STUDENT_ABSENT never carries a ledger row (CHECK).
+model AttendanceResolution {
+  id                   String              @id @default(uuid()) @db.Uuid
+  academyId            String              @map("academy_id") @db.Uuid
+  sessionId            String              @map("session_id") @db.Uuid
+  studentId            String              @map("student_id") @db.Uuid
+  outcome              String              @db.VarChar(20)
+  reason               String
+  resolvedById         String              @map("resolved_by") @db.Uuid
+  resolvedByRole       String              @map("resolved_by_role") @db.VarChar(16)
+  subscriptionLedgerId String?             @map("subscription_ledger_id") @db.Uuid
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy              Academy             @relation("AttendanceResolutionAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session              Session             @relation("AttendanceResolutionSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  student              Student             @relation("AttendanceResolutionStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  resolvedBy           User                @relation("AttendanceResolutionResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
+  subscriptionLedger   SubscriptionLedger? @relation("AttendanceResolutionLedger", fields: [subscriptionLedgerId], references: [id], onDelete: Restrict, map: "attendance_resolutions_ledger_fkey")
+
+  @@unique([sessionId, studentId], map: "attendance_resolutions_session_student_key")
+  @@index([academyId, createdAt(sort: Desc)], map: "attendance_resolutions_academy_created_idx")
+  @@map("attendance_resolutions")
 }
