@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import LocaleSwitcher from "../../_components/locale-switcher";
 import LogoPlaceholder from "../../_components/logo-placeholder";
+import { safeCallbackPath } from "../../../lib/auth/callback-url";
 import { getAuthSession } from "../../../lib/dal";
 import LoginForm from "./login-form";
 
@@ -11,12 +12,14 @@ export async function generateMetadata() {
   return { title: `${t("title")} | Zarabicschool` };
 }
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string | string[] }> }) {
+  // I-1 / D4: return to the join link (or page) that sent the reader here — allowlisted paths only.
+  const callbackPath = safeCallbackPath((await searchParams).callbackUrl);
   const user = await getAuthSession();
   if (user) {
     const locale = await getLocale();
     redirect(
-      user.mustChangePassword ? `/${locale}/change-password` : `/${locale}/${user.role.toLowerCase()}`,
+      user.mustChangePassword ? `/${locale}/change-password` : callbackPath ?? `/${locale}/${user.role.toLowerCase()}`,
     );
   }
 
@@ -55,7 +58,7 @@ export default async function LoginPage() {
             <p className="mt-1.5 text-body-sm leading-relaxed text-on-surface-variant">{t("subtitle")}</p>
           </div>
 
-          <LoginForm />
+          <LoginForm callbackPath={callbackPath} />
 
           <div className="mt-8 flex flex-col gap-3 rounded-xl bg-surface-container-low p-4 pt-4">
             <div className="flex items-center gap-2">

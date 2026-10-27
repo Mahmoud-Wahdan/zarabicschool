@@ -44,6 +44,12 @@ export default async function PaymobReturnPage({
   ]);
   const view = await getPaymentReturnView(user, params);
   const invoicesPath = user ? INVOICES_PATH[user.role] : undefined;
+  // Signed out (e.g. the payment started on another host): sign in and come back here.
+  const loginHref = `/${locale}/login?callbackUrl=${encodeURIComponent(
+    typeof params.order === "string" && /^\d{1,20}$/.test(params.order)
+      ? `/${locale}/payments/paymob/return?order=${params.order}`
+      : `/${locale}/payments/paymob/return`,
+  )}`;
 
   return (
     <main className="flex min-h-screen flex-1 flex-col items-center justify-center bg-surface p-4 md:p-6">
@@ -66,7 +72,7 @@ export default async function PaymobReturnPage({
               {t("toInvoices")}
             </a>
           ) : user ? null : (
-            <a href={`/${locale}/login`} className="font-bold text-primary underline-offset-4 hover:underline">
+            <a href={loginHref} className="font-bold text-primary underline-offset-4 hover:underline">
               {t("toLogin")}
             </a>
           )}

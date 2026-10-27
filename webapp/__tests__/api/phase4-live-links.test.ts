@@ -224,7 +224,10 @@ describe("Phase 4 — join redirect authorization matrix", () => {
     const clicksBefore = await prisma.sessionJoinClick.count({ where: { sessionId: matrixSession.id } });
     const response = await joinRoute(joinRequest(matrixSession.id), routeParams(matrixSession.id));
     expect(response.status).toBe(307);
-    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/login");
+    // I-1 (2026-10-27): the localized login page, returning to this session afterwards.
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/ar/login");
+    expect(location.searchParams.get("callbackUrl")).toBe(`/api/sessions/${matrixSession.id}/join`);
     expect(response.headers.get("location")).not.toContain("zoom.us");
     expect(await prisma.sessionJoinClick.count({ where: { sessionId: matrixSession.id } })).toBe(clicksBefore);
   });

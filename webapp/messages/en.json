@@ -1021,6 +1021,20 @@
     "rateLimitError": "Too many applications submitted recently. Please wait a moment and try again.",
     "validationError": "Please review and correct the highlighted fields below."
   },
+  "joinStatus": {
+    "title": "Joining the session",
+    "reason": {
+      "JOIN_NOT_YET_OPEN": "The session is not open yet. The join button works shortly before the start time — please come back then.",
+      "JOIN_WINDOW_CLOSED": "This session has already ended.",
+      "NOT_FOUND": "This session is not available for your account. Check that you are signed in with the right account.",
+      "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
+      "NO_HOST_LINK": "This session has no host link. Please contact the academy.",
+      "INVALID_ZOOM_URL": "The link of this session needs to be fixed by the academy. Please contact them.",
+      "UNKNOWN": "The session could not be opened. Please try again from your dashboard."
+    },
+    "toDashboard": "Go to my dashboard",
+    "toLogin": "Sign in"
+  },
   "login": {
     "title": "Log in to your academic account",
     "subtitle": "Enter your username and password to access your dashboard (administration, supervisors, teachers, guardians, students).",

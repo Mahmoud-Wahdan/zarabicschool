@@ -14,7 +14,7 @@ type SessionResponse = {
   error?: string;
 };
 
-export default function LoginForm() {
+export default function LoginForm({ callbackPath = null }: { callbackPath?: string | null }) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("login");
@@ -54,6 +54,12 @@ export default function LoginForm() {
     const response = await fetch("/api/auth/session");
     const session: SessionResponse = response.ok ? await response.json() : {};
     const role = session.user?.role;
+    if (callbackPath && role && !session.user?.mustChangePassword) {
+      // Full navigation: the callback may be the join redirect (an API route), which
+      // the client router cannot render. The path was allowlisted on the server.
+      window.location.assign(callbackPath);
+      return;
+    }
     const destination = session.user?.mustChangePassword
       ? `/${locale}/change-password`
       : role

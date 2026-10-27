@@ -1,34 +1,60 @@
 import { NextResponse } from "next/server";
 
+import { routing, type AppLocale } from "../../../../../i18n/routing";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { allowRequest } from "../../../../../lib/rate-limit";
 import { JOIN_OPENS_BEFORE_START_MS } from "../../../../../lib/config/session-join";
+import { platformUrl } from "../../../../../lib/config/platform-url";
 import { validateZoomUrl } from "../../../../../lib/validation/zoom-url";
 import { isUuidParam } from "../../../../../lib/request";
 
+// I-1 (owner, 2026-10-27): this URL is opened from WhatsApp in a browser. Browsers
+// (Accept: text/html) are redirected to readable pages on the PUBLIC origin
+// (APP_PUBLIC_URL, never the internal request host); API callers keep the JSON codes.
+function wantsHtml(request: Request): boolean {
+  return (request.headers.get("accept") ?? "").includes("text/html");
+}
+
+function requestLocale(request: Request): AppLocale {
+  const match = /(?:^|;\s*)NEXT_LOCALE=(ar|en)(?:;|$)/.exec(request.headers.get("cookie") ?? "");
+  return (match?.[1] as AppLocale | undefined) ?? routing.defaultLocale;
+}
+
+function publicRedirect(request: Request, path: string) {
+  return NextResponse.redirect(platformUrl(path) ?? new URL(path, request.url).toString());
+}
+
+function joinError(request: Request, status: number, code: string, message: string) {
+  if (wantsHtml(request)) {
+    return publicRedirect(request, `/${requestLocale(request)}/join-status?reason=${encodeURIComponent(code)}`);
+  }
+  return NextResponse.json({ error: { code, message } }, { status });
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const wantsHost = new URL(request.url).searchParams.get("host") === "1";
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
-  // WhatsApp messages carry this URL (owner, 2026-10-26): a signed-out reader opening
-  // it in a browser is sent to the login page instead of a JSON 401.
-  if (error?.status === 401) return NextResponse.redirect(new URL("/login", request.url));
+  // A signed-out reader goes to the login page and comes back to this session.
+  if (error?.status === 401) {
+    const login = new URLSearchParams();
+    if (isUuidParam(id)) login.set("callbackUrl", `/api/sessions/${id}/join${wantsHost ? "?host=1" : ""}`);
+    const query = login.toString();
+    return publicRedirect(request, `/${requestLocale(request)}/login${query ? `?${query}` : ""}`);
+  }
   if (error) return error;
   if (!allowRequest(`join:${user.id}`, 30, 60 * 1000)) {
-    return NextResponse.json(
-      { error: { code: "RATE_LIMITED", message: "Too many join attempts. Try again later." } },
-      { status: 429 },
-    );
+    return joinError(request, 429, "RATE_LIMITED", "Too many join attempts. Try again later.");
   }
-  const { id } = await params;
   // Same generic 404 as an unknown session (never a 500, never an existence oracle).
-  if (!isUuidParam(id)) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
-  const wantsHost = new URL(request.url).searchParams.get("host") === "1";
+  if (!isUuidParam(id)) return joinError(request, 404, "NOT_FOUND", "Session not found.");
   const isOperator = user.role === "ADMIN" || user.role === "SUPERVISOR";
   // The host link is for Admin, Supervisor, and the session's assigned teacher only.
   // Students and guardians are answered with the same 404 as for any unknown session,
   // so the existence of a host link is never leaked to them.
   if (wantsHost && (user.role === "STUDENT" || user.role === "GUARDIAN")) {
-    return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
+    return joinError(request, 404, "NOT_FOUND", "Session not found.");
   }
   const session = await prisma.session.findFirst({
     where: {
@@ -44,37 +70,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     },
     select: { id: true, zoomJoinUrl: true, zoomHostUrl: true, scheduledStart: true, scheduledEnd: true },
   });
-  if (!session) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
+  if (!session) return joinError(request, 404, "NOT_FOUND", "Session not found.");
   if (!isOperator) {
     // CONFIRMED join window: opens 15 minutes before the scheduled start, closes at the
     // scheduled end (config constant). Admin/Supervisor are exempt.
     const now = Date.now();
     if (now < session.scheduledStart.getTime() - JOIN_OPENS_BEFORE_START_MS) {
-      return NextResponse.json(
-        { error: { code: "JOIN_NOT_YET_OPEN", message: "The session join opens 15 minutes before the scheduled start." } },
-        { status: 403 },
-      );
+      return joinError(request, 403, "JOIN_NOT_YET_OPEN", "The session join opens 15 minutes before the scheduled start.");
     }
     if (now > session.scheduledEnd.getTime()) {
-      return NextResponse.json(
-        { error: { code: "JOIN_WINDOW_CLOSED", message: "The session join window has closed." } },
-        { status: 403 },
-      );
+      return joinError(request, 403, "JOIN_WINDOW_CLOSED", "The session join window has closed.");
     }
   }
   const targetUrl = wantsHost ? session.zoomHostUrl : session.zoomJoinUrl;
   if (!targetUrl) {
-    return NextResponse.json(
-      { error: { code: "NO_HOST_LINK", message: "This session has no host link stored." } },
-      { status: 404 },
-    );
+    return joinError(request, 404, "NO_HOST_LINK", "This session has no host link stored.");
   }
   // Format check of the stored link (covers legacy non-conforming links) — never echo the link.
   if (!validateZoomUrl(targetUrl).ok) {
-    return NextResponse.json(
-      { error: { code: "INVALID_ZOOM_URL", message: "The stored session link does not have a valid Zoom format. Ask an Admin to replace it." } },
-      { status: 409 },
-    );
+    return joinError(request, 409, "INVALID_ZOOM_URL", "The stored session link does not have a valid Zoom format. Ask an Admin to replace it.");
   }
   // Click evidence (CONTEXT §6 safeguard 5): a row per click with session/user/time only.
   // A failed insert must not block the redirect and must never disclose the link.

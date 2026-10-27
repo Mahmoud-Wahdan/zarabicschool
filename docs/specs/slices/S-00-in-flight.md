@@ -11,7 +11,7 @@
 - [x] (b) return page + status display (RET-01..05)
 - [ ] (c) #3 announcement scheduling
 - [ ] (d) #8 origin checks
-- [ ] (e) I-1 join link redirects + login callbackUrl (also wires "sign in and return" on the return page)
+- [x] (e) I-1 join link redirects + login callbackUrl (also wires "sign in and return" on the return page)
 - [ ] (f) I-2 settlement fallback flags the Admin
 - [ ] (g) I-3 opt-out drops shared numbers
 - [ ] (h) M-1 `isUuidParam` on 8 routes
@@ -22,3 +22,4 @@
 ## Log
 - 2026-10-27: (a) committed after re-running LS/AN/FLG/MR (3 suites, 13 tests green), tsc + lint clean.
 - 2026-10-27: (b) RET-01..05 written first and failed (module missing), then green (5/5); tsc + lint clean. Fixture cleanup removes the append-only audit rows (`deleteAppendOnly`).
+- 2026-10-27: (e) I-1 — the join route answers browsers (`Accept: text/html`) with redirects on the PUBLIC origin (`platformUrl`, fallback request host): signed out → `/<locale>/login?callbackUrl=/api/sessions/<id>/join[?host=1]` (locale from `NEXT_LOCALE`, default ar); every error → `/<locale>/join-status?reason=<CODE>` (new page, code-only, allowlisted reasons). API callers keep the JSON codes. Login honours `callbackUrl` through `lib/auth/callback-url.ts` (allowlist: the join path, `/ar|en/...` pages; no `//`, `\`, other APIs). The return page's sign-in link comes back to the same order. Tests JL-05..09 written first (4 failed + module missing), then green; the Phase 4 anonymous test now expects `/ar/login` + callback. 5 suites / 75 tests green; tsc + lint clean.
