@@ -2187,5 +2187,49 @@
   "evaluationPrompt": {
     "text": "{count, plural, one {You can evaluate 1 recent session (optional).} other {You can evaluate # recent sessions (optional).}}",
     "action": "Evaluate"
+  },
+  "attendanceResolution": {
+    "open": "Resolve attendance manually",
+    "title": "Manual attendance resolution",
+    "hint": "Use only when the teacher report is missing. The teacher report is still accepted later.",
+    "outcome": {
+      "ATTENDED": "Attended",
+      "STUDENT_ABSENT": "Absent"
+    },
+    "reasonLabel": "Reason (required)",
+    "reasonHint": "5–1000 characters. Saved in the audit record.",
+    "review": "Review the effect",
+    "cancel": "Cancel",
+    "effectTitle": "Confirming will:",
+    "effect": {
+      "attendance": {
+        "ATTENDED": "Mark the student as attended",
+        "STUDENT_ABSENT": "Mark the student as absent"
+      },
+      "deducts": "Deduct one session from the student’s package",
+      "releases": "Release the session held for the student (no deduction)",
+      "noPackageChange": "Not change the student’s package",
+      "sessionsLeft": "Sessions left: {before} → {after}",
+      "teacherNotCredited": "The teacher is NOT paid by this. If pay is due, use the audited manual payroll entry.",
+      "reportStillAccepted": "A later teacher report is still accepted and never deducts again."
+    },
+    "confirm": "Confirm resolution",
+    "back": "Back",
+    "done": "Attendance resolved.",
+    "error": "The resolution could not be saved.",
+    "blocked": {
+      "NO_SESSIONS_LEFT": "The student has no session left. Fix the package first, then resolve attendance.",
+      "REPORT_EXISTS": "The teacher report exists — review it in the reports queue instead.",
+      "ALREADY_RESOLVED": "Attendance was already resolved for this student.",
+      "ALREADY_SETTLED": "This session is already settled for the student; use an adjustment entry.",
+      "SESSION_NOT_ENDED": "The session has not ended yet.",
+      "SESSION_NOT_RESOLVABLE": "The session did not take place (cancelled or missed).",
+      "ADMIN_ONLY_AFTER_7_DAYS": "More than 7 days after the end, only the Admin can resolve attendance."
+    },
+    "state": {
+      "ENDED_REPORT_PENDING": "Ended — teacher report pending",
+      "RESOLVED_REPORT_PENDING": "Attendance resolved manually — teacher report pending"
+    },
+    "resolvedBy": "Resolved manually by {name} ({role}) on {time}: {reason}"
   }
 }

@@ -14,6 +14,8 @@ import { isSession1ReportsReady } from "@/lib/reports/session1-ready";
 import { classRemarkLabel, reportDir, resolveReportLanguage } from "@/lib/reports/report-language";
 import { getReportForViewer } from "@/lib/reports/visibility";
 import { formatSessionDateTime } from "@/lib/schedules/display";
+import { deriveRosterState } from "@/lib/attendance/roster-state";
+import AttendanceResolutionForm from "@/app/_components/sessions/attendance-resolution-form";
 
 export async function generateMetadata() {
   const t = await getTranslations("adminSessionDetail");
@@ -43,6 +45,7 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
   const locale = await getLocale();
   const t = await getTranslations("adminSessionDetail");
   const tSessions = await getTranslations("sessions");
+  const tResolution = await getTranslations("attendanceResolution");
   const session1Ready = await isSession1ReportsReady();
 
   const session = await prisma.session.findFirst({
@@ -78,10 +81,34 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
     : [];
   const extrasByStudent = new Map<string, ReportExtra>(reportExtras.map((row: ReportExtra) => [row.studentId, row]));
 
+  // S-01 (D2, D36d): manual resolutions + report statuses → the derived per-student
+  // state ("ended — report pending" / "resolved manually — report pending").
+  const [resolutions, reportStatuses] = await Promise.all([
+    prisma.attendanceResolution.findMany({
+      where: { sessionId: session.id, academyId: user.academyId },
+      select: { studentId: true, outcome: true, reason: true, resolvedByRole: true, createdAt: true, resolvedBy: { select: { displayName: true } } },
+    }),
+    prisma.report.findMany({
+      where: { sessionId: session.id, reportType: "SESSION_COMPLETION_REPORT" },
+      select: { studentId: true, status: true },
+    }),
+  ]);
+  const resolutionByStudent = new Map(resolutions.map((row) => [row.studentId, row]));
+  const reportStatusByStudent = new Map(reportStatuses.map((row) => [row.studentId, row.status as string]));
+  const now = new Date();
+
   const roster = await Promise.all(
     session.students.map(async (entry: (typeof session.students)[number]) => ({
       ...entry,
       view: await getReportForViewer(viewer, session.id, entry.studentId),
+      resolution: resolutionByStudent.get(entry.studentId) ?? null,
+      state: deriveRosterState({
+        sessionStatus: session.status,
+        scheduledEnd: session.scheduledEnd,
+        now,
+        reportStatus: reportStatusByStudent.get(entry.studentId) ?? null,
+        resolutionOutcome: resolutionByStudent.get(entry.studentId)?.outcome ?? null,
+      }),
     })),
   );
 
@@ -161,8 +188,24 @@ export default async function AdminSessionDetailPage({ params }: { params: Promi
                         {t("rejectionsChip", { count: extra.rejectionCount })}
                       </span>
                     ) : null}
+                    {entry.state === "ENDED_REPORT_PENDING" || entry.state === "RESOLVED_REPORT_PENDING" ? (
+                      <StatusBadge tone={entry.state === "RESOLVED_REPORT_PENDING" ? "info" : "pending"}>{tResolution(`state.${entry.state}`)}</StatusBadge>
+                    ) : null}
                   </div>
                 </div>
+
+                {entry.resolution ? (
+                  <p className="rounded-lg bg-surface-container-low px-3 py-2 text-body-sm text-on-surface-variant">
+                    {tResolution("resolvedBy", {
+                      name: entry.resolution.resolvedBy.displayName,
+                      role: entry.resolution.resolvedByRole,
+                      time: formatSessionDateTime(entry.resolution.createdAt, user.timezone, locale),
+                      reason: entry.resolution.reason,
+                    })}
+                  </p>
+                ) : entry.state === "ENDED_REPORT_PENDING" || entry.state === "REPORT_REJECTED" ? (
+                  <AttendanceResolutionForm sessionId={session.id} studentId={entry.studentId} />
+                ) : null}
 
                 {entry.view ? (
                   <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

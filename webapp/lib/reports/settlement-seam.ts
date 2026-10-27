@@ -28,10 +28,15 @@ import { SettlementError, creditAmountMinor, getRateForSession } from "../payrol
  * backstop for a retried transaction.
  */
 /** Admin-only flag job, one per active Admin (the dedup key includes the Admin, so every Admin gets it). */
-async function enqueueAdminFlag(
+export async function enqueueAdminFlag(
   tx: Prisma.TransactionClient,
   academyId: string,
-  kind: "BALANCE_NEGATIVE" | "SETTLED_WITHOUT_SUBSCRIPTION" | "SETTLED_OUTSIDE_PACKAGE_PERIOD",
+  kind:
+    | "BALANCE_NEGATIVE"
+    | "SETTLED_WITHOUT_SUBSCRIPTION"
+    | "SETTLED_OUTSIDE_PACKAGE_PERIOD"
+    | "ATTENDANCE_RESOLVED"
+    | "ATTENDANCE_RESOLUTION_MISMATCH",
   dedupBase: string,
   payload?: Prisma.InputJsonValue,
 ) {
@@ -126,10 +131,26 @@ export async function settleApprovedReport(
     );
   }
 
-  const reservation = await tx.sessionReservation.findUnique({
+  // S-01 / D36b: after a manual attendance resolution the student side is already
+  // settled (deduction or release) — approval writes ONLY the teacher side, never a
+  // second deduction. A disagreeing report changes nothing automatically: Admin flag.
+  const resolution = await tx.attendanceResolution.findUnique({
     where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
-    select: { id: true, status: true, subscriptionId: true },
+    select: { id: true, outcome: true },
   });
+  if (resolution && resolution.outcome !== report.attendanceOutcome) {
+    await enqueueAdminFlag(tx, report.academyId, "ATTENDANCE_RESOLUTION_MISMATCH", `ATTENDANCE_RESOLUTION_MISMATCH:${report.id}`, {
+      reportId: report.id,
+      resolutionId: resolution.id,
+    });
+  }
+
+  const reservation = resolution
+    ? null
+    : await tx.sessionReservation.findUnique({
+        where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
+        select: { id: true, status: true, subscriptionId: true },
+      });
 
   if (report.attendanceOutcome === "ATTENDED") {
     // 1. Consume the reservation (idempotent on replay: CONSUMED stays CONSUMED).
@@ -145,12 +166,13 @@ export async function settleApprovedReport(
     // date, earliest-expiring first, preferring one with credit left.
     // A RELEASED reservation no longer holds credit, so it does not pick the package.
     const heldSubscriptionId = reservation && reservation.status !== "RELEASED" ? reservation.subscriptionId : null;
-    const fallback = heldSubscriptionId ? null : await fallbackSubscriptionId(tx, report, session.scheduledStart);
-    const subscriptionId = heldSubscriptionId ?? fallback?.id ?? null;
+    // A manual resolution already settled the student side: skip steps 2–3 entirely.
+    const fallback = heldSubscriptionId || resolution ? null : await fallbackSubscriptionId(tx, report, session.scheduledStart);
+    const subscriptionId = resolution ? null : heldSubscriptionId ?? fallback?.id ?? null;
     if (fallback?.outsidePeriod) {
       await enqueueAdminFlag(tx, report.academyId, "SETTLED_OUTSIDE_PACKAGE_PERIOD", `SETTLED_OUTSIDE_PACKAGE_PERIOD:${report.id}`, { reportId: report.id });
     }
-    if (!subscriptionId) {
+    if (!subscriptionId && !resolution) {
       // P8: nothing to deduct from — the teacher side still settles (the session
       // happened); the Admin decides what to do with the student side.
       await enqueueAdminFlag(tx, report.academyId, "SETTLED_WITHOUT_SUBSCRIPTION", `SETTLED_WITHOUT_SUBSCRIPTION:${report.id}`, { reportId: report.id });

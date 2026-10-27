@@ -261,6 +261,19 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "A session was deducted from a student package outside that package's period (no package covered the session date). Please review it."
       : "تم خصم حصة من باقة طالب خارج فترة الباقة (لم تغطِّ أي باقة تاريخ الحصة). يرجى المراجعة.";
   }
+  if (job.kind === "ATTENDANCE_RESOLVED") {
+    // Admin-only notice (S-01, D2): a manual attendance resolution was recorded.
+    return language === "en"
+      ? "A student's attendance was resolved manually for an ended session. The teacher is not credited by it; review it on the session page."
+      : "تم تسجيل حضور طالب يدويًا لحصة منتهية. لا يُضاف للمعلم أجر بسببه؛ راجِعه من صفحة الحصة.";
+  }
+  if (job.kind === "ATTENDANCE_RESOLUTION_MISMATCH") {
+    // Admin-only flag (S-01, D36b): the approved teacher report disagrees with the
+    // manual resolution. Nothing changed automatically; the resolution stands.
+    return language === "en"
+      ? "An approved teacher report disagrees with a manual attendance resolution. Nothing was changed automatically; review the session and correct it with an adjustment if needed."
+      : "تقرير معلم معتمد يخالف تسجيل حضور يدوي. لم يتغير شيء تلقائيًا؛ راجِع الحصة وصحّحها بقيد تعديل عند الحاجة.";
+  }
   if (job.kind === "PAYMENT_ANOMALY") {
     // Admin-only flag (Phase 6 A1): a signed payment event that did not move money
     // and needs a human look. Reason code only — no amounts, no payer data.

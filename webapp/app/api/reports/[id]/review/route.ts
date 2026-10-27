@@ -84,10 +84,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         data: { status: "APPROVED", approvedById: user.id, approvedAt: new Date() },
       });
       if (claimed.count === 0) return null;
-      await tx.sessionStudent.update({
+      // S-01 / D36b: a manual resolution's attendance stands — the approval never
+      // overwrites it (a disagreeing outcome is flagged to the Admin in the seam).
+      const resolved = await tx.attendanceResolution.findUnique({
         where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
-        data: { attendanceStatus: report.attendanceOutcome === "ATTENDED" ? "ATTENDED" : "STUDENT_ABSENT" },
+        select: { id: true },
       });
+      if (!resolved) {
+        await tx.sessionStudent.update({
+          where: { sessionId_studentId: { sessionId: report.sessionId, studentId: report.studentId } },
+          data: { attendanceStatus: report.attendanceOutcome === "ATTENDED" ? "ATTENDED" : "STUDENT_ABSENT" },
+        });
+      }
       await settleApprovedReport(tx, {
         id: report.id,
         academyId: report.academyId,
