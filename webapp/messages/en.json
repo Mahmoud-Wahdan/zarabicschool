@@ -1359,6 +1359,14 @@
     "emptyTitle": "No monthly reports yet",
     "emptyText": "Your teacher's monthly reports appear here as soon as they are submitted."
   },
+  "guardianMonthly": {
+    "title": "Monthly reports",
+    "subtitle": "Your children’s monthly reports from their teachers.",
+    "noChildren": "No linked children.",
+    "emptyTitle": "No monthly reports yet",
+    "emptyText": "Your children’s monthly reports appear here as soon as their teachers submit them.",
+    "noChildReports": "No monthly reports for this child yet."
+  },
   "adminMonthly": {
     "title": "All monthly reports",
     "subtitle": "Every teacher's monthly reports for the selected month — read-only; the monthly stream has no approval gate, no money, and no attendance.",
@@ -1872,10 +1880,10 @@
       "announcements": "Announcements",
       "announcementsHint": "Admin only: when off, this person gets no announcement on WhatsApp (they still see it on the platform).",
       "announcementsOn": "Receives",
-      "announcementsOff": "Off (no WhatsApp)"
-    },
-    "phoneCol": "Phone",
-    "whatsappChat": "Chat with {name} on WhatsApp"
+      "announcementsOff": "Off (no WhatsApp)",
+      "phoneCol": "Phone",
+      "whatsappChat": "Chat with {name} on WhatsApp"
+    }
   },
   "paymentReturn": {
     "title": "Payment status",
