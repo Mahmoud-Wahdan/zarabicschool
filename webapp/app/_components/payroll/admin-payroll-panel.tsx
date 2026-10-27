@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { wallClockInputToUtc } from "../../../lib/schedules/recurrence";
+
 type TeacherOption = { id: string; displayName: string };
 
 /**
@@ -10,7 +12,7 @@ type TeacherOption = { id: string; displayName: string };
  * adjustments, and payout records. Every entry lands in the append-only
  * PayrollLedger with the acting Admin as created_by — history is never edited.
  */
-export default function AdminPayrollPanel({ teachers }: { teachers: TeacherOption[] }) {
+export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: TeacherOption[]; timeZone: string }) {
   const t = useTranslations("payroll");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,7 +76,8 @@ export default function AdminPayrollPanel({ teachers }: { teachers: TeacherOptio
                 teacherId: rate.teacherId,
                 hourlyRateMinor: Number(rate.hourlyRateMinor),
                 currency: rate.currency,
-                effectiveFrom: rate.effectiveFrom ? new Date(rate.effectiveFrom).toISOString() : undefined,
+                // Read in the Admin's zone, not the browser's (Cairo time-input fix, 2026-10-27).
+                effectiveFrom: rate.effectiveFrom ? wallClockInputToUtc(rate.effectiveFrom, timeZone).toISOString() : undefined,
               },
               t("rateCreated"),
             );

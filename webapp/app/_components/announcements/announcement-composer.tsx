@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { zonedDayRangeUtc } from "../../../lib/schedules/recurrence";
+
 type Summary = { activeUsers: number; whatsappRecipients: number; withoutPhone: number; optedOut: number; sharedNumbersMerged: number };
 
 /**
@@ -12,7 +14,7 @@ type Summary = { activeUsers: number; whatsappRecipients: number; withoutPhone: 
  * (409 RECIPIENTS_CHANGED) when the confirmed count is stale. A sent announcement
  * cannot be edited.
  */
-export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay }: { defaultExpiryDays: number; maxPerDay: number }) {
+export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, timeZone }: { defaultExpiryDays: number; maxPerDay: number; timeZone: string }) {
   const t = useTranslations("announcementsAdmin");
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -53,7 +55,8 @@ export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay }: {
         body: JSON.stringify({
           title,
           body,
-          ...(expiresOn ? { expiresAt: new Date(`${expiresOn}T23:59:59`).toISOString() } : {}),
+          // End of the chosen day in the viewer's zone, not the browser's (Cairo time-input fix, 2026-10-27).
+          ...(expiresOn ? { expiresAt: new Date(zonedDayRangeUtc(expiresOn, timeZone).end.getTime() - 1000).toISOString() } : {}),
           confirmRecipientCount: summary.whatsappRecipients,
         }),
       });

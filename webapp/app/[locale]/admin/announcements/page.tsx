@@ -40,7 +40,7 @@ export default async function AdminAnnouncementsPage() {
       <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
       <p className="mt-1 text-body-sm text-on-surface-variant">{t("subtitle")}</p>
       <div className="mt-4">
-        <AnnouncementComposer defaultExpiryDays={ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS} maxPerDay={ANNOUNCEMENT_MAX_PER_DAY} />
+        <AnnouncementComposer defaultExpiryDays={ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS} maxPerDay={ANNOUNCEMENT_MAX_PER_DAY} timeZone={user.timezone || "Africa/Cairo"} />
       </div>
       <section className="mt-6 flex flex-col gap-2">
         <h2 className="text-title-md font-bold text-primary">{t("historyTitle")}</h2>

@@ -6,6 +6,7 @@ import { getClassRemarkOptions, type ClassRemarkOption } from "../../../lib/repo
 import { resolveReportLanguage } from "../../../lib/reports/report-language";
 import { isSession1ReportsReady } from "../../../lib/reports/session1-ready";
 import { isAttachmentsReady } from "../../../lib/storage/attachment-ready";
+import { zonedDayRangeUtc, zonedYmd } from "../../../lib/schedules/recurrence";
 import DashboardShell from "../dashboard-shell";
 import PageHeader from "../ui/page-header";
 import ClassRemarksEditor from "./class-remarks-editor";
@@ -41,14 +42,16 @@ export default async function ReportsQueuePage({
   const rawTo = first(searchParams.to);
   if (rawTo && /^\d{4}-\d{2}-\d{2}$/.test(rawTo)) filters.to = rawTo;
 
+  // The date filter and "approved today" are the viewer's calendar days (Cairo
+  // time-input fix, 2026-10-27), never the host's zone.
+  const viewerZone = user.timezone || "Africa/Cairo";
   const submittedAtRange = {
-    ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00`) } : {}),
-    ...(filters.to ? { lte: new Date(`${filters.to}T23:59:59.999`) } : {}),
+    ...(filters.from ? { gte: zonedDayRangeUtc(filters.from, viewerZone).start } : {}),
+    ...(filters.to ? { lt: zonedDayRangeUtc(filters.to, viewerZone).end } : {}),
   };
   const hasRange = Object.keys(submittedAtRange).length > 0;
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const startOfDay = zonedDayRangeUtc(zonedYmd(new Date(), viewerZone), viewerZone).start;
 
   const attachmentsReady = await isAttachmentsReady();
   // Session 1 (owner, 2026-10-18): `language` + `rejection_count` only exist after the

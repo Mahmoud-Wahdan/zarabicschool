@@ -122,7 +122,7 @@ export default async function AdminPayrollPage() {
       </section>
 
       <div className="mt-6">
-        <AdminPayrollPanel teachers={teachers.map((teacher) => ({ id: teacher.id, displayName: teacher.user.displayName }))} />
+        <AdminPayrollPanel teachers={teachers.map((teacher) => ({ id: teacher.id, displayName: teacher.user.displayName }))} timeZone={user.timezone || "Africa/Cairo"} />
       </div>
 
       <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5">

@@ -9,6 +9,7 @@ import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
+import { zonedDayRangeUtc, zonedYmd } from "../../../lib/schedules/recurrence";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -32,10 +33,10 @@ export default async function SupervisorDashboard() {
   const tSupervisor = await getTranslations("supervisor");
 
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setDate(endOfDay.getDate() + 1);
+  // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27): the
+  // host's setHours day is wrong on a UTC server and shifts with DST.
+  const viewerZone = user.timezone || "Africa/Cairo";
+  const { start: startOfDay, end: endOfDay } = zonedDayRangeUtc(zonedYmd(now, viewerZone), viewerZone);
 
   const [profileCounts, pendingReports, flagCounts, todaysSessions] = await Promise.all([
     Promise.all([

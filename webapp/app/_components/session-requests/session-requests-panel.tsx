@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { utcToWallClockInput, wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 import Icon from "../ui/icon";
 import StatusBadge from "../ui/status-badge";
 
@@ -29,13 +30,6 @@ export type QueueSessionRequest = {
   subjectId: string;
   students: { id: string; name: string; isRequester: boolean }[];
 };
-
-function toLocalInput(iso: string) {
-  // Prefill in the viewer's local wall clock; the datetime-local input converts back on submit.
-  const date = new Date(iso);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 /**
  * Admin/Supervisor outage & absence review queue (Batch C). Approval requires the
@@ -74,7 +68,7 @@ export default function SessionRequestsPanel({
     setError("");
     setScope("SESSION");
     setStudentId(request.requesterStudentId ?? request.students.find((entry) => entry.isRequester)?.id ?? "");
-    setStartInput(toLocalInput(request.scheduledStart));
+    setStartInput(utcToWallClockInput(new Date(request.scheduledStart), request.timezone));
     setDurationMinutes(Math.max(15, Math.round((new Date(request.scheduledEnd).getTime() - new Date(request.scheduledStart).getTime()) / 60000)));
     setZoomJoinUrl("");
   }
@@ -85,7 +79,9 @@ export default function SessionRequestsPanel({
     setError("");
     let body: Record<string, unknown> = { action };
     if (action === "APPROVE") {
-      const start = new Date(startInput);
+      // The typed time is the SESSION's wall clock (its zone is shown on the label),
+      // never the browser's zone (Cairo time-input fix, 2026-10-27).
+      const start = wallClockInputToUtc(startInput, selected.timezone);
       if (Number.isNaN(start.getTime())) {
         setBusy(false);
         setError(t("invalidStart"));
@@ -236,7 +232,7 @@ export default function SessionRequestsPanel({
                     </label>
                   ) : null}
                   <label className="flex flex-col gap-1 text-label-sm text-on-surface-variant">
-                    {t("startLabel")}
+                    {t("startLabel")} ({selected.timezone})
                     <input
                       type="datetime-local"
                       required
