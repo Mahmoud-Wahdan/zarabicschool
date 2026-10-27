@@ -21,7 +21,7 @@
 | OQ-13 | **ANSWERED → D43.** **Webhook void/refund (D19):** a provider-side refund/void seen in the webhook records the event + an Admin flag only; the Admin then reconciles credit manually (no automatic ledger reversal). Confirm. | S-13 | Yes. |
 | OQ-14 | **Assignments problems** (carried from phase-09 "Known issue" / Q2): the owner's list of student↔teacher↔subject problems. | S0 | — |
 | OQ-16 | **ANSWERED → D32.** **M-2 teacher host link:** the spec stores an OPTIONAL host link (`zoom_host_url`) with a `?host=1` join variant for the assigned teacher/Admin/Supervisor, but no rule says the teacher's links (dashboard button, T+5 WhatsApp reminder) must use it; CONTEXT §84 lists "how the teacher starts a meeting" as an open assumption. Should the teacher's links point to `?host=1` when a host link is stored (plain join otherwise)? | S-00(i) | Yes — `?host=1` only when `zoom_host_url` is stored, so a session without one never answers NO_HOST_LINK. |
-| OQ-17 | **Close a session without a report (from OQ-1d):** if a teacher never reports (e.g. he left), how does the Admin close the session? OPEN — nothing built. | S-01 follow-up | — (owner to decide) |
+| OQ-17 | **CLOSED → D50.** **Close a session without a report (from OQ-1d):** if a teacher never reports (e.g. he left), how does the Admin close the session? | S-01 follow-up | no manual closing; derived state (D50) |
 | OQ-15 | **DROPPED → D34.** **Commit-message trailers:** commits fdc7e16, be2862c, c9a19af, 38f0468 carry the trailers in the subject line. Fixing them needs a soft reset to 95be946 and re-commit (local history rewrite, nothing pushed). OK, or leave as is? | — | Leave as is unless the owner wants it; new commits use the correct format. |
 
 ## SQL waiting for review (NOT applied)
