@@ -25,6 +25,14 @@ async function isAttendanceResolutionsReady(): Promise<boolean> {
   return rows[0]?.count === 1;
 }
 
+/** S-6 invoice_refunds gate (migration 20261028140000). */
+async function isInvoiceRefundsReady(): Promise<boolean> {
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'invoice_refunds'",
+  )) as { count: number }[];
+  return rows[0]?.count === 1;
+}
+
 /** S-4 notification_reads gate (migration 20261028120000). */
 async function isNotificationReadsReady(): Promise<boolean> {
   const rows = (await prisma.$queryRawUnsafe(
@@ -316,6 +324,8 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     await prisma.application.deleteMany({ where: { academyId } });
     const invoices = await prisma.invoice.findMany({ where: { academyId }, select: { id: true } });
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: invoices.map((invoice) => invoice.id) } } });
+    // S-6: refunds reference invoices and users (RESTRICT).
+    if (await isInvoiceRefundsReady()) await prisma.invoiceRefund.deleteMany({ where: { academyId } });
     // S-1: append-only resolutions reference subscription_ledger (FK RESTRICT), so
     // they go first, through the same per-academy trigger exception.
     if (await isAttendanceResolutionsReady()) {

@@ -153,6 +153,27 @@ export class PaymobSubscriptionClient {
     return digitId(response.id as string, "plan id");
   }
 
+  /**
+   * S-13 (c) / D19: a full or partial refund of a successful transaction (Paymob Egypt
+   * docs: POST /api/acceptance/void_refund/refund with auth_token, transaction_id,
+   * amount_cents). Returns the refund transaction id and its outcome.
+   */
+  async refundTransaction(transactionId: string, amountMinor: bigint): Promise<{ providerRefundId: string; outcome: "SUCCEEDED" | "PENDING" | "FAILED" }> {
+    const id = Number(digitId(transactionId, "transaction id"));
+    if (amountMinor <= BigInt(0) || amountMinor > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new PaymentProviderError("Refund amount is outside Paymob's supported range.", "UPSTREAM_ERROR", 400);
+    }
+    const token = (await this.bearer()).slice("Bearer ".length);
+    const response = await this.send("/api/acceptance/void_refund/refund", {
+      method: "POST",
+      auth: "",
+      body: { auth_token: token, transaction_id: id, amount_cents: Number(amountMinor) },
+    });
+    const providerRefundId = digitId(response.id as string, "refund id");
+    const outcome = response.pending === true ? "PENDING" : response.success === true ? "SUCCEEDED" : "FAILED";
+    return { providerRefundId, outcome };
+  }
+
   /** Sign-up (D55): one 3DS payment that buys month 1 and saves the card. */
   async createSignupIntention(input: SignupIntentionInput): Promise<{ checkoutUrl: string; providerOrderId: string }> {
     const secretKey = requiredEnv("PAYMOB_SECRET_KEY");

@@ -1993,7 +1993,19 @@
     "linkToday": "تم إرسال رابط هذه الفاتورة اليوم بالفعل.",
     "linkLimit": "تم إرسال هذه الفاتورة 3 مرات بالفعل.",
     "linkNoPayer": "لا يوجد دافع نشط لهذه الفاتورة.",
-    "linkFailed": "لم يُرسل الرابط. حاول مرة أخرى."
+    "linkFailed": "لم يُرسل الرابط. حاول مرة أخرى.",
+    "refund": "استرداد حصص",
+    "refundSessions": "عدد الحصص",
+    "refundReason": "السبب",
+    "refundHint": "اختر عدد الحصص المستردة واكتب السبب (5 أحرف على الأقل).",
+    "refundPreview": "استرداد {amount} مقابل {sessions, plural, one {حصة واحدة} two {حصتين} few {# حصص} many {# حصة} other {# حصة}} إلى نفس البطاقة.",
+    "refundConfirm": "استرداد عبر Paymob",
+    "refundCancel": "إلغاء",
+    "refundDone": "تم الاسترداد وخُصمت الحصص من الباقة.",
+    "refundPending": "تعالج Paymob الاسترداد، ويظهر معلقًا حتى تؤكده.",
+    "refundNoCredit": "لا تتوفر في الباقة حصص غير محجوزة بهذا العدد.",
+    "refundOverPaid": "لا يمكن أن تتجاوز المبالغ المستردة المبلغ المدفوع.",
+    "refundFailed": "لم تقبل Paymob الاسترداد، ولم يتغير شيء."
   },
   "payroll": {
     "teacherTitle": "راتبي",

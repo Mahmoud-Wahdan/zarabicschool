@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import RefundForm from "./refund-form";
+
 type InvoiceRow = {
   id: string;
   studentId: string;
@@ -157,6 +159,8 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
                 </button>
                 <span className="text-xs opacity-70">{t("sendLinkHint")}</span>
               </div>
+            ) : invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
+              <RefundForm invoiceId={invoice.id} amountMinor={invoice.amountMinor} currency={invoice.currency} sessionsPurchased={invoice.sessionsPurchased} />
             ) : null}
           </section>
         );

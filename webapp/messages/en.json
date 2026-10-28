@@ -1993,7 +1993,19 @@
     "linkToday": "A link for this invoice was already sent today.",
     "linkLimit": "This invoice was already sent 3 times.",
     "linkNoPayer": "This invoice has no active payer to send it to.",
-    "linkFailed": "The link was not sent. Try again."
+    "linkFailed": "The link was not sent. Try again.",
+    "refund": "Refund sessions",
+    "refundSessions": "Sessions",
+    "refundReason": "Reason",
+    "refundHint": "Choose how many sessions to refund and give a reason (5 characters or more).",
+    "refundPreview": "Refund {amount} for {sessions, plural, one {# session} other {# sessions}} to the same card.",
+    "refundConfirm": "Refund through Paymob",
+    "refundCancel": "Cancel",
+    "refundDone": "Refund completed. The sessions were removed from the package.",
+    "refundPending": "Paymob is processing the refund. It shows as pending until Paymob confirms.",
+    "refundNoCredit": "The package does not have that many unreserved sessions left.",
+    "refundOverPaid": "Refunds cannot exceed the amount paid.",
+    "refundFailed": "Paymob did not accept the refund. Nothing changed."
   },
   "payroll": {
     "teacherTitle": "My payroll",

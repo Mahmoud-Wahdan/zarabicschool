@@ -165,6 +165,22 @@ describe("Paymob subscription client", () => {
     expect(error.code).toBe("NOT_CONFIGURED");
     expect(calls).toHaveLength(0);
   });
+
+  it("PS-14: a refund posts the documented body (auth_token, transaction_id, amount_cents) and returns the refund transaction", async () => {
+    const { calls, impl } = fakeFetch({ ...TOKEN, "POST /api/acceptance/void_refund/refund": { id: 777, success: true, pending: false, amount_cents: 20000 } });
+    const result = await new PaymobSubscriptionClient(impl).refundTransaction("395954050", BigInt(20000));
+    expect(result).toEqual({ providerRefundId: "777", outcome: "SUCCEEDED" });
+    expect(calls[1].body).toEqual({ auth_token: "bearer-1", transaction_id: 395954050, amount_cents: 20000 });
+    await expect(new PaymobSubscriptionClient(impl).refundTransaction("abc", BigInt(1))).rejects.toBeInstanceOf(PaymentProviderError);
+    await expect(new PaymobSubscriptionClient(impl).refundTransaction("1", BigInt(0))).rejects.toBeInstanceOf(PaymentProviderError);
+  });
+
+  it("PS-15: a pending refund stays PENDING; an unsuccessful answer is FAILED", async () => {
+    const pending = fakeFetch({ ...TOKEN, "POST /api/acceptance/void_refund/refund": { id: 778, success: false, pending: true } });
+    await expect(new PaymobSubscriptionClient(pending.impl).refundTransaction("1", BigInt(100))).resolves.toEqual({ providerRefundId: "778", outcome: "PENDING" });
+    const failed = fakeFetch({ ...TOKEN, "POST /api/acceptance/void_refund/refund": { id: 779, success: false, pending: false } });
+    await expect(new PaymobSubscriptionClient(failed.impl).refundTransaction("1", BigInt(100))).resolves.toEqual({ providerRefundId: "779", outcome: "FAILED" });
+  });
 });
 
 describe("Paymob subscription callback signature", () => {
