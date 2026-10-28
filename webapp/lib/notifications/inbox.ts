@@ -38,6 +38,7 @@ export function jobHref(kind: string, role: InboxRole, sessionId: string | null)
   if (kind === "PAYMENT_ANOMALY") return "/admin/payment-audit";
   if (kind.startsWith("RENEWAL_") && kind.endsWith("_ADMIN")) return "/admin/renewals";
   if (kind.startsWith("RENEWAL_")) return role === "STUDENT" ? "/student/invoices" : "/guardian/invoices";
+  if (kind === "INVOICE_PAYMENT_LINK") return role === "STUDENT" ? "/student/invoices" : "/guardian/invoices";
   if (kind === "TEACHER_PENDING_APPROVAL") return "/admin/teachers";
   if (kind === "SESSION_REQUEST" || kind === "TEACHER_LATE_START_ADMIN") return "/admin/session-requests";
   if (kind === "BALANCE_NEGATIVE") return "/admin/payroll";

@@ -378,6 +378,7 @@ model Academy {
   announcements             Announcement[]             @relation("AnnouncementAcademy")
   complaints                Complaint[]                @relation("ComplaintAcademy")
   attendanceResolutions     AttendanceResolution[]     @relation("AttendanceResolutionAcademy")
+  invoiceRefunds            InvoiceRefund[]            @relation("InvoiceRefundAcademy")
 
   @@map("academies")
 }
@@ -417,6 +418,7 @@ model User {
   teacherProfile                Teacher?                   @relation("TeacherUser")
   approvedTeachers              Teacher[]                  @relation("TeacherApprovedBy")
   notificationReads             NotificationRead[]         @relation("NotificationReadUser")
+  invoiceRefunds                InvoiceRefund[]            @relation("InvoiceRefundCreatedBy")
   createdApplicationRecords     ApplicationRecord[]        @relation("ApplicationCreatedUser")
   overriddenSessionStudents     SessionStudent[]           @relation("SessionStudentOverride")
   sessionJoinClicks             SessionJoinClick[]
@@ -714,6 +716,7 @@ model Invoice {
   ledgerEntries         SubscriptionLedger[]
   paymentProofs         PaymentProof[]
   auditEvents           PaymentAudit[]          @relation("PaymentAuditInvoice")
+  refunds               InvoiceRefund[]         @relation("InvoiceRefundInvoice")
 
   @@index([academyId, status, createdAt])
   @@index([provider, providerReference])
@@ -1371,4 +1374,29 @@ model NotificationRead {
 
   @@id([userId, itemKey])
   @@map("notification_reads")
+}
+
+/// S-6 (D19, D42): an Admin partial refund of a PAID invoice, by sessions. PENDING before the
+/// provider call, SUCCEEDED/FAILED once after it; the credit removal is a subscription_ledger
+/// REFUND row written only on SUCCEEDED. CHECKs + unique idempotency key in raw SQL.
+model InvoiceRefund {
+  id               String    @id @default(uuid()) @db.Uuid
+  academyId        String    @map("academy_id") @db.Uuid
+  invoiceId        String    @map("invoice_id") @db.Uuid
+  sessionsRefunded Int       @map("sessions_refunded")
+  amountMinor      BigInt    @map("amount_minor")
+  currency         String    @db.VarChar(3)
+  reason           String
+  status           String    @default("PENDING") @db.VarChar(16)
+  providerRefundId String?   @map("provider_refund_id") @db.VarChar(64)
+  idempotencyKey   String    @unique @map("idempotency_key") @db.Uuid
+  createdById      String    @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  academy          Academy   @relation("InvoiceRefundAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  invoice          Invoice   @relation("InvoiceRefundInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+  createdBy        User      @relation("InvoiceRefundCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId], map: "invoice_refunds_invoice_idx")
+  @@map("invoice_refunds")
 }

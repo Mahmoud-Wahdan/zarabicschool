@@ -19,7 +19,10 @@ import { prisma } from "../prisma";
  * Admin page, the same self-healing pattern as isAttachmentsReady).
  */
 
-export type PaymentAuditEventType = "CREATED" | "PAID" | "FAILED" | "CANCELLED" | "REJECTED" | "REFUNDED";
+// S-6 (owner OK 2026-10-28) adds LINK_SENT, REFUND_REQUESTED, REFUND_FAILED, VOIDED, PROVIDER_REFUND_SEEN.
+export type PaymentAuditEventType =
+  | "CREATED" | "PAID" | "FAILED" | "CANCELLED" | "REJECTED" | "REFUNDED"
+  | "LINK_SENT" | "REFUND_REQUESTED" | "REFUND_FAILED" | "VOIDED" | "PROVIDER_REFUND_SEEN";
 
 export type PaymentAuditActorRole = "ADMIN" | "STUDENT" | "GUARDIAN" | "WEBHOOK" | "SYSTEM";
 

@@ -12,7 +12,7 @@ import {
   LATE_START_SCAN_WINDOW_MINUTES,
   TEACHER_LATE_REMINDER_MINUTES,
 } from "../config/lateness";
-import { sessionJoinPlatformUrl } from "../config/platform-url";
+import { platformUrl, sessionJoinPlatformUrl } from "../config/platform-url";
 import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
@@ -324,6 +324,15 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     return language === "en"
       ? "Automatic renewal of a monthly package was cancelled by the academy. The payer was informed."
       : "تم إلغاء التجديد التلقائي لباقة شهرية من الأكاديمية، وتم إبلاغ ولي الأمر.";
+  }
+  if (job.kind === "INVOICE_PAYMENT_LINK") {
+    // S-13 (a) / D6: the platform invoices page of the payer (a server-chosen path in
+    // the payload), in the recipient's language — never a Paymob URL, never an amount.
+    const path = (job.payload as { path?: unknown } | null)?.path;
+    const link = path === "/guardian/invoices" || path === "/student/invoices" ? platformUrl(`/${language}${path}`) : null;
+    return language === "en"
+      ? `You have an invoice waiting for payment at the academy.${link ? ` Pay it here: ${link}` : " Open the academy app to pay it."}`
+      : `لديك فاتورة في انتظار الدفع في الأكاديمية.${link ? ` يمكنك الدفع من هنا: ${link}` : " افتح تطبيق الأكاديمية للدفع."}`;
   }
   if (job.kind === "TEACHER_PENDING_APPROVAL") {
     // Admin-only (S-02 / D9): a Supervisor added a teacher; ids only in the payload.

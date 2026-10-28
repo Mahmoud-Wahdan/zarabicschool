@@ -27,6 +27,22 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
   const [busy, setBusy] = useState(false);
   const [create, setCreate] = useState({ studentId: "", packageType: "MONTHLY_PLAN", sessionsPurchased: 8, amountMinor: "", currency: "EGP", provider: "PAYMOB" });
 
+  // S-13 (a) / D6: WhatsApp the payer a link to the platform invoices page.
+  async function sendLink(invoiceId: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/send-link`, { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      const code = payload.error?.code;
+      setMessage(response.ok ? t("linkSent") : code === "LINK_ALREADY_SENT_TODAY" ? t("linkToday") : code === "LINK_LIMIT_REACHED" ? t("linkLimit") : code === "NO_PAYER" ? t("linkNoPayer") : t("linkFailed"));
+    } catch {
+      setMessage(t("linkFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function money(amountMinor: string, currency: string) {
     return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(Number(amountMinor) / 100);
   }
@@ -134,6 +150,14 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
                 {t(`status.${invoice.status}`)}
               </span>
             </div>
+            {invoice.status === "PENDING" ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button type="button" disabled={busy} onClick={() => void sendLink(invoice.id)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--navy)] hover:border-[var(--navy)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+                  {t("sendLink")}
+                </button>
+                <span className="text-xs opacity-70">{t("sendLinkHint")}</span>
+              </div>
+            ) : null}
           </section>
         );
       })}

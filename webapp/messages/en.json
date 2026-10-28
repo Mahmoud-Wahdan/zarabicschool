@@ -1986,7 +1986,14 @@
     "confirmed": "Payment confirmed.",
     "alreadyPaid": "This invoice is already paid.",
     "selectProof": "Proof",
-    "noProof": "No proof"
+    "noProof": "No proof",
+    "sendLink": "Send payment link",
+    "sendLinkHint": "WhatsApp to the payer: a link to their invoices page. Once a day, up to 3 times.",
+    "linkSent": "Payment link queued for the payer.",
+    "linkToday": "A link for this invoice was already sent today.",
+    "linkLimit": "This invoice was already sent 3 times.",
+    "linkNoPayer": "This invoice has no active payer to send it to.",
+    "linkFailed": "The link was not sent. Try again."
   },
   "payroll": {
     "teacherTitle": "My payroll",
@@ -2442,7 +2449,8 @@
       "COMPLAINT_OPEN": "An open complaint",
       "TEACHER_FLAG": "A teacher was flagged",
       "MISSING_REPORT": "An ended session has no report yet",
-      "PAYROLL_ADJUSTMENT": "A payroll entry was added"
+      "PAYROLL_ADJUSTMENT": "A payroll entry was added",
+      "INVOICE_PAYMENT_LINK": "An invoice is waiting for payment"
     }
   }
 }
