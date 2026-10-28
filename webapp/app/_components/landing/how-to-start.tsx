@@ -34,7 +34,7 @@ export default async function HowToStart() {
     },
     {
       n: 4,
-      circle: "bg-tertiary-container text-on-tertiary",
+      circle: "bg-tertiary-container text-on-tertiary-container",
       title: t("s4title"),
       text: t("s4text"),
       foot: t("s4foot"),

@@ -38,6 +38,7 @@
 - **2026-10-28 (G1 A1):** hydration fix in the subjects table + whole-app scan test (`table-whitespace.test.ts`).
 - **2026-10-28 (G1 A2):** payment audit event texts (ar/en) for all 11 types from one list; dynamic-key test over every template t() call.
 - **2026-10-28 (G1 A3):** attendance page titles (student, guardian, teacher) use string keys; key test demands string leaves.
+- **2026-10-28 (G1 A4):** contrast: element CSS moved into `@layer base` (utilities like text-on-primary now win on links); outline/emerald/success/danger tokens darkened to AA; contrast test over all token pairs and class lists.
 - **Owner actions pending:** (S-1, S-1b, S-1c all applied — no migration waiting); OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 

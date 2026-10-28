@@ -223,7 +223,7 @@ export default function ReportsQueuePanel({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder={t("searchPlaceholder")}
-                  className="w-full bg-transparent text-body-sm text-on-surface outline-none placeholder:text-on-surface-variant"
+                  className="w-full bg-transparent text-body-sm text-on-surface placeholder:text-on-surface-variant"
                   aria-label={t("searchPlaceholder")}
                 />
               </div>

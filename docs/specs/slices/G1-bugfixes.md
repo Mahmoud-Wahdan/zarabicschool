@@ -16,3 +16,11 @@
 - Cause: `generateMetadata` of the student, guardian AND teacher attendance pages called `t("student")` / `t("guardian")` / `t("teacher")`; those are objects (title, subtitle, ...), not strings.
 - Fix: `t("<role>.title")` on all three pages.
 - Guard: `message-keys.test.ts` I18N-03 now requires every literal key to reach a STRING in both locales (only `t.raw()` may reach a list or object); dynamic keys are held to the same rule by DYN-03 (A2). The whole app was scanned: these three were the only hits.
+
+## A4 — Unreadable text on the dark navy fill (contrast)
+- Root cause (not a token value): `a { color: inherit }` and the other element rules in `app/globals.css` were outside any cascade layer. Tailwind v4 puts utilities in `@layer utilities`; an unlayered rule beats every layered one, so on every link styled as a tab/chip/button (`<Link className="bg-primary text-on-primary">`, e.g. the selected Monthly / Quarterly / Half-year tab) the white text lost to the inherited dark body colour. Same for heading fonts set by utilities.
+- Fix (base level, no restyling): body, headings, `*`, `a`, form controls and the global `:focus-visible` outline moved into `@layer base`.
+- Token audit (WCAG AA 4.5:1 for text), changed at the token only: `--outline` #74777f → #64676f (placeholder/caption text on light surfaces was 3.66–4.48), `--emerald` #00897b → #00796b (text on white and white on emerald was 4.32), `--success` #059669 → #047857 (badge text 3.58), `--danger` #dc2626 → #b91c1c (4.41). One class-list fix: the landing step-4 circle used `text-on-tertiary` (white) on `bg-tertiary-container` (gold), 2.31 → its own pair `text-on-tertiary-container`.
+- Side effect handled: with `:focus-visible` layered, `outline-none` really removes the outline; the reports-queue search input had only `outline-none`, so it was removed there (the input keeps the global focus outline it had before).
+- Guard: `__tests__/lib/contrast-tokens.test.ts` — CT-01 no unlayered element rule; CT-02 34 designed text/background token pairs ≥ 4.5:1; CT-03 every class list in app/ that sets a token background and text colour (including hover/aria/placeholder variants) ≥ 4.5:1; CT-04 no `outline-none` without its own focus style.
+- Impeccable detector: clean on globals.css, revenue-chart, how-to-start, reports-queue-panel. Not changed: layouts, sizes, the Stitch look (S-14).

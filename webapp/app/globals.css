@@ -10,7 +10,7 @@
   --background: #f8f9ff;
   --foreground: #121c2a;
   --navy: #1b365d;
-  --emerald: #00897b;
+  --emerald: #00796b;
   --gold: #d4af37;
   --line: #dfe5e2;
   --surface: #ffffff;
@@ -69,16 +69,16 @@
   --on-surface-variant: #44474e;
   --inverse-surface: #27313f;
   --inverse-on-surface: #eaf1ff;
-  --outline: #74777f;
+  --outline: #64676f;
   --outline-variant: #c4c6cf;
   --surface-tint: #465f88;
 
   /* Semantic signals (DESIGN.md) */
-  --success: #059669;
+  --success: #047857;
   --success-surface: #ecfdf5;
   --warning: #b45309;
   --warning-surface: #fffbeb;
-  --danger: #dc2626;
+  --danger: #b91c1c;
   --danger-surface: #fef2f2;
   --system-info: #2563eb;
   --system-info-surface: #eff6ff;
@@ -203,36 +203,40 @@ html[lang="en"] {
   --display-font: var(--font-montserrat);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-tajawal), sans-serif;
-}
+/* Element defaults live in the base layer: an unlayered rule here would beat every
+   Tailwind utility (A4: `a { color: inherit }` hid text-on-primary on navy links). */
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-tajawal), sans-serif;
+  }
 
-html[lang="en"] body {
-  font-family: var(--font-inter), var(--font-montserrat), sans-serif;
-}
+  html[lang="en"] body {
+    font-family: var(--font-inter), var(--font-montserrat), sans-serif;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-cairo), var(--font-tajawal), sans-serif;
-}
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cairo), var(--font-tajawal), sans-serif;
+  }
 
-html[lang="en"] h1,
-html[lang="en"] h2,
-html[lang="en"] h3,
-html[lang="en"] h4,
-html[lang="en"] h5,
-html[lang="en"] h6 {
-  font-family: var(--font-montserrat), var(--font-cairo), sans-serif;
-}
+  html[lang="en"] h1,
+  html[lang="en"] h2,
+  html[lang="en"] h3,
+  html[lang="en"] h4,
+  html[lang="en"] h5,
+  html[lang="en"] h6 {
+    font-family: var(--font-montserrat), var(--font-cairo), sans-serif;
+  }
 
-* { box-sizing: border-box; }
-a { color: inherit; text-decoration: none; }
-button, input, select, textarea { font: inherit; }
+  * { box-sizing: border-box; }
+  a { color: inherit; text-decoration: none; }
+  button, input, select, textarea { font: inherit; }
 
-:focus-visible {
-  outline: 3px solid var(--emerald);
-  outline-offset: 2px;
+  :focus-visible {
+    outline: 3px solid var(--emerald);
+    outline-offset: 2px;
+  }
 }
 
 /* Material Symbols (loaded via stylesheet; ligature-based icon font) */
