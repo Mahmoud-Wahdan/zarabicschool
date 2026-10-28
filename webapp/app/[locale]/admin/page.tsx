@@ -39,13 +39,11 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const viewerZone = user.timezone || "Africa/Cairo";
   // S-11 / D8: home cards + EGP revenue (Admin only).
   const revenuePeriod = parsePeriod((await searchParams).revenue);
-  const [homeCounts, revenue] = await Promise.all([
-    getHomeCounts(user.academyId, now, viewerZone),
-    getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
-  ]);
-
-  const [applications, students, guardians, teachers, subjects, pendingReports, flagCounts, today] =
+  // L2c: ONE round of independent reads (the cards and revenue no longer wait first).
+  const [homeCounts, revenue, applications, students, guardians, teachers, subjects, pendingReports, flagCounts, today] =
     await Promise.all([
+      getHomeCounts(user.academyId, now, viewerZone),
+      getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
       prisma.application.count({ where: { academyId: user.academyId, status: { in: ["NEW", "REVIEWED"] } } }),
       prisma.student.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
       prisma.guardian.count({ where: { academyId: user.academyId, user: { isActive: true } } }),

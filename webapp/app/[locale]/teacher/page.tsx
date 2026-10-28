@@ -28,7 +28,6 @@ export default async function TeacherDashboard() {
     getTranslations("appShell"),
   ]);
   const now = new Date();
-  const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
 
   // "Today" = the teacher's local calendar day (DST-safe, same wall-clock helper as
   // the sessions page — Phase 3/4 convention).
@@ -37,42 +36,52 @@ export default async function TeacherDashboard() {
   const dayStart = wallClockInputToUtc(`${ymd}T00:00`, user.timezone);
   const dayEnd = wallClockInputToUtc(`${nextYmd}T00:00`, user.timezone);
 
-  const teacher = await prisma.teacher.findUnique({
-    where: { userId: user.id },
-    select: {
-      id: true,
-      subjects: { select: { subject: { select: { nameAr: true, nameEn: true } } } },
-      sessions: {
-        where: { scheduledStart: { gte: dayStart, lt: dayEnd } },
-        orderBy: { scheduledStart: "asc" },
-        select: {
-          id: true,
-          scheduledStart: true,
-          scheduledEnd: true,
-          sessionType: true,
-          status: true,
-          subject: { select: { nameAr: true, nameEn: true } },
-          students: { select: { studentId: true, student: { select: { user: { select: { displayName: true } } } } } },
+  // L2c: independent reads start together (remote DB: each sequential wait is a round trip).
+  const [joinWindowMinutes, teacher, currentLocale] = await Promise.all([
+    getJoinWindowMinutes(user.academyId),
+    prisma.teacher.findUnique({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        subjects: { select: { subject: { select: { nameAr: true, nameEn: true } } } },
+        sessions: {
+          where: { scheduledStart: { gte: dayStart, lt: dayEnd } },
+          orderBy: { scheduledStart: "asc" },
+          select: {
+            id: true,
+            scheduledStart: true,
+            scheduledEnd: true,
+            sessionType: true,
+            status: true,
+            subject: { select: { nameAr: true, nameEn: true } },
+            students: { select: { studentId: true, student: { select: { user: { select: { displayName: true } } } } } },
+          },
         },
       },
-    },
-  });
-  const currentLocale = await getLocale();
-  const reportStatuses = await getTeacherRosterReportStatuses(
-    user.id,
-    user.academyId,
-    teacher?.sessions.map((session) => session.id) ?? [],
-  );
+    }),
+    getLocale(),
+  ]);
   // In-app monthly-report reminder (owner decision 7, 2026-10-26): missing reports for
   // the PREVIOUS month in the teacher's calendar — the same month and eligibility rule
   // as the WhatsApp reminders and the Admin flag. Shown all month until submitted.
   const lastMonthKey = previousMonthKey(currentMonthKey(user.timezone || "Africa/Cairo", now));
+  // Both only need the teacher: together.
+  const [reportStatuses, monthly] = await Promise.all([
+    getTeacherRosterReportStatuses(
+      user.id,
+      user.academyId,
+      teacher?.sessions.map((session) => session.id) ?? [],
+    ),
+    teacher
+      ? Promise.all([
+          eligibleMonthlyStudents(teacher.id, lastMonthKey),
+          prisma.monthlyReport.findMany({ where: { teacherId: teacher.id, monthKey: lastMonthKey }, select: { studentId: true } }),
+        ])
+      : null,
+  ]);
   let monthlyMissing = 0;
-  if (teacher) {
-    const [eligible, submitted] = await Promise.all([
-      eligibleMonthlyStudents(teacher.id, lastMonthKey),
-      prisma.monthlyReport.findMany({ where: { teacherId: teacher.id, monthKey: lastMonthKey }, select: { studentId: true } }),
-    ]);
+  if (monthly) {
+    const [eligible, submitted] = monthly;
     const submittedIds = new Set(submitted.map((row) => row.studentId));
     monthlyMissing = eligible.filter((student) => !submittedIds.has(student.studentId)).length;
   }
