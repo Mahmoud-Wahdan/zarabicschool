@@ -137,6 +137,9 @@ describe("S-06 notification inbox", () => {
     as(fx.supervisorUserId);
     const unread = (await inbox()).filter((item) => !item.read).length;
     expect(unread).toBeGreaterThan(0);
-    expect((await (await badgeRoute()).json()).data.inbox).toBe(unread);
+    // A5: the route answers ONE number for the caller only: no names, titles or queue details.
+    expect((await (await badgeRoute()).json()).data).toEqual({ count: unread });
+    getServerSessionMock.mockResolvedValue(null);
+    expect((await badgeRoute()).status).toBe(401);
   });
 });

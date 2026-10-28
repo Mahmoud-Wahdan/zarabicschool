@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { Link, usePathname } from "../../i18n/navigation";
 import DeviceTimeZoneSync from "./device-timezone-sync";
+import { useBadge } from "./notifications/badge-provider";
 import LocaleSwitcher from "./locale-switcher";
 import SignOutButton from "./sign-out-button";
 
@@ -16,52 +17,21 @@ type NavItem = {
   badgeTone?: "secondary" | "tertiary";
 };
 
-type BadgeCounts = {
-  applications: number;
-  reports: number;
-  requests: number;
-  notifications: number;
-  inbox: number;
-};
-
 /**
  * Notification bell (Session 3, slice C — owner decision 2026-10-24): rendered in
- * the shared shell header on EVERY page of every role. Counts come from
- * GET /api/notifications/badge — computed server-side, scoped to the logged-in
- * viewer (operators get the team-queue depths; teacher/student/guardian get their
- * own unacked notification_jobs; evaluation-related kinds are structurally
- * excluded from every count server-side, so a teacher can never receive one).
- * Clicking the bell opens the inbox (S-06), where items are marked read per user.
+ * the shared shell header on EVERY page of every role. A5 (2026-10-28): the count is
+ * the viewer's unread inbox items from the shared BadgeProvider in the root layout
+ * (computed server-side, scoped to the viewer); the bell itself never fetches, so a
+ * navigation makes no badge request. Clicking it opens the inbox (S-06), where items
+ * are marked read per user.
  */
 function NotificationBell({ inboxHref }: { inboxHref: string }) {
   const t = useTranslations("appShell");
-  const [counts, setCounts] = useState<BadgeCounts | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/notifications/badge")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (!cancelled && payload?.data) setCounts(payload.data as BadgeCounts);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // S-06: the bell counts the viewer's unread inbox items and opens the inbox, where
-  // items are marked read (per user) — it no longer acks on click.
-  const total = counts?.inbox ?? 0;
-
-  function onBellClick() {
-    window.location.href = inboxHref;
-  }
+  const { count: total } = useBadge();
 
   return (
-    <button
-      type="button"
-      onClick={() => void onBellClick()}
+    <Link
+      href={inboxHref}
       aria-label={t("notificationBell", { count: total })}
       className="relative rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
     >
@@ -73,7 +43,7 @@ function NotificationBell({ inboxHref }: { inboxHref: string }) {
           {total > 99 ? "99+" : total}
         </span>
       ) : null}
-    </button>
+    </Link>
   );
 }
 

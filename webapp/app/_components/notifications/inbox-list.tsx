@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { useBadge } from "./badge-provider";
+
 import { Link } from "../../../i18n/navigation";
 
 /**
@@ -35,6 +37,8 @@ export default function InboxList({ items: initial, timeZone }: { items: InboxLi
   const locale = useLocale();
   const [items, setItems] = useState(initial);
   const [busy, setBusy] = useState(false);
+  // A5: the bell reads the same shared count; marking read updates it locally (no request).
+  const badge = useBadge();
   const format = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" });
   const title = (kind: string) => (t.has(`kind.${kind}`) ? t(`kind.${kind}`) : t("kind.OTHER"));
   const unread = items.filter((item) => !item.read);
@@ -44,11 +48,13 @@ export default function InboxList({ items: initial, timeZone }: { items: InboxLi
     setBusy(true);
     await markRead({ all: true });
     setItems((current) => current.map((item) => ({ ...item, read: true })));
+    badge.markAllRead();
     setBusy(false);
   }
 
   function open(key: string) {
     void markRead({ keys: [key] });
+    if (items.some((item) => item.key === key && !item.read)) badge.markRead(1);
     setItems((current) => current.map((item) => (item.key === key ? { ...item, read: true } : item)));
   }
 
