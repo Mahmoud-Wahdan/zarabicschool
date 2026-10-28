@@ -12,6 +12,7 @@ import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 
 import { disconnectPrisma, prisma } from "../../lib/prisma";
+import { cleanupSessionFixtures } from "../helpers/session-fixtures";
 import { approveApplication, ProvisioningError } from "../../lib/provisioning";
 import { POST as approveRoute } from "../../app/api/applications/[id]/approve/route";
 import { POST as rejectRoute } from "../../app/api/applications/[id]/reject/route";
@@ -19,7 +20,6 @@ import { POST as reviewRoute } from "../../app/api/applications/[id]/review/rout
 
 const getServerSessionMock = getServerSession as jest.Mock;
 
-const academyName = "Zarabicschool";
 const testPhone = "+201099990000";
 
 let academyId = "";
@@ -126,61 +126,20 @@ async function quiet(operation: () => Promise<unknown>): Promise<void> {
 }
 
 beforeAll(async () => {
-  const academy = await prisma.academy.upsert({
-    where: { name: academyName },
-    update: {},
-    create: { name: academyName },
-  });
-  academyId = academy.id;
-
-  const staleUsers = await prisma.user.findMany({
-    where: {
-      academyId,
-      OR: [
-        { username: { startsWith: "demo-test-" } },
-        { username: { startsWith: "demo_test_" } },
-      ],
-    },
-    select: { id: true },
-  });
-  const staleUserIds = staleUsers.map((user) => user.id);
-  const staleApplications = await prisma.application.findMany({
-    where: { academyId, contactPhone: testPhone },
-    select: { id: true },
-  });
-  const staleApplicationIds = staleApplications.map((application) => application.id);
-  const staleRecords = staleApplicationIds.length > 0
-    ? await prisma.applicationRecord.findMany({
-      where: { applicationId: { in: staleApplicationIds } },
-      select: { userId: true },
-    })
-    : [];
-  const allStaleUserIds = [...new Set([
-    ...staleUserIds,
-    ...staleRecords.map((record) => record.userId),
-  ])];
-  if (staleApplicationIds.length > 0) {
-    await prisma.applicationRecord.deleteMany({ where: { applicationId: { in: staleApplicationIds } } });
-    await prisma.application.deleteMany({ where: { id: { in: staleApplicationIds } } });
-  }
-    if (allStaleUserIds.length > 0) {
-      await prisma.sessionJoinClick.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-      await prisma.notificationJob.deleteMany({ where: { recipientUserId: { in: allStaleUserIds } } });
-      await prisma.sessionReservation.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-      await prisma.sessionStudent.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-      await prisma.studentTeacherAssignment.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-      await prisma.studentSubject.deleteMany({ where: { student: { user: { id: { in: allStaleUserIds } } } } });
-      await prisma.student.updateMany({
-        where: { guardian: { user: { id: { in: allStaleUserIds } } } },
-        data: { guardianId: null },
-      });
-      await prisma.student.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-      await prisma.guardian.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-      await prisma.teacherSubject.deleteMany({ where: { teacher: { user: { id: { in: allStaleUserIds } } } } });
-      await prisma.teacher.deleteMany({ where: { user: { id: { in: allStaleUserIds } } } });
-      await prisma.user.deleteMany({ where: { id: { in: allStaleUserIds } } });
-    }
+  // A per-run test academy (owner rule: tests never touch the seed academy). It
+  // used to be the seed academy "Zarabicschool"; an interrupted run left a test
+  // account there on 2026-10-28.
   const runId = randomUUID().slice(0, 8);
+  const academy = await prisma.academy.create({ data: { name: `Zarabicschool Test ${runId}` } });
+  academyId = academy.id;
+  // The two subjects the applications refer to, in this academy only.
+  await prisma.subject.createMany({
+    data: [
+      { academyId, slug: "demo-quran", nameAr: "القرآن", nameEn: "Quran" },
+      { academyId, slug: "demo-arabic", nameAr: "العربية", nameEn: "Arabic" },
+      { academyId, slug: "demo-english", nameAr: "الإنجليزية", nameEn: "English" },
+    ],
+  });
 
   const passwordHash = await bcrypt.hash(randomUUID(), 12);
   const admin = await prisma.user.create({
@@ -286,10 +245,12 @@ afterAll(async () => {
         : Promise.resolve()
     );
     await quiet(() => prisma.user.deleteMany({ where: { id: { in: allTestUserIds } } }));
+    // Refuses anything that is not a per-run test academy.
+    if (academyId) await cleanupSessionFixtures({ academyId, foreignAcademyId: academyId } as never);
   } finally {
     await disconnectPrisma();
   }
-});
+}, 120_000);
 
 beforeEach(() => {
   getServerSessionMock.mockReset();
