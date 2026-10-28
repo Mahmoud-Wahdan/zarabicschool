@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { billingSubscriptionScope } from "../../../../lib/billing/renewal-access";
 import { startRenewalSignup } from "../../../../lib/billing/renewal-signup";
+import { isAutoRenewalEnabled } from "../../../../lib/config/features";
 import { requireApiRoles } from "../../../../lib/dal";
 import { requireStudentFinanceAccess } from "../../../../lib/guards/student-finance";
 import { prisma } from "../../../../lib/prisma";
@@ -80,6 +81,9 @@ export async function POST(request: Request) {
       return errorResponse(403, "FORBIDDEN", "Students with a guardian cannot access financial operations.");
     }
   }
+  // A6: sign-up is hidden until automatic renewal is verified with Paymob (flag OFF by
+  // default). Checked after origin, session and role, so those answers never change.
+  if (!isAutoRenewalEnabled()) return errorResponse(404, "FEATURE_DISABLED", "Automatic renewal is not available yet.");
   let body: unknown;
   try {
     body = await request.json();

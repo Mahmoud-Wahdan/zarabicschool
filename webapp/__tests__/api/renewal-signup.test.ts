@@ -36,7 +36,7 @@ jest.setTimeout(300_000);
 
 const getServerSessionMock = getServerSession as jest.Mock;
 const PRICE = BigInt(120000);
-const KEY_NAMES = ["PAYMOB_SECRET_KEY", "PAYMOB_PUBLIC_KEY", "PAYMOB_INTEGRATION_ID_EGP", "APP_PUBLIC_URL"] as const;
+const KEY_NAMES = ["PAYMOB_SECRET_KEY", "PAYMOB_PUBLIC_KEY", "PAYMOB_INTEGRATION_ID_EGP", "APP_PUBLIC_URL", "FEATURE_AUTO_RENEWAL"] as const;
 const savedEnv: Record<string, string | undefined> = {};
 let fx: SessionFixtures;
 let monthlyPlanId: string;
@@ -85,6 +85,11 @@ beforeAll(async () => {
   });
 });
 
+// A6: automatic renewal is behind a flag that is OFF by default; this suite tests the feature itself.
+beforeEach(() => {
+  process.env.FEATURE_AUTO_RENEWAL = "true";
+});
+
 afterEach(() => {
   for (const name of KEY_NAMES) {
     if (savedEnv[name] === undefined) delete process.env[name];
@@ -100,6 +105,15 @@ afterAll(async () => {
 });
 
 describe("automatic renewal sign-up", () => {
+  it("SU-00 (A6): with the flag off (the default) sign-up answers 404 FEATURE_DISABLED and creates nothing", async () => {
+    delete process.env.FEATURE_AUTO_RENEWAL;
+    as(fx.guardianUserId);
+    const response = await signup({ studentId: fx.studentProfileIds.student1, planId: monthlyPlanId, consent: true });
+    expect(response.status).toBe(404);
+    expect((await response.json()).error.code).toBe("FEATURE_DISABLED");
+    expect(await prisma.billingSubscription.count({ where: { academyId: fx.academyId } })).toBe(0);
+  });
+
   it("SU-01: without PAYMOB_SECRET_KEY / PAYMOB_PUBLIC_KEY sign-up answers 503 NOT_CONFIGURED and creates nothing", async () => {
     delete process.env.PAYMOB_SECRET_KEY;
     delete process.env.PAYMOB_PUBLIC_KEY;

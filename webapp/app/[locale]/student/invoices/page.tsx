@@ -5,6 +5,7 @@ import AutoRenewPanel from "../../../_components/billing/auto-renew-panel";
 import { loadRenewalPlans, loadRenewalRows } from "../../../../lib/billing/renewal-view";
 import InvoicePaymentPanel from "../../../_components/invoices/invoice-payment-panel";
 import StatusBadge, { type BadgeTone } from "../../../_components/ui/status-badge";
+import { isAutoRenewalEnabled } from "../../../../lib/config/features";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatMoney } from "../../../../lib/payments/format";
@@ -54,7 +55,9 @@ export default async function StudentInvoicesPage() {
       paidAt: true,
     },
   });
-  const [renewals, renewalPlans] = await Promise.all([loadRenewalRows(user, locale), loadRenewalPlans(user.academyId, locale)]);
+  // A6: automatic renewal stays hidden (and unloaded) until it is verified with Paymob.
+  const autoRenewal = isAutoRenewalEnabled();
+  const [renewals, renewalPlans] = autoRenewal ? await Promise.all([loadRenewalRows(user, locale), loadRenewalPlans(user.academyId, locale)]) : [[], []];
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
   const providerLabel = (provider: string) => (provider === "PAYMOB" ? t("providerPaymob") : t("providerUsd"));
@@ -63,9 +66,11 @@ export default async function StudentInvoicesPage() {
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
 
-      <div className="mt-6">
-        <AutoRenewPanel students={[{ id: student.id, name: user.displayName }]} plans={renewalPlans} subscriptions={renewals} timeZone={user.timezone} now={new Date().toISOString()} />
-      </div>
+      {autoRenewal ? (
+        <div className="mt-6">
+          <AutoRenewPanel students={[{ id: student.id, name: user.displayName }]} plans={renewalPlans} subscriptions={renewals} timeZone={user.timezone} now={new Date().toISOString()} />
+        </div>
+      ) : null}
       <section className="mt-6 space-y-4">
         {invoices.length === 0 ? (
           <div className="rounded-xl border border-[var(--line)] bg-white p-6 text-sm opacity-70">
