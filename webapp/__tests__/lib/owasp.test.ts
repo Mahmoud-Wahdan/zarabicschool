@@ -31,9 +31,9 @@ const getServerSessionMock = getServerSession as jest.Mock;
 const API_ROOT = path.join(process.cwd(), "app", "api");
 const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"] as const;
 const METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
-// Public by design: NextAuth, the two signed webhooks, the public application form
+// Public by design: NextAuth, the three signed webhooks (Paymob transaction + subscription, OpenWA status), the public application form
 // and its subject list (scoped to one academy since 2026-10-26).
-const PUBLIC = new Set(["auth/[...nextauth]/route.ts", "payments/paymob/webhook/route.ts", "whatsapp/status/route.ts", "applications/route.ts POST", "subjects/route.ts GET"]);
+const PUBLIC = new Set(["auth/[...nextauth]/route.ts", "payments/paymob/webhook/route.ts", "payments/paymob/subscription-webhook/route.ts", "whatsapp/status/route.ts", "applications/route.ts POST", "subjects/route.ts GET"]);
 const ANY_ID = "00000000-0000-4000-8000-000000000000";
 let fx: SessionFixtures;
 
@@ -134,7 +134,7 @@ describe("A01 Broken Access Control", () => {
   });
 
   it("OW-A01-3: money routes are ADMIN-only (Supervisor never moves or sees money)", () => {
-    const money = handlers.filter((h) => /^(payroll|invoices|admin\/billing|admin\/teacher-rates|payments)/.test(h.relative) || /overtime|confirm/.test(h.relative));
+    const money = handlers.filter((h) => /^(payroll|invoices|billing|admin\/billing|admin\/teacher-rates|payments)/.test(h.relative) || /overtime|confirm/.test(h.relative));
     const leaking = money.filter((h) => h.roles?.includes("SUPERVISOR"));
     expect(leaking.map((h) => `${h.method} ${h.relative}`)).toEqual([]);
   });
@@ -163,8 +163,8 @@ describe("A04 Cryptographic Failures", () => {
     expect(costs.filter((c) => c.cost < 12)).toEqual([]);
   });
 
-  it("OW-A04-2: both webhook signatures are compared in constant time", () => {
-    for (const file of ["lib/payments/paymob.ts", "app/api/whatsapp/status/route.ts"]) {
+  it("OW-A04-2: every webhook signature is compared in constant time", () => {
+    for (const file of ["lib/payments/paymob.ts", "lib/payments/paymob-subscriptions.ts", "app/api/whatsapp/status/route.ts"]) {
       expect(readFileSync(path.join(process.cwd(), file), "utf8")).toMatch(/timingSafeEqual\(/);
     }
   });

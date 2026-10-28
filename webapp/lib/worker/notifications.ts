@@ -16,6 +16,7 @@ import { sessionJoinPlatformUrl } from "../config/platform-url";
 import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
+import { processRenewals } from "../billing/renewal";
 import { getMessagingProvider } from "../messaging/provider";
 import { isWhatsAppDeliveryReady } from "../messaging/readiness";
 import { prisma } from "../prisma";
@@ -281,6 +282,42 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     return language === "en"
       ? "A payment event needs your review (no money was moved automatically). Check the payments audit page."
       : "حدث دفع يحتاج إلى مراجعتك (لم تُنفَّذ أي حركة مالية تلقائيًا). راجع صفحة سجل المدفوعات.";
+  }
+  // Automatic renewal (D51/D52/D58): no amounts, no card data; every payer notice
+  // after a charge offers the cancel option. Final wording waits for the owner (D57).
+  const cancelOption =
+    language === "en"
+      ? "You can cancel automatic renewal at any time from the Payments page in the academy app."
+      : "يمكنك إلغاء التجديد التلقائي في أي وقت من صفحة المدفوعات في تطبيق الأكاديمية.";
+  if (job.kind === "RENEWAL_PAID") {
+    return language === "en"
+      ? `Your monthly package was renewed automatically and the new month's sessions were added. ${cancelOption}`
+      : `تم تجديد الباقة الشهرية تلقائيًا وأُضيفت حصص الشهر الجديد. ${cancelOption}`;
+  }
+  if (job.kind === "RENEWAL_FAILED") {
+    return language === "en"
+      ? `The automatic renewal charge of your monthly package did not go through. Please check your card. ${cancelOption}`
+      : `لم تنجح عملية الدفع للتجديد التلقائي للباقة الشهرية. يرجى مراجعة البطاقة. ${cancelOption}`;
+  }
+  if (job.kind === "RENEWAL_PAST_DUE") {
+    return language === "en"
+      ? `Your monthly package ended without a successful renewal payment. You have three days before new sessions can no longer be booked. ${cancelOption}`
+      : `انتهت الباقة الشهرية دون نجاح دفع التجديد. أمامك ثلاثة أيام قبل إيقاف حجز حصص جديدة. ${cancelOption}`;
+  }
+  if (job.kind === "RENEWAL_PAST_DUE_ADMIN") {
+    return language === "en"
+      ? "A monthly package ended without a successful automatic renewal payment; its 3-day grace has started. Review it on the subscriptions page."
+      : "انتهت باقة شهرية دون نجاح دفع التجديد التلقائي وبدأت مهلة الأيام الثلاثة. راجِعها من صفحة الاشتراكات.";
+  }
+  if (job.kind === "RENEWAL_CANCELLED") {
+    return language === "en"
+      ? "Automatic renewal was cancelled. No further charges will be made; the sessions already paid for stay usable until the current period ends."
+      : "تم إلغاء التجديد التلقائي. لن تُخصم أي مبالغ أخرى، وتبقى الحصص المدفوعة متاحة حتى نهاية الفترة الحالية.";
+  }
+  if (job.kind === "RENEWAL_CANCELLED_ADMIN") {
+    return language === "en"
+      ? "Automatic renewal of a monthly package was cancelled by the academy. The payer was informed."
+      : "تم إلغاء التجديد التلقائي لباقة شهرية من الأكاديمية، وتم إبلاغ ولي الأمر.";
   }
   if (job.kind === "OVERTIME_DECISION") {
     // Teacher notice after the Admin reviews an overtime claim — no amounts.
@@ -937,6 +974,8 @@ export async function runWorkerTick(now = new Date(), academyId?: string) {
     ["late start processing", () => processLateStartAlerts(now, academyId)],
     ["monthly report reminder processing", () => processMonthlyReportReminders(now, academyId)],
     ["daily teacher schedule planning", () => planDailySchedules(now, academyId)],
+    // Automatic renewal (D56/D58): re-fetch due renewals, then grace and period-end cancel.
+    ["automatic renewal", () => processRenewals(now, { academyId })],
     ["monthly credit expiry", () => processMonthlyCreditExpiry(now, academyId)],
     ["series extension", () => extendDueSeries(now, academyId)],
     ["notification job processing", () => processDueNotificationJobs(now, academyId)],

@@ -303,8 +303,6 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     await deleteAppendOnly("announcements", "announcements_append_only", academyId);
     await deleteAppendOnly("payment_audit", "payment_audit_append_only", academyId);
     await prisma.paymentProof.deleteMany({ where: { academyId } });
-    await prisma.billingSubscription.deleteMany({ where: { academyId } });
-    await prisma.billingPlan.deleteMany({ where: { academyId } });
     await prisma.exchangeRate.deleteMany({ where: { academyId } });
     await prisma.applicationRecord.deleteMany({ where: { academyId } });
     await prisma.application.deleteMany({ where: { academyId } });
@@ -317,6 +315,9 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     }
     await deleteAppendOnly("subscription_ledger", "subscription_ledger_append_only", academyId);
     await prisma.invoice.deleteMany({ where: { academyId } });
+    // S-7: renewal invoices reference billing_subscriptions (RESTRICT), so these go after them.
+    await prisma.billingSubscription.deleteMany({ where: { academyId } });
+    await prisma.billingPlan.deleteMany({ where: { academyId } });
     if (linkAuditReady) {
       await prisma.sessionLinkAudit.deleteMany({ where: { academyId } });
     }
