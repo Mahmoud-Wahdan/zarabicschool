@@ -289,6 +289,12 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     language === "en"
       ? "You can cancel automatic renewal at any time from the Payments page in the academy app."
       : "يمكنك إلغاء التجديد التلقائي في أي وقت من صفحة المدفوعات في تطبيق الأكاديمية.";
+  if (job.kind === "RENEWAL_SIGNUP") {
+    // D57 receipt at sign-up: terms, frequency and how to cancel (owner wording pending).
+    return language === "en"
+      ? `Automatic monthly renewal is on. The first payment covers this month; the same amount is charged on the same day each month (or the month's last day if that day does not exist). No refund is made for a month already paid. ${cancelOption}`
+      : `تم تفعيل التجديد الشهري التلقائي. الدفعة الأولى تغطي هذا الشهر، ويُخصم نفس المبلغ في نفس اليوم من كل شهر (أو آخر يوم في الشهر إن لم يوجد ذلك اليوم). لا يُسترد مبلغ شهر مدفوع. ${cancelOption}`;
+  }
   if (job.kind === "RENEWAL_PAID") {
     return language === "en"
       ? `Your monthly package was renewed automatically and the new month's sessions were added. ${cancelOption}`

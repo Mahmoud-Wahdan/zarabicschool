@@ -7,7 +7,7 @@ import { PaymobSubscriptionClient, type PaymobRecord } from "../payments/paymob-
 import { PaymentProviderError } from "../payments/types";
 import { prisma } from "../prisma";
 import { wallClockInputToUtc } from "../schedules/recurrence";
-import { nextPeriodAfter, type RenewalPeriod } from "./renewal-dates";
+import { firstPeriod, nextPeriodAfter, type RenewalPeriod } from "./renewal-dates";
 
 /**
  * Automatic monthly renewal (D44, D51-D58; docs/specs/slices/S-RENEW-automatic-renewal.md).
@@ -21,7 +21,8 @@ import { nextPeriodAfter, type RenewalPeriod } from "./renewal-dates";
  * sets Paymob's next_billing to the next same-day date (D56). Anything unclear is an
  * Admin flag and moves no money. Ids and reason codes only in jobs and logs.
  */
-export type RenewalClient = Pick<PaymobSubscriptionClient, "listTransactions" | "updateNextBilling" | "cancel">;
+export type RenewalClient = Pick<PaymobSubscriptionClient, "listTransactions" | "updateNextBilling" | "cancel"> &
+  Partial<Pick<PaymobSubscriptionClient, "findByTransaction">>;
 
 export type RenewalDeps = { client?: RenewalClient; now?: Date };
 
@@ -238,6 +239,7 @@ const lastSweepAt = new Map<string, number>();
  */
 export async function processRenewals(now = new Date(), options: { client?: RenewalClient; academyId?: string; sweepIntervalMs?: number } = {}) {
   const interval = options.sweepIntervalMs ?? DEFAULT_SWEEP_INTERVAL_MS;
+  await processIncompleteSignups(now, { client: options.client, academyId: options.academyId, sweepIntervalMs: interval });
   const due = await prisma.billingSubscription.findMany({
     where: {
       status: { in: ["ACTIVE", "PAST_DUE"] },
@@ -329,4 +331,105 @@ export async function handleSubscriptionCallback(event: { triggerType: string; p
     return { status: "flagged" as const };
   }
   return { status: "ignored" as const };
+}
+
+export type ActivationClient = Pick<PaymobSubscriptionClient, "findByTransaction" | "updateNextBilling">;
+
+type ActivationResult = { status: "activated" | "already_active" | "not_signup" | "not_paid" | "not_linked" };
+
+/**
+ * After the signed transaction callback settled the month-1 invoice (D55): find the
+ * Paymob subscription that payment created (lookup by transaction — documented),
+ * check it is for this plan, then ACTIVE with the D56 period from the paid time,
+ * the package period aligned, next_billing set, and the terms receipt (D57).
+ * Idempotent: a second call (webhook replay or worker retry) is "already_active".
+ */
+export async function activateSignup(invoiceId: string, transactionId: string, deps: { client?: ActivationClient } = {}): Promise<ActivationResult> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      id: true, status: true, paidAt: true, subscriptionId: true,
+      billingSubscription: { select: { id: true, academyId: true, status: true, payerUserId: true, providerSubscriptionId: true, plan: { select: { providerPlanId: true } }, payerUser: { select: { timezone: true } } } },
+    },
+  });
+  const sub = invoice?.billingSubscription;
+  if (!invoice || !sub) return { status: "not_signup" };
+  if (sub.status !== "INCOMPLETE") return { status: sub.providerSubscriptionId ? "already_active" : "not_signup" };
+  if (invoice.status !== "PAID" || !invoice.paidAt) return { status: "not_paid" };
+  const client = deps.client ?? new PaymobSubscriptionClient();
+  const remote = await client.findByTransaction(transactionId);
+  const remoteId = remote && (typeof remote.id === "number" || typeof remote.id === "string") ? String(remote.id) : "";
+  const remotePlan = remote?.plan_id === undefined || remote?.plan_id === null ? null : String(remote.plan_id);
+  if (!/^\d{1,20}$/.test(remoteId) || (remotePlan !== null && remotePlan !== sub.plan.providerPlanId)) {
+    await notifyAdmins(prisma, sub.academyId, "PAYMENT_ANOMALY", `PAYMENT_ANOMALY:SIGNUP_NOT_LINKED:${transactionId}`, { reason: "RENEWAL_SIGNUP_NOT_LINKED", billingSubscriptionId: sub.id });
+    return { status: "not_linked" };
+  }
+  const period = firstPeriod(invoice.paidAt, sub.payerUser.timezone || DEFAULT_TIME_ZONE);
+  try {
+    const activated = await prisma.$transaction(async (tx) => {
+      const moved = await tx.billingSubscription.updateMany({
+        where: { id: sub.id, status: "INCOMPLETE" },
+        data: { status: "ACTIVE", providerSubscriptionId: remoteId, billingAnchorDay: period.anchorDay, currentPeriodStart: period.start, currentPeriodEnd: period.end },
+      });
+      if (moved.count === 0) return false;
+      await tx.invoice.update({ where: { id: invoice.id }, data: { billingPeriodStart: new Date(`${period.startDate}T00:00:00Z`) } });
+      if (invoice.subscriptionId) {
+        await tx.subscription.update({ where: { id: invoice.subscriptionId }, data: { periodStartsAt: period.start, periodEndsAt: period.end } });
+      }
+      await notify(tx, sub.academyId, sub.payerUserId, "RENEWAL_SIGNUP", `RENEWAL_SIGNUP:${sub.id}:${sub.payerUserId}`, { billingSubscriptionId: sub.id });
+      return true;
+    });
+    if (!activated) return { status: "already_active" };
+  } catch (cause) {
+    if (isUniqueViolation(cause)) return { status: "already_active" };
+    throw cause;
+  }
+  try {
+    await client.updateNextBilling(remoteId, period.nextBilling);
+  } catch {
+    await flagAnomaly(prisma, sub.academyId, sub.id, "NEXT_BILLING_UPDATE_FAILED", transactionId);
+  }
+  return { status: "activated" };
+}
+
+const ABANDONED_SIGNUP_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * INCOMPLETE sign-ups: a paid one whose activation failed is retried (throttled); an
+ * unpaid one older than 24 h is closed — subscription CANCELED, invoice CANCELLED,
+ * open attempts FAILED (no money ever moved). A late payment for a closed invoice is
+ * refused by the settlement as not payable and flagged for the Admin.
+ */
+async function processIncompleteSignups(now: Date, options: { client?: RenewalClient; academyId?: string; sweepIntervalMs: number }) {
+  const rows = await prisma.billingSubscription.findMany({
+    where: { status: "INCOMPLETE", ...(options.academyId ? { academyId: options.academyId } : {}) },
+    take: 100,
+    select: { id: true, academyId: true, createdAt: true, invoices: { orderBy: { createdAt: "asc" }, take: 1, select: { id: true, status: true, providerReference: true } } },
+  });
+  for (const sub of rows) {
+    const invoice = sub.invoices[0];
+    try {
+      if (invoice?.status === "PAID" && invoice.providerReference) {
+        const last = lastSweepAt.get(sub.id);
+        if (last !== undefined && now.getTime() - last < options.sweepIntervalMs) continue;
+        lastSweepAt.set(sub.id, now.getTime());
+        const client = options.client?.findByTransaction ? (options.client as ActivationClient) : new PaymobSubscriptionClient();
+        await activateSignup(invoice.id, invoice.providerReference, { client });
+        continue;
+      }
+      if (now.getTime() - sub.createdAt.getTime() < ABANDONED_SIGNUP_MS) continue;
+      await prisma.$transaction(async (tx) => {
+        const closed = await tx.billingSubscription.updateMany({ where: { id: sub.id, status: "INCOMPLETE" }, data: { status: "CANCELED", autoRenew: false, canceledAt: now } });
+        if (closed.count === 0 || !invoice) return;
+        const cancelled = await tx.invoice.updateMany({ where: { id: invoice.id, status: "PENDING" }, data: { status: "CANCELLED" } });
+        await tx.paymentAttempt.updateMany({ where: { invoiceId: invoice.id, status: { in: ["CREATED", "REDIRECTED"] } }, data: { status: "FAILED" } });
+        if (cancelled.count === 1) {
+          await writePaymentAudit({ academyId: sub.academyId, invoiceId: invoice.id, eventType: "CANCELLED", actorId: null, actorRole: "SYSTEM", metadata: { reason: "RENEWAL_SIGNUP_ABANDONED" } }, tx);
+        }
+      });
+    } catch (cause) {
+      const code = cause instanceof PaymentProviderError ? cause.code : "ERROR";
+      console.error(`[renewal] sign-up ${sub.id} skipped this tick (${code}).`);
+    }
+  }
 }

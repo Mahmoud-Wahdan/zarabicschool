@@ -273,7 +273,7 @@ describe("automatic renewal", () => {
   });
 
   it("RN-11: every renewal WhatsApp offers the cancel option and carries no amount or card data (ar + en)", () => {
-    for (const kind of ["RENEWAL_PAID", "RENEWAL_FAILED", "RENEWAL_PAST_DUE"]) {
+    for (const kind of ["RENEWAL_SIGNUP", "RENEWAL_PAID", "RENEWAL_FAILED", "RENEWAL_PAST_DUE"]) {
       for (const language of ["ar", "en"] as const) {
         const text = composeJobMessage({ kind, recipientUser: { preferredLanguage: language } } as never);
         expect(text).toMatch(language === "en" ? /cancel automatic renewal/i : /إلغاء التجديد التلقائي/);

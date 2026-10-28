@@ -42,6 +42,7 @@ export async function POST(
       provider: true,
       status: true,
       packageType: true,
+      billingSubscriptionId: true,
       student: {
         select: {
           userId: true,
@@ -64,6 +65,9 @@ export async function POST(
   if (invoice.status !== "PENDING") return errorResponse(409, "INVOICE_NOT_PAYABLE", "This invoice is not payable.");
   // A4: no checkout for an annual invoice until PLAN_GRANT exists (owner, 2026-10-26).
   if (invoice.packageType === "ANNUAL_PLAN") return errorResponse(409, "ANNUAL_PLAN_DISABLED", "Annual plans cannot be paid yet.");
+  // An automatic-renewal invoice is paid only through the enrolling sign-up (Unified
+  // Checkout with the subscription plan); this legacy iframe would not save the card.
+  if (invoice.billingSubscriptionId) return errorResponse(409, "RENEWAL_SIGNUP_INVOICE", "This invoice is paid through the automatic renewal sign-up.");
   // Audit actor role: only ADMIN/STUDENT/GUARDIAN pass the gate above (server-guaranteed),
   // so anything else can only mean SUPERVISOR/TEACHER slipping through — recorded as SYSTEM.
   const auditActorRole = user.role === "ADMIN" ? "ADMIN" : user.role === "GUARDIAN" ? "GUARDIAN" : user.role === "STUDENT" ? "STUDENT" : "SYSTEM";

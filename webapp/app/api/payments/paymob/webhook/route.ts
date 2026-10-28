@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { PaymobProvider, PaymentProviderError } from "../../../../../lib/payments";
 import { PaymobSignedShapeError, readPaymobSignature } from "../../../../../lib/payments/paymob";
 import { recordInvalidSignedEvent, settlePaidInvoice } from "../../../../../lib/payments/settlement";
+import { activateSignup } from "../../../../../lib/billing/renewal";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,15 @@ export async function POST(request: Request) {
   try {
     const event = new PaymobProvider().verifyWebhook(rawBody, readPaymobSignature(request.url, request.headers));
     const result = await settlePaidInvoice(event);
+    if (result.status === "settled") {
+      // D55: a settled month-1 invoice of an automatic-renewal sign-up activates it.
+      // Never changes the webhook answer; the worker retries a failed activation.
+      try {
+        await activateSignup(result.invoiceId, event.providerReference);
+      } catch {
+        console.error(`[webhook] renewal sign-up activation deferred for invoice ${result.invoiceId}.`);
+      }
+    }
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     if (error instanceof PaymobSignedShapeError) {

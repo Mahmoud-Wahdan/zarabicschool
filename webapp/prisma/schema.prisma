@@ -1096,6 +1096,8 @@ model PaymentProof {
 }
 
 enum BillingSubscriptionStatus {
+  /// S-7b: consent given, first payment not yet verified (never renews).
+  INCOMPLETE
   ACTIVE
   PAST_DUE
   CANCELED
