@@ -34,7 +34,7 @@ function fakeFetch(routes: Record<string, unknown>) {
   return { calls, impl };
 }
 
-const ENV_NAMES = ["PAYMOB_API_URL", "PAYMOB_API_KEY", "PAYMOB_HMAC_SECRET", "PAYMOB_SECRET_KEY", "PAYMOB_PUBLIC_KEY", "PAYMOB_INTEGRATION_ID_EGP"] as const;
+const ENV_NAMES = ["PAYMOB_MOTO_INTEGRATION_ID_EGP", "PAYMOB_API_URL", "PAYMOB_API_KEY", "PAYMOB_HMAC_SECRET", "PAYMOB_SECRET_KEY", "PAYMOB_PUBLIC_KEY", "PAYMOB_INTEGRATION_ID_EGP"] as const;
 const saved: Partial<Record<string, string | undefined>> = {};
 
 beforeEach(() => {
@@ -143,6 +143,27 @@ describe("Paymob subscription client", () => {
     expect(calls[0].body).toMatchObject({ amount: 100000, currency: "EGP", payment_methods: [111], subscription_plan_id: 140, special_reference: "inv-1" });
     expect(result.providerOrderId).toBe("9988");
     expect(result.checkoutUrl).toBe("https://paymob.test/unifiedcheckout/?publicKey=pk_test_dummy&clientSecret=cs_1");
+  });
+
+  it("PS-12: a monthly plan is created at Paymob with the MOTO integration, frequency 30, the transaction amount as renewal amount, no reminder e-mail, and our subscription webhook", async () => {
+    process.env.PAYMOB_MOTO_INTEGRATION_ID_EGP = "222";
+    const { calls, impl } = fakeFetch({ ...TOKEN, "POST /api/acceptance/subscription-plans": { id: 140, frequency: 30 } });
+    const id = await new PaymobSubscriptionClient(impl).createPlan({ name: "Monthly 8", amountMinor: BigInt(100000), webhookUrl: "https://app.test/api/payments/paymob/subscription-webhook" });
+    expect(id).toBe("140");
+    expect(calls[1].headers.authorization).toBe("Bearer bearer-1");
+    expect(calls[1].body).toEqual({
+      name: "Monthly 8", frequency: 30, plan_type: "rent", amount_cents: 100000, use_transaction_amount: true,
+      is_active: true, integration: 222, reminder_days: null, number_of_deductions: null,
+      webhook_url: "https://app.test/api/payments/paymob/subscription-webhook",
+    });
+  });
+
+  it("PS-13: without the MOTO integration id the plan is NOT_CONFIGURED and Paymob is not called", async () => {
+    delete process.env.PAYMOB_MOTO_INTEGRATION_ID_EGP;
+    const { calls, impl } = fakeFetch(TOKEN);
+    const error = await new PaymobSubscriptionClient(impl).createPlan({ name: "x", amountMinor: BigInt(1), webhookUrl: "https://app.test/h" }).catch((cause) => cause);
+    expect(error.code).toBe("NOT_CONFIGURED");
+    expect(calls).toHaveLength(0);
   });
 });
 

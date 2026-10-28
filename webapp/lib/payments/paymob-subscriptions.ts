@@ -127,6 +127,32 @@ export class PaymobSubscriptionClient {
     return this.authed(`/api/acceptance/subscriptions/${digitId(providerSubscriptionId, "subscription id")}/cancel`, "POST");
   }
 
+  /**
+   * A monthly plan at Paymob (D53, D55, D57): MOTO integration for the renewals,
+   * frequency 30 (the platform then sets each next_billing itself, D56), the first
+   * payment as month 1 with the same amount after it, no pre-charge e-mail.
+   * retrial_days is left to Paymob's default (its meaning is undocumented — OPEN).
+   */
+  async createPlan(input: { name: string; amountMinor: bigint; webhookUrl: string }): Promise<string> {
+    const integration = Number(digitId(requiredEnv("PAYMOB_MOTO_INTEGRATION_ID_EGP"), "MOTO integration id"));
+    if (input.amountMinor <= BigInt(0) || input.amountMinor > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new PaymentProviderError("Amount is outside Paymob's supported range.", "UPSTREAM_ERROR", 400);
+    }
+    const response = await this.authed("/api/acceptance/subscription-plans", "POST", {
+      name: input.name.slice(0, 100),
+      frequency: 30,
+      plan_type: "rent",
+      amount_cents: Number(input.amountMinor),
+      use_transaction_amount: true,
+      is_active: true,
+      integration,
+      reminder_days: null,
+      number_of_deductions: null,
+      webhook_url: input.webhookUrl,
+    });
+    return digitId(response.id as string, "plan id");
+  }
+
   /** Sign-up (D55): one 3DS payment that buys month 1 and saves the card. */
   async createSignupIntention(input: SignupIntentionInput): Promise<{ checkoutUrl: string; providerOrderId: string }> {
     const secretKey = requiredEnv("PAYMOB_SECRET_KEY");
