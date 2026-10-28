@@ -32,6 +32,7 @@ function NotificationBell({ inboxHref }: { inboxHref: string }) {
 
   return (
     <Link
+      prefetch={false}
       href={inboxHref}
       aria-label={t("notificationBell", { count: total })}
       className="relative rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
@@ -151,6 +152,7 @@ function SidebarNav({
             : "bg-secondary text-on-secondary";
         return (
           <Link
+            prefetch={false}
             key={`${item.key}-${item.href}`}
             href={item.href}
             aria-current={active ? "page" : undefined}
@@ -264,7 +266,7 @@ function UserMenu({ userName, roleLabel }: { userName: string; roleLabel: string
             <span className="text-body-sm font-semibold text-on-surface">{userName}</span>
             <span className="text-label-sm text-on-surface-variant">{roleLabel}</span>
           </div>
-          <Link href="/account" className="btn btn-soft w-full">{t("account")}</Link>
+          <Link href="/account" prefetch={false} className="btn btn-soft w-full">{t("account")}</Link>
           <SignOutButton className="btn btn-ghost-danger w-full" />
           <span className="sr-only">{t("userMenu")}</span>
         </div>

@@ -43,6 +43,7 @@
 - **2026-10-28 (G1 A6):** automatic renewal for payers behind `FEATURE_AUTO_RENEWAL` (OFF by default): panel + data hidden on guardian/student invoices, sign-up API 404.
 - **2026-10-28 (G1 A7):** Admin home lists the whole day's sessions (the `take: 8` cap hid later ones and cut the totals); D7 kept, the teacher indicators page now says a session counts after its end.
 - **2026-10-28 (L2a):** the 3.9 MB Material Symbols icon font replaced by bundled Lucide SVG icons (owner choice); typed icon names.
+- **2026-10-28 (L2b):** sidebar/shell links no longer prefetch (29 requests per Admin page load → 0; avoids the 120/min 429).
 - **Owner actions pending:** (S-1, S-1b, S-1c all applied — no migration waiting); OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 
