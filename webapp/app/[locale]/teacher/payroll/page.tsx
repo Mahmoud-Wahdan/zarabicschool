@@ -4,6 +4,7 @@ import DashboardShell from "../../../_components/dashboard-shell";
 import EmptyState from "../../../_components/ui/empty-state";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
+import { entryCategory } from "../../../../lib/payroll/adjustments";
 import { creditAmountMinor } from "../../../../lib/payroll/rates";
 import { formatMoney } from "../../../../lib/payments/format";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
@@ -41,6 +42,8 @@ export default async function TeacherPayrollPage() {
             minutesCredited: true,
             hourlyRateSnapshotMinor: true,
             reason: true,
+            adjustmentCategory: true,
+            reportId: true,
             createdById: true,
             createdAt: true,
             session: { select: { id: true, scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } },
@@ -121,7 +124,7 @@ export default async function TeacherPayrollPage() {
                     <td className="px-3 py-3 opacity-70">
                       {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "short", timeStyle: "short" }).format(entry.createdAt)}
                     </td>
-                    <td className="px-3 py-3">{t(`entryType.${entry.entryType}`)}</td>
+                    <td className="px-3 py-3">{t(`entryType.${entry.entryType}`)}{entry.entryType === "ADMIN_ADJUSTMENT" && entryCategory(entry) !== "UNCATEGORIZED" ? <span className="block text-xs opacity-70">{t(`category.${entryCategory(entry)}`)}</span> : null}</td>
                     <td className="px-3 py-3 font-semibold">{formatMoney(entry.amountMinor, entry.currency, locale)}</td>
                     <td className="px-3 py-3">
                       {entry.session

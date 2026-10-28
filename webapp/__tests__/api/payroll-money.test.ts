@@ -57,7 +57,7 @@ async function disburse(actorId: string, body: Record<string, unknown>, key?: st
 }
 
 const adjustment = (overrides: Record<string, unknown> = {}) => ({
-  teacherId: fx.teacherProfileId, amountMinor: 2500, currency: "EGP", reason: "Demo test bonus", ...overrides,
+  teacherId: fx.teacherProfileId, amountMinor: 2500, currency: "EGP", category: "OTHER", reason: "Demo test bonus", ...overrides,
 });
 
 async function overtimeReport(options: { status?: "APPROVED" | "SUBMITTED"; minutes?: number; teacherProfileId?: string } = {}) {

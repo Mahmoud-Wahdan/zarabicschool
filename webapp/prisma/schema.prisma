@@ -1055,6 +1055,8 @@ model PayrollLedger {
   minutesCredited         Int?                   @map("minutes_credited")
   hourlyRateSnapshotMinor Int?                   @map("hourly_rate_snapshot_minor")
   reason                  String?
+  /// S-5 (D14): BONUS | FINE | OVERTIME | OTHER on new Admin adjustments; NULL on older rows (CHECK in raw SQL).
+  adjustmentCategory      String?                @map("adjustment_category") @db.VarChar(20)
   // NULL = system-generated (settlement); NOT NULL = Admin-created (audit).
   createdById             String?                @map("created_by") @db.Uuid
   // A5 (2026-10-26): client Idempotency-Key of an Admin adjustment/disbursement

@@ -30,9 +30,13 @@ export async function createManualPayrollEntry(
     amountMinor: number;
     currency: string;
     reason: string;
+    /** S-12 / D14: the category of an ADMIN_ADJUSTMENT (SQL S-5). */
+    adjustmentCategory?: "BONUS" | "FINE" | "OVERTIME" | "OTHER";
   },
+  /** A server-chosen key (e.g. the one reversal of an entry) instead of the header. */
+  fixedIdempotencyKey?: string,
 ) {
-  const rawKey = request.headers.get("idempotency-key");
+  const rawKey = fixedIdempotencyKey ?? request.headers.get("idempotency-key");
   let idempotencyKey: string | null = null;
   if (rawKey !== null) {
     const parsedKey = z.uuid().safeParse(rawKey.trim());
@@ -44,7 +48,7 @@ export async function createManualPayrollEntry(
 
   const teacher = await prisma.teacher.findFirst({
     where: { id: entry.teacherId, academyId: admin.academyId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!teacher) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Teacher not found." } }, { status: 404 });
 
@@ -87,9 +91,18 @@ export async function createManualPayrollEntry(
         reason: entry.reason,
         createdById: admin.id,
         idempotencyKey,
+        ...(entry.entryType === "ADMIN_ADJUSTMENT" && entry.adjustmentCategory ? { adjustmentCategory: entry.adjustmentCategory } : {}),
       },
       select: ENTRY_SELECT,
     });
+    if (entry.entryType === "ADMIN_ADJUSTMENT") {
+      // D14: an IN-APP notice to the teacher only — recorded as delivered (SENT) so
+      // the worker never hands it to WhatsApp. Ids only, never the amount or reason.
+      await prisma.notificationJob.createMany({
+        data: [{ academyId: admin.academyId, sessionId: null, recipientUserId: teacher.userId, kind: "PAYROLL_ADJUSTMENT", dedupKey: `PAYROLL_ADJUSTMENT:${created.id}`, scheduledFor: new Date(), status: "SENT", sentAt: new Date(), payload: { entryId: created.id } }],
+        skipDuplicates: true,
+      });
+    }
     return NextResponse.json({ data: created }, { status: 201 });
   } catch (cause) {
     // Two concurrent requests with the same key: the loser reads the winner's row.

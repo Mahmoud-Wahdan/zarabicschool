@@ -49,11 +49,19 @@ export const overtimeReviewSchema = z.object({
  *  to 21,474,836.47 in major units; revisit together with BIGINT at SaaS time (CONTEXT §7 item 9). */
 const PAYROLL_AMOUNT_LIMIT = 2_147_483_647;
 
+/** S-12 / D14: every new Admin adjustment names its category (SQL S-5). */
+export const payrollAdjustmentCategorySchema = z.enum(["BONUS", "FINE", "OVERTIME", "OTHER"]);
+
 export const payrollAdjustmentSchema = z.object({
   teacherId: z.guid(),
   amountMinor: z.number().int().min(-PAYROLL_AMOUNT_LIMIT).max(PAYROLL_AMOUNT_LIMIT).refine((value) => value !== 0, "The amount must not be zero."),
   currency: currencySchema,
+  category: payrollAdjustmentCategorySchema,
   reason: z.string().trim().min(2).max(1000),
+}).superRefine((value, ctx) => {
+  // A fine takes money away; a bonus or overtime adds it; "other" may go either way.
+  if (value.category === "FINE" && value.amountMinor > 0) ctx.addIssue({ code: "custom", path: ["amountMinor"], message: "A fine must be negative." });
+  if ((value.category === "BONUS" || value.category === "OVERTIME") && value.amountMinor < 0) ctx.addIssue({ code: "custom", path: ["amountMinor"], message: "A bonus or overtime must be positive." });
 });
 
 /** Admin records a payout/disbursement — an internal ledger record, never proof of an external transfer. */

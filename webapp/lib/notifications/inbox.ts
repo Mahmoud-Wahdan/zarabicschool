@@ -42,6 +42,7 @@ export function jobHref(kind: string, role: InboxRole, sessionId: string | null)
   if (kind === "SESSION_REQUEST" || kind === "TEACHER_LATE_START_ADMIN") return "/admin/session-requests";
   if (kind === "BALANCE_NEGATIVE") return "/admin/payroll";
   if (kind === "OVERTIME_DECISION") return "/teacher/payroll";
+  if (kind === "PAYROLL_ADJUSTMENT") return role === "TEACHER" ? "/teacher/payroll" : "/admin/payroll";
   if (kind.startsWith("MONTHLY_REPORT")) return role === "TEACHER" ? "/teacher/monthly-reports" : staff ? "/admin/monthly-reports" : HOME[role];
   if (staff && sessionId && /ATTENDANCE|SETTLED/.test(kind)) return `/admin/sessions/${sessionId}`;
   if (/SESSION|REPORT|LATE_START|DAILY_SCHEDULE|SERIES/.test(kind)) return staff ? "/admin/sessions" : `${HOME[role]}/sessions`;

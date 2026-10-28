@@ -2035,7 +2035,30 @@
     "teacherLabel": "Teacher",
     "subjectLabel": "Subject",
     "minutesLabel": "min",
-    "payoutNote": "A payout record is an internal ledger entry — it does not prove an external transfer was completed."
+    "payoutNote": "A payout record is an internal ledger entry — it does not prove an external transfer was completed.",
+    "categoryFilter": "Category",
+    "categoryAll": "All categories",
+    "categoryLabel": "Category",
+    "ledgerEmpty": "No deductions or bonuses yet.",
+    "loading": "Loading…",
+    "reverse": "Reverse",
+    "reverseReason": "Why reverse it?",
+    "reverseConfirm": "Reverse entry",
+    "cancel": "Cancel",
+    "reversed": "Reversed with an opposite entry.",
+    "alreadyReversed": "This entry was already reversed.",
+    "reverseFailed": "The entry was not reversed. Try again.",
+    "signHintFine": "Type the amount; a fine is taken from the teacher's balance.",
+    "signHintAdd": "Type the amount; it is added to the teacher's balance.",
+    "amountSignedPlaceholder": "Amount (+ adds, − takes away)",
+    "category": {
+      "BONUS": "Bonus",
+      "FINE": "Fine",
+      "OVERTIME": "Overtime",
+      "OTHER": "Other",
+      "UNCATEGORIZED": "Earlier entry (no category)"
+    },
+    "adjustmentsLedgerTitle": "Deductions and bonuses"
   },
   "overtime": {
     "title": "Overtime review",
@@ -2418,7 +2441,8 @@
       "SESSION_REQUEST_PENDING": "An outage request is waiting",
       "COMPLAINT_OPEN": "An open complaint",
       "TEACHER_FLAG": "A teacher was flagged",
-      "MISSING_REPORT": "An ended session has no report yet"
+      "MISSING_REPORT": "An ended session has no report yet",
+      "PAYROLL_ADJUSTMENT": "A payroll entry was added"
     }
   }
 }

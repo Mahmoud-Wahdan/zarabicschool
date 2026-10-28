@@ -2035,7 +2035,30 @@
     "teacherLabel": "المعلم",
     "subjectLabel": "الموضوع",
     "minutesLabel": "دقيقة",
-    "payoutNote": "سجل الصرف قيد داخلي في السجل — وليس دليلًا على إتمام تحويل خارجي."
+    "payoutNote": "سجل الصرف قيد داخلي في السجل — وليس دليلًا على إتمام تحويل خارجي.",
+    "categoryFilter": "النوع",
+    "categoryAll": "كل الأنواع",
+    "categoryLabel": "النوع",
+    "ledgerEmpty": "لا توجد خصومات أو مكافآت بعد.",
+    "loading": "جارٍ التحميل…",
+    "reverse": "عكس القيد",
+    "reverseReason": "سبب العكس",
+    "reverseConfirm": "عكس القيد",
+    "cancel": "إلغاء",
+    "reversed": "تم العكس بقيد مقابل.",
+    "alreadyReversed": "تم عكس هذا القيد من قبل.",
+    "reverseFailed": "لم يتم عكس القيد. حاول مرة أخرى.",
+    "signHintFine": "اكتب المبلغ؛ الخصم يُطرح من رصيد المعلم.",
+    "signHintAdd": "اكتب المبلغ؛ يُضاف إلى رصيد المعلم.",
+    "amountSignedPlaceholder": "المبلغ (+ يضيف، − يخصم)",
+    "category": {
+      "BONUS": "مكافأة",
+      "FINE": "خصم",
+      "OVERTIME": "وقت إضافي",
+      "OTHER": "أخرى",
+      "UNCATEGORIZED": "قيد سابق (بلا نوع)"
+    },
+    "adjustmentsLedgerTitle": "الخصومات والمكافآت"
   },
   "overtime": {
     "title": "مراجعة الوقت الإضافي",
@@ -2418,7 +2441,8 @@
       "SESSION_REQUEST_PENDING": "طلب عطل في الانتظار",
       "COMPLAINT_OPEN": "شكوى مفتوحة",
       "TEACHER_FLAG": "تم تسجيل ملاحظة على معلم",
-      "MISSING_REPORT": "حصة منتهية بلا تقرير بعد"
+      "MISSING_REPORT": "حصة منتهية بلا تقرير بعد",
+      "PAYROLL_ADJUSTMENT": "أُضيف قيد في الرواتب"
     }
   }
 }

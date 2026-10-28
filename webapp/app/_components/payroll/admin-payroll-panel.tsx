@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import AdjustmentsLedger from "./adjustments-ledger";
+
 import { wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 
 type TeacherOption = { id: string; displayName: string };
@@ -17,7 +19,17 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [rate, setRate] = useState({ teacherId: "", hourlyRateMinor: "", currency: "EGP", effectiveFrom: "" });
-  const [adjustment, setAdjustment] = useState({ teacherId: "", amountMinor: "", currency: "EGP", reason: "" });
+  const [adjustment, setAdjustment] = useState({ teacherId: "", amountMinor: "", currency: "EGP", reason: "", category: "BONUS" });
+  // S-12: the ledger list reloads after each new entry.
+  const [ledgerVersion, setLedgerVersion] = useState(0);
+  // D14: a fine takes money away, a bonus or overtime adds it — the Admin types the
+  // amount and the category gives the sign; only "other" is typed with its sign.
+  const signedAmount = (value: string, category: string) => {
+    const amount = Number(value);
+    if (category === "FINE") return -Math.abs(amount);
+    if (category === "BONUS" || category === "OVERTIME") return Math.abs(amount);
+    return amount;
+  };
   const [disbursement, setDisbursement] = useState({ teacherId: "", amountMinor: "", currency: "EGP", reason: "" });
 
   // A5: one Idempotency-Key per distinct ledger entry. A retry of the SAME entry
@@ -105,7 +117,7 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
 
       <section className="dashboard-card p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("adjustmentsTitle")}</h2>
-        <p className="mt-1 text-xs opacity-70">{t("amountSignedHint")}</p>
+        <p id="adjustment-sign-hint" className="mt-1 text-xs opacity-70">{adjustment.category === "FINE" ? t("signHintFine") : adjustment.category === "OTHER" ? t("amountSignedHint") : t("signHintAdd")}</p>
         <form
           onSubmit={async (event) => {
             event.preventDefault();
@@ -113,14 +125,18 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
               "/api/payroll/adjustments",
               {
                 teacherId: adjustment.teacherId,
-                amountMinor: Number(adjustment.amountMinor),
+                amountMinor: signedAmount(adjustment.amountMinor, adjustment.category),
                 currency: adjustment.currency,
+                category: adjustment.category,
                 reason: adjustment.reason,
               },
               t("adjustmentCreated"),
               true,
             );
-            if (ok) setAdjustment({ ...adjustment, teacherId: "", amountMinor: "", reason: "" });
+            if (ok) {
+              setAdjustment({ ...adjustment, teacherId: "", amountMinor: "", reason: "" });
+              setLedgerVersion((value) => value + 1);
+            }
           }}
           className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
@@ -130,7 +146,10 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
               <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>
             ))}
           </select>
-          <input required type="number" value={adjustment.amountMinor} onChange={(e) => setAdjustment({ ...adjustment, amountMinor: e.target.value })} placeholder={t("colAmount")} className="rounded-lg border border-[var(--line)] px-3 py-2" />
+          <select aria-label={t("categoryLabel")} value={adjustment.category} onChange={(e) => setAdjustment({ ...adjustment, category: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2">
+            {["BONUS", "FINE", "OVERTIME", "OTHER"].map((value) => <option key={value} value={value}>{t(`category.${value}`)}</option>)}
+          </select>
+          <input required type="number" min={adjustment.category === "OTHER" ? undefined : 1} value={adjustment.amountMinor} onChange={(e) => setAdjustment({ ...adjustment, amountMinor: e.target.value })} placeholder={adjustment.category === "OTHER" ? t("amountSignedPlaceholder") : t("colAmount")} aria-describedby="adjustment-sign-hint" className="rounded-lg border border-[var(--line)] px-3 py-2" />
           <select value={adjustment.currency} onChange={(e) => setAdjustment({ ...adjustment, currency: e.target.value })} className="rounded-lg border border-[var(--line)] px-3 py-2">
             <option value="EGP">EGP</option>
             <option value="USD">USD</option>
@@ -141,6 +160,8 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
           </div>
         </form>
       </section>
+
+      <AdjustmentsLedger timeZone={timeZone} refreshKey={ledgerVersion} />
 
       <section className="dashboard-card p-5">
         <h2 className="font-semibold text-[var(--navy)]">{t("disbursementsTitle")}</h2>
