@@ -15,6 +15,8 @@ export type BillingPlanRow = {
   tier: string | null;
   isActive: boolean;
   activeSubscribersCount: number;
+  /** Linked to a Paymob subscription plan (automatic renewal on). */
+  autoRenewLinked: boolean;
 };
 
 /**
@@ -35,6 +37,7 @@ export default function AdminBillingPanel({
   payPerSession: { minSessions: number; maxSessions: number };
 }) {
   const t = useTranslations("billingAdmin");
+  const tRenewal = useTranslations("renewal");
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -227,6 +230,18 @@ export default function AdminBillingPanel({
                     <td>{plan.isActive ? t("statusActive") : t("statusInactive")}</td>
                     <td>
                       <div className="flex flex-wrap items-center gap-2">
+                        {plan.autoRenewLinked ? (
+                          <span className="text-body-xs text-on-surface-variant">{tRenewal("linked")}</span>
+                        ) : plan.packageType === "MONTHLY_PLAN" && plan.currency === "EGP" && plan.isActive ? (
+                          <button
+                            type="button"
+                            className="btn-soft"
+                            disabled={busy || migrationPending}
+                            onClick={() => send(`/api/admin/billing/plans/${plan.id}/paymob-plan`, "POST", {})}
+                          >
+                            {tRenewal("linkPaymob")}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="btn-soft"

@@ -1,6 +1,8 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "../../../_components/dashboard-shell";
+import AutoRenewPanel from "../../../_components/billing/auto-renew-panel";
+import { loadRenewalPlans, loadRenewalRows } from "../../../../lib/billing/renewal-view";
 import InvoicePaymentPanel from "../../../_components/invoices/invoice-payment-panel";
 import StatusBadge, { type BadgeTone } from "../../../_components/ui/status-badge";
 import { requireRole } from "../../../../lib/dal";
@@ -52,6 +54,7 @@ export default async function StudentInvoicesPage() {
       paidAt: true,
     },
   });
+  const [renewals, renewalPlans] = await Promise.all([loadRenewalRows(user, locale), loadRenewalPlans(user.academyId, locale)]);
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
   const providerLabel = (provider: string) => (provider === "PAYMOB" ? t("providerPaymob") : t("providerUsd"));
@@ -59,6 +62,10 @@ export default async function StudentInvoicesPage() {
     <DashboardShell role={user.role} userName={user.displayName}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
+
+      <div className="mt-6">
+        <AutoRenewPanel students={[{ id: student.id, name: user.displayName }]} plans={renewalPlans} subscriptions={renewals} timeZone={user.timezone} now={new Date().toISOString()} />
+      </div>
       <section className="mt-6 space-y-4">
         {invoices.length === 0 ? (
           <div className="rounded-xl border border-[var(--line)] bg-white p-6 text-sm opacity-70">

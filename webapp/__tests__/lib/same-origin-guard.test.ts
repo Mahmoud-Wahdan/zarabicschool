@@ -13,12 +13,13 @@ import { disconnectPrisma } from "../../lib/prisma";
  * B3 cross-origin sweep (Phase 8, owner 2026-10-26). Every POST/PATCH/PUT/DELETE
  * handler under app/api must refuse a request whose Origin is missing or foreign
  * with 403 ORIGIN_NOT_ALLOWED — BEFORE any session lookup or database work.
- * Exempt by design: the two signed server-to-server webhooks and NextAuth's own
+ * Exempt by design: the three signed server-to-server webhooks (Paymob transaction + subscription, OpenWA status) and NextAuth's own
  * route (it has its own CSRF token).
  */
 const API_ROOT = path.join(process.cwd(), "app", "api");
 const EXEMPT = [
   path.join("payments", "paymob", "webhook", "route.ts"),
+  path.join("payments", "paymob", "subscription-webhook", "route.ts"),
   path.join("whatsapp", "status", "route.ts"),
   path.join("auth", "[...nextauth]", "route.ts"),
 ];

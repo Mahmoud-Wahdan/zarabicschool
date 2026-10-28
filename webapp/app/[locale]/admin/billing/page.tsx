@@ -59,6 +59,7 @@ export default async function AdminBillingPage() {
     tier: plan.tier,
     isActive: plan.isActive,
     activeSubscribersCount: plan._count.subscriptions,
+    autoRenewLinked: plan.providerPlanId !== null,
   }));
 
   const dateFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,

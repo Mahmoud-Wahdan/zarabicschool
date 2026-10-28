@@ -46,3 +46,15 @@ export function nextPeriodAfter(start: Date, anchorDay: number, timeZone: string
 export function firstPeriod(paidAt: Date, timeZone: string): RenewalPeriod {
   return nextPeriodAfter(paidAt, anchorDayOf(paidAt, timeZone), timeZone);
 }
+
+/** Today plus the next automatic charge dates (local YYYY-MM-DD), for the consent card. */
+export function upcomingChargeDates(from: Date, timeZone: string, count: number): string[] {
+  const dates: string[] = [];
+  let period = firstPeriod(from, timeZone);
+  dates.push(period.startDate);
+  while (dates.length < count) {
+    dates.push(period.nextBilling);
+    period = nextPeriodAfter(period.end, period.anchorDay, timeZone);
+  }
+  return dates;
+}
