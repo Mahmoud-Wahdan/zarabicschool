@@ -33,7 +33,7 @@ export default async function ApplyPage({
       { n: 2, circle: "bg-primary-container text-on-primary", step: t("r2Step"), title: t("r2Title"), text: t("r2Text"), foot: t("r2Foot"), footIcon: "videocam", icon: "record_voice_over" },
       { n: 3, circle: "bg-secondary text-on-secondary", step: t("r3Step"), title: t("r3Title"), text: t("r3Text"), foot: t("r3Foot"), footIcon: "rule", icon: "event_available" },
       { n: 4, circle: "bg-tertiary text-on-tertiary", step: t("r4Step"), title: t("r4Title"), text: t("r4Text"), foot: t("r4Foot"), footIcon: "auto_awesome", icon: "play_circle" },
-    ];
+    ] as const;
     const numeral = new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB");
 
     return (

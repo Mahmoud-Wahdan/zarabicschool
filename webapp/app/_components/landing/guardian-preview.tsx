@@ -9,7 +9,7 @@ export default async function GuardianPreview() {
     { icon: "family_restroom", tone: "text-primary", title: t("f1title"), text: t("f1text") },
     { icon: "history_edu", tone: "text-secondary", title: t("f2title"), text: t("f2text") },
     { icon: "chat", tone: "text-tertiary", title: t("f3title"), text: t("f3text") },
-  ];
+  ] as const;
 
   const stats = [
     { label: t("mockStat1"), value: t("mockStat1Value"), foot: t("mockStat1Foot"), footTone: "text-secondary" },

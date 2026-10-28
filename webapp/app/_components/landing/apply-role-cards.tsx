@@ -1,19 +1,19 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "../../../i18n/navigation";
-import Icon from "../ui/icon";
+import Icon, { type IconName } from "../ui/icon";
 
 type RoleKey = "guardian" | "student" | "teacher";
 
 const ROLE_CONFIG: Record<RoleKey, {
   ribbon: string;
   badgeTone: string;
-  badgeIcon: string;
+  badgeIcon: IconName;
   iconTone: string;
-  cardIcon: string;
+  cardIcon: IconName;
   checkTone: string;
   ctaClass: string;
-  footIcon: string;
+  footIcon: IconName;
 }> = {
   guardian: {
     ribbon: "bg-secondary",

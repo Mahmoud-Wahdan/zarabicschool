@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useBadge } from "./badge-provider";
 
 import { Link } from "../../../i18n/navigation";
+import Icon, { type IconName } from "../ui/icon";
 
 /**
  * S-06 inbox (D12). One list, unread first; opening an item marks it read for this
@@ -14,7 +15,7 @@ import { Link } from "../../../i18n/navigation";
  */
 export type InboxListItem = { key: string; kind: string; href: string; read: boolean; createdAt: string };
 
-const ICON: [RegExp, string][] = [
+const ICON: [RegExp, IconName][] = [
   [/^RENEWAL_/, "autorenew"],
   [/PAYMENT|BALANCE|SETTLED|OVERTIME/, "payments"],
   [/COMPLAINT/, "feedback"],
@@ -69,7 +70,7 @@ export default function InboxList({ items: initial, timeZone }: { items: InboxLi
         onClick={() => open(item.key)}
         className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--background)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--navy)] sm:px-5"
       >
-        <span className="material-symbols-outlined mt-0.5 text-[20px] text-[var(--navy)]" aria-hidden="true">{iconFor(item.kind)}</span>
+        <Icon name={iconFor(item.kind)} size={20} className="mt-0.5 text-[var(--navy)]" />
         <span className="min-w-0 flex-1">
           <span className={`block text-sm ${item.read ? "opacity-70" : "font-semibold text-[var(--navy)]"}`}>{title(item.kind)}</span>
           <time dateTime={item.createdAt} className="mt-0.5 block text-xs tabular-nums opacity-65">{format.format(new Date(item.createdAt))}</time>

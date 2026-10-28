@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import Icon from "./icon";
+import Icon, { type IconName } from "./icon";
 import StatusBadge, { type BadgeTone } from "./status-badge";
 
 const ICON_TONE_CLASSES = {
@@ -21,7 +21,7 @@ export default function MetricTile({
   children,
 }: {
   label: string;
-  icon: string;
+  icon: IconName;
   iconTone?: keyof typeof ICON_TONE_CLASSES;
   value: string | number;
   valueLabel?: string;

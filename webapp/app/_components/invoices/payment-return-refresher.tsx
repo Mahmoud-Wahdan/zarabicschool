@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "../ui/icon";
 
 const REFRESH_EVERY_MS = 3000;
 const MAX_REFRESHES = 20; // ~60 s, then the page shows the "still processing" note.
@@ -25,7 +26,7 @@ export default function PaymentReturnRefresher({ stillProcessingText }: { stillP
   }, [count, router]);
 
   if (count < MAX_REFRESHES) {
-    return <span className="material-symbols-outlined animate-spin text-xl text-primary" aria-hidden="true">progress_activity</span>;
+    return <Icon name={"progress_activity"} size={20} className="animate-spin text-primary" />;
   }
   return <p className="text-body-sm text-on-surface-variant">{stillProcessingText}</p>;
 }

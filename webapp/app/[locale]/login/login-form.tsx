@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { loginSchema } from "../../../lib/validation/auth";
+import Icon from "../../_components/ui/icon";
 
 type FieldErrors = Record<string, string[]>;
 
@@ -78,9 +79,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           {t("username")}
         </label>
         <div className="relative flex items-center">
-          <span className="material-symbols-outlined pointer-events-none absolute end-3 text-xl text-on-surface-variant" aria-hidden="true">
-            person
-          </span>
+          <Icon name={"person"} size={20} className="pointer-events-none absolute end-3 text-on-surface-variant" />
           <input
             id="username"
             name="username"
@@ -102,9 +101,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           {t("password")}
         </label>
         <div className="relative flex items-center">
-          <span className="material-symbols-outlined pointer-events-none absolute end-3 text-xl text-on-surface-variant" aria-hidden="true">
-            lock
-          </span>
+          <Icon name={"lock"} size={20} className="pointer-events-none absolute end-3 text-on-surface-variant" />
           <input
             id="password"
             name="password"
@@ -119,9 +116,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
             onClick={() => setPasswordVisible((value) => !value)}
             className="absolute start-3 flex items-center text-on-surface-variant transition-colors hover:text-primary"
           >
-            <span className="material-symbols-outlined text-xl" aria-hidden="true">
-              {passwordVisible ? "visibility_off" : "visibility"}
-            </span>
+            <Icon name={passwordVisible ? "visibility_off" : "visibility"} size={20} />
           </button>
         </div>
         {fieldErrors.password?.map((error) => (
@@ -133,9 +128,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
 
       {formError ? (
         <div role="alert" className="flex items-start gap-3 rounded-lg bg-error-container p-3.5">
-          <span className="material-symbols-outlined mt-0.5 shrink-0 text-xl text-error" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden="true">
-            error
-          </span>
+          <Icon name={"error"} size={20} className="mt-0.5 shrink-0 text-error" />
           <div className="flex-1">
             <p className="text-body-sm font-semibold text-on-error-container">{t("errorTitle")}</p>
             <p className="mt-0.5 text-body-sm text-on-error-container opacity-90">{formError}</p>
@@ -144,9 +137,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
       ) : null}
 
       <div className="flex items-center gap-2.5 rounded-lg bg-surface-container-low p-3">
-        <span className="material-symbols-outlined shrink-0 text-lg text-primary-container" aria-hidden="true">
-          verified_user
-        </span>
+        <Icon name={"verified_user"} size={18} className="shrink-0 text-primary-container" />
         <span className="text-body-sm leading-tight text-on-surface-variant">{t("rolesHint")}</span>
       </div>
 
@@ -156,9 +147,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
         className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 text-title-md font-semibold text-on-secondary shadow-sm transition-all duration-150 hover:bg-on-secondary-container active:scale-[0.99] disabled:opacity-60"
       >
         {pending ? (
-          <span className="material-symbols-outlined animate-spin text-xl" aria-hidden="true">
-            progress_activity
-          </span>
+          <Icon name={"progress_activity"} size={20} className="animate-spin" />
         ) : null}
         <span>{pending ? t("submitting") : t("submit")}</span>
       </button>

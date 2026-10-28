@@ -77,7 +77,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     { href: "/admin/enrollments", icon: "how_to_reg", title: t("opsEnrollments"), text: t("opsEnrollmentsText") },
     { href: "/admin/financials", icon: "receipt_long", title: t("opsFinancials"), text: t("opsFinancialsText") },
     { href: "/admin/users", icon: "manage_accounts", title: t("opsAccounts"), text: t("opsAccountsText") },
-  ];
+  ] as const;
 
   return (
     <DashboardShell

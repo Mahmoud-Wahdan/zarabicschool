@@ -8,10 +8,11 @@ import DeviceTimeZoneSync from "./device-timezone-sync";
 import { useBadge } from "./notifications/badge-provider";
 import LocaleSwitcher from "./locale-switcher";
 import SignOutButton from "./sign-out-button";
+import Icon, { type IconName } from "./ui/icon";
 
 type NavItem = {
   key: string;
-  icon: string;
+  icon: IconName;
   href: string;
   badgeKey?: "applications" | "reports" | "requests";
   badgeTone?: "secondary" | "tertiary";
@@ -35,9 +36,7 @@ function NotificationBell({ inboxHref }: { inboxHref: string }) {
       aria-label={t("notificationBell", { count: total })}
       className="relative rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
     >
-      <span className="material-symbols-outlined text-[22px]" aria-hidden="true">
-        {total > 0 ? "notifications" : "notifications_none"}
-      </span>
+      <Icon name={total > 0 ? "notifications" : "notifications_none"} size={22} />
       {total > 0 ? (
         <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-label-sm font-semibold text-on-error">
           {total > 99 ? "99+" : total}
@@ -159,9 +158,7 @@ function SidebarNav({
             className={`sidebar-link ${active ? "sidebar-link--active" : ""}`}
           >
             <span className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-                {item.icon}
-              </span>
+              <Icon name={item.icon} size={20} />
               <span className="text-body-md">{t(`nav.${item.key}`)}</span>
             </span>
             {typeof badgeValue === "number" && badgeValue > 0 ? (
@@ -206,9 +203,7 @@ function ShellClock({ timezone }: { timezone?: string }) {
 
   return (
     <div className="hidden items-center gap-1.5 rounded-lg bg-surface-container-low px-2 py-1.5 xl:flex">
-      <span className="material-symbols-outlined text-[16px] text-secondary" aria-hidden="true">
-        schedule
-      </span>
+      <Icon name={"schedule"} size={16} className="text-secondary" />
       <span className="text-label-sm text-on-surface-variant">
         {city} ({offset}):
       </span>
@@ -258,9 +253,7 @@ function UserMenu({ userName, roleLabel }: { userName: string; roleLabel: string
           <span className="text-body-sm font-semibold leading-tight text-on-surface">{userName}</span>
           <span className="text-label-sm leading-tight text-secondary">{roleLabel}</span>
         </span>
-        <span className="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">
-          {open ? "expand_less" : "expand_more"}
-        </span>
+        <Icon name={open ? "expand_less" : "expand_more"} size={18} className="text-on-surface-variant" />
       </button>
       {open ? (
         <div
@@ -342,9 +335,7 @@ export default function DashboardShell({
           onClick={onClose}
           className="rounded-lg p-1.5 text-on-primary transition-colors hover:bg-on-primary/10"
         >
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-            close
-          </span>
+          <Icon name={"close"} size={20} />
           <span className="sr-only">{t("closeMenu")}</span>
         </button>
       ) : (
@@ -357,9 +348,7 @@ export default function DashboardShell({
     <div className="bg-primary/40 p-2">
       <div className="flex items-center justify-between rounded-lg bg-surface-container-lowest/10 p-2">
         <span className="flex items-center gap-1">
-          <span className="material-symbols-outlined text-[16px] text-secondary-container" aria-hidden="true">
-            verified_user
-          </span>
+          <Icon name={"verified_user"} size={16} className="text-secondary-container" />
           <span className="flex flex-col">
             <span className="text-label-sm uppercase leading-none text-on-primary-container">
               {t("activeScope")}
@@ -418,9 +407,7 @@ export default function DashboardShell({
               aria-controls="app-drawer"
               className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface lg:hidden"
             >
-              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-                menu
-              </span>
+              <Icon name={"menu"} size={20} />
               <span className="sr-only">{t("openMenu")}</span>
             </button>
             <div className="lg:hidden">

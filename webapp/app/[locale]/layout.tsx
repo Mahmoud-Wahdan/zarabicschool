@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Cairo, Inter, Montserrat, Tajawal } from "next/font/google";
-import 'material-symbols/outlined.css';
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";

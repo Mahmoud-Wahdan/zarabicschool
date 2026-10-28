@@ -21,7 +21,6 @@
     "@prisma/client": "7.10.1",
     "bcrypt": "^6.0.0",
     "lucide-react": "^1.51.0",
-    "material-symbols": "^0.48.0",
     "next": "16.4.3",
     "next-auth": "^4.24.15",
     "next-intl": "^4.14.8",

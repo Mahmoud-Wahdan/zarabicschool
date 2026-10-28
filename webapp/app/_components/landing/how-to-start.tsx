@@ -40,7 +40,7 @@ export default async function HowToStart() {
       foot: t("s4foot"),
       footIcon: "task_alt",
     },
-  ];
+  ] as const;
 
   return (
     <section className="section-anchor w-full bg-surface py-16" id="steps">

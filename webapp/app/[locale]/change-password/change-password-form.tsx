@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { changePasswordSchema } from "../../../lib/validation/auth";
+import Icon, { type IconName } from "../../_components/ui/icon";
 
 type FieldErrors = Record<string, string[]>;
 
@@ -33,7 +34,7 @@ function PasswordField({
   label: string;
   hint?: string;
   autoComplete: string;
-  icon: string;
+  icon: IconName;
   value: string;
   onChange: (value: string) => void;
   errors?: string[];
@@ -49,9 +50,7 @@ function PasswordField({
         {hint ? <span className="text-label-sm text-on-surface-variant">{hint}</span> : null}
       </label>
       <div className="relative flex items-center">
-        <span className="material-symbols-outlined pointer-events-none absolute end-3 text-[20px] text-outline" aria-hidden="true">
-          {icon}
-        </span>
+        <Icon name={icon} size={20} className="pointer-events-none absolute end-3 text-outline" />
         <input
           id={id}
           name={id}
@@ -69,9 +68,7 @@ function PasswordField({
           onClick={() => setVisible((state) => !state)}
           className="absolute start-2.5 flex items-center justify-center rounded p-1 text-outline transition-colors hover:text-on-surface"
         >
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-            {visible ? "visibility_off" : "visibility"}
-          </span>
+          <Icon name={visible ? "visibility_off" : "visibility"} size={20} />
         </button>
       </div>
       {errors?.map((error) => (
@@ -102,7 +99,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
     return newPassword.length >= 12 ? 4 : 3;
   }, [newPassword]);
 
-  const requirements = [
+  const requirements: { key: string; met: boolean; icon: IconName }[] = [
     { key: "reqLength", met: /^.{8,}$/.test(newPassword), icon: "radio_button_unchecked" },
     { key: "reqLetter", met: /[a-zA-Z]/.test(newPassword), icon: "radio_button_unchecked" },
     { key: "reqNumber", met: /[0-9]/.test(newPassword), icon: "radio_button_unchecked" },
@@ -217,9 +214,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
                 requirement.met ? "text-secondary" : "text-on-surface-variant"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                {requirement.met ? "check_circle" : requirement.icon}
-              </span>
+              <Icon name={requirement.met ? "check_circle" : requirement.icon} size={16} />
               <span>{t(requirement.key)}</span>
             </span>
           ))}
@@ -250,9 +245,7 @@ export default function ChangePasswordForm({ username, role }: { username: strin
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 text-title-md font-semibold text-on-secondary shadow-sm transition-all duration-150 hover:bg-on-secondary-container active:scale-[0.99] disabled:opacity-60"
       >
         {pending ? (
-          <span className="material-symbols-outlined animate-spin text-xl" aria-hidden="true">
-            progress_activity
-          </span>
+          <Icon name={"progress_activity"} size={20} className="animate-spin" />
         ) : null}
         <span>{pending ? t("submitting") : t("submit")}</span>
       </button>

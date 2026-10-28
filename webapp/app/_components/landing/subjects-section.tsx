@@ -1,9 +1,9 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { prisma } from "../../../lib/prisma";
-import Icon from "../ui/icon";
+import Icon, { type IconName } from "../ui/icon";
 
-const ICON_MAP: Record<string, string> = {
+const ICON_MAP: Record<string, IconName> = {
   "book-open": "auto_stories",
   languages: "translate",
   "message-circle": "forum",

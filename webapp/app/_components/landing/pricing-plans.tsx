@@ -1,11 +1,11 @@
 import { getTranslations } from "next-intl/server";
 
-import Icon from "../ui/icon";
+import Icon, { type IconName } from "../ui/icon";
 
 export default async function PricingPlans() {
   const t = await getTranslations("landing.pricing");
 
-  const bulletsFor = (plan: 1 | 2 | 3): { icon?: string; text: string }[] => {
+  const bulletsFor = (plan: 1 | 2 | 3): { icon?: IconName; text: string }[] => {
     if (plan === 1) {
       return [
         { text: t("bullet1"), icon: "check" },

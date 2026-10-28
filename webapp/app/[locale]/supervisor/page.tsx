@@ -199,13 +199,13 @@ export default async function SupervisorDashboard() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[
+        {([
           { href: "/admin/students", icon: "school", title: tSupervisor("actions.students"), text: tSupervisor("actions.studentsDescription") },
           { href: "/admin/teachers", icon: "co_present", title: tSupervisor("actions.teachers"), text: tSupervisor("actions.teachersDescription") },
           { href: "/admin/subjects", icon: "menu_book", title: tSupervisor("actions.subjects"), text: `${subjects} ${tSupervisor("profiles.subjects")}` },
           { href: "/admin/assignments", icon: "hub", title: tSupervisor("actions.assignments"), text: tSupervisor("actions.assignmentsDescription") },
           { href: "/admin/enrollments", icon: "how_to_reg", title: tSupervisor("actions.enrollments"), text: tSupervisor("actions.enrollmentsDescription") },
-        ].map((link) => (
+        ] as const).map((link) => (
           <Link key={link.href} href={link.href} className="z-card lift-card flex items-start gap-3 rounded-xl p-5">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container-low text-primary">
               <Icon name={link.icon} />

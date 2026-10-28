@@ -6,6 +6,7 @@ import LogoPlaceholder from "../../_components/logo-placeholder";
 import { safeCallbackPath } from "../../../lib/auth/callback-url";
 import { getAuthSession } from "../../../lib/dal";
 import LoginForm from "./login-form";
+import Icon from "../../_components/ui/icon";
 
 export async function generateMetadata() {
   const t = await getTranslations("login");
@@ -62,9 +63,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
           <div className="mt-8 flex flex-col gap-3 rounded-xl bg-surface-container-low p-4 pt-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg text-tertiary" aria-hidden="true">
-                contact_support
-              </span>
+              <Icon name={"contact_support"} size={18} className="text-tertiary" />
               <h3 className="text-label-md font-bold text-primary">{t("forgotTitle")}</h3>
             </div>
             <p className="text-body-sm leading-relaxed text-on-surface-variant">{t("forgotText")}</p>

@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link } from "../../../i18n/navigation";
+import Icon from "../ui/icon";
 
 export default function SiteHeader({ logo }: { logo: ReactNode }) {
   const locale = useLocale();
@@ -107,9 +108,7 @@ export default function SiteHeader({ logo }: { logo: ReactNode }) {
             href="/login"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary"
           >
-            <span className="material-symbols-outlined text-[18px] text-on-primary" aria-hidden="true">
-              person
-            </span>
+            <Icon name={"person"} size={18} className="text-on-primary" />
             <span className="sr-only">{tCommon("login")}</span>
           </Link>
         </div>

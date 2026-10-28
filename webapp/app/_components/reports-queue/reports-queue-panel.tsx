@@ -181,7 +181,7 @@ export default function ReportsQueuePanel({
     { label: t("metricFlagged"), value: metrics.flagged, icon: "flag", tone: "bg-tertiary-fixed/30 text-tertiary", badge: t("metricFlaggedNote") },
     { label: t("metricOvertime"), value: metrics.overtime, icon: "more_time", tone: "bg-primary-fixed/50 text-primary", badge: t("metricOvertimeNote") },
     { label: t("metricApprovedToday"), value: metrics.approvedToday, icon: "verified", tone: "bg-secondary-fixed/30 text-secondary", badge: t("metricApprovedNote") },
-  ];
+  ] as const;
 
   return (
     <div className="flex flex-col gap-6">

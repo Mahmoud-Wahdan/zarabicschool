@@ -11,7 +11,7 @@ export default async function Hero() {
     { icon: "fact_check", tone: "text-secondary", title: tRibbon("item2Title"), text: tRibbon("item2Text") },
     { icon: "notifications_active", tone: "text-tertiary", title: tRibbon("item3Title"), text: tRibbon("item3Text") },
     { icon: "family_restroom", tone: "text-primary-container", title: tRibbon("item4Title"), text: tRibbon("item4Text") },
-  ];
+  ] as const;
 
   return (
     <section className="section-anchor relative w-full overflow-hidden bg-surface py-12 lg:py-20" id="top">
@@ -119,7 +119,7 @@ export default async function Hero() {
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
-                  {["videocam", "volume_up", "screen_share"].map((name) => (
+                  {(["videocam", "volume_up", "screen_share"] as const).map((name) => (
                     <span
                       key={name}
                       className="inline-flex h-8 w-8 items-center justify-center rounded bg-surface-container-high text-primary"

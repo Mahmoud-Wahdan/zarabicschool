@@ -1,4 +1,4 @@
-import Icon from "./icon";
+import Icon, { type IconName } from "./icon";
 
 export type BadgeTone =
   | "live"
@@ -28,7 +28,7 @@ export default function StatusBadge({
   children,
 }: {
   tone: BadgeTone;
-  icon?: string;
+  icon?: IconName;
   pulse?: boolean;
   children: React.ReactNode;
 }) {

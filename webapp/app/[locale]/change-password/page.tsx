@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getAuthSession } from "../../../lib/dal";
 import ChangePasswordForm from "./change-password-form";
+import Icon from "../../_components/ui/icon";
 
 export async function generateMetadata() {
   const t = await getTranslations("changePassword");
@@ -37,35 +38,21 @@ export default async function ChangePasswordPage() {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 rounded-full bg-surface-container-low px-3 py-1 text-secondary">
-                <span
-                  className="material-symbols-outlined text-[18px]"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                  aria-hidden="true"
-                >
-                  verified_user
-                </span>
+                <Icon name={"verified_user"} size={18} />
                 <span className="text-label-sm font-semibold">{t("secureBadge")}</span>
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 text-primary">
-                <span className="material-symbols-outlined text-headline-md text-secondary" aria-hidden="true">
-                  lock_reset
-                </span>
+                <Icon name={"lock_reset"} size={24} className="text-secondary" />
                 <h1 className="text-headline-md font-bold">{t("title")}</h1>
               </div>
               <p className="text-body-sm text-on-surface-variant">{t("subtitle")}</p>
             </div>
 
             <div className="flex items-start gap-3.5 rounded-lg bg-surface-container-low p-4">
-              <span
-                className="material-symbols-outlined mt-0.5 shrink-0 text-[22px] text-secondary"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-                aria-hidden="true"
-              >
-                info
-              </span>
+              <Icon name={"info"} size={22} className="mt-0.5 shrink-0 text-secondary" />
               <p className="text-body-sm leading-relaxed text-on-surface">{t("infoText")}</p>
             </div>
 
