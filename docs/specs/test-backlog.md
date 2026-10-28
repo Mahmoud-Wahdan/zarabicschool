@@ -279,3 +279,8 @@
 
 ## Written 2026-10-28 (S-06)
 - **NT-01..06, INB-01..03** — own jobs only, no credentials/evaluation kinds; staff team queues; complaints staff-only; money Admin-only; per-user read state; key validation, mark-all, same-origin, 401; bell = unread inbox; list order, sr-only unread, ar titles, empty state, a title for every composed kind.
+
+## Written 2026-10-28 (S-12, S-13)
+- **DB-01..06** — category + reason, sign rules, one reversal, list/filter + D40 overtime, DB CHECK, in-app-only notice (never WhatsApp, never the Supervisor).
+- **PL-01..06, PR-01** — payer-only link, platform URL in the payer's language, once a day / 3 per invoice, Admin only, adult self-payer; provider void/refund audited + flagged, no ledger change.
+- **RF-01..08, PS-14..15** — refund by sessions, rounding down, credit and paid caps, idempotency, provider failure/pending, teacher pay untouched, access; Paymob refund body.

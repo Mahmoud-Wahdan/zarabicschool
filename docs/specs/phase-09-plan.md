@@ -26,8 +26,8 @@ The owner's order is kept, with one adjustment: **a slice that needs a migration
 | S-09 | Supervisor finance visibility | D11 | per-student paid/unpaid + remaining sessions on Supervisor student views | none | a separate Supervisor read model without amounts; `canActOnStudentFinance` unchanged (tests stay); new test proves no money field reaches the Supervisor payload | SFV-01..05 | OQ-6 → D29 | done (f7e5ffe) — D29 |
 | S-10 | Weekly calendar | D13, D27 | view-only week grid for student, teacher, guardian (tab per child) | none | own sessions only; no Zoom URL in markup | CAL-01..05 | S-03 display, OQ-7 → D30 | done (624bbae) |
 | S-11 | Performance + admin home | D7, D8, D8a | Admin performance table + teacher "my indicators" page; admin home cards (students, teachers, this week) + EGP charts monthly/quarterly/half-year | none | teacher sees own data only; finance Admin-only | PF-01..05, HM-01..04 | — | done (136e63f, 8d8d1eb) |
-| S-12 | Deductions & bonuses | D14 | Admin page: create (category + reason), list, filter, reverse by opposite entry; teacher sees own entries + reason; in-app notice | **S-5 (FINANCIAL)** | Admin only; idempotency key (A5) | DB-01..06 | OQ-8, S-5 OK | waits for S-5 |
-| S-13 | Payment link, then refund | D6, D19, D20 | (a) payment-link WhatsApp; (b) webhook void/refund records + Admin flag; (c) Admin partial refund | **S-6 (FINANCIAL)** | payer-only; Admin-only refund; idempotent; cumulative cap | PL-01..06, RF-01..08 | OQ-12, OQ-13, S-6 OK | design first; waits for S-6 |
+| S-12 | Deductions & bonuses (**done** ee75a04) | D14 | Admin page: create (category + reason), list, filter, reverse by opposite entry; teacher sees own entries + reason; in-app notice | **S-5 (FINANCIAL)** | Admin only; idempotency key (A5) | DB-01..06 | OQ-8, S-5 OK | waits for S-5 |
+| S-13 | Payment link, then refund (**done** b6ed2db, 32fbd33) | D6, D19, D20 | (a) payment-link WhatsApp; (b) webhook void/refund records + Admin flag; (c) Admin partial refund | **S-6 (FINANCIAL)** | payer-only; Admin-only refund; idempotent; cumulative cap | PL-01..06, RF-01..08 | OQ-12, OQ-13, S-6 OK | design first; waits for S-6 |
 | S-14 | Stitch UI migration | D1 | page by page from the Stitch export; tokens first; Impeccable later | none | no money widgets on Supervisor screens | visual review; Playwright smoke after (D22) | — | parallel track |
 
 Status values: ready / in progress / waits for <X> / done (commit hash).
@@ -97,3 +97,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-28: automatic renewal built (S-RENEW): d91914f dates + client, 3fe3c9e booking/grace/cancel/webhook, 1352e2c sign-up + SQL S-7b (applied, D60), 23df92f Admin links a plan to Paymob, then the screens (payer consent + cancel, Admin renewals page, plan button).
 - 2026-10-28: S-02 done (14af707, a6504f9; SQL S-2 applied), S-03 done (4b24f54, 5080601; SQL S-3 applied); Impeccable installed (D62) and used on the new screens.
 - 2026-10-28: S-06 done (4fec4ba; SQL S-4 applied, D64).
+- 2026-10-28: S-12 done (ee75a04; SQL S-5 applied), S-13 done (b6ed2db, 32fbd33; SQL S-6 applied), D65.
