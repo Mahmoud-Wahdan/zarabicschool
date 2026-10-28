@@ -102,3 +102,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-28: S-06 done (4fec4ba; SQL S-4 applied, D64).
 - 2026-10-28: S-12 done (ee75a04; SQL S-5 applied), S-13 done (b6ed2db, 32fbd33; SQL S-6 applied), D65.
 - 2026-10-28/29: G1 A1–A7 and L1–L4 done (see slice files); D67–D74; full suite stopped by low memory (no result); waiting for the owner's approval before build, migrate status and the new branch.
+- 2026-10-29: branch closed: full suite 88/88 suites, 739/739 tests; seed unchanged; build, lint, tsc, migrate status clean (D75). Next work on `phase9-rest`.
