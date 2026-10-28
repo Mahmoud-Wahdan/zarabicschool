@@ -16,8 +16,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = profileUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid profile data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
-  const target = await prisma.user.findFirst({ where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } }, select: { id: true, role: true } });
+  const target = await prisma.user.findFirst({ where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } }, select: { id: true, role: true, teacherProfile: { select: { approvalStatus: true } } } });
   if (!target) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, { status: 404 });
+  // S-02 / D38: only the Admin's approval activates a PENDING teacher.
+  if (parsed.data.isActive === true && target.teacherProfile?.approvalStatus === "PENDING") {
+    return NextResponse.json({ error: { code: "TEACHER_PENDING_APPROVAL", message: "Approve this teacher first; approval activates the account." } }, { status: 409 });
+  }
   // The "no announcements" flag is set by an ADMIN only (owner, 2026-10-26).
   if (parsed.data.announcementsOptOut !== undefined) {
     if (user.role !== "ADMIN") {

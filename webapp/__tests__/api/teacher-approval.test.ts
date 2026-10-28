@@ -8,6 +8,7 @@ jest.mock("next-intl/server", () => ({
 import { getServerSession } from "next-auth";
 
 import { POST as profilesRoute } from "../../app/api/admin/profiles/route";
+import { PATCH as patchProfileRoute } from "../../app/api/admin/profiles/[id]/route";
 import { POST as approveRoute } from "../../app/api/admin/teachers/[id]/approve/route";
 import { POST as assignmentsRoute } from "../../app/api/admin/assignments/route";
 import { resolveParticipants } from "../../lib/scheduling/checks";
@@ -145,6 +146,23 @@ describe("S-02 teacher approval", () => {
     );
     expect(crossOrigin.status).toBe(403);
     expect((await teacherByUsername(input.username)).teacherProfile?.approvalStatus).toBe("PENDING");
+  });
+
+  it("TCH-07: a PENDING teacher cannot be switched on through the profile edit (only approval activates)", async () => {
+    as(fx.supervisorUserId);
+    const input = account("teacher");
+    await createProfile("teacher", input);
+    const teacher = await teacherByUsername(input.username);
+    for (const userId of [fx.supervisorUserId, fx.adminUserId]) {
+      as(userId);
+      const response = await patchProfileRoute(
+        new Request(`http://localhost:3000/api/admin/profiles/${teacher.id}`, { method: "PATCH", headers: sameOriginHeaders({ "content-type": "application/json" }), body: JSON.stringify({ isActive: true }) }),
+        { params: Promise.resolve({ id: teacher.id }) },
+      );
+      expect(response.status).toBe(409);
+      expect((await response.json()).error.code).toBe("TEACHER_PENDING_APPROVAL");
+    }
+    expect((await teacherByUsername(input.username)).isActive).toBe(false);
   });
 });
 
