@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
@@ -21,34 +21,38 @@ function groupZones(all: string[]): Group[] {
   return [...groups.entries()].map(([region, zones]) => ({ region, zones }));
 }
 
+// A 30-second tick from the browser; the server snapshot (0) means "not mounted yet".
+const subscribeTick = (onChange: () => void) => {
+  const timer = setInterval(onChange, 30_000);
+  return () => clearInterval(timer);
+};
+const tickSnapshot = () => Math.floor(Date.now() / 30_000);
+const serverTick = () => 0;
+
 const cityLabel = (zone: string) => zone.split("/").slice(1).join(" / ").replaceAll("_", " ") || zone;
 
 export default function TimeZoneForm({ current, source }: { current: string; source: string }) {
   const t = useTranslations("account");
   const locale = useLocale();
   const router = useRouter();
-  const [zones, setZones] = useState<string[]>([current]);
   const [zone, setZone] = useState(current);
-  const [clock, setClock] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  const tick = useSyncExternalStore(subscribeTick, tickSnapshot, serverTick);
+  const mounted = tick > 0;
+  const zones = useMemo(() => {
+    if (!mounted) return [current];
     try {
       const all = Intl.supportedValuesOf("timeZone");
-      setZones(all.includes(current) ? all : [current, ...all]);
+      return all.includes(current) ? all : [current, ...all];
     } catch {
-      // Older browsers: only the stored zone is offered.
+      return [current]; // Older browsers: only the stored zone is offered.
     }
-  }, [current]);
-
-  useEffect(() => {
-    const format = () =>
-      setClock(new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: zone, weekday: "long", hour: "numeric", minute: "2-digit" }).format(new Date()));
-    format();
-    const timer = setInterval(format, 30_000);
-    return () => clearInterval(timer);
-  }, [zone, locale]);
+  }, [mounted, current]);
+  const clock = mounted
+    ? new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: zone, weekday: "long", hour: "numeric", minute: "2-digit" }).format(tick * 30_000)
+    : "";
 
   const groups = useMemo(() => groupZones(zones), [zones]);
   const sourceNote = source === "USER" ? t("sourceUser") : source === "ADMIN" ? t("sourceAdmin") : source === "DEVICE" ? t("sourceDevice") : t("sourceDefault");
