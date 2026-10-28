@@ -272,3 +272,7 @@
 - **PS-01..13** — Paymob subscription client: Bearer token reuse, same-host pagination only, digit-only ids, PUT next_billing / POST cancel, lookup by transaction, no body in errors, sign-up NOT_CONFIGURED / intention body, callback HMAC accept/refuse/400, plan creation (MOTO, frequency 30) and NOT_CONFIGURED.
 - **RN-01..12** — renewal booking from re-fetched transactions only, idempotent and concurrent, mismatches flag the Admin, failed charge notice once, grace after 06:00 with 3 days, paid retry restores, late retry pays the containing period, cancel Paymob-first, Paymob refusal changes nothing, callback as trigger, Paymob down marks nothing, notice texts, worker wiring.
 - **SW-01..03, BS-01..05, SU-01..08, PP-01..03, UI-02..06** — webhook route, list/cancel access and same-origin, sign-up (consent, monthly plan, one live per student, finance wall, checkout refusal, activation, abandoned sign-up), Admin plan link, panel rendering.
+
+## Written 2026-10-28 (S-02, S-03)
+- **TCH-01..07, STU-G-01..02** — Admin adds with a rate; Supervisor adds PENDING/inactive + Admin notice; scheduling/assignments refuse PENDING; approve sets rate, activates, sends fresh credentials; Admin-only approve; PATCH cannot activate PENDING; minor needs a guardian.
+- **TZS-01..06, TZF-01..03** — IANA validation; DEVICE only over DEFAULT/DEVICE; USER/ADMIN kept; Supervisor 403; device sync in the shell; hydration-safe account form and truthful source notes.
