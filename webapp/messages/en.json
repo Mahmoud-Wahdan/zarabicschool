@@ -1901,7 +1901,19 @@
         "FAILED": "Failed",
         "CANCELLED": "Cancelled",
         "NONE": "No invoice"
-      }
+      },
+      "isAdult": "Adult who pays for themself",
+      "hourlyRate": "Hourly rate",
+      "hourlyRateFor": "Hourly rate for {name}",
+      "rateCurrency": "Rate currency",
+      "rateFrom": "Rate applies from",
+      "rateRequired": "Enter the hourly rate to approve this teacher.",
+      "teacherNeedsApproval": "A teacher you add waits for the Admin's approval and rate before they can sign in.",
+      "teacherSentForApproval": "Teacher added. The Admin will approve them and set the rate.",
+      "teacherApproved": "{name} is approved. Their sign-in details were sent.",
+      "pendingApproval": "Waiting for approval",
+      "approveTeacher": "Approve",
+      "waitingForAdmin": "Waiting for the Admin"
     }
   },
   "paymentReturn": {

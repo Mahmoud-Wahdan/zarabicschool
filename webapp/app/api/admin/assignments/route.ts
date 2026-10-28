@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const assignment = await runSerializable(async (tx) => {
       const [student, teacher, subject] = await Promise.all([
         tx.student.findFirst({ where: { id: data.studentId, academyId: user.academyId, user: { isActive: true } }, select: { id: true } }),
-        tx.teacher.findFirst({ where: { id: data.teacherId, academyId: user.academyId, user: { isActive: true } }, select: { id: true } }),
+        tx.teacher.findFirst({ where: { id: data.teacherId, academyId: user.academyId, approvalStatus: "APPROVED", user: { isActive: true } }, select: { id: true } }),
         tx.subject.findFirst({ where: { id: data.subjectId, academyId: user.academyId, isActive: true }, select: { id: true } }),
       ]);
       if (!student || !teacher || !subject) {

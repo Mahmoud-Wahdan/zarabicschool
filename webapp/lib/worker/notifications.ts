@@ -325,6 +325,12 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "Automatic renewal of a monthly package was cancelled by the academy. The payer was informed."
       : "تم إلغاء التجديد التلقائي لباقة شهرية من الأكاديمية، وتم إبلاغ ولي الأمر.";
   }
+  if (job.kind === "TEACHER_PENDING_APPROVAL") {
+    // Admin-only (S-02 / D9): a Supervisor added a teacher; ids only in the payload.
+    return language === "en"
+      ? "A Supervisor added a new teacher. Approve them and set the rate on the teachers page."
+      : "أضاف أحد المشرفين معلمًا جديدًا. اعتمده وحدّد الأجر من صفحة المعلمين.";
+  }
   if (job.kind === "OVERTIME_DECISION") {
     // Teacher notice after the Admin reviews an overtime claim — no amounts.
     return language === "en"

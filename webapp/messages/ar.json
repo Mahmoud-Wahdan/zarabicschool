@@ -1901,7 +1901,19 @@
         "FAILED": "فاشلة",
         "CANCELLED": "ملغاة",
         "NONE": "لا توجد فاتورة"
-      }
+      },
+      "isAdult": "بالغ يدفع لنفسه",
+      "hourlyRate": "أجر الساعة",
+      "hourlyRateFor": "أجر الساعة لـ {name}",
+      "rateCurrency": "عملة الأجر",
+      "rateFrom": "يبدأ الأجر من",
+      "rateRequired": "أدخل أجر الساعة لاعتماد هذا المعلم.",
+      "teacherNeedsApproval": "المعلم الذي تضيفه ينتظر اعتماد المدير وتحديد الأجر قبل أن يتمكن من الدخول.",
+      "teacherSentForApproval": "تمت إضافة المعلم. سيعتمده المدير ويحدد الأجر.",
+      "teacherApproved": "تم اعتماد {name} وأُرسلت بيانات الدخول.",
+      "pendingApproval": "في انتظار الاعتماد",
+      "approveTeacher": "اعتماد",
+      "waitingForAdmin": "في انتظار المدير"
     }
   },
   "paymentReturn": {

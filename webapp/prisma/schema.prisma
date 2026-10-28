@@ -413,6 +413,7 @@ model User {
   guardianProfile               Guardian?                  @relation("GuardianUser")
   studentProfile                Student?                   @relation("StudentUser")
   teacherProfile                Teacher?                   @relation("TeacherUser")
+  approvedTeachers              Teacher[]                  @relation("TeacherApprovedBy")
   createdApplicationRecords     ApplicationRecord[]        @relation("ApplicationCreatedUser")
   overriddenSessionStudents     SessionStudent[]           @relation("SessionStudentOverride")
   sessionJoinClicks             SessionJoinClick[]
@@ -440,10 +441,10 @@ model User {
   sentAdminMessages             AdminMessage[]             @relation("AdminMessageCreatedBy")
   sessionEvaluationsAuthored    SessionEvaluation[]        @relation("SessionEvaluationAuthor")
 
-  announcementsCreated Announcement[] @relation("AnnouncementCreatedBy")
-  complaintsFiled      Complaint[]    @relation("ComplaintFiledBy")
-  complaintsConcerning Complaint[]    @relation("ComplaintConcerned")
-  complaintsHandled    Complaint[]    @relation("ComplaintHandledBy")
+  announcementsCreated  Announcement[]         @relation("AnnouncementCreatedBy")
+  complaintsFiled       Complaint[]            @relation("ComplaintFiledBy")
+  complaintsConcerning  Complaint[]            @relation("ComplaintConcerned")
+  complaintsHandled     Complaint[]            @relation("ComplaintHandledBy")
   attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionResolvedBy")
 
   @@unique([academyId, username])
@@ -518,31 +519,31 @@ model Guardian {
 }
 
 model Student {
-  id                   String                     @id @default(uuid()) @db.Uuid
-  userId               String                     @unique @map("user_id") @db.Uuid
-  guardianId           String?                    @map("guardian_id") @db.Uuid
-  isAdult              Boolean                    @default(false) @map("is_adult")
-  academyId            String                     @map("academy_id") @db.Uuid
+  id                    String                     @id @default(uuid()) @db.Uuid
+  userId                String                     @unique @map("user_id") @db.Uuid
+  guardianId            String?                    @map("guardian_id") @db.Uuid
+  isAdult               Boolean                    @default(false) @map("is_adult")
+  academyId             String                     @map("academy_id") @db.Uuid
   // Session 1 (owner, 2026-10-18): the language the teacher writes this
   // student's reports in (default ar; Admin/Supervisor edit; CONTEXT §9).
-  reportLanguage       ReportLanguage             @default(ar) @map("report_language")
-  enrollmentDate       DateTime?                  @map("enrollment_date") @db.Date
-  createdAt            DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user                 User                       @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
-  guardian             Guardian?                  @relation(fields: [guardianId], references: [id], onDelete: Restrict)
-  academy              Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  subscriptions        Subscription[]
-  invoices             Invoice[]
-  sessionStudents      SessionStudent[]           @relation("SessionStudentStudent")
-  reports              Report[]
-  monthlyReports       MonthlyReport[]
-  reservations         SessionReservation[]
-  studentSubjects      StudentSubject[]
-  assignments          StudentTeacherAssignment[]
-  billingSubscriptions BillingSubscription[]      @relation("BillingSubscriptionStudent")
-  evaluations          SessionEvaluation[]
-  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionStudent")
+  reportLanguage        ReportLanguage             @default(ar) @map("report_language")
+  enrollmentDate        DateTime?                  @map("enrollment_date") @db.Date
+  createdAt             DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User                       @relation("StudentUser", fields: [userId], references: [id], onDelete: Restrict)
+  guardian              Guardian?                  @relation(fields: [guardianId], references: [id], onDelete: Restrict)
+  academy               Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subscriptions         Subscription[]
+  invoices              Invoice[]
+  sessionStudents       SessionStudent[]           @relation("SessionStudentStudent")
+  reports               Report[]
+  monthlyReports        MonthlyReport[]
+  reservations          SessionReservation[]
+  studentSubjects       StudentSubject[]
+  assignments           StudentTeacherAssignment[]
+  billingSubscriptions  BillingSubscription[]      @relation("BillingSubscriptionStudent")
+  evaluations           SessionEvaluation[]
+  attendanceResolutions AttendanceResolution[]     @relation("AttendanceResolutionStudent")
 
   @@index([academyId])
   @@index([guardianId])
@@ -682,34 +683,34 @@ model SessionLinkAudit {
 }
 
 model Invoice {
-  id                String                  @id @default(uuid()) @db.Uuid
-  academyId         String                  @map("academy_id") @db.Uuid
-  studentId         String                  @map("student_id") @db.Uuid
-  subscriptionId    String?                 @map("subscription_id") @db.Uuid
-  amountMinor       BigInt                  @map("amount_minor")
-  currency          String                  @db.VarChar(3)
-  provider          PaymentProvider
-  exchangeRate      Decimal?                @map("exchange_rate") @db.Decimal(20, 8)
-  packageType       SubscriptionPackageType @map("package_type")
-  sessionsPurchased Int                     @map("sessions_purchased")
-  status            InvoiceStatus           @default(PENDING)
-  providerReference String?                 @map("provider_reference")
-  paidAt            DateTime?               @map("paid_at") @db.Timestamptz(6)
+  id                    String                  @id @default(uuid()) @db.Uuid
+  academyId             String                  @map("academy_id") @db.Uuid
+  studentId             String                  @map("student_id") @db.Uuid
+  subscriptionId        String?                 @map("subscription_id") @db.Uuid
+  amountMinor           BigInt                  @map("amount_minor")
+  currency              String                  @db.VarChar(3)
+  provider              PaymentProvider
+  exchangeRate          Decimal?                @map("exchange_rate") @db.Decimal(20, 8)
+  packageType           SubscriptionPackageType @map("package_type")
+  sessionsPurchased     Int                     @map("sessions_purchased")
+  status                InvoiceStatus           @default(PENDING)
+  providerReference     String?                 @map("provider_reference")
+  paidAt                DateTime?               @map("paid_at") @db.Timestamptz(6)
   // S-7 (automatic renewal): a renewal invoice names its billing subscription and the
   // period it pays for (partial unique indexes in raw SQL: one per period, one per
   // Paymob renewal transaction).
-  billingSubscriptionId String?              @map("billing_subscription_id") @db.Uuid
-  billingPeriodStart    DateTime?            @map("billing_period_start") @db.Date
-  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
-  academy           Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  student           Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  subscription      Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
-  billingSubscription BillingSubscription?  @relation("BillingSubscriptionInvoices", fields: [billingSubscriptionId], references: [id], onDelete: Restrict)
-  attempts          PaymentAttempt[]
-  ledgerEntries     SubscriptionLedger[]
-  paymentProofs     PaymentProof[]
-  auditEvents       PaymentAudit[]          @relation("PaymentAuditInvoice")
+  billingSubscriptionId String?                 @map("billing_subscription_id") @db.Uuid
+  billingPeriodStart    DateTime?               @map("billing_period_start") @db.Date
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy               Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  student               Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subscription          Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  billingSubscription   BillingSubscription?    @relation("BillingSubscriptionInvoices", fields: [billingSubscriptionId], references: [id], onDelete: Restrict)
+  attempts              PaymentAttempt[]
+  ledgerEntries         SubscriptionLedger[]
+  paymentProofs         PaymentProof[]
+  auditEvents           PaymentAudit[]          @relation("PaymentAuditInvoice")
 
   @@index([academyId, status, createdAt])
   @@index([provider, providerReference])
@@ -741,21 +742,21 @@ model PaymentAttempt {
 }
 
 model SubscriptionLedger {
-  id             String                      @id @default(uuid()) @db.Uuid
-  academyId      String                      @map("academy_id") @db.Uuid
-  subscriptionId String                      @map("subscription_id") @db.Uuid
-  invoiceId      String?                     @map("invoice_id") @db.Uuid
-  sessionId      String?                     @map("session_id") @db.Uuid
-  reportId       String?                     @map("report_id") @db.Uuid
-  entryType      SubscriptionLedgerEntryType @map("entry_type")
-  sessionsDelta  Int                         @map("sessions_delta")
-  createdAt      DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  academy        Academy                     @relation(fields: [academyId], references: [id], onDelete: Restrict)
-  subscription   Subscription                @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
-  invoice        Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  session        Session?                    @relation("LedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
-  report         Report?                     @relation("LedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
-  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionLedger")
+  id                    String                      @id @default(uuid()) @db.Uuid
+  academyId             String                      @map("academy_id") @db.Uuid
+  subscriptionId        String                      @map("subscription_id") @db.Uuid
+  invoiceId             String?                     @map("invoice_id") @db.Uuid
+  sessionId             String?                     @map("session_id") @db.Uuid
+  reportId              String?                     @map("report_id") @db.Uuid
+  entryType             SubscriptionLedgerEntryType @map("entry_type")
+  sessionsDelta         Int                         @map("sessions_delta")
+  createdAt             DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy               Academy                     @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  subscription          Subscription                @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  invoice               Invoice?                    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  session               Session?                    @relation("LedgerSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  report                Report?                     @relation("LedgerReport", fields: [reportId], references: [id], onDelete: Restrict)
+  attendanceResolutions AttendanceResolution[]      @relation("AttendanceResolutionLedger")
 
   @@index([subscriptionId, createdAt])
   @@index([sessionId])
@@ -895,8 +896,13 @@ model Teacher {
   id               String                     @id @default(uuid()) @db.Uuid
   userId           String                     @unique @map("user_id") @db.Uuid
   academyId        String                     @map("academy_id") @db.Uuid
+  /// S-2 (D9/D38): PENDING (added by a Supervisor, cannot log in) | APPROVED. CHECK in raw SQL.
+  approvalStatus   String                     @default("APPROVED") @map("approval_status") @db.VarChar(16)
+  approvedById     String?                    @map("approved_by") @db.Uuid
+  approvedAt       DateTime?                  @map("approved_at") @db.Timestamptz(6)
   createdAt        DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  approvedBy       User?                      @relation("TeacherApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
   user             User                       @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
   academy          Academy                    @relation(fields: [academyId], references: [id], onDelete: Restrict)
   subjects         TeacherSubject[]

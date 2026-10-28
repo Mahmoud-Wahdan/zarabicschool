@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       ...(optOutReady ? { announcementsOptOut: true } : {}),
       guardianProfile: { select: { id: true, relationship: true, students: { select: { id: true } } } },
       studentProfile: { select: { id: true, guardianId: true, isAdult: true, enrollmentDate: true, reportLanguage: true } },
-      teacherProfile: { select: { id: true, subjects: { select: { subjectId: true } } } },
+      teacherProfile: { select: { id: true, approvalStatus: true, subjects: { select: { subjectId: true } } } },
     },
   });
   if (type !== "student") return NextResponse.json({ data: rows });
@@ -71,6 +71,20 @@ export async function POST(request: Request) {
   const parsed = config.schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid profile data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   const input = parsed.data;
+  // D10: a minor student needs a guardian (server-enforced, both roles).
+  if (type === "student" && "isAdult" in input && !input.isAdult && !("guardianId" in input && input.guardianId)) {
+    return NextResponse.json({ error: { code: "GUARDIAN_REQUIRED", message: "A minor student needs a guardian." } }, { status: 400 });
+  }
+  // D9 / D38: the Admin adds a teacher with a rate (approved); a Supervisor adds one
+  // without a rate → PENDING and inactive (cannot log in) until the Admin approves.
+  const teacherRate = type === "teacher" && "rate" in input ? input.rate : undefined;
+  if (type === "teacher" && user.role === "ADMIN" && !teacherRate) {
+    return NextResponse.json({ error: { code: "RATE_REQUIRED", message: "A teacher added by the Admin needs a rate." } }, { status: 400 });
+  }
+  if (type === "teacher" && user.role !== "ADMIN" && teacherRate) {
+    return NextResponse.json({ error: { code: "FORBIDDEN", message: "Only the Admin sets a teacher's rate." } }, { status: 403 });
+  }
+  const pendingTeacher = type === "teacher" && user.role !== "ADMIN";
   try {
     const created = await prisma.$transaction(async (tx) => {
       const guardianInput = type === "guardian" ? guardianCreateSchema.parse(input) : null;
@@ -84,14 +98,37 @@ export async function POST(request: Request) {
           academyId: user.academyId, username: input.username.toLowerCase(), displayName: input.displayName,
           passwordHash: await bcrypt.hash(input.password, 12), role: config.role,
           phone: input.phone || null, email: input.email || null, mustChangePassword: true,
+          ...(pendingTeacher ? { isActive: false } : {}),
           passwordSetById: user.id, passwordSetAt: new Date(), // B4 audit: Admin-set initial password
           ...(guardianInput ? { guardianProfile: { create: { academyId: user.academyId, relationship: guardianInput.relationship } } } : {}),
           ...(studentInput ? { studentProfile: { create: { academyId: user.academyId, guardianId: studentInput.guardianId ?? null, isAdult: studentInput.isAdult, enrollmentDate: studentInput.enrollmentDate ? new Date(studentInput.enrollmentDate) : null, ...(studentInput.reportLanguage ? { reportLanguage: studentInput.reportLanguage } : {}) } } } : {}),
-          ...(type === "teacher" ? { teacherProfile: { create: { academyId: user.academyId } } } : {}),
+          ...(type === "teacher"
+            ? { teacherProfile: { create: pendingTeacher
+                ? { academyId: user.academyId, approvalStatus: "PENDING" }
+                : { academyId: user.academyId, approvalStatus: "APPROVED", approvedById: user.id, approvedAt: new Date() } } }
+            : {}),
         },
-        select: { id: true, username: true, displayName: true, role: true, isActive: true },
+        select: { id: true, username: true, displayName: true, role: true, isActive: true, teacherProfile: { select: { id: true } } },
       });
-      return account;
+      if (account.teacherProfile && teacherRate) {
+        await tx.teacherRate.create({
+          data: { academyId: user.academyId, teacherId: account.teacherProfile.id, hourlyRateMinor: teacherRate.hourlyRateMinor, currency: teacherRate.currency, effectiveFrom: new Date(teacherRate.effectiveFrom), createdById: user.id },
+        });
+      }
+      if (account.teacherProfile && pendingTeacher) {
+        const admins = await tx.user.findMany({ where: { academyId: user.academyId, role: "ADMIN", isActive: true }, select: { id: true } });
+        await tx.notificationJob.createMany({
+          data: admins.map((admin) => ({
+            academyId: user.academyId, sessionId: null, recipientUserId: admin.id, kind: "TEACHER_PENDING_APPROVAL",
+            dedupKey: `TEACHER_PENDING_APPROVAL:${account.teacherProfile!.id}:${admin.id}`, scheduledFor: new Date(),
+            payload: { teacherId: account.teacherProfile!.id },
+          })),
+          skipDuplicates: true,
+        });
+      }
+      const { teacherProfile: _profile, ...publicAccount } = account;
+      void _profile;
+      return publicAccount;
     });
     return NextResponse.json({ data: created }, { status: 201 });
   } catch (cause) {

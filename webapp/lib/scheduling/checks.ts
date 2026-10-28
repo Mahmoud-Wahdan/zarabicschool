@@ -35,6 +35,14 @@ export async function resolveParticipants(
   tx: Prisma.TransactionClient,
   options: ParticipantCheckOptions,
 ): Promise<ResolvedParticipants> {
+  // S-02 / D9: a teacher added by a Supervisor stays PENDING until the Admin approves.
+  const teacher = await tx.teacher.findFirst({
+    where: { id: options.teacherId, academyId: options.academyId },
+    select: { approvalStatus: true },
+  });
+  if (teacher?.approvalStatus === "PENDING") {
+    throw new SchedulingValidationError("TEACHER_PENDING_APPROVAL", "This teacher is waiting for the Admin's approval.");
+  }
   const teacherSubject = await tx.teacherSubject.findFirst({
     where: { academyId: options.academyId, teacherId: options.teacherId, subjectId: options.subjectId },
     select: { id: true },

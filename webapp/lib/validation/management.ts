@@ -58,7 +58,14 @@ export const studentCreateSchema = z.object({
   reportLanguage: reportLanguageSchema.optional(),
 });
 
-export const teacherCreateSchema = z.object(accountFields);
+/** D9: the Admin adds a teacher WITH a rate; a Supervisor never sends one (route-enforced). */
+export const teacherInitialRateSchema = z.object({
+  hourlyRateMinor: z.number().int().positive().max(100_000_000),
+  currency: z.enum(["EGP", "USD"]),
+  effectiveFrom: z.string().datetime({ offset: true }),
+});
+
+export const teacherCreateSchema = z.object({ ...accountFields, rate: teacherInitialRateSchema.optional() });
 
 export const profileUpdateSchema = z.object({
   displayName: z.string().trim().min(2).max(100).optional(),
