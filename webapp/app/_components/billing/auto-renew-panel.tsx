@@ -163,13 +163,13 @@ export default function AutoRenewPanel({ students, plans, subscriptions, timeZon
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1 text-sm">
               <span className="font-medium text-[var(--navy)]">{t("student")}</span>
-              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
                 {eligible.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
               </select>
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-medium text-[var(--navy)]">{t("plan")}</span>
-              <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+              <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
                 {plans.map((entry) => <option key={entry.id} value={entry.id}>{t("planOption", { plan: entry.name, sessions: entry.sessions, price: entry.priceLabel })}</option>)}
               </select>
             </label>
@@ -180,11 +180,11 @@ export default function AutoRenewPanel({ students, plans, subscriptions, timeZon
             <p className="mt-3 text-xs opacity-70">{t("shortMonthNote")}</p>
           </div>
           <label className="mt-6 flex items-start gap-3 rounded-lg bg-[var(--background)] p-4 text-sm leading-relaxed">
-            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[var(--emerald)]" />
+            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[var(--emerald)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" />
             <span>{t("consent", { price: plan?.priceLabel ?? "" })}</span>
           </label>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" disabled={!consent || busy || !studentId || !planId} onClick={() => void start()} className="cta-primary rounded-xl px-5 py-2.5 text-sm disabled:opacity-50">
+            <button type="button" aria-busy={busy} disabled={!consent || busy || !studentId || !planId} onClick={() => void start()} className="cta-primary rounded-xl px-5 py-2.5 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
               {t("start")}
             </button>
             <p className="text-xs opacity-70">{t("cancelAnyTime")}</p>
