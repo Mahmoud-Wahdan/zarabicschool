@@ -276,3 +276,6 @@
 ## Written 2026-10-28 (S-02, S-03)
 - **TCH-01..07, STU-G-01..02** — Admin adds with a rate; Supervisor adds PENDING/inactive + Admin notice; scheduling/assignments refuse PENDING; approve sets rate, activates, sends fresh credentials; Admin-only approve; PATCH cannot activate PENDING; minor needs a guardian.
 - **TZS-01..06, TZF-01..03** — IANA validation; DEVICE only over DEFAULT/DEVICE; USER/ADMIN kept; Supervisor 403; device sync in the shell; hydration-safe account form and truthful source notes.
+
+## Written 2026-10-28 (S-06)
+- **NT-01..06, INB-01..03** — own jobs only, no credentials/evaluation kinds; staff team queues; complaints staff-only; money Admin-only; per-user read state; key validation, mark-all, same-origin, 401; bell = unread inbox; list order, sr-only unread, ar titles, empty state, a title for every composed kind.
