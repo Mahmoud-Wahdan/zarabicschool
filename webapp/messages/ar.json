@@ -117,7 +117,12 @@
       "FAILED": "فشل الدفع",
       "CANCELLED": "إلغاء",
       "REJECTED": "رفض",
-      "REFUNDED": "استرداد"
+      "REFUNDED": "استرداد",
+      "LINK_SENT": "إرسال رابط الدفع",
+      "REFUND_REQUESTED": "طلب استرداد",
+      "REFUND_FAILED": "فشل الاسترداد",
+      "VOIDED": "إلغاء من Paymob",
+      "PROVIDER_REFUND_SEEN": "استرداد أبلغت عنه Paymob"
     }
   },
   "reportsQueue": {

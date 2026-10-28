@@ -5,6 +5,7 @@ import EmptyState from "@/app/_components/ui/empty-state";
 import PageHeader from "@/app/_components/ui/page-header";
 import { requireRole } from "@/lib/dal";
 import { isPaymentAuditReady } from "@/lib/payments/audit";
+import { PAYMENT_AUDIT_EVENT_TYPES } from "@/lib/payments/audit-events";
 import { prisma } from "@/lib/prisma";
 
 export async function generateMetadata() {
@@ -12,7 +13,7 @@ export async function generateMetadata() {
   return { title: `${t("title")} | Zarabicschool` };
 }
 
-const EVENT_TYPES = ["CREATED", "PAID", "FAILED", "CANCELLED", "REJECTED", "REFUNDED"] as const;
+const EVENT_TYPES = PAYMENT_AUDIT_EVENT_TYPES;
 
 type EventType = (typeof EVENT_TYPES)[number];
 
@@ -27,6 +28,11 @@ const TONE_BY_EVENT: Record<EventType, string> = {
   CANCELLED: "bg-surface-container-high text-on-surface-variant",
   REJECTED: "bg-error-container text-on-error-container",
   REFUNDED: "bg-tertiary-container text-on-tertiary-container",
+  LINK_SENT: "bg-surface-container-high text-on-surface",
+  REFUND_REQUESTED: "bg-surface-container-high text-on-surface",
+  REFUND_FAILED: "bg-error-container text-on-error-container",
+  VOIDED: "bg-tertiary-container text-on-tertiary-container",
+  PROVIDER_REFUND_SEEN: "bg-tertiary-container text-on-tertiary-container",
 };
 
 /**

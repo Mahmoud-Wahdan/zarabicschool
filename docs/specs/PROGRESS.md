@@ -36,6 +36,7 @@
 - **2026-10-28 (cont. 2):** S-06 done (4fec4ba; SQL S-4 applied, D64). **Next:** S-12 (SQL S-5, FINANCIAL), S-13 (SQL S-6, FINANCIAL) and S-07 (attendance/credit queries) all need the owner's OK first.
 - **2026-10-28 (cont. 3):** S-12 done (ee75a04) and S-13 done (b6ed2db, 32fbd33); SQL S-5/S-6 approved as shown and applied (D65, 42 migrations). **Next:** S-07 (roster changes: the owner OKs the attendance/credit queries first), S-14 Stitch track; open: OQ-R2..R5, OQ-S13-1. Refund and renewal still need one Paymob test-mode run once the dashboard is back.
 - **2026-10-28 (G1 A1):** hydration fix in the subjects table + whole-app scan test (`table-whitespace.test.ts`).
+- **2026-10-28 (G1 A2):** payment audit event texts (ar/en) for all 11 types from one list; dynamic-key test over every template t() call.
 - **Owner actions pending:** (S-1, S-1b, S-1c all applied — no migration waiting); OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 

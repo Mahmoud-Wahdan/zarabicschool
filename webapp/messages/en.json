@@ -117,7 +117,12 @@
       "FAILED": "Payment failed",
       "CANCELLED": "Cancelled",
       "REJECTED": "Rejected",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "LINK_SENT": "Payment link sent",
+      "REFUND_REQUESTED": "Refund requested",
+      "REFUND_FAILED": "Refund failed",
+      "VOIDED": "Voided by Paymob",
+      "PROVIDER_REFUND_SEEN": "Refund reported by Paymob"
     }
   },
   "reportsQueue": {

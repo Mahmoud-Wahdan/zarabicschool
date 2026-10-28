@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "../../generated/prisma/client";
 
 import { prisma } from "../prisma";
+import type { PaymentAuditEventType } from "./audit-events";
 
 /**
  * Append-only payment audit writes (Session 3, owner decision 2026-10-24 —
@@ -20,9 +21,7 @@ import { prisma } from "../prisma";
  */
 
 // S-6 (owner OK 2026-10-28) adds LINK_SENT, REFUND_REQUESTED, REFUND_FAILED, VOIDED, PROVIDER_REFUND_SEEN.
-export type PaymentAuditEventType =
-  | "CREATED" | "PAID" | "FAILED" | "CANCELLED" | "REJECTED" | "REFUNDED"
-  | "LINK_SENT" | "REFUND_REQUESTED" | "REFUND_FAILED" | "VOIDED" | "PROVIDER_REFUND_SEEN";
+export type { PaymentAuditEventType };
 
 export type PaymentAuditActorRole = "ADMIN" | "STUDENT" | "GUARDIAN" | "WEBHOOK" | "SYSTEM";
 
