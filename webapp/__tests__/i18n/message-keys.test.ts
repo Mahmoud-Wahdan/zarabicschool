@@ -24,13 +24,18 @@ function flatten(node: Catalog, prefix = ""): string[] {
   );
 }
 
-function hasKey(catalog: Catalog, key: string): boolean {
+/**
+ * A3 (2026-10-28): t("x") must reach a STRING. An object path (for example
+ * attendance.student, a namespace) throws INSUFFICIENT_PATH at runtime; only
+ * t.raw() may return a non-string message.
+ */
+function resolves(catalog: Catalog, key: string, raw: boolean): boolean {
   let node: unknown = catalog;
   for (const part of key.split(".")) {
     if (!node || typeof node !== "object") return false;
     node = (node as Catalog)[part];
   }
-  return node !== undefined;
+  return raw ? node !== undefined : typeof node === "string";
 }
 
 function sourceFiles(dir: string): string[] {
@@ -64,11 +69,11 @@ function missingKeys(): string[] {
   for (const file of [...sourceFiles(join(ROOT, "app")), ...sourceFiles(join(ROOT, "lib"))]) {
     const source = readFileSync(file, "utf8");
     for (const [name, namespace] of translators(source)) {
-      const call = new RegExp(String.raw`(?<![\w.])${name}(?:\.rich|\.markup|\.raw)?\(\s*"([^"]+)"`, "g");
+      const call = new RegExp(String.raw`(?<![\w.])${name}(\.rich|\.markup|\.raw)?\(\s*"([^"]+)"`, "g");
       for (const match of source.matchAll(call)) {
-        const key = namespace ? `${namespace}.${match[1]}` : match[1];
+        const key = namespace ? `${namespace}.${match[2]}` : match[2];
         for (const [locale, catalog] of [["en", en], ["ar", ar]] as const) {
-          if (!hasKey(catalog, key)) missing.push(`${relative(ROOT, file)} → ${locale}:${key}`);
+          if (!resolves(catalog, key, match[1] === ".raw")) missing.push(`${relative(ROOT, file)} → ${locale}:${key}`);
         }
       }
     }
@@ -91,7 +96,7 @@ describe("i18n message keys", () => {
     expect(Object.fromEntries(vars)).toEqual({ t: "a.b", x: "c", y: "d" });
   });
 
-  it("I18N-03: every literal t(\"key\") in app/ and lib/ exists in both catalogs", () => {
+  it("I18N-03: every literal t(\"key\") in app/ and lib/ resolves to a string in both catalogs", () => {
     expect(missingKeys()).toEqual([]);
   });
 });

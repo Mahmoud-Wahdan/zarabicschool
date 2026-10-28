@@ -9,7 +9,7 @@ import { formatSessionDateTime } from "../../../../lib/schedules/display";
 
 export async function generateMetadata() {
   const t = await getTranslations("attendance");
-  return { title: `${t("teacher")} | Zarabicschool` };
+  return { title: `${t("teacher.title")} | Zarabicschool` };
 }
 
 /**
