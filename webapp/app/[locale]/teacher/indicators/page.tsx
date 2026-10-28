@@ -48,6 +48,7 @@ export default async function TeacherIndicatorsPage({ searchParams }: { searchPa
         <MonthNav month={month} basePath="/teacher/indicators" labels={{ previous: t("previousMonth"), next: t("nextMonth"), nav: t("monthNav") }} />
       </div>
       <p className="mt-2 text-label-sm text-on-surface-variant">{t("rules")}</p>
+      <p className="mt-1 text-label-sm text-on-surface-variant">{t("countedAfterEnd")}</p>
       {!data || data.sessionsHeld === 0 ? (
         <EmptyState icon="insights" title={t("empty")} />
       ) : (

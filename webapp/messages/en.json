@@ -2323,6 +2323,7 @@
     "adminTitle": "Teacher performance",
     "adminSubtitle": "Indicators per teacher for the month. No combined score.",
     "rules": "Late start = your first platform click more than 5 minutes after the start. Report on time = first submission within 15 minutes after the end. Only held, ended sessions count.",
+    "countedAfterEnd": "A session is counted here after its scheduled end; your join click is kept and counted then. Today's running and upcoming sessions are on your home page.",
     "indicator": "indicator",
     "sessionsHeld": "Sessions held",
     "lateStarts": "Late starts",

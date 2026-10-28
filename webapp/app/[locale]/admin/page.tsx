@@ -9,7 +9,7 @@ import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
-import { zonedDayRangeUtc, zonedYmd } from "../../../lib/schedules/recurrence";
+import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 import { getEgpRevenue, getHomeCounts, parsePeriod } from "../../../lib/finance/revenue";
 import RevenueChart from "../../_components/charts/revenue-chart";
@@ -37,7 +37,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27): the
   // host's setHours day is wrong on a UTC server and shifts with DST.
   const viewerZone = user.timezone || "Africa/Cairo";
-  const { start: startOfDay, end: endOfDay } = zonedDayRangeUtc(zonedYmd(now, viewerZone), viewerZone);
   // S-11 / D8: home cards + EGP revenue (Admin only).
   const revenuePeriod = parsePeriod((await searchParams).revenue);
   const [homeCounts, revenue] = await Promise.all([
@@ -45,7 +44,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
   ]);
 
-  const [applications, students, guardians, teachers, subjects, pendingReports, flagCounts, todaysSessions] =
+  const [applications, students, guardians, teachers, subjects, pendingReports, flagCounts, today] =
     await Promise.all([
       prisma.application.count({ where: { academyId: user.academyId, status: { in: ["NEW", "REVIEWED"] } } }),
       prisma.student.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
@@ -55,24 +54,14 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
       // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
       getTeacherFlagCounts(user.academyId),
-      prisma.session.findMany({
-        where: {
-          academyId: user.academyId,
-          scheduledStart: { gte: startOfDay, lt: endOfDay },
-        },
-        orderBy: { scheduledStart: "asc" },
-        take: 8,
-        include: {
-          subject: { select: { nameAr: true, nameEn: true } },
-          teacher: { select: { user: { select: { displayName: true } } } },
-          students: { include: { student: { select: { user: { select: { displayName: true } } } } } },
-        },
-      }),
+      // A7: the whole viewer-local day, every status, no row cap.
+      getTodaySessions(user.academyId, now, viewerZone),
     ]);
+  const todaysSessions = today.sessions;
 
-  const completedToday = todaysSessions.filter((session) => session.status === "COMPLETED").length;
-  const upcomingToday = todaysSessions.filter((session) => session.status === "SCHEDULED").length;
-  const totalToday = todaysSessions.length;
+  const completedToday = today.completed;
+  const upcomingToday = today.upcoming;
+  const totalToday = today.total;
   const donePercent = totalToday ? Math.round((completedToday / totalToday) * 100) : 0;
   const upcomingPercent = totalToday ? Math.round((upcomingToday / totalToday) * 100) : 0;
 

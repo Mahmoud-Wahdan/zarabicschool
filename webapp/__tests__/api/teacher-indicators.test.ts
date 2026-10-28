@@ -126,4 +126,12 @@ describe("S-11 teacher indicators (D7)", () => {
     const lib = readFileSync(join(process.cwd(), "lib/performance/teacher-indicators.ts"), "utf8");
     for (const source of [teacherPage, lib]) expect(source).not.toMatch(/complaint|evaluation/i);
   });
+  it("PF-06 (A7, owner 2026-10-28): D7 stays; the teacher page says a session is counted after its scheduled end", () => {
+    const teacherPage = readFileSync(join(process.cwd(), "app/[locale]/teacher/indicators/page.tsx"), "utf8");
+    expect(teacherPage).toContain('t("countedAfterEnd")');
+    for (const locale of ["en", "ar"]) {
+      const messages = JSON.parse(readFileSync(join(process.cwd(), `messages/${locale}.json`), "utf8"));
+      expect(typeof messages.performance.countedAfterEnd).toBe("string");
+    }
+  });
 });
