@@ -63,7 +63,8 @@
       "calendar": "Weekly Calendar",
       "performance": "Teacher Performance",
       "indicators": "My Indicators"
-    }
+    },
+    "account": "Account"
   },
   "whatsappAdmin": {
     "title": "WhatsApp",
@@ -2355,5 +2356,18 @@
       "PAST_DUE": "Renewal payment failed",
       "CANCELED": "Cancelled"
     }
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "Settings that follow you on every device.",
+    "timeZone": "Time zone",
+    "localTime": "Your local time now: {time}",
+    "sourceDevice": "Set from this device. It updates on its own when you sign in from another zone, until you choose one here.",
+    "sourceUser": "You chose this zone. Signing in from another device does not change it.",
+    "sourceAdmin": "The academy set this zone. You can choose your own here.",
+    "save": "Save time zone",
+    "saved": "Time zone saved. Times now show in this zone.",
+    "saveFailed": "The time zone was not saved. Try again.",
+    "sourceDefault": "This is the academy default zone. It updates from your device when you sign in, until you choose one here."
   }
 }

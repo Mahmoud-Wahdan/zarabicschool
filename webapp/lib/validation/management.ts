@@ -80,6 +80,8 @@ export const profileUpdateSchema = z.object({
   // Phase 7 follow-up (owner, 2026-10-26): "no announcements" — ADMIN only (the
   // route refuses it from a Supervisor).
   announcementsOptOut: z.boolean().optional(),
+  // S-03 / D3: the Admin sets a user's IANA zone (validated in the route); never a Supervisor.
+  timezone: z.string().trim().min(1).max(80).optional(),
 });
 
 export const teacherSubjectSchema = z.object({

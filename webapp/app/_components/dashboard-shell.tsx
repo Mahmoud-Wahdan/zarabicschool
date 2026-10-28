@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link, usePathname } from "../../i18n/navigation";
+import DeviceTimeZoneSync from "./device-timezone-sync";
 import LocaleSwitcher from "./locale-switcher";
 import SignOutButton from "./sign-out-button";
 
@@ -312,6 +313,7 @@ function UserMenu({ userName, roleLabel }: { userName: string; roleLabel: string
             <span className="text-body-sm font-semibold text-on-surface">{userName}</span>
             <span className="text-label-sm text-on-surface-variant">{roleLabel}</span>
           </div>
+          <Link href="/account" className="btn btn-soft w-full">{t("account")}</Link>
           <SignOutButton className="btn btn-ghost-danger w-full" />
           <span className="sr-only">{t("userMenu")}</span>
         </div>
@@ -416,6 +418,7 @@ export default function DashboardShell({
       <a href="#main-content" className="skip-link">
         {tCommon("skipToContent")}
       </a>
+      <DeviceTimeZoneSync />
 
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 start-0 z-50 hidden w-72 flex-col overflow-y-auto bg-primary-container text-on-primary shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:flex">

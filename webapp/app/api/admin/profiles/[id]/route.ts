@@ -6,6 +6,7 @@ import { prisma } from "../../../../../lib/prisma";
 import { isSession1ReportsReady } from "../../../../../lib/reports/session1-ready";
 import { profileUpdateSchema } from "../../../../../lib/validation/management";
 import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../../lib/request";
+import { isValidTimeZone } from "../../../../../lib/users/timezone";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -21,6 +22,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // S-02 / D38: only the Admin's approval activates a PENDING teacher.
   if (parsed.data.isActive === true && target.teacherProfile?.approvalStatus === "PENDING") {
     return NextResponse.json({ error: { code: "TEACHER_PENDING_APPROVAL", message: "Approve this teacher first; approval activates the account." } }, { status: 409 });
+  }
+  // S-03 / D3: only the Admin edits another user's zone (marked ADMIN, D39).
+  if (parsed.data.timezone !== undefined) {
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Only an Admin can change a time zone." } }, { status: 403 });
+    }
+    if (!isValidTimeZone(parsed.data.timezone)) return errorResponse(400, "VALIDATION_ERROR", "A valid time zone is required.");
   }
   // The "no announcements" flag is set by an ADMIN only (owner, 2026-10-26).
   if (parsed.data.announcementsOptOut !== undefined) {
@@ -44,6 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ...(parsed.data.email === undefined ? {} : { email: parsed.data.email || null }),
     ...(parsed.data.isActive === undefined ? {} : { isActive: parsed.data.isActive }),
     ...(parsed.data.announcementsOptOut === undefined ? {} : { announcementsOptOut: parsed.data.announcementsOptOut }),
+    ...(parsed.data.timezone === undefined ? {} : { timezone: parsed.data.timezone, timezoneSource: "ADMIN" }),
   };
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { id }, data, select: { id: true } });
