@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "../prisma";
+import { countUnread } from "./inbox";
 
 /**
  * Notification badge (Session 3, slice C — owner decision 2026-10-24): per-viewer
@@ -32,6 +33,8 @@ export type ViewerBadge = {
   reports: number;
   requests: number;
   notifications: number;
+  /** S-06: the viewer's unread inbox items (the bell). */
+  inbox: number;
 };
 
 export async function getViewerBadge(user: {
@@ -45,7 +48,7 @@ export async function getViewerBadge(user: {
       prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
       prisma.sessionRequest.count({ where: { academyId: user.academyId, status: "PENDING" } }),
     ]);
-    return { applications, reports, requests, notifications: 0 };
+    return { applications, reports, requests, notifications: 0, inbox: await countUnread(user) };
   }
 
   // Family roles: the viewer's own undelivered/unacked notifications, read_at IS
@@ -60,7 +63,7 @@ export async function getViewerBadge(user: {
         AND NOT (kind LIKE 'EVALUATION%')`,
     user.id,
   )) as { count: number }[];
-  return { applications: 0, reports: 0, requests: 0, notifications: rows[0]?.count ?? 0 };
+  return { applications: 0, reports: 0, requests: 0, notifications: rows[0]?.count ?? 0, inbox: await countUnread(user) };
 }
 
 /** Marks the viewer's own unread notifications as seen. Family roles only —

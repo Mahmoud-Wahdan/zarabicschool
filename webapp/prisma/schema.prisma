@@ -416,6 +416,7 @@ model User {
   studentProfile                Student?                   @relation("StudentUser")
   teacherProfile                Teacher?                   @relation("TeacherUser")
   approvedTeachers              Teacher[]                  @relation("TeacherApprovedBy")
+  notificationReads             NotificationRead[]         @relation("NotificationReadUser")
   createdApplicationRecords     ApplicationRecord[]        @relation("ApplicationCreatedUser")
   overriddenSessionStudents     SessionStudent[]           @relation("SessionStudentOverride")
   sessionJoinClicks             SessionJoinClick[]
@@ -1357,4 +1358,15 @@ model AttendanceResolution {
   @@unique([sessionId, studentId], map: "attendance_resolutions_session_student_key")
   @@index([academyId, createdAt(sort: Desc)], map: "attendance_resolutions_academy_created_idx")
   @@map("attendance_resolutions")
+}
+
+/// S-4 (D12): per-user read state of inbox team-queue items; ids-only keys.
+model NotificationRead {
+  userId  String   @map("user_id") @db.Uuid
+  itemKey String   @map("item_key") @db.VarChar(200)
+  readAt  DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+  user    User     @relation("NotificationReadUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([userId, itemKey])
+  @@map("notification_reads")
 }

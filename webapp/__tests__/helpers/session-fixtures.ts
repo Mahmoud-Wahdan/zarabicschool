@@ -25,6 +25,14 @@ async function isAttendanceResolutionsReady(): Promise<boolean> {
   return rows[0]?.count === 1;
 }
 
+/** S-4 notification_reads gate (migration 20261028120000). */
+async function isNotificationReadsReady(): Promise<boolean> {
+  const rows = (await prisma.$queryRawUnsafe(
+    "SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notification_reads'",
+  )) as { count: number }[];
+  return rows[0]?.count === 1;
+}
+
 export async function createSessionFixtures() {
   const suffix = randomUUID().slice(0, 8);
   const passwordHash = await bcrypt.hash("Demo-Test-Pass-1!", 4);
@@ -323,6 +331,8 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     }
     await prisma.sessionJoinClick.deleteMany({ where: { session: { academyId } } });
     await prisma.notificationJob.deleteMany({ where: { academyId } });
+    // S-4: per-user inbox read state references users (RESTRICT).
+    if (await isNotificationReadsReady()) await prisma.notificationRead.deleteMany({ where: { user: { academyId } } });
     await prisma.sessionReservation.deleteMany({ where: { academyId } });
     await prisma.sessionChangeRequest.deleteMany({ where: { academyId } });
     if (await isSessionRequestsReady()) {

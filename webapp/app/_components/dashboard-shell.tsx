@@ -21,6 +21,7 @@ type BadgeCounts = {
   reports: number;
   requests: number;
   notifications: number;
+  inbox: number;
 };
 
 /**
@@ -30,10 +31,9 @@ type BadgeCounts = {
  * viewer (operators get the team-queue depths; teacher/student/guardian get their
  * own unacked notification_jobs; evaluation-related kinds are structurally
  * excluded from every count server-side, so a teacher can never receive one).
- * Clicking the bell acks family-role notifications (POST) and navigates to the
- * viewer's dashboard, which hosts the relevant detail surfaces.
+ * Clicking the bell opens the inbox (S-06), where items are marked read per user.
  */
-function NotificationBell({ role, dashboardHref }: { role: string; dashboardHref: string }) {
+function NotificationBell({ inboxHref }: { inboxHref: string }) {
   const t = useTranslations("appShell");
   const [counts, setCounts] = useState<BadgeCounts | null>(null);
 
@@ -50,24 +50,12 @@ function NotificationBell({ role, dashboardHref }: { role: string; dashboardHref
     };
   }, []);
 
-  const isOperator = role === "ADMIN" || role === "SUPERVISOR";
-  const total = counts
-    ? isOperator
-      ? counts.applications + counts.reports + counts.requests
-      : counts.notifications
-    : 0;
+  // S-06: the bell counts the viewer's unread inbox items and opens the inbox, where
+  // items are marked read (per user) — it no longer acks on click.
+  const total = counts?.inbox ?? 0;
 
-  async function onBellClick() {
-    if (!isOperator) {
-      // Ack the viewer's own notifications so the badge clears (server-side read_at).
-      try {
-        await fetch("/api/notifications/badge", { method: "POST" });
-        setCounts((current) => (current ? { ...current, notifications: 0 } : current));
-      } catch {
-        // The navigation still happens; the badge reconciles on the next mount.
-      }
-    }
-    window.location.href = dashboardHref;
+  function onBellClick() {
+    window.location.href = inboxHref;
   }
 
   return (
@@ -471,7 +459,7 @@ export default function DashboardShell({
           </div>
           <div className="flex items-center gap-3">
             <ShellClock timezone={timezone} />
-            <NotificationBell role={role} dashboardHref={(NAV_BY_ROLE[role] ?? NAV_BY_ROLE.STUDENT)[0]?.href ?? "/"} />
+            <NotificationBell inboxHref="/notifications" />
             <UserMenu userName={userName} roleLabel={roleLabel} />
           </div>
         </header>
