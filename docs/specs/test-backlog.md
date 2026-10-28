@@ -266,3 +266,9 @@
 - **PF-01..05** — late start (> start + 5 min, no click apart), report on time (first submission ≤ end + 15 min), month in the viewer zone, own sessions/clicks only, access and no complaints/evaluations.
 - **HM-01..04** — month/quarter/half buckets in the viewer zone, EGP + PAID + academy only, home counts, revenue Admin-only.
 - **DS-01..07** — D31 Arabic wording, English mirror, no links, send window to 08:00 local (DST), planning payload `{localDate}` + idempotent, late job cancelled, day's sessions in the teacher zone with make-ups apart.
+
+## Written 2026-10-28 (automatic renewal)
+- **RD-01..07, UI-01** — D56 dates (anchor in Cairo, 31st → last day, leap year, no gap, year roll, bad anchor), next charge dates for the consent card.
+- **PS-01..13** — Paymob subscription client: Bearer token reuse, same-host pagination only, digit-only ids, PUT next_billing / POST cancel, lookup by transaction, no body in errors, sign-up NOT_CONFIGURED / intention body, callback HMAC accept/refuse/400, plan creation (MOTO, frequency 30) and NOT_CONFIGURED.
+- **RN-01..12** — renewal booking from re-fetched transactions only, idempotent and concurrent, mismatches flag the Admin, failed charge notice once, grace after 06:00 with 3 days, paid retry restores, late retry pays the containing period, cancel Paymob-first, Paymob refusal changes nothing, callback as trigger, Paymob down marks nothing, notice texts, worker wiring.
+- **SW-01..03, BS-01..05, SU-01..08, PP-01..03, UI-02..06** — webhook route, list/cancel access and same-origin, sign-up (consent, monthly plan, one live per student, finance wall, checkout refusal, activation, abandoned sign-up), Admin plan link, panel rendering.

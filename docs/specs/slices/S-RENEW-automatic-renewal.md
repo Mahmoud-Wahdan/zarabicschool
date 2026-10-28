@@ -170,3 +170,10 @@ erDiagram
 
 ## Log
 - 2026-10-28: design written; S-7 applied (`prisma migrate deploy`, 36 migrations).
+- 2026-10-28: built test-first with a fake Paymob client (keys are dummies in tests):
+  - d91914f: `lib/billing/renewal-dates.ts` (RD-01..07, UI-01) and `lib/payments/paymob-subscriptions.ts` (PS-01..13).
+  - 3fe3c9e: `lib/billing/renewal.ts` (RN-01..12), `POST /api/payments/paymob/subscription-webhook` (SW-01..03), `GET /api/billing/subscriptions` and `POST /api/billing/subscriptions/:id/cancel` (BS-01..05), worker step, RENEWAL_* texts, OWASP additions.
+  - 1352e2c: SQL S-7b (D60, applied), `POST /api/billing/subscriptions` sign-up and activation from the transaction webhook (SU-01..08); the ordinary checkout refuses a renewal invoice.
+  - 23df92f: `POST /api/admin/billing/plans/:id/paymob-plan` (PP-01..03).
+  - UI: `app/_components/billing/auto-renew-panel.tsx` + `charge-date-rail.tsx` on the guardian and adult-student invoices pages, `/admin/renewals`, a plan button on `/admin/billing` (UI-02..06).
+  - Security review (security-review skill): no findings. Open points moved to OQ-R2..R5.

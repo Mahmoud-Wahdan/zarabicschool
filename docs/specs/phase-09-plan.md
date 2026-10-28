@@ -53,6 +53,8 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | M-5 payroll cap vs 100,000,000 | OQ-10 → D33 | kept + documented (lib/validation/financial.ts) |
 | M-6 complaint roster snapshot | OQ-11 → D41 | answered — SQL when S-07 starts |
 | S-1 attendance_resolutions migration | D37 | file created (52cef9b), owner applies |
+| Automatic renewal on Paymob subscriptions (MOTO) | S-RENEW, D44, D50-D61 | built and tested with a fake Paymob; real test-mode sign-up waits for the Paymob dashboard |
+| SQL S-7 renewal invoices / S-7b INCOMPLETE | D59, D60 | applied (36, 37 migrations) |
 | Africa/Cairo time-input bug | owner 2026-10-27 | done (1a36fe0) |
 | M-2 reversal (teacher join link; host for Admin/Supervisor) | D45 | done (ce236b4) |
 | en/ar message-key parity + phoneCol/whatsappChat | owner 2026-10-27 | done (2dd1da1) |
@@ -92,3 +94,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-27: S-09 done (f7e5ffe).
 - 2026-10-27: time-zone audit (360e7cc, D48); S-01 built (eab5938, waits for the S-1b apply, D46); S-10 done (624bbae).
 - 2026-10-27: S-1c applied, S-01 12/12; S-11 done (136e63f, 8d8d1eb); S-08 done (df54860).
+- 2026-10-28: automatic renewal built (S-RENEW): d91914f dates + client, 3fe3c9e booking/grace/cancel/webhook, 1352e2c sign-up + SQL S-7b (applied, D60), 23df92f Admin links a plan to Paymob, then the screens (payer consent + cancel, Admin renewals page, plan button).

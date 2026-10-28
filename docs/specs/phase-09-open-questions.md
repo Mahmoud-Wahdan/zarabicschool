@@ -144,3 +144,13 @@ ALTER TABLE "subscription_ledger" ADD CONSTRAINT "subscription_ledger_session_de
 
 ### S-1c — every SESSION_DEDUCTION needs a source — **APPROVED (D49); migration file `20261027140000_subscription_ledger_deduction_source` created, the owner applies it.**
 Deferred constraint trigger `subscription_ledger_deduction_source` (function `require_deduction_source()`): a deduction without `report_id` must be referenced by an attendance resolution at COMMIT. CHECK, unique deduction index and append-only trigger unchanged.
+
+## Automatic renewal (S-RENEW, 2026-10-28)
+
+| # | Question | Slice | Answer |
+|---|---|---|---|
+| OQ-R1 | **CLOSED → D60.** Sign-up state before the first payment is verified. | S-RENEW | `INCOMPLETE` status + one live renewal per student |
+| OQ-R2 | **During the 3-day grace (D58), may the student book new sessions, and from which credits?** The old month's unused sessions already expire at period end (no rollover), so today a student without a paid renewal has no credits during grace. Nothing was changed. | S-RENEW | — (owner to decide) |
+| OQ-R3 | **Paymob `retrial_days`:** its meaning is undocumented (one retry after N days, or a retry each day?). Plans are created without it (Paymob's default). Confirm with Paymob (ticket EG-2026-94026) and decide a value. | S-RENEW | — (owner / Paymob) |
+| OQ-R4 | **Wording of the sign-up receipt and the cancel option (D57):** the current Arabic/English texts are drafts (terms, same day each month, last day in short months, no refund of a paid month, cancel from the Payments page). | S-RENEW | — (owner wording) |
+| OQ-R5 | **Paymob `created_at` time zone:** read as Africa/Cairo wall time (the published renewal sample charged at 00:01 on the billing date). Confirm in the first test-mode renewal. | S-RENEW | — (test-mode run) |
