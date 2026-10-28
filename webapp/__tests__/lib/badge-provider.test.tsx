@@ -3,7 +3,8 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, render, screen } from "@testing-library/react";
+import { Suspense } from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 import {
   BADGE_MAX_BACKOFF_MS,
@@ -164,10 +165,53 @@ describe("shared notification badge (A5)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("BP-10: a streamed server count (a promise) shows when it resolves, with no request", async () => {
+    // Real timers: React reveals resolved Suspense content on its own schedule.
+    jest.useRealTimers();
+    let resolve: (value: number | null) => void = () => undefined;
+    const pending = new Promise<number | null>((done) => {
+      resolve = done;
+    });
+    // A component that suspends must be rendered inside an awaited act (React 19).
+    await act(async () => {
+      render(
+        <BadgeProvider userId="u1" initialCount={pending}>
+          <Suspense fallback={<output data-testid="count">…</output>}>
+            <Count />
+          </Suspense>
+        </BadgeProvider>,
+      );
+    });
+    expect(screen.getByTestId("count").textContent).toBe("…");
+    await act(async () => {
+      resolve(4);
+      await pending;
+    });
+    await waitFor(() => expect(screen.getByTestId("count").textContent).toBe("4"));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("BP-11: a streamed count that failed (null) asks the server once", async () => {
+    jest.useRealTimers();
+    await act(async () => {
+      render(
+        <BadgeProvider userId="u1" initialCount={Promise.resolve(null)}>
+          <Suspense fallback={null}>
+            <Count />
+          </Suspense>
+        </BadgeProvider>,
+      );
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("count").textContent).toBe("7"));
+  });
+
   it("BP-09 (static): one provider per signed-in session, in the persistent root layout; the shell never fetches", () => {
     const layout = readFileSync(join(process.cwd(), "app/[locale]/layout.tsx"), "utf8");
     expect(layout.match(/<BadgeProvider\b/g)).toHaveLength(1);
     expect(layout).toMatch(/<BadgeProvider[^>]*key=\{/);
+    // L1 follow-up: the layout must not wait for the count before streaming (TTFB).
+    expect(layout).not.toMatch(/await initialBadgeCount\(/);
     const shell = readFileSync(join(process.cwd(), "app/_components/dashboard-shell.tsx"), "utf8");
     expect(shell).not.toMatch(/\/api\/notifications\/badge/);
     expect(shell).toMatch(/useBadge\(/);

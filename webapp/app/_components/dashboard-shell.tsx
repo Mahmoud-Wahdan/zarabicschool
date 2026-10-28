@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link, usePathname } from "../../i18n/navigation";
@@ -24,12 +24,24 @@ type NavItem = {
  * the viewer's unread inbox items from the shared BadgeProvider in the root layout
  * (computed server-side, scoped to the viewer); the bell itself never fetches, so a
  * navigation makes no badge request. Clicking it opens the inbox (S-06), where items
- * are marked read per user.
+ * are marked read per user. The streamed server count is read inside the bell's own
+ * Suspense boundary, so the page never waits for it.
  */
 function NotificationBell({ inboxHref }: { inboxHref: string }) {
-  const t = useTranslations("appShell");
-  const { count: total } = useBadge();
+  return (
+    <Suspense fallback={<BellLink inboxHref={inboxHref} total={0} />}>
+      <LiveBell inboxHref={inboxHref} />
+    </Suspense>
+  );
+}
 
+function LiveBell({ inboxHref }: { inboxHref: string }) {
+  const { count } = useBadge();
+  return <BellLink inboxHref={inboxHref} total={count} />;
+}
+
+function BellLink({ inboxHref, total }: { inboxHref: string; total: number }) {
+  const t = useTranslations("appShell");
   return (
     <Link
       prefetch={false}

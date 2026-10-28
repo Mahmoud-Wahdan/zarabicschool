@@ -7,7 +7,7 @@ import { getTranslations } from "next-intl/server";
 import "../globals.css";
 
 import { routing } from "../../i18n/routing";
-import { getAuthSession } from "../../lib/dal";
+import { getAuthSession, getSessionUserId } from "../../lib/dal";
 import { countUnread } from "../../lib/notifications/inbox";
 import { BadgeProvider } from "../_components/notifications/badge-provider";
 
@@ -61,9 +61,11 @@ async function initialBadgeCount(user: Awaited<ReturnType<typeof getAuthSession>
 export default async function RootLayout({ children, params }: Props) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
-  // getAuthSession is React-cached per request: the page's own auth check reuses it.
-  const user = await getAuthSession();
-  const badgeCount = await initialBadgeCount(user);
+  // Only the cookie is read here (no database): the layout streams at once. The count
+  // is a promise the bell reads while the page renders (getAuthSession is React-cached,
+  // so the page's own auth check shares the same user read).
+  const userId = await getSessionUserId();
+  const badgeCount = userId ? getAuthSession().then(initialBadgeCount) : null;
 
   return (
     <html
@@ -74,7 +76,7 @@ export default async function RootLayout({ children, params }: Props) {
       <body>
         <NextIntlClientProvider>
           {/* A5: ONE badge provider per signed-in user; this layout persists across client navigation. */}
-          <BadgeProvider key={user?.id ?? "anonymous"} userId={user?.id ?? null} initialCount={badgeCount}>
+          <BadgeProvider key={userId ?? "anonymous"} userId={userId} initialCount={badgeCount}>
             {children}
           </BadgeProvider>
         </NextIntlClientProvider>

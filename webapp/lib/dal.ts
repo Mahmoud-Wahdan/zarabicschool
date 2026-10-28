@@ -20,6 +20,9 @@ export type AuthUser = {
   mustChangePassword: boolean;
 };
 
+/** The signed-in user's id from the session cookie only (no database read). */
+export const getSessionUserId = cache(async (): Promise<string | null> => (await getServerSession(authOptions))?.user?.id ?? null);
+
 export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
   const session = await getServerSession(authOptions);
   const id = session?.user?.id;

@@ -20,3 +20,9 @@
 - Per-request work already shared: `getAuthSession` is React-cached, so the root layout (badge count, A5) and the page's own auth check read the user once. The proxy reads only the JWT (no database).
 - Not changed: authorization, security headers, ledger code; no index (no slow query found: every query cost the round trip, not scan time — see the L1 numbers).
 - Test: `__tests__/lib/page-query-waves.test.ts` PW-01..03 keep the grouping.
+
+## L2d — Badge count streamed (A5 follow-up found by the measurement)
+- Measured after the first after-build: TTFB rose from ~25 ms to ~320–390 ms on every page, because the root layout awaited the user read and the badge count before streaming anything (the loading skeleton came later; total load unchanged).
+- Fix: the layout reads only the session cookie (`getSessionUserId`, no database) and passes the count as a promise; the bell reads it with `use()` inside its own Suspense boundary (fallback: the bell without a number); the inbox uses `useBadgeActions()` (never suspends). Still no client request for the first count: it arrives in the same HTML stream.
+- Measured after: TTFB 21–35 ms again; badge requests 0 per load and 0 over 6 navigations, in production and in dev.
+- Tests: BP-10 a streamed count shows when it resolves, no request; BP-11 a failed (null) count asks once; BP-09 the layout does not await the count.
