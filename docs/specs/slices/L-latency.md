@@ -26,3 +26,10 @@
 - Fix: the layout reads only the session cookie (`getSessionUserId`, no database) and passes the count as a promise; the bell reads it with `use()` inside its own Suspense boundary (fallback: the bell without a number); the inbox uses `useBadgeActions()` (never suspends). Still no client request for the first count: it arrives in the same HTML stream.
 - Measured after: TTFB 21–35 ms again; badge requests 0 per load and 0 over 6 navigations, in production and in dev.
 - Tests: BP-10 a streamed count shows when it resolves, no request; BP-11 a failed (null) count asks once; BP-09 the layout does not await the count.
+
+## L1 / L3 / L4 — Measurements, tunnel guide, before/after
+- Tools committed in `webapp/scripts/perf/` (fixture in a per-run test academy, query-count preload without SQL or data, worker off and OpenWA unreachable during a production measurement). Guide and full before/after table: `docs/specs/dev-tunnel.md`.
+- Where the slowness is: (1) the owner's PC moves local TCP at ~115–145 KB/s (plain Node from memory: 4 MB in 27–30 s); every file and every tunnel response passes through it. (2) The ngrok free tunnel adds ~130 ms per request, and under parallel load its edge answers 5xx or drops the TLS handshake (dev: 17–29 of ~35 files failed; production: 1 of 3 fresh loads had 10 failures). (3) Dev mode serves many unbundled files and must not be used through the tunnel. (4) The app itself: warm production pages take 0.4–0.9 s locally, mostly database round trips (~70 ms each to Supabase).
+- Honest split: on a warm production page through the tunnel the app is ~0.4–0.9 s and the tunnel adds ~0.15 s per request. The big waits the owner saw (tens of seconds) came from the PC's local network speed carrying the 3.9 MB icon font and dev mode's files, and from ngrok dropping requests. After the fixes a first visit through the tunnel takes 8–10 s instead of 30–52 s; most of the rest is still the PC and the tunnel, not the app.
+- No index proposal: no slow query was found (each query costs the round trip, not scan time).
+- Seed academy untouched; the measurement fixture is removed at the end (Z1).

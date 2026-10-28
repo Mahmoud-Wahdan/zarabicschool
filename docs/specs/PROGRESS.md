@@ -46,6 +46,7 @@
 - **2026-10-28 (L2b):** sidebar/shell links no longer prefetch (29 requests per Admin page load → 0; avoids the 120/min 429).
 - **2026-10-28 (L2c):** teacher, student and Admin homes start their independent queries together (fewer sequential round trips to the remote DB).
 - **2026-10-28 (L2d):** the root layout streams the badge count (no await): TTFB back to ~25 ms.
+- **2026-10-28 (L1/L3/L4):** latency measured (scripts/perf), `docs/specs/dev-tunnel.md` written with the before/after table; most slowness = the PC's local network speed + the ngrok free tunnel; dev must not go through the tunnel.
 - **Owner actions pending:** (S-1, S-1b, S-1c all applied — no migration waiting); OQ-14 and OQ-17; review SQL S-2..S-6; set `APP_PUBLIC_URL` to the ngrok URL (also needed for `next dev` through ngrok, M-3); Paymob dashboard callbacks (D23); "go" for Layer 2.
 - **Rules:** no push/merge/rebase/DB reset; no migration applied without the OK; tests touch per-run test academies only; `.env` only the `APP_PUBLIC_URL` line.
 
