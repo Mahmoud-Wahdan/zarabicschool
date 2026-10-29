@@ -1778,6 +1778,17 @@
       "saved": "تم الحفظ: {minutes} دقيقة. {count, plural, =0 {لا يوجد تذكير مجدول يحتاج إلى وقت جديد.} one {تم نقل تذكير مجدول واحد.} other {تم نقل # تذكيرات مجدولة.}}",
       "invalid": "أدخل رقمًا صحيحًا من {min} إلى {max}.",
       "error": "تعذّر الحفظ. حاول مرة أخرى."
+    },
+    "metrics": {
+      "label": "الحصص في لمحة",
+      "today": "حصص اليوم",
+      "todayUnit": "{done} منتهية، {upcoming} قادمة",
+      "changeRequests": "طلبات التعديل",
+      "waiting": "بالانتظار",
+      "pausedSeries": "سلاسل متوقفة",
+      "series": "سلسلة",
+      "linkOverlaps": "تداخل الروابط",
+      "sessions": "حصص"
     }
   },
   "assignmentsAdmin": {

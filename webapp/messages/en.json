@@ -1778,6 +1778,17 @@
       "saved": "Saved: {minutes} minutes. {count, plural, =0 {No queued reminder needed a new time.} one {# queued reminder moved.} other {# queued reminders moved.}}",
       "invalid": "Enter a whole number from {min} to {max}.",
       "error": "Could not save. Try again."
+    },
+    "metrics": {
+      "label": "Sessions at a glance",
+      "today": "Sessions today",
+      "todayUnit": "{done} done, {upcoming} upcoming",
+      "changeRequests": "Change requests",
+      "waiting": "waiting",
+      "pausedSeries": "Paused series",
+      "series": "series",
+      "linkOverlaps": "Same-link overlaps",
+      "sessions": "sessions"
     }
   },
   "assignmentsAdmin": {

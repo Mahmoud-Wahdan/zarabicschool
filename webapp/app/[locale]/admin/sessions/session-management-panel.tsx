@@ -21,7 +21,7 @@ type ChangeRequest = { id: string; reason: string; proposedChange: string; creat
 // No bare UTC entry (time-zone audit, 2026-10-27): forms work in real zone names.
 const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai", "Europe/London", "America/New_York"];
 
-const inputClass = "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2";
+const inputClass = "z-input mt-1";
 
 export default function SessionManagementPanel({ viewerTimezone, locale, sessions: initialSessions, series, changeRequests, linkOverlap }: { viewerTimezone: string; locale: string; sessions: Session[]; series: Series[]; changeRequests: ChangeRequest[]; linkOverlap: string[] }) {
   const t = useTranslations("sessionsAdmin");
@@ -208,22 +208,22 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
   return (
     <div className="mt-6 space-y-6">
       <p className="text-sm">
-        <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">
+        <Link href="/admin/assignments" className="font-semibold text-secondary hover:underline">
           {t("link.assignments")}
         </Link>
       </p>
 
       {changeRequests.length ? (
-        <section className="dashboard-card space-y-3 p-5">
-          <h2 className="text-lg font-bold text-[var(--navy)]">{t("changeRequests.title")}</h2>
+        <section className="z-card space-y-3 rounded-xl p-5">
+          <h2 className="text-headline-sm font-bold text-primary">{t("changeRequests.title")}</h2>
           {changeRequests.map((changeRequest) => (
-            <article key={changeRequest.id} className="rounded-xl border border-[var(--line)] p-4">
-              <p className="text-sm font-semibold text-[var(--navy)]">{changeRequest.teacher.user.displayName} · {subjectLabel(changeRequest.session.subject)} · {formatSessionDateTime(changeRequest.session.scheduledStart, viewerTimezone, locale)}</p>
-              <p className="mt-1 text-sm opacity-75">{t("changeRequests.reason")}: {changeRequest.reason}</p>
-              <p className="text-sm opacity-75">{t("changeRequests.proposed")}: {changeRequest.proposedChange}</p>
+            <article key={changeRequest.id} className="rounded-xl border border-outline-variant p-4">
+              <p className="text-body-md font-semibold text-primary">{changeRequest.teacher.user.displayName} · {subjectLabel(changeRequest.session.subject)} · {formatSessionDateTime(changeRequest.session.scheduledStart, viewerTimezone, locale)}</p>
+              <p className="mt-1 text-body-sm text-on-surface-variant">{t("changeRequests.reason")}: {changeRequest.reason}</p>
+              <p className="text-body-sm text-on-surface-variant">{t("changeRequests.proposed")}: {changeRequest.proposedChange}</p>
               <div className="mt-2 flex gap-2">
-                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "APPROVED")} className="rounded-xl bg-[var(--emerald)] px-3 py-2 text-sm font-semibold text-white">{t("words.approve")}</button>
-                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "REJECTED")} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("words.reject")}</button>
+                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "APPROVED")} className="btn btn-primary">{t("words.approve")}</button>
+                <button disabled={busy} onClick={() => void reviewChangeRequest(changeRequest.id, "REJECTED")} className="btn btn-outline">{t("words.reject")}</button>
               </div>
             </article>
           ))}
@@ -231,30 +231,30 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       ) : null}
 
       {series.length ? (
-        <section className="dashboard-card space-y-3 p-5">
-          <h2 className="text-lg font-bold text-[var(--navy)]">{t("series.title")}</h2>
+        <section className="z-card space-y-3 rounded-xl p-5">
+          <h2 className="text-headline-sm font-bold text-primary">{t("series.title")}</h2>
           {series.map((item) => (
-            <article key={item.id} className="rounded-xl border border-[var(--line)] p-4">
+            <article key={item.id} className="rounded-xl border border-outline-variant p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-[var(--navy)]">{subjectLabel(item.subject)} · {item.teacher.user.displayName} · {typeLabel(item.sessionType)}</p>
-                  <p className="mt-1 text-sm opacity-70">{t("series.progress", { generated: item.generatedThroughWeek + 1, total: item.totalWeeks })}</p>
+                  <p className="font-semibold text-primary">{subjectLabel(item.subject)} · {item.teacher.user.displayName} · {typeLabel(item.sessionType)}</p>
+                  <p className="mt-1 text-body-sm text-on-surface-variant">{t("series.progress", { generated: item.generatedThroughWeek + 1, total: item.totalWeeks })}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-3 py-1 text-xs ${item.status === "PAUSED" ? "bg-[var(--gold)]/25" : "bg-[var(--emerald)]/10 text-[var(--emerald)]"}`}>{t(`series.statuses.${item.status}`)}</span>
+                  <span className={`rounded-full px-3 py-1 text-label-sm ${item.status === "PAUSED" ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-secondary-container/60 text-secondary"}`}>{t(`series.statuses.${item.status}`)}</span>
                   <button
                     type="button"
                     onClick={() => setSeriesLinkEdit(seriesLinkEdit?.id === item.id ? null : { id: item.id, joinUrl: "", hostUrl: "" })}
-                    className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm"
+                    className="btn btn-outline"
                   >
                     {t("actions.applySeriesLink")}
                   </button>
                 </div>
               </div>
               {seriesLinkEdit?.id === item.id ? (
-                <form onSubmit={applySeriesLinks} className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
-                  <p className="text-sm font-semibold text-[var(--navy)]">{t("seriesLink.title")}</p>
-                  <p className="text-xs opacity-70">{t("seriesLink.note")}</p>
+                <form onSubmit={applySeriesLinks} className="mt-3 space-y-3 border-t border-outline-variant pt-3">
+                  <p className="text-body-md font-semibold text-primary">{t("seriesLink.title")}</p>
+                  <p className="text-label-sm text-on-surface-variant">{t("seriesLink.note")}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ZoomField
                       label={t("editLink.join")}
@@ -272,7 +272,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                   </div>
                   <button
                     disabled={busy || validateZoomUrl(seriesLinkEdit.joinUrl).ok !== true}
-                    className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50"
+                    className="btn btn-primary disabled:opacity-50"
                   >
                     {t("seriesLink.save")}
                   </button>
@@ -283,8 +283,8 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         </section>
       ) : null}
 
-      <section className="dashboard-card space-y-3 p-5">
-        <h2 className="text-lg font-bold text-[var(--navy)]">{t("filters.title")}</h2>
+      <section className="z-card space-y-3 rounded-xl p-5">
+        <h2 className="text-headline-sm font-bold text-primary">{t("filters.title")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className={inputClass}>
             <option value="">{t("filters.anyStatus")}</option>
@@ -301,11 +301,11 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
             {students.map((student) => <option key={student.id} value={student.id}>{student.displayName}</option>)}
           </select>
         </div>
-        <button disabled={busy} onClick={() => void refreshSessions(filters)} className="cta-primary rounded-xl px-4 py-2 text-sm">{t("filters.apply")}</button>
+        <button disabled={busy} onClick={() => void refreshSessions(filters)} className="btn btn-primary">{t("filters.apply")}</button>
       </section>
 
-      <details className="dashboard-card p-5">
-        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">{t("seriesForm.title")}</summary>
+      <details className="z-card rounded-xl p-5">
+        <summary className="cursor-pointer text-headline-sm font-bold text-primary">{t("seriesForm.title")}</summary>
         <SmartFormFields
           form={seriesForm}
           teachers={teachers}
@@ -319,15 +319,15 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <button
           disabled={busy || !seriesForm.teacherId || !seriesForm.subjectId || seriesForm.studentIds.length === 0 || !seriesForm.selectedRange || seriesForm.zoomJoinCheck?.ok !== true || seriesForm.conflictSlots.length > 0}
           onClick={() => void submitSmartForm(seriesForm, "/api/sessions/recurrences", true, (generated, planned) => t("messages.seriesCreated", { generated, total: planned }))}
-          className="cta-primary mt-4 rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
+          className="btn btn-primary mt-4 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
         >
           {t("seriesForm.create")}
         </button>
-        <p className="mt-2 text-xs opacity-60">{t("seriesForm.creditNote")}</p>
+        <p className="mt-2 text-label-sm text-on-surface-variant">{t("seriesForm.creditNote")}</p>
       </details>
 
-      <details className="dashboard-card p-5">
-        <summary className="cursor-pointer text-lg font-bold text-[var(--navy)]">{t("single.title")}</summary>
+      <details className="z-card rounded-xl p-5">
+        <summary className="cursor-pointer text-headline-sm font-bold text-primary">{t("single.title")}</summary>
         <SmartFormFields
           form={single}
           teachers={teachers}
@@ -338,68 +338,68 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <button
           disabled={busy || !single.teacherId || !single.subjectId || single.studentIds.length === 0 || !single.selectedRange || single.zoomJoinCheck?.ok !== true || single.conflictSlots.length > 0}
           onClick={() => void submitSmartForm(single, "/api/sessions", false, () => t("messages.created"))}
-          className="cta-primary mt-4 rounded-xl px-4 py-3 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
+          className="btn btn-primary mt-4 disabled:opacity-50 sm:col-span-2 lg:col-span-3"
         >
           {t("single.create")}
         </button>
       </details>
 
-      {message ? <p role="status" className="text-sm opacity-75">{message}</p> : null}
+      {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
 
       <section className="space-y-3">
         {sessions.map((session) => (
-          <article key={session.id} className="lift-card dashboard-card p-5">
+          <article key={session.id} className="z-card lift-card rounded-xl p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="font-bold text-[var(--navy)]">{subjectLabel(session.subject)} · {session.teacher.user.displayName}</p>
-                <p className="mt-1 text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, viewerTimezone, locale)} · {typeLabel(session.sessionType)} · {session.students.map((item) => item.student.user.displayName).join(", ")}</p>
+                <p className="font-bold text-primary">{subjectLabel(session.subject)} · {session.teacher.user.displayName}</p>
+                <p className="mt-1 text-body-sm text-on-surface-variant">{formatSessionDateTime(session.scheduledStart, viewerTimezone, locale)} · {typeLabel(session.sessionType)} · {session.students.map((item) => item.student.user.displayName).join(", ")}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs ${
+                <span className={`rounded-full px-3 py-1 text-label-sm ${
                   session.status === "SCHEDULED"
-                    ? "bg-[var(--emerald)]/10 text-[var(--emerald)]"
+                    ? "bg-secondary-container/60 text-secondary"
                     : session.status === "CANCELLED" || session.status === "MISSED"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-[var(--gold)]/15"
+                      ? "bg-error-container text-on-error-container"
+                      : "bg-tertiary-fixed text-on-tertiary-fixed"
                 }`}>{t(`statuses.${session.status}`)}</span>
                 {/* Display only (owner, 2026-10-25): an ended session completes when its last
                     roster report is submitted; until then show the progress from existing data. */}
                 {session.status === "SCHEDULED" && new Date(session.scheduledEnd).getTime() <= nowMs ? (
-                  <span className="rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs">
+                  <span className="rounded-full bg-tertiary-fixed px-3 py-1 text-label-sm text-on-tertiary-fixed">
                     {tSessions("teacher.ended")} · {tSessions("awaitingReports", { done: session.reportCount ?? 0, total: session.students.length })}
                   </span>
                 ) : null}
                 {session.status === "SCHEDULED" ? (
                   <>
-                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, ...rangeToInputs(session.scheduledStart, session.scheduledEnd, viewerTimezone) })} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.reschedule")}</button>
+                    <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, ...rangeToInputs(session.scheduledStart, session.scheduledEnd, viewerTimezone) })} className="btn btn-outline">{t("actions.reschedule")}</button>
                     <button
                       type="button"
                       onClick={() => setLinkEdit(linkEdit?.id === session.id ? null : { id: session.id, joinUrl: session.zoomJoinUrl, hostUrl: session.zoomHostUrl ?? "" })}
-                      className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm"
+                      className="btn btn-outline"
                     >
                       {t("actions.editLink")}
                     </button>
-                    <button disabled={busy} onClick={() => void cancelSession(session.id)} className="rounded-xl border border-[var(--line)] px-3 py-2 text-sm">{t("actions.cancel")}</button>
+                    <button disabled={busy} onClick={() => void cancelSession(session.id)} className="btn btn-outline">{t("actions.cancel")}</button>
                   </>
                 ) : null}
               </div>
             </div>
             {linkOverlap.includes(session.id) ? (
-              <p role="status" className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--gold)]/15 p-2 text-xs text-[#8a6d1a]">
+              <p role="status" className="mt-3 flex items-start gap-2 rounded-lg bg-tertiary-fixed p-2 text-label-sm text-on-tertiary-fixed">
                 <Icon name="warning" size={16} className="shrink-0" />
                 <span>{t("overlap.warning")}</span>
               </p>
             ) : null}
             {reschedule?.id === session.id ? (
-              <form onSubmit={applyReschedule} className="mt-3 grid gap-3 border-t border-[var(--line)] pt-3 sm:grid-cols-3">
+              <form onSubmit={applyReschedule} className="mt-3 grid gap-3 border-t border-outline-variant pt-3 sm:grid-cols-3">
                 <label className="text-sm">{t("reschedule.newStart")} ({viewerTimezone})<input required type="datetime-local" value={reschedule.start} onChange={(event) => setReschedule({ ...reschedule, start: event.target.value })} className={inputClass} /></label>
                 <label className="text-sm">{t("reschedule.newEnd")} ({viewerTimezone})<input required type="datetime-local" value={reschedule.end} onChange={(event) => setReschedule({ ...reschedule, end: event.target.value })} className={inputClass} /></label>
-                <button disabled={busy} className="cta-primary mt-6 h-10 rounded-xl px-4">{t("reschedule.save")}</button>
+                <button disabled={busy} className="btn btn-primary mt-6">{t("reschedule.save")}</button>
               </form>
             ) : null}
             {linkEdit?.id === session.id ? (
-              <form onSubmit={saveSessionLinks} className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
-                <p className="text-sm font-semibold text-[var(--navy)]">{t("editLink.title")}</p>
+              <form onSubmit={saveSessionLinks} className="mt-3 space-y-3 border-t border-outline-variant pt-3">
+                <p className="text-body-md font-semibold text-primary">{t("editLink.title")}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <ZoomField
                     label={t("editLink.join")}
@@ -416,14 +416,14 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button disabled={busy || validateZoomUrl(linkEdit.joinUrl).ok !== true} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50">{t("editLink.save")}</button>
-                  <button type="button" onClick={() => setLinkEdit(null)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm">{t("editLink.hide")}</button>
+                  <button disabled={busy || validateZoomUrl(linkEdit.joinUrl).ok !== true} className="btn btn-primary disabled:opacity-50">{t("editLink.save")}</button>
+                  <button type="button" onClick={() => setLinkEdit(null)} className="btn btn-outline">{t("editLink.hide")}</button>
                 </div>
               </form>
             ) : null}
           </article>
         ))}
-        {!sessions.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("states.listEmpty")}</p> : null}
+        {!sessions.length ? <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("states.listEmpty")}</p> : null}
       </section>
     </div>
   );
@@ -452,8 +452,8 @@ function SmartFormFields({
           {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
         </select>
       </label>
-      {teachersState === "error" ? <p role="alert" className="text-sm text-red-700 sm:col-span-2">{t("states.teachersError")}</p> : null}
-      {teachersState === "ready" && teachers.length === 0 ? <p className="text-sm opacity-70 sm:col-span-2">{t("states.teachersEmpty")}</p> : null}
+      {teachersState === "error" ? <p role="alert" className="text-sm text-error sm:col-span-2">{t("states.teachersError")}</p> : null}
+      {teachersState === "ready" && teachers.length === 0 ? <p className="text-body-sm text-on-surface-variant sm:col-span-2">{t("states.teachersEmpty")}</p> : null}
 
       <label className="text-sm">{t("labels.subject")}
         <select required value={form.subjectId} onChange={(event) => form.selectSubject(event.target.value)} disabled={!form.teacherId || form.contextState === "loading"} className={inputClass}>
@@ -462,11 +462,11 @@ function SmartFormFields({
         </select>
       </label>
       {form.contextState === "error" ? (
-        <p role="alert" className="text-sm text-red-700 sm:col-span-2">{t("states.contextError")}</p>
+        <p role="alert" className="text-sm text-error sm:col-span-2">{t("states.contextError")}</p>
       ) : null}
       {form.contextState === "ready" && form.subjects.length === 0 ? (
-        <p className="text-sm opacity-70 sm:col-span-2">
-          {t("states.subjectsEmpty")} <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">{t("states.subjectsEmptyLink")}</Link>
+        <p className="text-body-sm text-on-surface-variant sm:col-span-2">
+          {t("states.subjectsEmpty")} <Link href="/admin/assignments" className="font-semibold text-secondary hover:underline">{t("states.subjectsEmptyLink")}</Link>
         </p>
       ) : null}
 
@@ -505,16 +505,16 @@ function SmartFormFields({
         check={form.zoomHostCheck}
       />
 
-      <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3">
-        <p className="text-sm font-semibold text-[var(--navy)]">{t("labels.students")}</p>
+      <div className="rounded-xl border border-outline-variant p-3 sm:col-span-2 lg:col-span-3">
+        <p className="text-body-md font-semibold text-primary">{t("labels.students")}</p>
         {form.contextState === "ready" && form.subjectId && form.assignedStudents.length === 0 ? (
-          <p className="mt-2 text-sm opacity-70">
-            {t("states.studentsEmpty")} <Link href="/admin/assignments" className="font-semibold text-[var(--emerald)] hover:underline">{t("states.studentsEmptyLink")}</Link>
+          <p className="mt-2 text-body-sm text-on-surface-variant">
+            {t("states.studentsEmpty")} <Link href="/admin/assignments" className="font-semibold text-secondary hover:underline">{t("states.studentsEmptyLink")}</Link>
           </p>
         ) : (
           <div className="mt-2 flex flex-wrap gap-2">
             {form.assignedStudents.map((student) => (
-              <button type="button" key={student.studentId} onClick={() => form.toggleStudent(student.studentId)} className={`rounded-full border px-3 py-1 text-sm ${form.studentIds.includes(student.studentId) ? "border-[var(--emerald)] bg-[var(--emerald)]/10 text-[var(--emerald)]" : "border-[var(--line)]"}`}>
+              <button type="button" key={student.studentId} onClick={() => form.toggleStudent(student.studentId)} className={`rounded-full border px-3 py-1 text-sm ${form.studentIds.includes(student.studentId) ? "border-secondary bg-secondary-container/60 text-secondary" : "border-outline-variant"}`}>
                 {student.displayName}
               </button>
             ))}
@@ -523,16 +523,16 @@ function SmartFormFields({
       </div>
 
       {form.scheduledStart ? (
-        <div className="rounded-xl border border-[var(--line)] p-3 sm:col-span-2 lg:col-span-3">
-          <p className="text-sm font-semibold text-[var(--navy)]">{busyTitle(form.scheduledStart.slice(0, 10))}</p>
+        <div className="rounded-xl border border-outline-variant p-3 sm:col-span-2 lg:col-span-3">
+          <p className="text-body-md font-semibold text-primary">{busyTitle(form.scheduledStart.slice(0, 10))}</p>
           {form.busySlotsForDay.length === 0 ? (
-            <p className="mt-2 text-sm opacity-70">{t("busy.none")}</p>
+            <p className="mt-2 text-body-sm text-on-surface-variant">{t("busy.none")}</p>
           ) : (
             <ul className="mt-2 space-y-1 text-sm">
               {form.busySlotsForDay.map((slot) => {
                 const conflicting = form.conflictSlots.some((item) => item.id === slot.id);
                 return (
-                  <li key={slot.id} className={conflicting ? "font-semibold text-red-700" : "opacity-80"}>
+                  <li key={slot.id} className={conflicting ? "font-semibold text-error" : "opacity-80"}>
                     {formatSessionDateTime(slot.scheduledStart, form.timezone, locale)} – {formatSessionDateTime(slot.scheduledEnd, form.timezone, locale)} · {locale === "ar" ? slot.subject.nameAr : slot.subject.nameEn} · {slot.sessionType === "PRIVATE" ? t("labels.private") : t("labels.group")}
                   </li>
                 );
@@ -540,9 +540,9 @@ function SmartFormFields({
             </ul>
           )}
           {form.conflictSlots.length > 0 ? (
-            <p role="alert" className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{t("busy.conflict")}</p>
+            <p role="alert" className="mt-2 rounded-lg bg-error-container p-2 text-body-sm text-on-error-container">{t("busy.conflict")}</p>
           ) : null}
-          <p className="mt-2 text-xs opacity-60">{t("busy.note")}</p>
+          <p className="mt-2 text-label-sm text-on-surface-variant">{t("busy.note")}</p>
         </div>
       ) : null}
     </div>
@@ -570,14 +570,14 @@ function ZoomField({ label, value, onChange, check, required: isRequired = false
       />
       {check ? (
         check.ok ? (
-          <span className="mt-1 block text-xs font-semibold text-[var(--emerald)]">{t("zoom.valid")}</span>
+          <span className="mt-1 block text-xs font-semibold text-secondary">{t("zoom.valid")}</span>
         ) : (
-          <span role="alert" className="mt-1 block text-xs font-semibold text-red-700">
+          <span role="alert" className="mt-1 block text-xs font-semibold text-error">
             {t(`zoom.reasons.${check.reason}`)}
           </span>
         )
       ) : (
-        <span className="mt-1 block text-xs opacity-60">{t("zoom.formatNote")}</span>
+        <span className="mt-1 block text-label-sm text-on-surface-variant">{t("zoom.formatNote")}</span>
       )}
     </label>
   );
