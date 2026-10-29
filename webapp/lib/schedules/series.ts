@@ -57,6 +57,18 @@ export function parseSeriesRule(raw: unknown): { rule: SeriesRecurrenceRule; anc
   };
 }
 
+/**
+ * Week N of a series: the start keeps its wall-clock time in the series zone, the
+ * end keeps the anchor's real length. Shifting the end on the wall clock too gave a
+ * 0-minute week when the anchor ended in the repeated hour of a DST fall-back
+ * (Africa/Cairo 2026-10-29: 20:00Z and 21:00Z are both 23:00 local).
+ */
+export function seriesWeekWindow(anchorStart: Date, anchorEnd: Date, weekIndex: number, timeZone: string) {
+  const start = addWeeksInTimeZone(anchorStart, weekIndex, timeZone);
+  const end = new Date(start.getTime() + (anchorEnd.getTime() - anchorStart.getTime()));
+  return { start, end };
+}
+
 export type SeriesForGeneration = Pick<
   RecurrenceSeries,
   "id" | "academyId" | "teacherId" | "subjectId" | "sessionType" | "timezone" | "totalWeeks" | "createdById"
@@ -72,8 +84,7 @@ export async function generateSeriesWeek(
   weekIndex: number,
 ): Promise<SeriesWeekOutcome> {
   const { rule, anchorStart, anchorEnd } = parseSeriesRule(series.recurrenceRule);
-  const sessionStart = addWeeksInTimeZone(anchorStart, weekIndex, series.timezone);
-  const sessionEnd = addWeeksInTimeZone(anchorEnd, weekIndex, series.timezone);
+  const { start: sessionStart, end: sessionEnd } = seriesWeekWindow(anchorStart, anchorEnd, weekIndex, series.timezone);
   if (Number.isNaN(sessionStart.getTime()) || Number.isNaN(sessionEnd.getTime())) {
     throw new SeriesRuleError("recurrence rule produces an invalid week start/end");
   }

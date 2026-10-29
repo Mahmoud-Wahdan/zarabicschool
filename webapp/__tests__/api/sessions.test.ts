@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 
 import { reserveCredit } from "../../lib/credits/reservation";
 import { addWeeksInTimeZone } from "../../lib/schedules/recurrence";
+import { seriesWeekWindow } from "../../lib/schedules/series";
 import { prisma } from "../../lib/prisma";
 import { POST as createSessionRoute, GET as listSessionsRoute } from "../../app/api/sessions/route";
 import { PATCH as updateSessionRoute } from "../../app/api/sessions/[id]/route";
@@ -569,6 +570,18 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     expect(addWeeksInTimeZone(beforeSpring, 1, "America/New_York").toISOString()).toBe("2026-03-13T16:00:00.000Z");
     const beforeAutumn = new Date("2026-10-30T16:00:00.000Z");
     expect(addWeeksInTimeZone(beforeAutumn, 1, "America/New_York").toISOString()).toBe("2026-11-06T17:00:00.000Z");
+  });
+
+  it("regression: a week keeps the anchor's length when the anchor ends in the DST fall-back hour", () => {
+    // Africa/Cairo 2026-10-29: 20:00Z is 23:00 EEST and 21:00Z is 23:00 EET (same wall clock).
+    const week = seriesWeekWindow(
+      new Date("2026-10-29T20:00:00.000Z"),
+      new Date("2026-10-29T21:00:00.000Z"),
+      1,
+      "Africa/Cairo",
+    );
+    expect(week.start.toISOString()).toBe("2026-11-05T21:00:00.000Z");
+    expect(week.end.getTime() - week.start.getTime()).toBe(60 * 60 * 1000);
   });
 
   it("regression: recurrences reject duplicated students and private series need exactly one", async () => {
