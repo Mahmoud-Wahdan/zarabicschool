@@ -21,10 +21,11 @@
 ## 2026-10-29 — branches merged, whole-site E2E, OWASP dynamic pass
 
 - **All branches merged** into the working branch and `main` (feature/whatsapp: only its new files — Impeccable skill + `answer_on_phase-09-open-questions.md`, its tip carried unresolved conflict markers; whatsapp-clean, stitch-ui and the phase-1/2/3 branches recorded as merged, their content was already here).
-- **Jest: 92 suites / 749 tests green** on a local PostgreSQL 16 (all 44 migrations + demo seed), Node 24 (Prisma 7's ESM client needs Node ≥ 24.9 under Jest; 8 shards with a 6 GB heap — one in-band run ran out of memory). One real bug found and fixed: weekly series across the Cairo DST fall-back (991281b).
+- **Jest: 92 suites / 771 tests green** (768 in the first run + 3 added today) on a local PostgreSQL 16 (all 44 migrations + demo seed), Node 24 (Prisma 7's ESM client needs Node ≥ 24.9 under Jest; 8 shards with a 6 GB heap — one in-band run ran out of memory). One real bug found and fixed: weekly series across the Cairo DST fall-back (991281b).
 - **Playwright whole-site E2E** (`webapp/e2e/`, README there): every page × role × ar/en, Session 1 §5.1–5.3 and Session 2 §3 journeys, bookings, family flows, OWASP Top 10 dynamic checks, the real OpenWA gateway. Results: phase-08 log 2026-10-29; findings: security-review.md "Dynamic E2E pass". Fixed: public subjects across academies (20e4e6c).
 - **OpenWA** now runs from `zarabicschool/OpenWA` in the cloud session (upstream v0.26.0); WhatsApp itself is blocked by the session's network policy, so no phone was linked. New finding G-WA-1 (a send while the session is down is failed for good).
 - **Dev tunnel:** `dev-tunnel.md` switched from ngrok to Cloudflare Tunnel (not measured yet — Cloudflare is blocked in the cloud session).
+- **Security fixes (same day):** G-A02-1 — nonce-based CSP on every page (`proxy.ts`), HSTS (production, short `HSTS_MAX_AGE`), Permissions-Policy; G-A07-5 — rate limits use the proxy-added `X-Forwarded-For` entry (`TRUSTED_PROXY_HOPS`, default 1). Owner: set `TRUSTED_PROXY_HOPS` and raise `HSTS_MAX_AGE` on the real host (deploy-checklist §1/§8).
 
 ## Where to resume (2026-10-27, master execution prompt)
 

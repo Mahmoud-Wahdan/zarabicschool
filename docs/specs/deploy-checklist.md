@@ -8,6 +8,7 @@ Started 2026-10-26 (Session 5). Extend it; never regenerate it. The launch gaps 
 - [ ] `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations only) point at the PRODUCTION database.
 - [ ] `NEXTAUTH_URL` = the public site URL; `NEXTAUTH_SECRET` = a new random value (never the dev one). It is ALSO the base of the join links in WhatsApp messages (`lib/config/platform-url.ts`): a wrong value sends people to a wrong host; an empty one sends no link.
 - [ ] **`ALLOWED_ORIGINS`** — see §2. Without it every change request fails.
+- [ ] **`TRUSTED_PROXY_HOPS`** = the number of reverse proxies in front of the app that add to `X-Forwarded-For` (nginx/Caddy/Cloudflare = 1, a CDN in front of nginx = 2; default 1). The app port must be reachable ONLY through those proxies, or a client can forge its rate-limit address (G-A07-5).
 - [ ] `MESSAGING_PROVIDER` **unset** (or `openwa`): `console`/`fake` make the production start FAIL on purpose (owner, 2026-10-27).
 - [ ] `OPENWA_SEND_ALLOWLIST` **unset** (in non-production it restricts who receives WhatsApp; production must not carry it).
 - [ ] `OPENWA_*`, `OPENWA_WEBHOOK_SECRET`, `PAYMOB_*`, `CLOUDINARY_*` set with production values.
@@ -67,11 +68,11 @@ Error monitoring/alerting; privacy/consent for minors + WhatsApp opt-in/opt-out;
 
 ## 8. Security headers (launch phase)
 
-Already sent on every path (`next.config.ts`, 2026-10-26): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`.
+Sent since 2026-10-29 (G-A02-1): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` (`next.config.ts`, every response), `Strict-Transport-Security` (production builds) and a **nonce-based Content-Security-Policy** on every page (`proxy.ts`, a fresh nonce per request; `frame-ancestors 'none'`).
 
-To add before launch, tested on the real host:
-- [ ] **Content-Security-Policy** — start in `Content-Security-Policy-Report-Only` and fix the reports first. It must allow what the app really loads: Cloudinary (images/files), Paymob (checkout redirect/iframe if used), Google Fonts if still used, and Next.js inline scripts (nonce-based, see `node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md`; a nonce makes pages dynamic). Include `frame-ancestors 'none'` (it supersedes `X-Frame-Options`).
-- [ ] **Strict-Transport-Security** — only once the site is HTTPS-only on every host and subdomain. Start with a short `max-age` (e.g. 300), then raise to `max-age=63072000; includeSubDomains`; add `preload` only after deciding on the preload list (hard to undo).
-- [ ] **Permissions-Policy** — e.g. `camera=(), microphone=(), geolocation=(), browsing-topics=()` (Zoom runs in its own app/tab, not inside this site).
+On the real host:
+- [ ] **Content-Security-Policy** — enforced by default and verified on every page in the E2E crawl. If a page breaks on the real host, set `CSP_REPORT_ONLY=1` (warnings only), restart, fix, then remove it. Anything new the pages load from another host (images from Cloudinary, a font, an embedded frame) must be added to the policy in `proxy.ts` first.
+- [ ] **Strict-Transport-Security** — `HSTS_MAX_AGE` starts at 300 s (read at `next build`). Once the site is HTTPS-only on every host and subdomain, set `HSTS_MAX_AGE=63072000` and rebuild; add `includeSubDomains`/`preload` only after deciding on the preload list (hard to undo).
+- [x] **Permissions-Policy** — `camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()` (the clipboard stays allowed: copy buttons).
 - [ ] `Cross-Origin-Opener-Policy: same-origin` — check that the Paymob flow still works.
 - [ ] Verify with the browser DevTools (Network → Response Headers) and an external header scanner after deploy.

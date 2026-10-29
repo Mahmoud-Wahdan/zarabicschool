@@ -61,7 +61,7 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - **Seed: Verified.** `seed-demo.ts` refuses production and non-empty databases; passwords come from env.
 
 **Gaps**
-- **G-A02-1 (Medium → partly fixed 2026-10-26):** `next.config.ts` now sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: DENY` on every path. Still missing (launch phase, `deploy-checklist.md` §8): CSP, HSTS, `Permissions-Policy`. Original finding: no security headers were configured (`next.config.ts` has no `headers()`): no CSP, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`, `Permissions-Policy`, HSTS. Recommendation: add a conservative header set before launch (decide on CSP with the Cloudinary/Zoom/Paymob origins).
+- **G-A02-1 (Medium → FIXED 2026-10-29):** every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` (camera, microphone, geolocation, payment, usb, browsing-topics off) and, in production builds, `Strict-Transport-Security` (`HSTS_MAX_AGE`, short by default — raise it per deploy-checklist §8). Pages carry a **nonce-based Content-Security-Policy** set per request in `proxy.ts` (Next.js nonce pattern): `default-src 'self'`, `script-src 'self' 'nonce-…' 'strict-dynamic'` (no `unsafe-inline`/`unsafe-eval` in production), `style-src 'self' 'unsafe-inline'` (React style attributes), `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `connect-src 'self'`. `CSP_REPORT_ONLY=1` switches it to Report-Only (rollback). Verified: every page of every role renders with no CSP violation (E2E crawl); injected HTML (`<img onerror=…>`) does not run when enforced and does run with `CSP_REPORT_ONLY=1` (`owasp-top10.spec.ts` + a manual probe); Jest `auth-rbac.test.ts`. Limit: `'strict-dynamic'` (needed for Next.js chunk loading) lets page scripts create scripts through DOM APIs; the app has no such sink for user data (no `dangerouslySetInnerHTML`, no `createElement('script')`), so it protects against the HTML-injection class only. Original finding: no security headers at all; 2026-10-26 added the first three.
 - **G-A02-2 (Medium):** `ALLOWED_ORIGINS` missing or wrong in production = every mutation fails (fail closed — an availability risk, not an exposure). Mitigated by the checklist.
 - **G-A02-3 (Low):** `auth/change-password` additionally requires `Origin === new URL(request.url).origin`. Behind a reverse proxy, `request.url` may carry the internal host, so password changes could fail in production. Verify on the real host; the generic `requireSameOrigin` already covers CSRF.
 - **G-A02-4 (Info):** `next.config.ts` sets `allowedDevOrigins: ["192.168.1.41"]` (dev only).
@@ -187,7 +187,7 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 ## Summary of owner actions (security)
 1. ~~Upgrade `next` ≥ 16.4.3, `prisma` 7.10.1, `zod` ≥ 4.6.6 — G-A03-1/2~~ — done 2026-10-26 (next 16.4.3 + eslint-config-next 16.4.3, prisma/@prisma/client/@prisma/adapter-pg 7.10.1, zod 4.6.7; each step tsc/lint/build exit 0). Remaining `npm audit`: 1 moderate (`fast-uri`, transitive, `npm audit fix` available — not run, report only).
 2. ~~Decide on the WhatsApp start message link (G-A06-1)~~ — done 2026-10-26.
-3. Baseline headers added 2026-10-26; CSP/HSTS/Permissions-Policy before launch (G-A02-1).
+3. ~~Baseline headers added 2026-10-26; CSP/HSTS/Permissions-Policy before launch (G-A02-1)~~ — done 2026-10-29 (nonce CSP, HSTS, Permissions-Policy). Owner: raise `HSTS_MAX_AGE` once every host is HTTPS-only.
 4. Set `ALLOWED_ORIGINS` correctly in production and test change-password behind the real proxy (G-A02-2/3).
 5. Encryption of application details/phones/Zoom links (G-A04-1, launch list).
 6. Error monitoring with PII scrubbing; trim `cause.message` logging (G-A09-1/2).
@@ -219,7 +219,7 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 | A10 Exceptional conditions | `edge-cases.test.ts` VAL-01/VAL-03 (no 500 on malformed ids or hostile/huge bodies); `owasp.test.ts` OW-A10-1 (error bodies carry no stack/SQL/Prisma text); DB-timeout behaviour documented (phase-08 "Decision: transaction timeouts") |
 
 **Manual checklist (not automatable here):**
-- [ ] CSP (report-only first), HSTS, Permissions-Policy on the real host (deploy-checklist §8).
+- [ ] CSP, HSTS, Permissions-Policy checked on the real host (built 2026-10-29; deploy-checklist §8); `TRUSTED_PROXY_HOPS` matches the proxies in front of the app.
 - [ ] `ALLOWED_ORIGINS` exact values on the production host; change-password behind the real proxy (G-A02-3).
 - [ ] `npm audit` clean (or accepted) before launch; `fast-uri` moderate.
 - [ ] Secrets rotated before real data; production `NEXTAUTH_SECRET` new; no `SEED_*` on the host.
@@ -251,11 +251,14 @@ subscription and OpenWA signatures refused; no password/secret/fixture phone in 
 malformed JSON 400, hostile ids 400/404, 2 MB body 413, no stack traces.
 
 **New findings:**
-- **G-A07-5 (Medium, open):** `lib/request.ts` `getClientIp` takes the FIRST `X-Forwarded-For`
-  entry. A client that sends the header chooses its own bucket for the 120/min request limit and
-  the per-IP login limit (the per-username login limit still holds). Safe only behind a proxy
-  that overwrites the header; Cloudflare and ngrok append to it. Decide the trusted-proxy rule
-  with the hosting choice (deploy checklist). Test: `owasp-top10.spec.ts` "G-A07-5" (test.fail).
+- **G-A07-5 (Medium → FIXED 2026-10-29):** `lib/request.ts` `getClientIp` took the FIRST
+  `X-Forwarded-For` entry, so a client that sent the header chose its own bucket for the 120/min
+  request limit and the per-IP login limit (the per-username login limit still held). Now it takes
+  the entry `TRUSTED_PROXY_HOPS` places from the RIGHT (default 1 = the address the one reverse
+  proxy added; Next.js only fills the header when it is missing). Whatever a client puts to the
+  left never picks the bucket. Condition: the app is reachable only through the proxy (deploy
+  checklist). Tests: Jest `request.test.ts`; E2E `owasp-top10.spec.ts` "G-A07-5" (forged left part,
+  constant proxy entry → 429 after 120).
 - **G-WA-1 (Medium, open):** while the OpenWA session is not started/disconnected, OpenWA answers
   `send-text` with HTTP 400 ("Session … is not active"), not 409. `openwa-provider.ts` treats
   400 as permanent, so the job is FAILED after one attempt and the message (reminder,

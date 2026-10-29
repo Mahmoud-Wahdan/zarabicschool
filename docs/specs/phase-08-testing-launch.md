@@ -229,7 +229,7 @@ cleanly to an empty database + demo seed), production build (`next start`), the 
 gateway from `zarabicschool/OpenWA` (upstream v0.26.0; WhatsApp unreachable from the container,
 so no phone linked), Paymob through a local test double (no keys, Paymob unreachable).
 
-- **Jest: 92 suites / 749 tests — all green** after one fix. Needs Node ≥ 24.9 (Prisma 7's ESM
+- **Jest: 92 suites / 768 tests — all green** after one fix (771 after the security fixes below; first report said 749 — a counting error). Needs Node ≥ 24.9 (Prisma 7's ESM
   query compiler under Jest; Node 22 fails every DB suite). One in-band run hit the 2 GB heap
   limit; 8 sequential shards with `--max-old-space-size=6144` passed.
   - **Real bug (fixed, 991281b):** a weekly series whose anchor ends in the repeated hour of the
@@ -242,8 +242,8 @@ so no phone linked), Paymob through a local test double (no keys, Paymob unreach
   foreign/missing Origin, role matrix from each handler's guard); 32 OWASP Top 10 checks;
   Session 1 §5.1/§5.2/§5.3/§4.4 and Session 2 §3 journeys (report lifecycle 7, finance 6,
   billing 5); bookings 5; family flows 3; public apply 3; WhatsApp with the real OpenWA 3.
-  Three tests pin open gaps with `test.fail()`: G-A02-1 (CSP/HSTS), G-A07-5 (X-Forwarded-For),
-  G-WA-1 (OpenWA 400 when its session is down). After the run: 0 test academies left,
+  Three tests pinned open gaps with `test.fail()`: G-A02-1 (CSP/HSTS), G-A07-5 (X-Forwarded-For),
+  G-WA-1 (OpenWA 400 when its session is down) — the first two were fixed the same day (below). After the run: 0 test academies left,
   0 marker applications in the seed academy.
   - **Real bug (fixed, 20e4e6c):** the public apply page and the landing subject list showed
     every academy's subjects; the form then refused them ("Unknown subjects").
@@ -255,3 +255,23 @@ so no phone linked), Paymob through a local test double (no keys, Paymob unreach
   the real Paymob sandbox (Layer 2 stays the owner's run); a tunnel (Cloudflare/ngrok blocked
   here — `dev-tunnel.md` switched to Cloudflare Tunnel, not measured yet); mobile viewports and
   visual review; load/performance; backups and monitoring.
+
+### 2026-10-29 (later) — G-A02-1 and G-A07-5 fixed (owner request)
+
+- **G-A07-5:** `getClientIp` uses the `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` places from the
+  right (default 1 — the address the reverse proxy added); forged entries on the left never pick
+  a rate-limit bucket. Jest `request.test.ts` (2 tests); E2E "G-A07-5" now an ordinary test
+  (forged left part, constant proxy entry → 429 after 120).
+- **G-A02-1:** nonce-based CSP per request in `proxy.ts` (`script-src 'self' 'nonce-…'
+  'strict-dynamic'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri`/`form-action 'self'`;
+  `CSP_REPORT_ONLY=1` = rollback), `Permissions-Policy` and production-only HSTS (`HSTS_MAX_AGE`,
+  default 300) in `next.config.ts`. The E2E crawl now fails on any CSP violation and passed on
+  every page of every role; injected `<img onerror>` is blocked when enforced and runs with
+  report-only (so the probe is real). Jest `auth-rbac.test.ts` checks the policy, the per-request
+  nonce and the report-only switch.
+- **Test made date-proof:** `scheduling-worker.test.ts` "never creates a duplicate week…" now uses
+  its own teacher. Run in the hour before the Cairo fall-back, its anchor and the resume-test
+  anchor read the same local time, and weekly generation (wall clock, R9) correctly made them
+  conflict. App behaviour unchanged.
+- **Results:** Jest 92 suites / 771 tests green; Playwright 104 tests, all as expected (6.1 min;
+  one `test.fail()` left: G-WA-1).
