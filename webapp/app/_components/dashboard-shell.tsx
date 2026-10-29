@@ -137,8 +137,11 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   ],
 };
 
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+/** A role home ("/admin", "/teacher", …) is active only on itself; any other item also on its sub-pages. */
+export function isActive(pathname: string, href: string) {
+  if (pathname === href) return true;
+  const isRoleHome = href.split("/").filter(Boolean).length === 1;
+  return !isRoleHome && pathname.startsWith(`${href}/`);
 }
 
 function SidebarNav({
