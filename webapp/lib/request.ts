@@ -12,8 +12,28 @@ function getHeader(headers: IncomingHeaders, name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * How many reverse proxies in front of the app add the address they saw to
+ * X-Forwarded-For (TRUSTED_PROXY_HOPS, 1-5, default 1: one proxy such as nginx, Caddy,
+ * Cloudflare or a tunnel). Next.js itself only fills the header when it is missing.
+ */
+function trustedProxyHops(): number {
+  const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? "1");
+  return Number.isInteger(hops) && hops >= 1 && hops <= 5 ? hops : 1;
+}
+
+/**
+ * The client address for rate limits: the entry the trusted proxies added, counted from
+ * the RIGHT of X-Forwarded-For. Entries to its left come from the client and can be
+ * forged, so they never pick the bucket (G-A07-5; the first entry used to).
+ */
 export function getClientIp(headers: IncomingHeaders) {
-  return getHeader(headers, "x-forwarded-for")?.split(",")[0]?.trim()
+  const chain = (getHeader(headers, "x-forwarded-for") ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  // Fewer entries than proxies: the request did not pass all of them; the leftmost is all there is.
+  return chain[Math.max(chain.length - trustedProxyHops(), 0)]
     || getHeader(headers, "x-real-ip")
     || "unknown";
 }
