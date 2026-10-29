@@ -455,7 +455,7 @@ WHERE report_type = 'SESSION_COMPLETION_REPORT';
 
 Report lifecycle is `SUBMITTED → APPROVED → ARCHIVED`. Admin or Supervisor rejection is `SUBMITTED → REJECTED`; the teacher edits and resubmits the same row as `SUBMITTED`. Rejection actor, reason, and timestamp remain on the original row. There is no ReportHistory, ReportRevision, or version table. Before archival, the teacher may edit and resubmit after rejection; after `ARCHIVED`, neither Teacher, Supervisor, nor Admin may edit the evidence. Settlement runs only after approval and sets `settled_at` and `archived_at` in the same successful workflow.
 
-Reports are visible to the guardian and the student (per the CONTEXT §9 visibility rules) from the moment of SUBMISSION, in every status — approval gates pay only (owner, 2026-10-18). A student with a guardian sees only homework/notes/attachments (session reports); an adult student without a guardian, the guardian, Admin and Supervisor see the whole report; the submitting teacher sees her own report in every state. Teachers never see other teachers's reports. Student evaluations are separate from Reports and are not inferred from attendance; evaluation is mandatory after a completed session (Phase 7).
+Reports are visible to the guardian and the student (per the CONTEXT §9 visibility rules) from the moment of SUBMISSION, in every status — approval gates pay only (owner, 2026-10-18). A student with a guardian sees only homework/notes/attachments (session reports); an adult student without a guardian, the guardian, Admin and Supervisor see the whole report; the submitting teacher sees her own report in every state. Teachers never see other teachers's reports. Student evaluations are separate from Reports and are not inferred from attendance; evaluations are OPTIONAL (owner, 2026-10-26 — supersedes the 2026-10-07 "mandatory"), prompted in-app after a COMPLETED session (Phase 7).
 
 ## 18. ReportAttachments
 
@@ -494,12 +494,12 @@ Separate monthly report stream written by the assigned teacher per student. NO m
 | `support_areas` | TEXT | nullable | Areas needing additional support |
 | `next_month_objectives` | TEXT | nullable | Key learning objectives for next month; the ONLY field a student with a guardian sees (PROPOSAL) |
 | `language` | ENUM | NOT NULL, DEFAULT 'ar' | Report language (`ar`,`en`,`fr`,`de`,`tr`); selector default = the student's `report_language` |
-| `submitted_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Start of the 7-day edit window (PROPOSAL) |
+| `submitted_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Start of the 7-day edit window (CONFIRMED, owner 2026-10-26) |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 | | | UNIQUE(teacher_id, student_id, month_key) | One report per teacher/student/month |
 
-Rules: only the assigned teacher may create/edit; unique per (teacher, student, month); only for a month that has started; teacher may edit for 7 days after submission, then locked (PROPOSAL); the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports (PROPOSAL). Visibility mirrors session reports: guardian/Admin/Supervisor whole; student with a guardian → only `next_month_objectives` (PROPOSAL); adult student → whole; teachers never see other teachers' reports. Additive migration, owner applies.
+Rules: only the assigned teacher may create/edit; unique per (teacher, student, month); only for a month that has started; teacher may edit for 7 days after submission, then locked (CONFIRMED, owner 2026-10-26); the DB-polling worker sends the teacher a reminder on the 1st and 3rd of the month for missing reports and raises a `MONTHLY_REPORT_MISSING` teacher flag from the 4th (timing PROPOSAL; §19). Visibility mirrors session reports: guardian/Admin/Supervisor whole; student with a guardian → only `next_month_objectives` (PROPOSAL); adult student → whole; teachers never see other teachers' reports. Additive migration, owner applies.
 
 ---
 
@@ -512,10 +512,15 @@ Informational tracking of teacher compliance violations (e.g., overdue session c
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | |
 | `academy_id` | UUID | FK → Academies, NOT NULL | |
 | `teacher_id` | UUID | FK → Teachers, NOT NULL | |
-| `session_id` | UUID | FK → Sessions, NOT NULL | Session where violation occurred |
-| `flag_type` | ENUM | NOT NULL | `LATE_REPORT` |
+| `session_id` | UUID | FK → Sessions, nullable (since 2026-10-26) | Session where the violation occurred (LATE_REPORT) |
+| `month_key` | VARCHAR(7) | nullable | `YYYY-MM` for month flags (MONTHLY_REPORT_MISSING), added 2026-10-26 |
+| `flag_type` | ENUM | NOT NULL | `LATE_REPORT`, `MONTHLY_REPORT_MISSING` (2026-10-26) |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | | | UNIQUE(session_id, flag_type) | One flag per session violation |
+| | | CHECK `teacher_flags_anchor_check` | Exactly one anchor: `session_id` set and `month_key` NULL, or `session_id` NULL and a valid `month_key` |
+| | | partial UNIQUE `teacher_flags_teacher_type_month_key` (teacher_id, flag_type, month_key) WHERE month_key IS NOT NULL | One month flag per teacher/type/month |
+
+Migration `20261026120000_teacher_flags_monthly_missing` (owner decision 7, applied 2026-10-26). Flags are informational: no automatic money effect.
 
 ---
 
@@ -673,6 +678,73 @@ Every ledger foreign key uses `ON DELETE RESTRICT`. No hard delete is allowed fo
 - Report attendance outcomes, class remarks, homework visibility, notification recipients/timing, guardian visibility of links, evaluation fields, reversal UX, payout cycle, and tenant-scoped uniqueness remain OPEN where noted above.
 
 Supervisor approval is confirmed, but Supervisor permissions remain operational only: the actor may approve/reject the report, while the system performs settlement and exposes no money amounts or payroll actions to that role.
+
+## 29. Session 3–5 additions (slice D, 2026-10-26 — from `schema.prisma`, which matches the DB: `prisma migrate diff` = empty)
+
+### 29.1 payment_audit (Session 3, migration 20261024000000) — append-only
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `academy_id` | UUID | FK → academies, NOT NULL | |
+| `invoice_id` | UUID | FK → invoices, nullable | |
+| `event_type` | VARCHAR | NOT NULL, CHECK in (CREATED, PAID, FAILED, CANCELLED, REJECTED, REFUNDED) | |
+| `actor_id` | UUID | FK → users, nullable | NULL for WEBHOOK/SYSTEM |
+| `actor_role` | VARCHAR | nullable | ADMIN, STUDENT, GUARDIAN, WEBHOOK, SYSTEM |
+| `metadata` | JSONB | nullable | allowlisted keys only (`lib/payments/audit.ts`): attemptId, idempotencyKey, provider, providerReference, amountMinor, currency, reason, packageType, sessionsPurchased, webhookStatus — never card data or gateway payloads |
+| `created_at` | TIMESTAMPTZ | DEFAULT now() | |
+Trigger `payment_audit_append_only` → `prevent_ledger_mutation()` blocks UPDATE/DELETE. Indexes `(academy_id, created_at DESC)`, `(invoice_id)`.
+
+### 29.2 session_evaluations (Session 3) — OPTIONAL student/guardian evaluation (owner, 2026-10-26)
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | UUID | PK | |
+| `academy_id` | UUID | FK, NOT NULL | |
+| `session_id` | UUID | FK → sessions, NOT NULL | |
+| `author_user_id` | UUID | FK → users, NOT NULL | student or guardian |
+| `student_id` | UUID | FK → students, NOT NULL | the student the evaluation is about |
+| `author_type` | ENUM | NOT NULL | STUDENT, GUARDIAN |
+| `rating` | INT | NOT NULL (1–5, CHECK) | |
+| `comment` | VARCHAR(2000) | nullable | |
+| `created_at` / `updated_at` | TIMESTAMPTZ | | |
+UNIQUE `(session_id, author_user_id)`. Visible to Admin/Supervisor only; the teacher never sees it.
+
+### 29.3 notification_jobs — later columns
+- `payload` JSONB (Session 1): redacted composition context — ids/keys/enums/small counts only, never free text or links.
+- `report_id` UUID FK (Session 1).
+- `read_at` TIMESTAMPTZ (Session 3): per-recipient bell; partial index `notification_jobs_recipient_unread_idx (recipient_user_id) WHERE read_at IS NULL AND status IN ('PENDING','SENT')`.
+- `provider_message_id` VARCHAR(255), `delivery_status` VARCHAR(16), `delivery_updated_at` TIMESTAMPTZ (WhatsApp slice d, 2026-10-25): forward-only delivery state from the signed OpenWA webhook; index on `provider_message_id`.
+- CHECK `notification_jobs_attempts_check` (attempts ≥ 0, hardening 2026-10-25).
+- `kind` is free text; current kinds include SESSION_REMINDER, SESSION_START, REPORT_REMINDER(_FOLLOWUP), REPORT_SUBMITTED, REPORT_REJECTED, MONTHLY_REPORT_SUBMITTED, MONTHLY_REPORT_REMINDER, SESSION_REQUEST, SERIES_PAUSED, OVERTIME_DECISION, BALANCE_NEGATIVE, ADMIN_MESSAGE, and (2026-10-26) PAYMENT_ANOMALY, SETTLED_WITHOUT_SUBSCRIPTION.
+
+### 29.4 admin_messages (WhatsApp slice e, 2026-10-25)
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `academy_id` | UUID FK NOT NULL | |
+| `recipient_user_id` | UUID FK → users NOT NULL | |
+| `created_by_user_id` | UUID FK → users NOT NULL | ADMIN only |
+| `body` | VARCHAR(4000) NOT NULL | the Admin's text; loaded by the worker at send time, never copied into the job row |
+| `created_at` | TIMESTAMPTZ | |
+Indexes `admin_messages_academy_created_idx`, `admin_messages_recipient_idx`.
+
+### 29.5 report_attachments — storage columns (Cloudinary switch, 2026-10-25)
+`storage_provider` VARCHAR(20) DEFAULT 'supabase' (new rows 'cloudinary'), `resource_type` VARCHAR(20), `format` VARCHAR(20). `file_path` holds the provider object key (public_id), never a URL; access only through short-lived signed links.
+
+### 29.6 payment_attempts — Paymob order matching (A1, migration 20261026130000)
+`provider_order_id` VARCHAR(64) (Paymob order id stored at checkout — the HMAC-covered callback match key), `provider_transaction_id` VARCHAR(64) (the transaction that settled it). Partial uniques `payment_attempts_provider_order_key (provider, provider_order_id)` and `payment_attempts_provider_transaction_key (provider, provider_transaction_id)`, each WHERE NOT NULL. `merchant_order_id` sent to Paymob = `<invoiceId>:v<attemptNo>` (informational only).
+
+### 29.7 payroll_ledger — later additions
+- `idempotency_key` UUID nullable (A5, migration 20261026150000) + partial unique `payroll_ledger_idempotency_key_key`: Admin adjustments/disbursements sent with an `Idempotency-Key` header are written once.
+- Partial unique `payroll_ledger_one_overtime_per_report_key (report_id) WHERE entry_type='ADMIN_ADJUSTMENT' AND report_id IS NOT NULL` (A3, migration 20261026140000): one overtime entry per report. A future reversal of an overtime entry needs its own entry type.
+
+### 29.8 users — administrative password audit (B4, migration 20261026160000)
+`password_set_by_id` UUID FK → users RESTRICT, `password_set_at` TIMESTAMPTZ, CHECK both-or-neither. Set when an Admin creates an account or resets a password; `must_change_password` is then TRUE (unless the Admin edits their own account).
+
+### 29.9 teacher_flags — month flags (2026-10-26)
+See §19.
+
+### 29.10 Database invariants added 2026-10-25 (hardening)
+See the phase-06 log "Session 5: dev DB wipe + schema hardening" (H1–H7, H9): invoices/subscriptions CHECKs, subscription_ledger per-type implications, one INITIAL_PURCHASE per invoice, payroll credit traceability + currency format, unique teacher rate per effective date, https-only Zoom links; `academy_id` NOT NULL on `session_join_clicks` and `application_created_records`.
 
 ## Change Summary Labels
 

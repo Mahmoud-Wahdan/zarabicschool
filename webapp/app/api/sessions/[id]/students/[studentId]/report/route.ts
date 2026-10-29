@@ -11,6 +11,7 @@ import { isSession1ReportsReady } from "../../../../../../../lib/reports/session
 import { completeSessionIfFullyReported, lockSessionForReport } from "../../../../../../../lib/reports/session-completion";
 import { getReportForViewer } from "../../../../../../../lib/reports/visibility";
 import { sessionReportSchema } from "../../../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../../../lib/request";
 
 const REPORT_NUDGE_KINDS = ["REPORT_REMINDER", "REPORT_REMINDER_FOLLOWUP"] as const;
 
@@ -46,6 +47,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; studentId: string }> },
 ) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("TEACHER");
   if (error) return error;
   const { id: sessionId, studentId } = await params;

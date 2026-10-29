@@ -7,8 +7,11 @@ import { createReplacementSession, enqueueReplacementJobs } from "../../../../..
 import { SchedulingValidationError } from "../../../../../lib/scheduling/checks";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const { id: sourceSessionId } = await params;

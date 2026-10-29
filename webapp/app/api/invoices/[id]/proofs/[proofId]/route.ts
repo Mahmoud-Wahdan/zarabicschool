@@ -5,6 +5,7 @@ import { requireApiRoles } from "../../../../../../lib/dal";
 import { writePaymentAudit } from "../../../../../../lib/payments/audit";
 import { prisma } from "../../../../../../lib/prisma";
 import { paymentProofReviewSchema } from "../../../../../../lib/validation/financial";
+import { requireSameOrigin } from "../../../../../../lib/request";
 
 /**
  * Admin reviews a payment proof. CONFIRM marks the evidence as verified — the
@@ -13,6 +14,8 @@ import { paymentProofReviewSchema } from "../../../../../../lib/validation/finan
  * proof can be re-reviewed; a decided proof is final (audit metadata preserved).
  */
 export async function POST(request: Request, { params }: { params: Promise<{ proofId: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const { proofId } = await params;

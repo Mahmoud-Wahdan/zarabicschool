@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
-import { prisma } from "../../../../lib/prisma";
+import { createManualPayrollEntry } from "../../../../lib/payroll/manual-entry";
 import { payrollDisbursementSchema } from "../../../../lib/validation/financial";
+import { requireSameOrigin } from "../../../../lib/request";
 
 /**
  * Admin-only payout record. Writes ONE append-only DISBURSEMENT row (negative
@@ -11,28 +12,20 @@ import { payrollDisbursementSchema } from "../../../../lib/validation/financial"
  * transfer actually happened.
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN"]);
   if (error) return error;
   const parsed = payrollDisbursementSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid disbursement.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
   }
-  const teacher = await prisma.teacher.findFirst({
-    where: { id: parsed.data.teacherId, academyId: user.academyId },
-    select: { id: true },
+  // A5: Idempotency-Key replay, one currency per teacher, append-only write.
+  return createManualPayrollEntry(request, user, {
+    entryType: "DISBURSEMENT",
+    teacherId: parsed.data.teacherId,
+    amountMinor: -parsed.data.amountMinor,
+    currency: parsed.data.currency,
+    reason: parsed.data.reason,
   });
-  if (!teacher) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Teacher not found." } }, { status: 404 });
-  const entry = await prisma.payrollLedger.create({
-    data: {
-      academyId: user.academyId,
-      teacherId: teacher.id,
-      entryType: "DISBURSEMENT",
-      amountMinor: -parsed.data.amountMinor,
-      currency: parsed.data.currency,
-      reason: parsed.data.reason,
-      createdById: user.id,
-    },
-    select: { id: true, teacherId: true, entryType: true, amountMinor: true, currency: true, createdAt: true },
-  });
-  return NextResponse.json({ data: entry }, { status: 201 });
 }

@@ -5,6 +5,7 @@ import { prisma } from "../../../../lib/prisma";
 import { reserveCredit, runSerializable } from "../../../../lib/credits/reservation";
 import { SchedulingValidationError, resolveParticipants } from "../../../../lib/scheduling/checks";
 import { enrollmentSchema } from "../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../lib/request";
 
 function schedulingErrorResponse(error: SchedulingValidationError) {
   return NextResponse.json(
@@ -20,6 +21,8 @@ function schedulingErrorResponse(error: SchedulingValidationError) {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = enrollmentSchema.safeParse(await request.json().catch(() => null));
@@ -67,6 +70,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = enrollmentSchema.omit({ assignmentOverrideReason: true }).safeParse(await request.json().catch(() => null));

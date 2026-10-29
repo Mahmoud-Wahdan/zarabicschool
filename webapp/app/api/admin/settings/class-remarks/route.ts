@@ -9,6 +9,7 @@ import {
   type ClassRemarkOption,
 } from "../../../../../lib/reports/class-remarks";
 import { classRemarksUpdateSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 /**
  * Admin-only (owner decision 2026-10-14): Supervisors are excluded from system
@@ -26,6 +27,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
   if (!(await isAcademySettingsReady())) {

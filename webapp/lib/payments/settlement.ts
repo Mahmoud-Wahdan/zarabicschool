@@ -61,35 +61,79 @@ function isUniqueViolation(cause: unknown): boolean {
   return cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === "P2002";
 }
 
+type Db = Prisma.TransactionClient | typeof prisma;
+
 /**
- * Records a signed event that must NOT move money (a failed payment, or one that
- * is not linkable to an invoice) so the anomaly stays observable for the Admin.
- * Idempotent per (provider, provider_event_id); never throws — observability
- * bookkeeping must not change the webhook outcome.
+ * Admin-only anomaly flag (A1/P11): a signed event that needs a human look but must
+ * never move money — amount/currency mismatch, a success for an invoice that is
+ * already PAID (a second payment), a void/refund of a PAID invoice, a payment for a
+ * disabled plan. One job per Admin, deduped per event. Ids/codes only (no amounts).
  */
-async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "IGNORED" | "UNMATCHED"): Promise<void> {
+async function enqueuePaymentAnomaly(db: Db, academyId: string, event: VerifiedPaymentEvent, reason: string, invoiceId: string | null) {
+  const admins = await db.user.findMany({ where: { academyId, role: "ADMIN", isActive: true }, select: { id: true } });
+  if (!admins.length) return;
+  await db.notificationJob.createMany({
+    data: admins.map((admin) => ({
+      academyId,
+      sessionId: null,
+      recipientUserId: admin.id,
+      kind: "PAYMENT_ANOMALY",
+      dedupKey: `PAYMENT_ANOMALY:${event.provider}:${event.providerEventId}:${admin.id}`,
+      scheduledFor: new Date(),
+      payload: { reason, ...(invoiceId ? { invoiceId } : {}) },
+    })),
+    skipDuplicates: true,
+  });
+}
+
+/**
+ * The invoice a signed event belongs to (A1 rule 2): through the provider ORDER id
+ * stored on our payment attempt at checkout — an HMAC-covered value. Never through
+ * merchant_order_id. Events without an order id (a future USD gateway) fall back to
+ * their own verified invoice id.
+ */
+async function resolveInvoiceId(db: Db, event: VerifiedPaymentEvent): Promise<string | null> {
+  if (event.providerOrderId) {
+    const attempt = await db.paymentAttempt.findFirst({
+      where: { provider: event.provider, providerOrderId: event.providerOrderId },
+      select: { invoiceId: true },
+    });
+    return attempt?.invoiceId ?? null;
+  }
+  return event.provider === "PAYMOB" ? null : event.invoiceId ?? null;
+}
+
+/**
+ * Records a signed event that must NOT move money (a failed/pending/voided/refunded
+ * payment, or one that is not linkable to an invoice) so it stays observable for
+ * the Admin. Idempotent per (provider, provider_event_id); never throws —
+ * observability bookkeeping must not change the webhook outcome.
+ */
+async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "IGNORED" | "UNMATCHED", invoiceId: string | null): Promise<void> {
   try {
     if (!(await isPhase6bReady())) return;
     await prisma.webhookEvent.create({
       data: {
         provider: event.provider,
-        providerEventId: event.providerEventId,
+        // An UNMATCHED success must not occupy the bare transaction id: that is the
+        // settlement claim key, and a later delivery (after the order is linked) must
+        // still be able to settle. Non-success ids are already "<txn>:<OUTCOME>".
+        providerEventId: status === "UNMATCHED" && event.succeeded ? `${event.providerEventId}:UNMATCHED` : event.providerEventId,
         eventType: event.eventType ?? "PAYMENT_FAILED",
         payload: redactWebhookPayload(event),
         status,
       },
     });
     // Payment audit (Session 3, Slice A): a signed non-success event is a FAILED
-    // payment-fact — best-effort: observability never changes the webhook outcome.
-    // The audit table requires an academy: resolve it from the invoice and SKIP the
-    // row for UNMATCHED events (they stay observable in webhook_events).
-    if (event.invoiceId) {
-      const invoice = await prisma.invoice.findUnique({ where: { id: event.invoiceId }, select: { academyId: true } });
+    // payment-fact — best-effort. The audit table requires an academy: resolved
+    // from the invoice; UNMATCHED events stay observable in webhook_events only.
+    if (invoiceId) {
+      const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { academyId: true, status: true } });
       if (invoice) {
         await writePaymentAudit(
           {
             academyId: invoice.academyId,
-            invoiceId: event.invoiceId,
+            invoiceId,
             eventType: "FAILED",
             actorId: null,
             actorRole: "WEBHOOK",
@@ -97,10 +141,16 @@ async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "I
               provider: event.provider,
               providerReference: event.providerReference,
               webhookStatus: status,
+              reason: event.outcome ?? "FAILED",
             },
             bestEffort: true,
           },
         );
+        // P11: a void/refund of an invoice we already marked PAID needs the Admin.
+        // Refund handling itself waits for the refund rules (OPEN) — no money moves.
+        if (invoice.status === "PAID" && (event.outcome === "VOIDED" || event.outcome === "REFUNDED")) {
+          await enqueuePaymentAnomaly(prisma, invoice.academyId, event, `PAID_INVOICE_${event.outcome}`, invoiceId);
+        }
       }
     }
   } catch (cause) {
@@ -111,35 +161,68 @@ async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "I
   }
 }
 
-export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
-  if (!event.succeeded) {
-    // A signed non-success event (failed card payment) never touches the invoice;
-    // it is only recorded for observability.
-    await recordIgnoredWebhookEvent(event, "IGNORED");
-    return { status: "ignored" as const };
+/**
+ * A signed callback with an unexpected shape (PaymobSignedShapeError): stored once per
+ * raw body as INVALID_SHAPE (field names only) so it is visible, never retried
+ * forever, and never moves money. Never throws.
+ */
+export async function recordInvalidSignedEvent(provider: "PAYMOB", rawEventHash: string, fieldNames: string[]): Promise<void> {
+  try {
+    if (!(await isPhase6bReady())) return;
+    await prisma.webhookEvent.create({
+      data: {
+        provider,
+        providerEventId: `invalid:${rawEventHash}`,
+        eventType: "INVALID_SHAPE",
+        payload: { redacted: true, invalidFields: fieldNames.slice(0, 20) },
+        status: "INVALID_SHAPE",
+      },
+    });
+  } catch (cause) {
+    if (isUniqueViolation(cause)) return;
+    console.error("[webhook] could not record an INVALID_SHAPE event.");
   }
-  if (!event.invoiceId) {
-    // Signed but not linkable to one of our invoices (no merchant_order_id):
-    // record it first (own commit), then reject the event.
-    await recordIgnoredWebhookEvent(event, "UNMATCHED");
-    throw new PaymentProviderError("The payment event is not linked to an invoice.", "INVALID_WEBHOOK", 400);
+}
+
+export type SettlementResult =
+  | { status: "ignored" | "unmatched" | "already_processed" }
+  | { status: "already_settled" | "mismatch" | "not_payable"; invoiceId: string }
+  | { status: "settled"; invoiceId: string; subscriptionId: string };
+
+/**
+ * Signed provider event → invoice (A1). Everything signed answers 200 with a status
+ * (Paymob must not retry forever); only a DB failure throws (→ 500 → provider retry,
+ * idempotent through the event claim). Money moves ONLY for a SUCCESS whose order
+ * resolves to a PENDING invoice with exactly the invoice's provider, amount and
+ * currency.
+ */
+export async function settlePaidInvoice(event: VerifiedPaymentEvent): Promise<SettlementResult> {
+  const invoiceId = await resolveInvoiceId(prisma, event);
+  if (!event.succeeded) {
+    // A signed non-success event (declined, pending 3-DS step, void, refund) never
+    // touches the invoice; it is only recorded for observability.
+    await recordIgnoredWebhookEvent(event, "IGNORED", invoiceId);
+    return { status: "ignored" };
+  }
+  if (!invoiceId) {
+    // Signed but not linkable to one of our payment attempts: recorded, no money.
+    await recordIgnoredWebhookEvent(event, "UNMATCHED", null);
+    return { status: "unmatched" };
   }
 
   const eventsReady = await isPhase6bReady();
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx): Promise<SettlementResult> => {
     // CLAIM the event first (UNIQUE(provider, provider_event_id) — CONTEXT §20.4):
     // a replay or a concurrent delivery of the SAME event answers
     // "already processed" here and never reaches the invoice. The claim, the
     // invoice transition, and the ledger entry are ONE transaction — if anything
     // below fails, the claim rolls back with it, so a provider retry processes
-    // the event cleanly instead of being wrongly marked complete. The
-    // webhook_events table arrives with migration 20261020000000
-    // (isPhase6bReady); before it is applied, the invoice row lock + the
-    // PAID-state guard below remain the duplicate protection.
+    // the event cleanly instead of being wrongly marked complete.
+    let claimId: string | null = null;
     if (eventsReady) {
       try {
-        await tx.webhookEvent.create({
+        const claim = await tx.webhookEvent.create({
           data: {
             provider: event.provider,
             providerEventId: event.providerEventId,
@@ -147,17 +230,25 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
             payload: redactWebhookPayload(event),
             status: "PROCESSED",
           },
+          select: { id: true },
         });
+        claimId = claim.id;
       } catch (cause) {
         if (isUniqueViolation(cause)) {
-          return { status: "already_processed" as const };
+          return { status: "already_processed" };
         }
         throw cause;
       }
     }
-    await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${event.invoiceId}::uuid FOR UPDATE`;
+    // A non-settling outcome keeps the claim (so a replay stays "already processed")
+    // but labels it for the Admin.
+    const markClaim = async (status: "MISMATCH" | "NOT_PAYABLE" | "DUPLICATE_PAYMENT") => {
+      if (claimId) await tx.webhookEvent.update({ where: { id: claimId }, data: { status }, select: { id: true } });
+    };
+
+    await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`;
     const invoice = await tx.invoice.findUnique({
-      where: { id: event.invoiceId },
+      where: { id: invoiceId },
       select: {
         id: true,
         studentId: true,
@@ -171,19 +262,52 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
       },
     });
     if (!invoice) {
-      throw new PaymentProviderError("Invoice was not found.", "INVALID_WEBHOOK", 404);
+      // The attempt points at an invoice that no longer exists (FK RESTRICT makes
+      // this unreachable); treat as a server fault so the provider retries.
+      throw new PaymentProviderError("Invoice was not found.", "INVALID_WEBHOOK", 500);
     }
-    if (invoice.status === "PAID") return { status: "already_settled" as const, invoiceId: invoice.id };
+    // Non-settling outcomes leave an audit row (A1 rule 5) — the Admin flag points
+    // to the payments audit page. Written in this transaction: if it fails, the whole
+    // event rolls back and the provider retries (fail-closed, like the PAID row).
+    const auditRefusal = (reason: string) =>
+      writePaymentAudit({
+        academyId: invoice.academyId,
+        invoiceId: invoice.id,
+        eventType: "FAILED",
+        actorId: null,
+        actorRole: "WEBHOOK",
+        metadata: { provider: event.provider, providerReference: event.providerReference, reason },
+      }, tx);
+    if (invoice.status === "PAID") {
+      // A DIFFERENT successful transaction for an invoice already paid (the same
+      // transaction is stopped by the claim above): a double payment — Admin flag.
+      await markClaim("DUPLICATE_PAYMENT");
+      await auditRefusal("SUCCESS_ON_PAID_INVOICE");
+      await enqueuePaymentAnomaly(tx, invoice.academyId, event, "SUCCESS_ON_PAID_INVOICE", invoice.id);
+      return { status: "already_settled", invoiceId: invoice.id };
+    }
     if (invoice.status !== "PENDING") {
-      throw new PaymentProviderError("Invoice is not payable in its current state.", "INVALID_WEBHOOK", 409);
+      await markClaim("NOT_PAYABLE");
+      await auditRefusal("SUCCESS_ON_UNPAYABLE_INVOICE");
+      await enqueuePaymentAnomaly(tx, invoice.academyId, event, "SUCCESS_ON_UNPAYABLE_INVOICE", invoice.id);
+      return { status: "not_payable", invoiceId: invoice.id };
     }
-    if (
-      invoice.provider !== "PAYMOB" ||
-      invoice.currency !== event.currency ||
-      invoice.amountMinor !== event.amountMinor ||
-      invoice.amountMinor <= BigInt(0)
-    ) {
-      throw new PaymentProviderError("Payment does not match the invoice.", "INVALID_WEBHOOK", 400);
+    const mismatch =
+      invoice.provider !== event.provider
+        ? "PROVIDER_MISMATCH"
+        : invoice.currency !== event.currency
+          ? "CURRENCY_MISMATCH"
+          : invoice.amountMinor !== event.amountMinor || invoice.amountMinor <= BigInt(0)
+            ? "AMOUNT_MISMATCH"
+            : invoice.packageType === "ANNUAL_PLAN"
+              ? "ANNUAL_PLAN_DISABLED"
+              : null;
+    if (mismatch) {
+      // A1 rule 3 / A4 defence in depth: recorded, Admin flag, NO money, 200.
+      await markClaim("MISMATCH");
+      await auditRefusal(mismatch);
+      await enqueuePaymentAnomaly(tx, invoice.academyId, event, mismatch, invoice.id);
+      return { status: "mismatch", invoiceId: invoice.id };
     }
 
     const now = new Date();
@@ -215,22 +339,32 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
       data: {
         status: "PAID",
         providerReference: event.providerReference,
-        paidAt: new Date(),
+        paidAt: now,
         subscriptionId: subscription.id,
       },
     });
-    await tx.paymentAttempt.upsert({
-      where: { rawEventHash: event.rawEventHash },
-      create: {
-        invoiceId: invoice.id,
-        provider: "PAYMOB",
-        idempotencyKey: `webhook:${event.rawEventHash}`,
-        providerReference: event.providerReference,
-        status: "SUCCEEDED",
-        rawEventHash: event.rawEventHash,
-      },
-      update: { status: "SUCCEEDED", providerReference: event.providerReference },
-    });
+    // The attempt that owns this order records the settling transaction; the order
+    // id stays in provider_reference/provider_order_id (no more overwrite).
+    if (event.providerOrderId) {
+      await tx.paymentAttempt.updateMany({
+        where: { provider: event.provider, providerOrderId: event.providerOrderId },
+        data: { status: "SUCCEEDED", providerTransactionId: event.providerReference, rawEventHash: event.rawEventHash },
+      });
+    } else {
+      await tx.paymentAttempt.upsert({
+        where: { rawEventHash: event.rawEventHash },
+        create: {
+          invoiceId: invoice.id,
+          provider: event.provider,
+          idempotencyKey: `webhook:${event.rawEventHash}`,
+          providerReference: event.providerReference,
+          providerTransactionId: event.providerReference,
+          status: "SUCCEEDED",
+          rawEventHash: event.rawEventHash,
+        },
+        update: { status: "SUCCEEDED", providerTransactionId: event.providerReference },
+      });
+    }
     // Payment audit (Session 3, Slice A): PAID commits with the money move —
     // fail-closed; if the audit insert fails the whole settlement rolls back and
     // a provider retry reprocesses cleanly (webhook claim is in this transaction).
@@ -241,7 +375,7 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
       actorId: null,
       actorRole: "WEBHOOK",
       metadata: {
-        provider: "PAYMOB",
+        provider: event.provider,
         providerReference: event.providerReference,
         amountMinor: invoice.amountMinor.toString(),
         currency: invoice.currency,
@@ -249,7 +383,7 @@ export async function settlePaidInvoice(event: VerifiedPaymentEvent) {
         sessionsPurchased: invoice.sessionsPurchased,
       },
     }, tx);
-    return { status: "settled" as const, invoiceId: invoice.id, subscriptionId: subscription.id };
+    return { status: "settled", invoiceId: invoice.id, subscriptionId: subscription.id };
   });
 }
 

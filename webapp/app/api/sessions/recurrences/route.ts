@@ -7,8 +7,11 @@ import { zonedWallClock } from "../../../../lib/schedules/recurrence";
 import { generateSeriesWeek, type SeriesForGeneration } from "../../../../lib/schedules/series";
 import { recurringSessionSchema } from "../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = recurringSessionSchema.safeParse(await request.json().catch(() => null));

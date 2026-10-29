@@ -70,12 +70,18 @@ export async function POST(
     throw e;
   }
 
+  // Academy display name for the credentials message (never a hardcoded brand).
+  const academyName = await prisma.academy
+    .findUnique({ where: { id: user.academyId }, select: { name: true } })
+    .then((academy) => academy?.name)
+    .catch(() => undefined);
+
   for (const account of accounts) {
     try {
       const provider = getMessagingProvider();
       const result = await provider.sendCredentials(
         { userId: account.userId, phone: account.deliveryPhone },
-        { username: account.username, tempPassword: account.tempPassword }
+        { username: account.username, tempPassword: account.tempPassword, academyName }
       );
       if (!result.ok) {
         // Redacted failure row so Admin can retry when WhatsApp is connected

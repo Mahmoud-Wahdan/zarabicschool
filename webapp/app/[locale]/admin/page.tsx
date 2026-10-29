@@ -10,6 +10,7 @@ import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 
+import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
 export async function generateMetadata() {
   const t = await getTranslations("adminDash");
   return { title: `${t("title")} | Zarabicschool` };
@@ -42,7 +43,8 @@ export default async function AdminDashboard() {
       prisma.teacher.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
       prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
       prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
-      prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: "LATE_REPORT" } }),
+      // Late session reports + missing monthly reports (owner decision 7, 2026-10-26).
+      prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: { in: ["LATE_REPORT", "MONTHLY_REPORT_MISSING"] } } }),
       prisma.session.findMany({
         where: {
           academyId: user.academyId,
@@ -85,6 +87,7 @@ export default async function AdminDashboard() {
       timezone={user.timezone}
       navBadges={{ applications, reports: pendingReports }}
     >
+      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}

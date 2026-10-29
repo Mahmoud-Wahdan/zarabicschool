@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "../../../i18n/navigation";
 import Icon from "../ui/icon";
 
-export default async function SiteFooter() {
+export default async function SiteFooter({ whatsappHref = null }: { whatsappHref?: string | null }) {
   const t = await getTranslations("landing.footer");
   const tBrand = await getTranslations("brand");
   const tNav = await getTranslations("landing.nav");
@@ -95,6 +95,17 @@ export default async function SiteFooter() {
                   {t("whatsappTitle")}
                 </div>
                 <p className="mt-1 text-label-sm text-on-surface-variant">{t("whatsappText")}</p>
+                {whatsappHref ? (
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-label-md font-semibold text-secondary hover:underline"
+                  >
+                    <Icon name="chat" size={16} />
+                    {t("whatsappCta")}
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>

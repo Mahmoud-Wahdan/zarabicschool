@@ -13,6 +13,7 @@ import { resolveReportLanguage } from "../../../lib/reports/report-language";
 import { isSession1ReportsReady } from "../../../lib/reports/session1-ready";
 import { prisma } from "../../../lib/prisma";
 import { monthlyReportSchema } from "../../../lib/validation/management";
+import { requireSameOrigin } from "../../../lib/request";
 
 export async function GET(request: Request) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
@@ -119,6 +120,8 @@ export async function GET(request: Request) {
  * submission, then locked.
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("TEACHER");
   if (error) return error;
 

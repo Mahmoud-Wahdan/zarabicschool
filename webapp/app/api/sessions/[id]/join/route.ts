@@ -73,7 +73,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Click evidence (CONTEXT §6 safeguard 5): a row per click with session/user/time only.
   // A failed insert must not block the redirect and must never disclose the link.
   try {
-    await prisma.sessionJoinClick.create({ data: { sessionId: session.id, userId: user.id } });
+    await prisma.sessionJoinClick.create({ data: { academyId: user.academyId, sessionId: session.id, userId: user.id } });
   } catch (cause) {
     console.error(
       "[join] click logging failed.",

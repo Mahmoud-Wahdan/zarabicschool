@@ -6,7 +6,7 @@ import { prisma } from "../prisma";
 import { monthKeyRangeUtc } from "./month-key";
 import { resolveReportLanguage, type ReportLanguageCode } from "./report-language";
 
-/** PROPOSAL (owner, 2026-10-18 — CONTEXT §9): the teacher may edit a monthly report for 7 days after submission, then it locks. */
+/** CONFIRMED (owner, 2026-10-26 — CONTEXT §9): the teacher may edit a monthly report for 7 days after submission, then it locks. */
 export const MONTHLY_REPORT_EDIT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type Viewer = {

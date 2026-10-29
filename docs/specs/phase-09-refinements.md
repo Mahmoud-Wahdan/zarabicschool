@@ -30,7 +30,9 @@ Raise the existing dashboards and management screens to a finished, client-ready
 - Builds on the Phase 5 queues (`SessionRequests`, reports queue, `TeacherFlags`); it is an aggregation view, not new business rules. OPEN: read/unread state and a badge counter.
 
 ### 9.5 Teacher performance page (new)
-- Per teacher: evaluation rating (from mandatory student evaluations, Admin-only data), on-time report rate, attendance in sessions, plus edit/delete/actions. Depends on Phase 7 evaluations and Phase 5 `TeacherFlags`. OPEN: exact metric definitions (e.g. "on time" = report before T+15).
+- Per teacher: evaluation rating (from the OPTIONAL student/guardian evaluations — owner, 2026-10-26; Admin/Supervisor-only data), on-time report rate, attendance in sessions, plus edit/delete/actions. Depends on Phase 7 evaluations and Phase 5 `TeacherFlags` (incl. `MONTHLY_REPORT_MISSING`, 2026-10-26). OPEN: exact metric definitions (e.g. "on time" = report before T+15).
+- **Teacher punctuality metric (owner, 2026-10-26 — NOT built):** based on the platform link-click log (`session_join_clicks`), which Phase 7 shows read-only to Admin/Supervisor as "link click time". **Lateness threshold OPEN for the owner.** Known reliability gaps to solve first (Phase 7 log): the T+0 WhatsApp start message carries the raw Zoom join link (joins from WhatsApp/Zoom app leave no click); join vs host clicks are not distinguished; a click does not prove presence. Operational late-start alerts (T+5 teacher reminder, T+10 Admin alert) already exist since 2026-10-26 — this item is the METRIC/rating, not the alerts.
+- **Teacher performance ANALYSIS (owner, 2026-10-26):** moved here from Phase 7. Phase 7 builds only the per-teacher evaluation SUMMARY (average, count, recent comments; Admin + Supervisor; no automatic action; the teacher never sees it). Trends, comparisons and any combined score belong to this page. OPEN: which metrics, periods and whether any score is shown.
 
 ### 9.6 Calendar views
 - Sessions shown as a calendar (week/month/day) for Student, Teacher, Admin and Supervisor, for both viewing and creating sessions. Times in the viewer's timezone (already stored in UTC). OPEN: calendar library vs. hand-built (no new dependency without asking — CONTEXT §21.5).
@@ -101,3 +103,31 @@ Real-DB authorization tests per new endpoint (Admin/Supervisor/others), Supervis
 - Open questions (owner to answer before any build):
   1. Does the 30-minute window apply to ALL roles (student, teacher, guardian) or only students? (Admin/Supervisor are exempt today by design.)
   2. Should the 30 minutes be Admin-configurable in AcademySettings instead of a code constant (9.10 PROPOSAL), and should the WhatsApp link message move to T-30 to match the button?
+## Session 5 addendum (owner, 2026-10-25 — document only, NOT implemented)
+
+### 9.11 Teacher daily schedule on WhatsApp (owner, 2026-10-25)
+- **What:** at **midnight in each user's own timezone** the teacher receives that day's sessions by WhatsApp. Session times are converted to the teacher's timezone; the text is in the teacher's preferred language; the academy name comes from the database/AcademySettings (no hardcoded brand); **no Zoom links** in this message.
+- **Message format (placeholders, rendered per language):**
+  1. Greeting with the teacher's name — "Good morning, <teacher name>".
+  2. "Here is your schedule for <weekday, date>:".
+  3. Numbered list, one line per session: "<n>. <student> - <minutes> min at <time>".
+  4. A separate "Make-up sessions" list for replacement sessions (`replacement_for_session_id IS NOT NULL`), same line format.
+  5. Closing line (e.g. "Have a blessed day.").
+  6. Sign-off with the academy name.
+- **Design (PROPOSAL):**
+  - A **planner tick** in the existing DB-polling worker (`lib/worker/notifications.ts`). For each active teacher whose local clock has passed 00:00 of local date D, create ONE `notification_jobs` row, kind `TEACHER_DAILY_SCHEDULE`, `dedup_key = TEACHER_DAILY_SCHEDULE:<teacherId>:<YYYY-MM-DD local>` — unique, so re-scans and restarts are idempotent (`createMany … skipDuplicates`).
+  - Payload = `{ localDate }` only (redaction rule: no names, no times, no links in the row). The worker composes the list at send time from the sessions table.
+  - Skip teachers with no sessions that day (no job at all). Exclude `CANCELLED` sessions (and `MISSED`).
+  - Missing OpenWA config → the normal FAILED row, no crash, nothing rolled back (INSTRUCTIONS §10).
+  - OpenWA is unofficial (can be banned): consider an **in-app fallback** — the same list as a "Today" card on the teacher dashboard (the dashboard already lists today's classes), so WhatsApp is never the only channel.
+- **Decided:** the user's timezone comes from the user's **country** (see 9.9 / C.1).
+- **Open questions (owner):**
+  1. Group sessions: one line per session ("Group: <n> students") or one line per student?
+  2. Sessions added, moved or cancelled AFTER midnight: send an update message, show only in-app, or nothing?
+  3. Retry policy: the generic worker retry (transient failures, 3 sends, 2 m / 10 m backoff) — or a cut-off (e.g. do not send after 08:00 local)?
+- **Tests (later):** idempotent planner (two ticks → one job); DST day; teacher with only cancelled sessions → no job; replacement sessions in the separate list; no Zoom URL in the composed text; missing config → FAILED.
+
+### 9.12 Session times in each user's own timezone + join 30 minutes before (owner, 2026-10-25 — restates C.1/C.2)
+- Every session time is shown in **the viewer's own timezone** (derived from the user's country); storage stays UTC.
+- The join button becomes enabled **30 minutes before** the session start (`JOIN_OPENS_BEFORE_START_MINUTES` 15 → 30).
+- The Zoom link stays SECRET: only that session's teacher, its students, their guardians and Admin. **Question for the owner:** the current code (and CONTEXT §6) also lets the **Supervisor** see/edit the links (Supervisor manages schedules and Zoom links, CONTEXT §4). Keep Supervisor access, or remove it as this wording implies?

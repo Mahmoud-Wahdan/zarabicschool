@@ -7,6 +7,8 @@ import { prisma } from "../../../lib/prisma";
 import { formatSessionDateTime } from "../../../lib/schedules/display";
 import { Link } from "../../../i18n/navigation";
 
+import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
+import EvaluationPromptCard from "../../_components/evaluations/evaluation-prompt-card";
 export async function generateMetadata() {
   const t = await getTranslations("dashboard");
   return { title: `${t("student.title")} | Zarabicschool` };
@@ -29,7 +31,8 @@ export default async function StudentDashboard() {
         },
       },
       sessionStudents: {
-        where: { session: { scheduledStart: { gte: new Date() } } },
+        // Upcoming = still scheduled; a cancelled future session is not upcoming.
+        where: { session: { scheduledStart: { gte: new Date() }, status: "SCHEDULED" } },
         orderBy: { session: { scheduledStart: "asc" } },
         take: 8,
         select: {
@@ -46,9 +49,8 @@ export default async function StudentDashboard() {
       },
       reports: {
         // Submit-time visibility (owner, 2026-10-18 — CONTEXT §9): the student sees
-        // homework from the moment the teacher SUBMITS the report — approval gates
-        // pay only.
-        where: { status: { in: ["SUBMITTED", "APPROVED", "ARCHIVED"] } },
+        // homework from the moment the teacher SUBMITS the report — in EVERY status,
+        // incl. REJECTED (same row, latest content); approval gates pay only.
         orderBy: { submittedAt: "desc" },
         take: 5,
         select: { id: true, homework: true, submittedAt: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
@@ -63,6 +65,8 @@ export default async function StudentDashboard() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
+      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
+      <EvaluationPromptCard userId={user.id} academyId={user.academyId} role="STUDENT" />
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("student.title")}</h1>
       <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
         {t("student.welcome", { name: user.displayName })}
@@ -97,9 +101,8 @@ export default async function StudentDashboard() {
               <div key={item.session.id} className="flex justify-between gap-3 rounded-lg bg-[var(--background)] p-3 text-sm">
                 <span>{locale === "ar" ? item.session.subject.nameAr : item.session.subject.nameEn}</span>
                 <span>{formatSessionDateTime(item.session.scheduledStart, user.timezone, locale)}</span>
-                <Link href={`/student/sessions/${item.session.id}/report`} className="cta-primary rounded-lg px-3 py-2 text-xs">
-                  {t("student.actions.session")}
-                </Link>
+                {/* No report link on upcoming sessions: a session report exists only
+                    after the teacher submits it (owner, 2026-10-25) — see /student/reports. */}
               </div>
             ))
           ) : (

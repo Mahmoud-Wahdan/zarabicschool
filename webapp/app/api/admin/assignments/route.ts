@@ -4,6 +4,7 @@ import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { runSerializable } from "../../../../lib/credits/reservation";
 import { assignmentCreateSchema, assignmentListSchema } from "../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export async function GET(request: Request) {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
@@ -48,6 +49,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = assignmentCreateSchema.safeParse(await request.json().catch(() => null));

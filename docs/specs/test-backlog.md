@@ -96,3 +96,92 @@
 - **SC-06** — CANCELLED/MISSED sessions are never completed; resubmit/replay on a COMPLETED session writes no second transition (protects: idempotency).
 - **SC-07** — concurrent resubmits of the same REJECTED report: exactly one 200, the other 409 ALREADY_SUBMITTED (protects: editable only after rejection under concurrency).
 - **SC-08** — `GET /api/sessions` returns `reportCount` to ADMIN/SUPERVISOR/TEACHER only; STUDENT/GUARDIAN payloads have no `reportCount` (protects: classmates' report state).
+
+## Session 5 Part 1 — WhatsApp (d)+(e) (2026-10-25)
+- **WA-01** — phone normaliser: `01012345678`/`1012345678`/`201012345678` → `201012345678`; `+14155550102`/`0044…` unchanged; `12345`/letters → null (protects: abroad users, no guessed country code).
+- **WA-02** — adapter calls `POST <base>/api/sessions/<id>/messages/send-text` with `{chatId:"…@c.us", text}` + `X-API-Key` + `Idempotency-Key`; the 201 `messageId` is returned (HTTP mocked at the boundary).
+- **WA-03** — non-production: number not in `OPENWA_SEND_ALLOWLIST` → `{ok:false}`, no HTTP call; empty allowlist → nothing sent; production ignores the allowlist.
+- **WA-04** — transient (409/429/5xx/network) → PENDING again after 2 min then 10 min, FAILED after the 3rd send; permanent (400/401/404/no config) → FAILED after one send.
+- **WA-05** — PROCESSING older than 10 min → FAILED and not re-sent; younger rows untouched.
+- **WA-06** — SESSION_REMINDER/SESSION_START due after `scheduledEnd` → CANCELLED, provider not called.
+- **WA-07** — webhook: no secret env / no header / wrong signature / signature over a re-serialised body → 401 and no DB write; valid → 200.
+- **WA-08** — webhook forward-only: READ then replayed DELIVERED stays READ; FAILED after DELIVERED stays DELIVERED; unknown messageId → 200 nothing changed; other sessionId → ignored.
+- **WA-09** — `POST /api/admin/messages`: Supervisor/Teacher 403; cross-origin 403; other-academy recipient 404; no phone 409; 21st message in 10 min 429; job payload is exactly `{adminMessageId}`; response contains no body text.
+- **WA-10** — `GET /api/admin/whatsapp/health`: Supervisor 403; response never contains the API key; OpenWA down → `reachable:false`.
+- **WA-11** — whatsapp-number PUT: Admin only, invalid format 400; landing/footer render `https://wa.me/201060814239` from the setting; no link when the row is missing.
+- **WA-12** — pre-migration: messages route 409 `WHATSAPP_MIGRATION_PENDING`; webhook acks without writing; worker sends without storing the message id.
+
+## Session 5 Stage 2 plan — tests to write when each item is implemented (phase-06 § "Session 5")
+- **SEED-01/02** — after the demo seed: no APPROVED/ARCHIVED report without settlement; only `billing.pay_per_session.*` keys.
+- **PM-01..PM-10** — Paymob: each success-predicate flag (pending, is_voided, is_refunded, is_void, is_refund, error_occured, auth-without-capture) blocks settlement; match by `order.id` only (forged `merchant_order_id` ignored); amount/currency mismatch → `mismatch`, no money; pending then success for the same txn settles once; success on a PAID invoice → anomaly flag, no money; replay → `already_processed`; concurrent duplicates → one settlement.
+- **RA-01..RA-03** — approval of a report of a CANCELLED session → 409 `SESSION_CANCELLED`, zero ledger rows; cancel between submit and approve; reject still allowed.
+- **OT-01..OT-03** — overtime: missing rate → stays PENDING, no ledger; double click → one row; failure after the ledger insert → both rolled back.
+- **AN-01..AN-03** — ANNUAL: invoice create 409, checkout 409, signed success ignored + flag.
+- **PR-01..PR-04** — payroll idempotency key duplicate → one row; currency mismatch 409; cross-origin 403; Supervisor 403.
+- **SS-01..SS-03** — seam: concurrent attended reports of one group session → no 500, one credit; no subscription → teacher paid + Admin flag; consumption order earliest-expiring first.
+- **SEC-01/02** — seed aborts without `SEED_DEMO_PASSWORD`; demo seed leaves the Admin hash unchanged.
+- **AP-01/02** — profiles `type=constructor|__proto__|toString` → 400; Supervisor never receives Admin/Supervisor rows.
+- **SO-01/02** — every mutating route: cross-origin/missing Origin 403, same-origin OK; webhooks unaffected.
+- **PW-01..PW-03** — admin-set password forces change for ADMIN/SUPERVISOR/TEACHER; student unchanged; self-change clears.
+- **FW-01..FW-03** — one finance-wall helper on checkout/invoices/proofs/page; pay-per-session count outside min/max → 400.
+- **PF-01** — `/teacher/sessions` shows today's sessions when the teacher has >100 older ones.
+- **PL-01..PL-05** — payment-link message (when built): Supervisor 403; never to a student with a guardian; PAID invoice 409; second send same day blocked; text contains no provider URL/token.
+
+## Session 5 — schema hardening (2026-10-25)
+- **HD-01** — each new CHECK (invoices, subscriptions, subscription_ledger, payroll_ledger, teacher_rates, sessions) rejects its invalid row.
+- **HD-02** — a second INITIAL_PURCHASE for the same invoice is rejected (duplicate webhook).
+- **HD-03** — duplicate teacher rate (same teacher, same effective_from) → 409 RATE_ALREADY_EXISTS.
+- **HD-04** — an http:// Zoom link is rejected by the DB even if the code check is bypassed.
+
+## Session 5 — demo seed (2026-10-25)
+- **SD-01** — the copied settlement in `prisma/seed-demo.ts` produces exactly the rows the real `settleApprovedReport` / `settlePaidInvoice` produce for the same input (compare row shapes; protects: seed drift from production logic).
+- **SD-02** — approving the seeded SUBMITTED report through the API writes one deduction + no second credit for an already-credited session (real path).
+- **SD-03** — the seed refuses a non-empty DB and `NODE_ENV=production`; missing `SEED_DEMO_PASSWORD` aborts before any write.
+
+## Session 5 — monthly reports wrap-up (2026-10-26)
+- **MR-01** — worker on day 4–7 (teacher's local calendar) with missing reports for the previous month creates exactly ONE `MONTHLY_REPORT_MISSING` flag per (teacher, month); a second tick and a second day create none (partial unique + pre-check).
+- **MR-02** — no flag on days 1–3 or 8+; no flag when every eligible student has a report; days 1 and 3 still enqueue the WhatsApp reminder, days 4–7 do not.
+- **MR-03** — DB rejects a flag with both `session_id` and `month_key`, with neither, or with a malformed `month_key` (`teacher_flags_anchor_check`).
+- **MR-04** — teacher dashboard card shows the missing count for the previous month only and disappears after the last report is submitted; never shows other teachers' counts.
+- **MR-05** — `/admin/monthly-reports` shows the "Flagged" chip only for teachers flagged for the selected month; Supervisor sees the same; Teacher/Student/Guardian get 403/redirect.
+- **MR-06** — student `/student/sessions` report link appears only after a report exists for THIS student (group session: another student's report does not show the link); upcoming dashboard list excludes CANCELLED.
+
+## Session 5 — Phase 6 slices (2026-10-26, in addition to PM/RA/OT/AN/PR/SS/AP/SO/PW/FW above)
+- **PM-11** — UNMATCHED success stored as `<txn>:UNMATCHED`; after the order is linked, the same transaction settles (not `already_processed`).
+- **PM-12** — success on an already-PAID invoice (different txn) → `already_settled`, webhook event `DUPLICATE_PAYMENT`, one FAILED audit row, one PAYMENT_ANOMALY job per Admin, no ledger row.
+- **PM-13** — signed body with a missing/odd field → 200 `invalid_shape`, one INVALID_SHAPE event per raw body, log has field names only.
+- **PM-14** — envelope `{type,obj}` + `?hmac=` query AND flat body + `hmac` header both verify; unsigned → 401, nothing stored.
+- **PM-15** — `is_void:true` added to a signed success (not HMAC-covered) → FAILED outcome, no VOIDED anomaly.
+- **PM-16** — body > 64 KB (content-length and actual bytes) → 413.
+- **CX-01** — cancel a session with an APPROVED report → 409 `SESSION_HAS_SETTLED_REPORTS`; outage approval (SESSION scope) on it → same 409; without approved reports both still work.
+- **CX-02** — concurrent approve vs cancel on one session: exactly one wins; never a CANCELLED session with ledger rows.
+- **SS-04** — no reservation + two subscriptions where the earliest-expiring one's credit is fully held by RESERVED bookings → deduction goes to the other one.
+- **SS-05** — no subscription at all → teacher credited, no deduction, SETTLED_WITHOUT_SUBSCRIPTION job per Admin.
+- **SS-06** — BALANCE_NEGATIVE reaches every active Admin (one job each).
+- **PR-05** — same Idempotency-Key + different amount → 409 `IDEMPOTENCY_KEY_REUSED`; same key + same entry → 200 with the first row; invalid key → 400.
+- **PR-06** — adjustment in a currency other than the teacher's rate currency → 409 `CURRENCY_MISMATCH`; teacher without a rate → 409 `NO_TEACHER_RATE`.
+- **AP-03** — `?type=constructor|__proto__|toString` on GET and POST `/api/admin/profiles` → 400; never a list of Admin/Supervisor rows.
+- **SO-03** — every POST/PATCH/PUT/DELETE under `app/api` (except the two webhooks) answers 403 `ORIGIN_NOT_ALLOWED` without a same-origin `Origin` (static sweep + one request per route); `auth/change-password` included.
+- **PW-04** — Admin creates an ADMIN/SUPERVISOR → `must_change_password` true + `password_set_by_id/at`; Admin edits own password → false; edit without password → flag unchanged.
+- **FW-04** — minor student WITHOUT a guardian: checkout/invoice detail/proofs → 403/404 (strict rule).
+- **PF-02** — `/teacher/sessions` lists sessions from 7 days back to 30 days ahead only.
+
+## Session 5 — Phase 7 + late start (2026-10-26)
+- **AN-04** — POST /api/announcements: TEACHER/STUDENT/GUARDIAN → 403; SUPERVISOR and ADMIN → 201; stale `confirmRecipientCount` → 409 RECIPIENTS_CHANGED + new count, nothing written.
+- **AN-05** — recipients: two users sharing one number → one job; user without a number → no job but sees the widget; inactive users excluded.
+- **AN-06** — announcements row cannot be UPDATEd/DELETEd (append-only trigger); no PATCH route exists.
+- **AN-07** — worker throttle: >8 due announcement jobs in one tick → 8 sent, the rest rescheduled +5 min (not claimed); 60 sent in the last hour → none sent; non-announcement jobs in the same batch still go out.
+- **AN-08** — default expiry = sent + 3 days; expiresAt in the past or > 90 days → 400; expired announcement absent from the widget but present in /announcements.
+- **AN-09** — logs contain no announcement text and no phone numbers (grep the worker/route output).
+- **CP-01** — complaint by a student about the teacher of their session → 201; about a classmate or any guardian → 400; about a session they are not on → 404.
+- **CP-02** — teacher files about a roster student and that student's guardian → 201; about a student of another session → 400.
+- **CP-03** — the concerned party (and the filer) cannot read the complaint: no API route returns it, /admin/complaints and /admin/complaints/:id redirect for non-operators; no notification_jobs row is created by filing or resolving.
+- **CP-04** — workflow: RESOLVE on NEW → 409; START twice → second 409; RESOLVE without a note → 400; concurrent START → one wins.
+- **CP-05** — cross-academy complaint id → 404.
+- **CT-01** — click timeline data layer returns nothing for TEACHER/STUDENT/GUARDIAN; operator view lists the assigned teacher as "Assigned teacher" with minutes from start; no URL in the payload.
+- **EV-01** — /admin/evaluations: TEACHER redirected; averages/counts per teacher match the rows; comments show author type only.
+- **EV-02** — evaluation prompt card: COMPLETED session ended within 7 days without own evaluation → card; after evaluating → gone; CANCELLED/MISSED/SCHEDULED sessions never counted.
+- **LS-01** — SCHEDULED session, no teacher click: T+4 → no job; T+5 → one TEACHER_LATE_START to the teacher only; T+10 → one TEACHER_LATE_START_ADMIN per active Admin; repeated ticks → no duplicates.
+- **LS-02** — teacher clicks between enqueue and send → job CANCELLED; session cancelled or ended → CANCELLED.
+- **LS-03** — a STUDENT click does not count; students/guardians never receive late-start jobs; message text contains no URL.
+- **LS-04** — COMPLETED/CANCELLED/MISSED sessions and sessions older than 60 minutes are never scanned.

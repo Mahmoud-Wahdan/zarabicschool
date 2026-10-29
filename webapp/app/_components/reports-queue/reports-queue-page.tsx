@@ -11,6 +11,7 @@ import PageHeader from "../ui/page-header";
 import ClassRemarksEditor from "./class-remarks-editor";
 import ReportsQueuePanel, { type QueueFilter, type QueueReport } from "./reports-queue-panel";
 
+import { getClickTimelines } from "../../../lib/sessions/click-timeline";
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -132,6 +133,8 @@ export default async function ReportsQueuePage({
   ]);
 
   const flaggedSessionIds = new Set(lateFlags.map((flag) => flag.sessionId));
+  // Read-only "link click time" per session (Admin/Supervisor-only data layer).
+  const clickTimelines = await getClickTimelines(user, pendingReports.map((report) => report.sessionId));
   const reports: QueueReport[] = pendingReports.map((report) => ({
     id: report.id,
     sessionId: report.sessionId,
@@ -152,6 +155,7 @@ export default async function ReportsQueuePage({
     extraTimeStatus: report.extraTimeStatus,
     operationalEvents: (report.operationalEvents as Record<string, unknown> | null) ?? null,
     hasLateFlag: flaggedSessionIds.has(report.sessionId),
+    clickTimeline: clickTimelines.get(report.sessionId) ?? [],
     attachments: attachmentsReady
       ? ((report as unknown as { attachments?: { id: string; originalName: string; mimeType: string; sizeBytes: bigint }[] }).attachments ?? []).map((attachment) => ({
           id: attachment.id,
@@ -232,6 +236,7 @@ export default async function ReportsQueuePage({
         teachers={teachers}
         filters={filters}
         locale={locale}
+        timeZone={user.timezone || "Africa/Cairo"}
         classRemarkOptions={session1Ready ? classRemarkOptions : []}
       />
       {redMarks.length > 0 ? (

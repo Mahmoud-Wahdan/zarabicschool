@@ -7,6 +7,7 @@ import { enqueueSessionJobs } from "../../../lib/notifications/session-jobs";
 import { SchedulingValidationError, assertTeacherFree, resolveParticipants } from "../../../lib/scheduling/checks";
 import { sessionCreateSchema } from "../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../lib/validation/zoom-url";
+import { requireSameOrigin } from "../../../lib/request";
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);
@@ -81,6 +82,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = sessionCreateSchema.safeParse(await request.json().catch(() => null));

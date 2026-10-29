@@ -102,10 +102,14 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "reports", icon: "fact_check", href: "/admin/reports", badgeKey: "reports", badgeTone: "tertiary" },
     { key: "monthlyReports", icon: "calendar_month", href: "/admin/monthly-reports" },
     { key: "sessionRequests", icon: "report_problem", href: "/admin/session-requests", badgeKey: "requests", badgeTone: "secondary" },
+    { key: "complaints", icon: "feedback", href: "/admin/complaints" },
+    { key: "evaluations", icon: "reviews", href: "/admin/evaluations" },
+    { key: "announcements", icon: "campaign", href: "/admin/announcements" },
     { key: "financials", icon: "receipt_long", href: "/admin/financials" },
     { key: "billing", icon: "toll", href: "/admin/billing" },
     { key: "invoices", icon: "request_quote", href: "/admin/invoices" },
     { key: "paymentAudit", icon: "history", href: "/admin/payment-audit" },
+    { key: "whatsapp", icon: "chat", href: "/admin/whatsapp" },
     { key: "payroll", icon: "payments", href: "/admin/payroll" },
     { key: "overtime", icon: "more_time", href: "/admin/overtime" },
     { key: "accounts", icon: "manage_accounts", href: "/admin/users" },
@@ -122,6 +126,9 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "reports", icon: "fact_check", href: "/supervisor/reports", badgeKey: "reports", badgeTone: "tertiary" },
     { key: "monthlyReports", icon: "calendar_month", href: "/supervisor/monthly-reports" },
     { key: "sessionRequests", icon: "report_problem", href: "/supervisor/session-requests", badgeKey: "requests", badgeTone: "secondary" },
+    { key: "complaints", icon: "feedback", href: "/admin/complaints" },
+    { key: "evaluations", icon: "reviews", href: "/admin/evaluations" },
+    { key: "announcements", icon: "campaign", href: "/admin/announcements" },
   ],
   TEACHER: [
     { key: "dashboard", icon: "dashboard", href: "/teacher" },
@@ -129,6 +136,8 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "monthlyReports", icon: "calendar_month", href: "/teacher/monthly-reports" },
     { key: "attendance", icon: "fact_check", href: "/teacher/attendance" },
     { key: "payroll", icon: "payments", href: "/teacher/payroll" },
+    { key: "announcements", icon: "campaign", href: "/announcements" },
+    { key: "fileComplaint", icon: "feedback", href: "/complaints/new" },
   ],
   GUARDIAN: [
     { key: "dashboard", icon: "dashboard", href: "/guardian" },
@@ -136,6 +145,8 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "attendance", icon: "event_available", href: "/guardian/attendance" },
     { key: "guardianReports", icon: "menu_book", href: "/guardian/reports" },
     { key: "invoices", icon: "request_quote", href: "/guardian/invoices" },
+    { key: "announcements", icon: "campaign", href: "/announcements" },
+    { key: "fileComplaint", icon: "feedback", href: "/complaints/new" },
   ],
   STUDENT: [
     { key: "dashboard", icon: "dashboard", href: "/student" },
@@ -144,6 +155,8 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { key: "attendance", icon: "event_available", href: "/student/attendance" },
     { key: "monthlyReports", icon: "calendar_month", href: "/student/monthly-reports" },
     { key: "invoices", icon: "request_quote", href: "/student/invoices" },
+    { key: "announcements", icon: "campaign", href: "/announcements" },
+    { key: "fileComplaint", icon: "feedback", href: "/complaints/new" },
   ],
 };
 

@@ -5,6 +5,7 @@ import { requireApiRole } from "../../../../../lib/dal";
 import { isPhase6bReady } from "../../../../../lib/billing/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { exchangeRateCreateSchema } from "../../../../../lib/validation/billing";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 /**
  * GET /api/admin/billing/exchange-rates
@@ -50,6 +51,8 @@ export async function GET() {
  * The snapshot is applied to all invoices created while this rate is effective.
  */
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
 

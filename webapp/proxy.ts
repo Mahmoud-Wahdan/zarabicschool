@@ -42,6 +42,11 @@ function rolesForRoute(rest: string): string[] | undefined {
     || rest === "/admin/assignments" || rest.startsWith("/admin/assignments/")
     || rest === "/admin/enrollments" || rest.startsWith("/admin/enrollments/")
     || rest === "/admin/sessions" || rest.startsWith("/admin/sessions/")
+    // Phase 7 (owner, 2026-10-26): complaints, evaluation summaries and
+    // announcements are handled by Admin AND Supervisor (pages re-check the role).
+    || rest === "/admin/complaints" || rest.startsWith("/admin/complaints/")
+    || rest === "/admin/evaluations" || rest.startsWith("/admin/evaluations/")
+    || rest === "/admin/announcements" || rest.startsWith("/admin/announcements/")
   ) {
     return ["ADMIN", "SUPERVISOR"];
   }

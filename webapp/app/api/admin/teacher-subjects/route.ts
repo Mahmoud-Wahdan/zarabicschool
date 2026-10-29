@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { teacherSubjectSchema } from "../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = teacherSubjectSchema.safeParse(await request.json().catch(() => null));
@@ -25,6 +28,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = teacherSubjectSchema.safeParse(await request.json().catch(() => null));

@@ -8,6 +8,7 @@ import { getStorageProvider, isStorageColumnsReady } from "../../../../../lib/st
 import { StorageError, type StoredObject } from "../../../../../lib/storage/provider";
 import { isAttachmentsReady } from "../../../../../lib/storage/attachment-ready";
 import { MAX_ATTACHMENT_BYTES, detectAllowedMime } from "../../../../../lib/storage/mime";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 const MAX_FILES_PER_REQUEST = 10;
 
@@ -52,6 +53,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("TEACHER");
   if (error) return error;
   const { id: reportId } = await params;

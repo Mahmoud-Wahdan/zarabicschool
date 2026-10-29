@@ -17,10 +17,18 @@ export default async function TeacherSessionsPage() {
   const locale = await getLocale();
   const t = await getTranslations("sessions");
   const now = new Date();
+  // C6 (plan approved 2026-10-25): a bounded window (7 days back … 30 days ahead)
+  // instead of "the oldest 100", which hid today's sessions from a teacher with a
+  // long history. The cap stays as a safety net.
+  const DAY_MS = 24 * 60 * 60 * 1000;
   const sessions = await prisma.session.findMany({
-    where: { academyId: user.academyId, teacher: { userId: user.id } },
+    where: {
+      academyId: user.academyId,
+      teacher: { userId: user.id },
+      scheduledStart: { gte: new Date(now.getTime() - 7 * DAY_MS), lt: new Date(now.getTime() + 30 * DAY_MS) },
+    },
     orderBy: { scheduledStart: "asc" },
-    take: 100,
+    take: 200,
     include: {
       subject: { select: { nameEn: true, nameAr: true } },
       students: { select: { student: { select: { id: true, user: { select: { displayName: true } } } } } },

@@ -4,8 +4,11 @@ import { NextResponse } from "next/server";
 import { requireApiRole } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { privilegedUserUpdateSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRole("ADMIN");
   if (error) return error;
   const { id } = await params;
@@ -55,8 +58,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ...(parsed.data.phone === undefined ? {} : { phone: parsed.data.phone || null }),
     ...(parsed.data.role === undefined ? {} : { role: parsed.data.role }),
     ...(parsed.data.isActive === undefined ? {} : { isActive: parsed.data.isActive }),
-    ...(parsed.data.password === undefined ? {} : { passwordHash: await bcrypt.hash(parsed.data.password, 12) }),
-    mustChangePassword: false,
+    // B4 (S9): a password set by ANOTHER Admin forces a change at next login; an
+    // Admin editing their own account keeps it. Other edits never touch the flag
+    // (previously every edit cleared it).
+    ...(parsed.data.password === undefined
+      ? {}
+      : {
+          passwordHash: await bcrypt.hash(parsed.data.password, 12),
+          mustChangePassword: id !== user.id,
+          passwordSetById: user.id,
+          passwordSetAt: new Date(),
+        }),
   };
   const updated = await prisma.user.update({
     where: { id },

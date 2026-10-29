@@ -9,8 +9,11 @@ import { isSession1ReportsReady } from "../../../../../lib/reports/session1-read
 import { settleApprovedReport } from "../../../../../lib/reports/settlement-seam";
 import { SettlementError } from "../../../../../lib/payroll/rates";
 import { reportReviewSchema } from "../../../../../lib/validation/management";
+import { requireSameOrigin } from "../../../../../lib/request";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
   const parsed = reportReviewSchema.safeParse(await request.json().catch(() => null));
@@ -73,6 +76,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let updated: Awaited<ReturnType<typeof prisma.report.findUnique>> = null;
   try {
     updated = await prisma.$transaction(async (tx) => {
+      // Lock order = the submit path's (session row first, then report rows), so an
+      // approval and a concurrent submit/cancel on the same session never deadlock.
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${report.sessionId}::uuid FOR SHARE`;
       const claimed = await tx.report.updateMany({
         where: { id, status: "SUBMITTED" },
         data: { status: "APPROVED", approvedById: user.id, approvedAt: new Date() },

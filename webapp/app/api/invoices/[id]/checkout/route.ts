@@ -3,6 +3,7 @@ import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { writePaymentAudit } from "../../../../../lib/payments/audit";
 import { PaymobProvider, PaymentProviderError, createUsdProvider } from "../../../../../lib/payments";
+import { canActOnStudentFinance } from "../../../../../lib/guards/finance-access";
 import { errorResponse, isSameOrigin } from "../../../../../lib/request";
 export const runtime = "nodejs";
 
@@ -39,10 +40,12 @@ export async function POST(
       currency: true,
       provider: true,
       status: true,
+      packageType: true,
       student: {
         select: {
           userId: true,
           guardianId: true,
+          isAdult: true,
           user: { select: { displayName: true, email: true, phone: true } },
           guardian: { select: { userId: true, user: { select: { displayName: true, email: true, phone: true } } } },
         },
@@ -55,11 +58,11 @@ export async function POST(
   // Finance wall (owner, 2026-10-18 — CONTEXT §12): a student WITH a guardian has
   // NO finance access at all — the guardian is the payer; only an ADULT student
   // without a guardian may pay for himself. Server-side, not only hidden in the UI.
-  const isOwner = user.role === "ADMIN"
-    || (user.role === "STUDENT" && invoice.student.userId === user.id && invoice.student.guardianId === null)
-    || (user.role === "GUARDIAN" && invoice.student.guardian?.userId === user.id);
+  const isOwner = canActOnStudentFinance(user, invoice.student);
   if (!isOwner) return errorResponse(403, "FORBIDDEN", "You do not have access to this invoice.");
   if (invoice.status !== "PENDING") return errorResponse(409, "INVOICE_NOT_PAYABLE", "This invoice is not payable.");
+  // A4: no checkout for an annual invoice until PLAN_GRANT exists (owner, 2026-10-26).
+  if (invoice.packageType === "ANNUAL_PLAN") return errorResponse(409, "ANNUAL_PLAN_DISABLED", "Annual plans cannot be paid yet.");
   // Audit actor role: only ADMIN/STUDENT/GUARDIAN pass the gate above (server-guaranteed),
   // so anything else can only mean SUPERVISOR/TEACHER slipping through — recorded as SYSTEM.
   const auditActorRole = user.role === "ADMIN" ? "ADMIN" : user.role === "GUARDIAN" ? "GUARDIAN" : user.role === "STUDENT" ? "STUDENT" : "SYSTEM";
@@ -123,7 +126,7 @@ export async function POST(
       },
       select: { id: true, idempotencyKey: true },
     });
-    return { kind: "claimed" as const, attemptId: attempt.id, idempotencyKey: attempt.idempotencyKey };
+    return { kind: "claimed" as const, attemptId: attempt.id, idempotencyKey: attempt.idempotencyKey, attemptNo: priorCount + 1 };
   });
 
   if (claim.kind === "not_payable") {
@@ -144,6 +147,7 @@ export async function POST(
     const provider = invoice.provider === "PAYMOB" ? new PaymobProvider() : createUsdProvider();
     const checkout = await provider.createCheckout({
       invoiceId: invoice.id,
+      merchantOrderId: `${invoice.id}:v${claim.attemptNo}`,
       amountMinor: invoice.amountMinor,
       currency: invoice.currency as "EGP" | "USD",
       description: `Zarabicschool invoice ${invoice.id}`,
@@ -156,7 +160,13 @@ export async function POST(
     }, claim.idempotencyKey);
     await prisma.paymentAttempt.update({
       where: { id: claim.attemptId },
-      data: { checkoutUrl: checkout.checkoutUrl, providerReference: checkout.providerReference, status: "REDIRECTED" },
+      // A1: the provider ORDER id is the callback match key (HMAC-covered).
+      data: {
+        checkoutUrl: checkout.checkoutUrl,
+        providerReference: checkout.providerReference,
+        providerOrderId: checkout.providerReference,
+        status: "REDIRECTED",
+      },
     });
     return NextResponse.json({ checkoutUrl: checkout.checkoutUrl, providerReference: checkout.providerReference });
   } catch (caught) {

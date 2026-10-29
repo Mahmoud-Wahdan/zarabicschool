@@ -7,10 +7,13 @@ import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { joinWindowState } from "../../../lib/config/session-join";
+import { currentMonthKey, formatMonthLabel, previousMonthKey } from "../../../lib/reports/month-key";
+import { eligibleMonthlyStudents } from "../../../lib/reports/monthly";
 import { getTeacherRosterReportStatuses, rosterKey } from "../../../lib/reports/roster-status";
 import { wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 import { Link } from "../../../i18n/navigation";
 
+import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
 export async function generateMetadata() {
   const t = await getTranslations("dashboard");
   return { title: `${t("teacher.title")} | Zarabicschool` };
@@ -58,6 +61,19 @@ export default async function TeacherDashboard() {
     user.academyId,
     teacher?.sessions.map((session) => session.id) ?? [],
   );
+  // In-app monthly-report reminder (owner decision 7, 2026-10-26): missing reports for
+  // the PREVIOUS month in the teacher's calendar — the same month and eligibility rule
+  // as the WhatsApp reminders and the Admin flag. Shown all month until submitted.
+  const lastMonthKey = previousMonthKey(currentMonthKey(user.timezone || "Africa/Cairo", now));
+  let monthlyMissing = 0;
+  if (teacher) {
+    const [eligible, submitted] = await Promise.all([
+      eligibleMonthlyStudents(teacher.id, lastMonthKey),
+      prisma.monthlyReport.findMany({ where: { teacherId: teacher.id, monthKey: lastMonthKey }, select: { studentId: true } }),
+    ]);
+    const submittedIds = new Set(submitted.map((row) => row.studentId));
+    monthlyMissing = eligible.filter((student) => !submittedIds.has(student.studentId)).length;
+  }
   const formatTime = (value: Date) => new Intl.DateTimeFormat(currentLocale === "ar" ? "ar-EG" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -66,6 +82,7 @@ export default async function TeacherDashboard() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
+      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("teacher.title")}</h1>
       <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
         {t("teacher.welcome", { name: user.displayName })}
@@ -142,6 +159,17 @@ export default async function TeacherDashboard() {
           </Link>
         </div>
         <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">{t("teacher.monthlyHint")}</p>
+        {monthlyMissing > 0 ? (
+          <Link
+            href={`/teacher/monthly-reports?month=${lastMonthKey}`}
+            className="mt-3 block rounded-lg border border-[var(--line)] bg-error-container px-3 py-2 text-sm font-semibold text-on-error-container"
+          >
+            {t("teacher.monthlyMissing", {
+              count: monthlyMissing,
+              month: formatMonthLabel(lastMonthKey, currentLocale === "en" ? "en" : "ar"),
+            })}
+          </Link>
+        ) : null}
       </section>
 
       <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">{t("teacher.actions.schedule")}</Link>

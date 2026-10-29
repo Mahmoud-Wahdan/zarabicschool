@@ -6,6 +6,7 @@ import { prisma } from "../../../../lib/prisma";
 import { getAuthSession } from "../../../../lib/dal";
 import { allowRequest } from "../../../../lib/rate-limit";
 import { changePasswordSchema } from "../../../../lib/validation/auth";
+import { requireSameOrigin } from "../../../../lib/request";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ function errorResponse(status: number, code: string, message: string, fieldError
 }
 
 export async function POST(request: Request) {
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const origin = request.headers.get("origin");
   if (!origin || origin !== new URL(request.url).origin) {
     return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
