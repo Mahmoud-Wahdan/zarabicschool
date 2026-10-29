@@ -53,25 +53,25 @@ export default function AdjustmentsLedger({ timeZone, refreshKey }: { timeZone: 
   }
 
   return (
-    <section className="dashboard-card p-5">
+    <section className="z-card rounded-xl p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-semibold text-[var(--navy)]">{t("adjustmentsLedgerTitle")}</h2>
+        <h2 className="font-semibold text-primary">{t("adjustmentsLedgerTitle")}</h2>
         <label className="grid gap-1 text-xs">
-          <span className="opacity-75">{t("categoryFilter")}</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+          <span className="text-on-surface-variant">{t("categoryFilter")}</span>
+          <select value={category} onChange={(event) => setCategory(event.target.value)} className="z-input text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             <option value="">{t("categoryAll")}</option>
             {CATEGORIES.map((value) => <option key={value} value={value}>{t(`category.${value}`)}</option>)}
           </select>
         </label>
       </div>
       {entries === null ? (
-        <p className="mt-4 text-sm opacity-70">{t("loading")}</p>
+        <p className="mt-4 text-body-sm text-on-surface-variant">{t("loading")}</p>
       ) : entries.length === 0 ? (
-        <p className="mt-4 text-sm opacity-70">{t("ledgerEmpty")}</p>
+        <p className="mt-4 text-body-sm text-on-surface-variant">{t("ledgerEmpty")}</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[640px] text-start text-sm">
-            <thead className="border-b border-[var(--line)] text-xs opacity-70">
+            <thead className="border-b border-outline-variant text-label-sm text-on-surface-variant">
               <tr>
                 <th className="px-3 py-2 text-start">{t("colCreated")}</th>
                 <th className="px-3 py-2 text-start">{t("teacherLabel")}</th>
@@ -83,22 +83,22 @@ export default function AdjustmentsLedger({ timeZone, refreshKey }: { timeZone: 
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-[var(--line)] align-top last:border-0">
-                  <td className="px-3 py-3 tabular-nums opacity-75">{format.format(new Date(entry.createdAt))}</td>
+                <tr key={entry.id} className="border-b border-outline-variant align-top last:border-0">
+                  <td className="px-3 py-3 tabular-nums text-on-surface-variant">{format.format(new Date(entry.createdAt))}</td>
                   <td className="px-3 py-3">{entry.teacherName}</td>
                   <td className="px-3 py-3">{t(`category.${entry.category}`)}</td>
                   <td className={`px-3 py-3 text-end font-semibold tabular-nums ${entry.amountMinor < 0 ? "text-[var(--status-danger)]" : ""}`}>{formatMoney(entry.amountMinor, entry.currency, locale)}</td>
-                  <td className="max-w-xs px-3 py-3 opacity-80">{entry.reason ?? ""}</td>
+                  <td className="max-w-xs px-3 py-3 text-on-surface-variant">{entry.reason ?? ""}</td>
                   <td className="px-3 py-3">
                     {entry.reversible ? (
                       reversing === entry.id ? (
                         <span className="flex flex-wrap gap-2">
-                          <input value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} aria-label={t("reverseReason")} placeholder={t("reverseReason")} className="w-44 rounded-lg border border-[var(--line)] px-2 py-1 text-xs" />
-                          <button type="button" disabled={reason.trim().length < 2} onClick={() => void reverse(entry.id)} className="cta-primary rounded-lg px-3 py-1 text-xs disabled:opacity-50">{t("reverseConfirm")}</button>
+                          <input value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} aria-label={t("reverseReason")} placeholder={t("reverseReason")} className="w-44 rounded-lg border border-outline-variant px-2 py-1 text-xs" />
+                          <button type="button" disabled={reason.trim().length < 2} onClick={() => void reverse(entry.id)} className="btn btn-primary px-3 py-1 text-xs disabled:opacity-50">{t("reverseConfirm")}</button>
                           <button type="button" onClick={() => { setReversing(null); setReason(""); }} className="rounded-lg px-2 py-1 text-xs underline-offset-4 hover:underline">{t("cancel")}</button>
                         </span>
                       ) : (
-                        <button type="button" onClick={() => { setReversing(entry.id); setReason(""); }} className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">{t("reverse")}</button>
+                        <button type="button" onClick={() => { setReversing(entry.id); setReason(""); }} className="btn btn-outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("reverse")}</button>
                       )
                     ) : null}
                   </td>
@@ -108,7 +108,7 @@ export default function AdjustmentsLedger({ timeZone, refreshKey }: { timeZone: 
           </table>
         </div>
       )}
-      {message ? <p role="status" className="mt-3 text-sm opacity-80">{message}</p> : null}
+      {message ? <p role="status" className="mt-3 text-body-sm text-on-surface-variant">{message}</p> : null}
     </section>
   );
 }
