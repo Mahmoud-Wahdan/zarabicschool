@@ -336,6 +336,7 @@ enum PaymentProofStatus {
 }
 
 model Academy {
+  refundRequests            RefundRequest[]            @relation("RefundRequestAcademy")
   id                        String                     @id @default(uuid()) @db.Uuid
   name                      String                     @unique
   createdAt                 DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -384,6 +385,8 @@ model Academy {
 }
 
 model User {
+  refundRequestsMade            RefundRequest[]            @relation("RefundRequestRequestedBy")
+  refundRequestsDecided         RefundRequest[]            @relation("RefundRequestDecidedBy")
   id                            String                     @id @default(uuid()) @db.Uuid
   academyId                     String                     @map("academy_id") @db.Uuid
   username                      String
@@ -688,6 +691,7 @@ model SessionLinkAudit {
 }
 
 model Invoice {
+  refundRequests        RefundRequest[]         @relation("RefundRequestInvoice")
   id                    String                  @id @default(uuid()) @db.Uuid
   academyId             String                  @map("academy_id") @db.Uuid
   studentId             String                  @map("student_id") @db.Uuid
@@ -1380,23 +1384,47 @@ model NotificationRead {
 /// provider call, SUCCEEDED/FAILED once after it; the credit removal is a subscription_ledger
 /// REFUND row written only on SUCCEEDED. CHECKs + unique idempotency key in raw SQL.
 model InvoiceRefund {
-  id               String    @id @default(uuid()) @db.Uuid
-  academyId        String    @map("academy_id") @db.Uuid
-  invoiceId        String    @map("invoice_id") @db.Uuid
-  sessionsRefunded Int       @map("sessions_refunded")
-  amountMinor      BigInt    @map("amount_minor")
-  currency         String    @db.VarChar(3)
+  refundRequest    RefundRequest? @relation("RefundRequestInvoiceRefund")
+  id               String         @id @default(uuid()) @db.Uuid
+  academyId        String         @map("academy_id") @db.Uuid
+  invoiceId        String         @map("invoice_id") @db.Uuid
+  sessionsRefunded Int            @map("sessions_refunded")
+  amountMinor      BigInt         @map("amount_minor")
+  currency         String         @db.VarChar(3)
   reason           String
-  status           String    @default("PENDING") @db.VarChar(16)
-  providerRefundId String?   @map("provider_refund_id") @db.VarChar(64)
-  idempotencyKey   String    @unique @map("idempotency_key") @db.Uuid
-  createdById      String    @map("created_by") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
-  academy          Academy   @relation("InvoiceRefundAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  invoice          Invoice   @relation("InvoiceRefundInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
-  createdBy        User      @relation("InvoiceRefundCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  status           String         @default("PENDING") @db.VarChar(16)
+  providerRefundId String?        @map("provider_refund_id") @db.VarChar(64)
+  idempotencyKey   String         @unique @map("idempotency_key") @db.Uuid
+  createdById      String         @map("created_by") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt      DateTime?      @map("completed_at") @db.Timestamptz(6)
+  academy          Academy        @relation("InvoiceRefundAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  invoice          Invoice        @relation("InvoiceRefundInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+  createdBy        User           @relation("InvoiceRefundCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([invoiceId], map: "invoice_refunds_invoice_idx")
   @@map("invoice_refunds")
+}
+
+/// S-15 / SQL S-8 (D74): a payer's request for a refund; the Admin approves it by sending
+/// an S-13c refund (linked) or rejects it with a reason. One PENDING request per invoice.
+model RefundRequest {
+  id              String         @id @default(uuid()) @db.Uuid
+  academyId       String         @map("academy_id") @db.Uuid
+  invoiceId       String         @map("invoice_id") @db.Uuid
+  requestedById   String         @map("requested_by") @db.Uuid
+  status          String         @default("PENDING") @db.VarChar(16)
+  decidedById     String?        @map("decided_by") @db.Uuid
+  decidedAt       DateTime?      @map("decided_at") @db.Timestamptz(6)
+  rejectionReason String?        @map("rejection_reason")
+  invoiceRefundId String?        @unique(map: "refund_requests_invoice_refund_id_key") @map("invoice_refund_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy         Academy        @relation("RefundRequestAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  invoice         Invoice        @relation("RefundRequestInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+  requestedBy     User           @relation("RefundRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy       User?          @relation("RefundRequestDecidedBy", fields: [decidedById], references: [id], onDelete: Restrict)
+  invoiceRefund   InvoiceRefund? @relation("RefundRequestInvoiceRefund", fields: [invoiceRefundId], references: [id], onDelete: Restrict)
+
+  @@index([academyId, status], map: "refund_requests_academy_status_idx")
+  @@map("refund_requests")
 }

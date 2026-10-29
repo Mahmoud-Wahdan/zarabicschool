@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
 import AdminInvoicesPanel from "../../../_components/invoices/admin-invoices-panel";
+import RefundRequestsAdmin from "../../../_components/invoices/refund-requests-admin";
+import { listRefundRequests } from "../../../../lib/billing/refund-requests";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 
@@ -15,7 +17,7 @@ export default async function AdminInvoicesPage() {
   const user = await requireRole("ADMIN");
   const t = await getTranslations("invoices");
 
-  const [invoices, students] = await Promise.all([
+  const [invoices, students, refundRequests] = await Promise.all([
     prisma.invoice.findMany({
       where: { academyId: user.academyId },
       orderBy: { createdAt: "desc" },
@@ -42,12 +44,17 @@ export default async function AdminInvoicesPage() {
       orderBy: { user: { displayName: "asc" } },
       select: { id: true, user: { select: { displayName: true } } },
     }),
+    // S-15: payers' waiting refund requests.
+    listRefundRequests(user.academyId, "PENDING"),
   ]);
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
       <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
+      <div className="mt-4">
+        <RefundRequestsAdmin requests={refundRequests} timeZone={user.timezone || "Africa/Cairo"} />
+      </div>
       <div className="mt-4">
         <AdminInvoicesPanel
           timeZone={user.timezone || "Africa/Cairo"}

@@ -4,6 +4,7 @@ import DashboardShell from "../../../_components/dashboard-shell";
 import AutoRenewPanel from "../../../_components/billing/auto-renew-panel";
 import { loadRenewalPlans, loadRenewalRows } from "../../../../lib/billing/renewal-view";
 import InvoicePaymentPanel from "../../../_components/invoices/invoice-payment-panel";
+import RefundRequestButton from "../../../_components/invoices/refund-request-button";
 import StatusBadge, { type BadgeTone } from "../../../_components/ui/status-badge";
 import { isAutoRenewalEnabled } from "../../../../lib/config/features";
 import { requireRole } from "../../../../lib/dal";
@@ -52,6 +53,8 @@ export default async function StudentInvoicesPage() {
       sessionsPurchased: true,
       status: true,
       createdAt: true,
+      // S-15: the latest refund request of this invoice (its state on the card).
+      refundRequests: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, rejectionReason: true } },
       paidAt: true,
     },
   });
@@ -98,6 +101,9 @@ export default async function StudentInvoicesPage() {
                 ) : (
                   <p className="text-xs opacity-70">{t("paidNote")}</p>
                 )}
+                {invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
+                  <RefundRequestButton invoiceId={invoice.id} latest={invoice.refundRequests[0] ?? null} />
+                ) : null}
               </div>
             </article>
           ))

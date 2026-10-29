@@ -6,6 +6,7 @@ import { writePaymentAudit } from "../payments/audit";
 import { PaymobSubscriptionClient } from "../payments/paymob-subscriptions";
 import { PaymentProviderError } from "../payments/types";
 import { prisma } from "../prisma";
+import { linkApprovedRequest, lockOpenRequest } from "./refund-requests";
 
 /**
  * Admin partial refund (S-13 c; D19, D42; SQL S-6, owner OK 2026-10-28).
@@ -39,7 +40,7 @@ class RefundRefusal extends Error {
 }
 
 export async function requestRefund(
-  input: { adminId: string; academyId: string; invoiceId: string; sessions: number; reason: string; idempotencyKey: string },
+  input: { adminId: string; academyId: string; invoiceId: string; sessions: number; reason: string; idempotencyKey: string; refundRequestId?: string },
   client: RefundClient = new PaymobSubscriptionClient(),
 ): Promise<RefundResult> {
   let pending: { id: string; amountMinor: bigint; transactionId: string; subscriptionId: string };
@@ -53,6 +54,10 @@ export async function requestRefund(
         throw new RefundRefusal(fail(409, "IDEMPOTENCY_KEY_REUSED", "This Idempotency-Key was already used for a different refund."));
       }
       await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${input.invoiceId}::uuid FOR UPDATE`;
+      // S-15: a refund answering a payer's request must match an OPEN request for this invoice.
+      if (input.refundRequestId && !(await lockOpenRequest(tx, input.refundRequestId, input.invoiceId, input.academyId))) {
+        throw new RefundRefusal(fail(409, "REQUEST_NOT_OPEN", "This refund request is not open for this invoice."));
+      }
       const invoice = await tx.invoice.findFirst({
         where: { id: input.invoiceId, academyId: input.academyId },
         select: { id: true, status: true, provider: true, amountMinor: true, currency: true, sessionsPurchased: true, providerReference: true, subscriptionId: true },
@@ -109,7 +114,11 @@ export async function requestRefund(
 
   const now = new Date();
   if (answer.outcome === "PENDING") {
-    const row = await prisma.invoiceRefund.update({ where: { id: pending.id }, data: { providerRefundId: answer.providerRefundId || null } });
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.invoiceRefund.update({ where: { id: pending.id }, data: { providerRefundId: answer.providerRefundId || null } });
+      if (input.refundRequestId) await linkApprovedRequest(tx, { requestId: input.refundRequestId, invoiceRefundId: updated.id, adminId: input.adminId, academyId: input.academyId, amountMinor: updated.amountMinor, currency: updated.currency });
+      return updated;
+    });
     return { ok: true, status: 202, refund: view(row) };
   }
   if (answer.outcome === "FAILED") {
@@ -134,6 +143,7 @@ export async function requestRefund(
         skipDuplicates: true,
       });
     }
+    if (input.refundRequestId) await linkApprovedRequest(tx, { requestId: input.refundRequestId, invoiceRefundId: updated.id, adminId: input.adminId, academyId: input.academyId, amountMinor: updated.amountMinor, currency: updated.currency });
     await writePaymentAudit({ academyId: input.academyId, invoiceId: input.invoiceId, eventType: "REFUNDED", actorId: input.adminId, actorRole: "ADMIN", metadata: { provider: "PAYMOB", providerReference: answer.providerRefundId, amountMinor: updated.amountMinor.toString(), currency: updated.currency, reason: "ADMIN_REFUND" } }, tx);
     return updated;
   });

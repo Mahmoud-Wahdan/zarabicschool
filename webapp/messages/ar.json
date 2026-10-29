@@ -2010,7 +2010,23 @@
     "refundPending": "تعالج Paymob الاسترداد، ويظهر معلقًا حتى تؤكده.",
     "refundNoCredit": "لا تتوفر في الباقة حصص غير محجوزة بهذا العدد.",
     "refundOverPaid": "لا يمكن أن تتجاوز المبالغ المستردة المبلغ المدفوع.",
-    "refundFailed": "لم تقبل Paymob الاسترداد، ولم يتغير شيء."
+    "refundFailed": "لم تقبل Paymob الاسترداد، ولم يتغير شيء.",
+    "refundRequest": "طلب استرداد",
+    "refundRequestConfirmText": "هل ترسل طلب استرداد إلى الأكاديمية؟ ستقرر الأكاديمية وتبلغك.",
+    "refundRequestConfirm": "إرسال الطلب",
+    "refundRequestSent": "تم إرسال طلب الاسترداد. سترد الأكاديمية هنا وعلى واتساب.",
+    "refundRequestApproved": "تمت الموافقة على الاسترداد، ويعود المبلغ إلى نفس البطاقة.",
+    "refundRequestRejected": "لم تتم الموافقة على طلب الاسترداد.",
+    "refundRequestReason": "السبب: {reason}",
+    "refundRequestNotRefundable": "لا يمكن استرداد هذا الدفع عبر الإنترنت.",
+    "refundRequestFailed": "تعذر إرسال الطلب. حاول مرة أخرى.",
+    "refundRequestsTitle": "طلبات الاسترداد",
+    "refundRequestsEmpty": "لا توجد طلبات استرداد في الانتظار.",
+    "refundRequestMeta": "طلبه {payer} في {date}. الفاتورة: {amount}",
+    "refundRequestReject": "رفض",
+    "refundRequestRejectReason": "السبب الذي سيصل إلى ولي الأمر",
+    "refundRequestRejectConfirm": "رفض الطلب",
+    "refundRequestRejectFailed": "تعذر رفض الطلب. حاول مرة أخرى."
   },
   "payroll": {
     "teacherTitle": "راتبي",
@@ -2468,7 +2484,10 @@
       "TEACHER_FLAG": "تم تسجيل ملاحظة على معلم",
       "MISSING_REPORT": "حصة منتهية بلا تقرير بعد",
       "PAYROLL_ADJUSTMENT": "أُضيف قيد في الرواتب",
-      "INVOICE_PAYMENT_LINK": "فاتورة في انتظار الدفع"
+      "INVOICE_PAYMENT_LINK": "فاتورة في انتظار الدفع",
+      "REFUND_REQUEST_RECEIVED": "طلب استرداد",
+      "REFUND_REQUEST_APPROVED": "تمت الموافقة على الاسترداد",
+      "REFUND_REQUEST_REJECTED": "لم تتم الموافقة على الاسترداد"
     }
   }
 }

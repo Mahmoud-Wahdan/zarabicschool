@@ -31,7 +31,7 @@ The owner's order is kept, with one adjustment: **a slice that needs a migration
 | S-14 | Stitch UI migration | D1 | page by page from the Stitch export; tokens first; Impeccable later | none | no money widgets on Supervisor screens | visual review; Playwright smoke after (D22) | — | parallel track |
 | G1 | Bug fixes A1–A7 (owner list 2026-10-28) | D67–D70 | tbody whitespace, payment-audit i18n + dynamic-key test, attendance titles, contrast (@layer base + tokens), shared badge provider, auto-renewal flag, Admin today list + D7 note | none | — | see slices/G1-bugfixes.md | — | done (b5d7334, 489526f, 31c26da, 1e9bbcb, ce1c2f9, 024a68f, 08f5802) |
 | L | Latency (owner list 2026-10-28) | D71–D73 | measured; icon font → Lucide; shell prefetch off; parallel home queries; streamed badge count; dev-tunnel.md | none | security headers, auth, ledger untouched | see slices/L-latency.md | — | done (77e9779, 73c8766, c00f112, 85f2a04, e6c6182) |
-| NEXT | Payer refund request; Netflix-style cancel check; USD via Paymob | D74 | owner 2026-10-29 | tbd | payer-only request, Admin decides | tbd | owner approval to start | waits (next branch) |
+| NEXT | Payer refund request (**done**, S-15); Netflix-style cancel check; USD via Paymob | D74 | owner 2026-10-29 | tbd | payer-only request, Admin decides | tbd | owner approval to start | refund request done (S-15); the rest waits |
 
 Status values: ready / in progress / waits for <X> / done (commit hash).
 
@@ -103,3 +103,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-28: S-12 done (ee75a04; SQL S-5 applied), S-13 done (b6ed2db, 32fbd33; SQL S-6 applied), D65.
 - 2026-10-28/29: G1 A1–A7 and L1–L4 done (see slice files); D67–D74; full suite stopped by low memory (no result); waiting for the owner's approval before build, migrate status and the new branch.
 - 2026-10-29: branch closed: full suite 88/88 suites, 739/739 tests; seed unchanged; build, lint, tsc, migrate status clean (D75). Next work on `phase9-rest`.
+- 2026-10-29: S-15 payer refund request done on `phase9-rest` (SQL S-8 applied, D76).

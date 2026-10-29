@@ -11,6 +11,8 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   sessions: z.number().int().positive().max(1000),
   reason: z.string().trim().min(5).max(1000),
+  // S-15: the payer's request this refund answers (optional).
+  refundRequestId: z.uuid().optional(),
 });
 
 /**
@@ -29,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!key.success) return errorResponse(400, "VALIDATION_ERROR", "An Idempotency-Key (UUID) header is required.");
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "VALIDATION_ERROR", "Sessions and a reason (5–1000 characters) are required.");
-  const result = await requestRefund({ adminId: user.id, academyId: user.academyId, invoiceId: id, sessions: parsed.data.sessions, reason: parsed.data.reason, idempotencyKey: key.data.toLowerCase() });
+  const result = await requestRefund({ adminId: user.id, academyId: user.academyId, invoiceId: id, sessions: parsed.data.sessions, reason: parsed.data.reason, idempotencyKey: key.data.toLowerCase(), refundRequestId: parsed.data.refundRequestId?.toLowerCase() });
   if (!result.ok) return errorResponse(result.status, result.code, result.message);
   return NextResponse.json({ data: result.refund }, { status: result.status });
 }

@@ -325,6 +325,8 @@ export async function cleanupSessionFixtures(fixtures: SessionFixtures) {
     const invoices = await prisma.invoice.findMany({ where: { academyId }, select: { id: true } });
     await prisma.paymentAttempt.deleteMany({ where: { invoiceId: { in: invoices.map((invoice) => invoice.id) } } });
     // S-6: refunds reference invoices and users (RESTRICT).
+    // S-15: refund requests point at invoices and refunds: delete them first.
+    if (await isInvoiceRefundsReady()) await prisma.refundRequest.deleteMany({ where: { academyId } });
     if (await isInvoiceRefundsReady()) await prisma.invoiceRefund.deleteMany({ where: { academyId } });
     // S-1: append-only resolutions reference subscription_ledger (FK RESTRICT), so
     // they go first, through the same per-academy trigger exception.

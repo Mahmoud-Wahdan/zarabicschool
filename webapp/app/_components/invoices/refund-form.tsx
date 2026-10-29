@@ -9,7 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
  * re-checks every limit. One Idempotency-Key per attempt, kept until the attempt is
  * answered, so a retried click can never refund twice.
  */
-export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number }) {
+export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased, refundRequestId, onDone }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number; refundRequestId?: string; onDone?: () => void }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -32,7 +32,8 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
       const response = await fetch(`/api/invoices/${invoiceId}/refunds`, {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": attemptKey },
-        body: JSON.stringify({ sessions: count, reason: reason.trim() }),
+        // S-15: a refund answering a payer's request carries its id (the request becomes APPROVED).
+        body: JSON.stringify({ sessions: count, reason: reason.trim(), ...(refundRequestId ? { refundRequestId } : {}) }),
       });
       const payload = await response.json().catch(() => ({}));
       const code = payload.error?.code;
@@ -52,6 +53,7 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
       if (response.ok) {
         setReason("");
         setOpen(false);
+        onDone?.();
       }
     } catch {
       // Network error: the same key is kept, so a retry is safe.

@@ -13,6 +13,7 @@ import {
   TEACHER_LATE_REMINDER_MINUTES,
 } from "../config/lateness";
 import { platformUrl, sessionJoinPlatformUrl } from "../config/platform-url";
+import { formatMoney } from "../payments/format";
 import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
@@ -333,6 +334,32 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     return language === "en"
       ? `You have an invoice waiting for payment at the academy.${link ? ` Pay it here: ${link}` : " Open the academy app to pay it."}`
       : `لديك فاتورة في انتظار الدفع في الأكاديمية.${link ? ` يمكنك الدفع من هنا: ${link}` : " افتح تطبيق الأكاديمية للدفع."}`;
+  }
+  if (job.kind === "REFUND_REQUEST_RECEIVED") {
+    // S-15 (D74): Admin in-app notice (recorded SENT, never sent to WhatsApp); ids only.
+    return language === "en"
+      ? "A payer asked for a refund. Open the invoices page to refund or reject it."
+      : "طلب أحد أولياء الأمور أو الطلاب استرداد مبلغ. افتح صفحة الفواتير للاسترداد أو الرفض.";
+  }
+  if (job.kind === "REFUND_REQUEST_APPROVED" || job.kind === "REFUND_REQUEST_REJECTED") {
+    // S-15 (D74): the payer, in their language, with the platform invoices page (a
+    // server-chosen path). Approved: the amount refunded to the same card; rejected: the
+    // Admin's reason.
+    const payload = (job.payload ?? {}) as { path?: unknown; amountMinor?: unknown; currency?: unknown; reason?: unknown };
+    const link = payload.path === "/guardian/invoices" || payload.path === "/student/invoices" ? platformUrl(`/${language}${payload.path}`) : null;
+    const more = link ? (language === "en" ? ` Details: ${link}` : ` التفاصيل: ${link}`) : "";
+    if (job.kind === "REFUND_REQUEST_APPROVED") {
+      const amount = typeof payload.amountMinor === "string" && /^\d+$/.test(payload.amountMinor) && typeof payload.currency === "string" && /^[A-Z]{3}$/.test(payload.currency)
+        ? formatMoney(BigInt(payload.amountMinor), payload.currency, language)
+        : null;
+      return language === "en"
+        ? `Your refund request was approved${amount ? `: ${amount} goes back to the same card` : ""}. It can take a few days to appear.${more}`
+        : `تمت الموافقة على طلب الاسترداد${amount ? `: يُعاد ${amount} إلى نفس البطاقة` : ""}. قد يستغرق ظهوره بضعة أيام.${more}`;
+    }
+    const reason = typeof payload.reason === "string" ? payload.reason.trim().slice(0, 300) : "";
+    return language === "en"
+      ? `Your refund request was not approved.${reason ? ` Reason: ${reason}` : ""}${more}`
+      : `لم تتم الموافقة على طلب الاسترداد.${reason ? ` السبب: ${reason}` : ""}${more}`;
   }
   if (job.kind === "TEACHER_PENDING_APPROVAL") {
     // Admin-only (S-02 / D9): a Supervisor added a teacher; ids only in the payload.
