@@ -24,8 +24,8 @@ import { cleanupTrackedWebhookEvents, testPaymobId } from "../helpers/webhook-ev
 
 /**
  * S-13 (a) payment link (D6, D20) and (b) provider void/refund records (D43), SQL S-6
- * approved 2026-10-28. The link goes to the PAYER only, at most once a day (payer's
- * zone) and 3 times per invoice, points at the platform invoices page (never a Paymob
+ * approved 2026-10-28. The link goes to the PAYER only, at most once in any rolling
+ * 24 hours (D81) and 3 times per invoice, points at the platform invoices page (never a Paymob
  * URL), in the payer's language, with a LINK_SENT audit row. A void/refund seen from
  * Paymob is recorded (VOIDED / PROVIDER_REFUND_SEEN) and flags the Admin; no ledger
  * change. Per-run test academy.
@@ -121,6 +121,45 @@ describe("S-13 (a) payment link", () => {
     const job = await prisma.notificationJob.findFirstOrThrow({ where: { kind: "INVOICE_PAYMENT_LINK", recipientUserId: adultUser.id } });
     const text = composeJobMessage({ ...job, recipientUser: { id: adultUser.id, phone: null, isActive: true, preferredLanguage: "en", timezone: "Africa/Cairo" }, session: null } as never);
     expect(text).toContain("https://app.test/en/student/invoices");
+  });
+});
+
+describe("D81 — the payment-link limit is a rolling 24 hours (OQ-S13-1)", () => {
+  /** Milliseconds since the payer's local midnight (the guardian's zone is Africa/Cairo). */
+  const sinceLocalMidnight = (zone: string) => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        .formatToParts(new Date()).map((part) => [part.type, part.value]),
+    );
+    return ((Number(parts.hour) % 24) * 3600 + Number(parts.minute) * 60 + Number(parts.second)) * 1000;
+  };
+  const sentAt = (invoiceId: string, msAgo: number) =>
+    prisma.paymentAudit.create({ data: { academyId: fx.academyId, invoiceId, eventType: "LINK_SENT", actorId: fx.adminUserId, actorRole: "ADMIN", createdAt: new Date(Date.now() - msAgo) } });
+
+  it("PL-07: a link sent less than 24 h ago on the previous calendar day still blocks a new one", async () => {
+    const row = await invoice("student1");
+    const zone = (await prisma.user.findUniqueOrThrow({ where: { id: fx.guardianUserId }, select: { timezone: true } })).timezone || "Africa/Cairo";
+    // Yesterday in the payer's zone, but less than 24 h ago.
+    await sentAt(row.id, sinceLocalMidnight(zone) + 60_000);
+    as(fx.adminUserId);
+    const response = await send(row.id);
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("LINK_ALREADY_SENT_TODAY");
+  });
+
+  it("PL-08: 24 hours after the last link a new one may be sent", async () => {
+    const row = await invoice("student2");
+    await sentAt(row.id, 24 * 3_600_000 + 60_000);
+    as(fx.adminUserId);
+    expect((await send(row.id)).status).toBe(201);
+  });
+
+  it("PL-09: two concurrent sends for one invoice queue exactly one link", async () => {
+    const row = await invoice("student3");
+    as(fx.adminUserId);
+    const statuses = (await Promise.all([send(row.id), send(row.id)])).map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 429]);
+    expect(await prisma.paymentAudit.count({ where: { invoiceId: row.id, eventType: "LINK_SENT" } })).toBe(1);
   });
 });
 

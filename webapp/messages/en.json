@@ -2006,7 +2006,7 @@
     "sendLink": "Send payment link",
     "sendLinkHint": "WhatsApp to the payer: a link to their invoices page. Once a day, up to 3 times.",
     "linkSent": "Payment link queued for the payer.",
-    "linkToday": "A link for this invoice was already sent today.",
+    "linkToday": "A link for this invoice was already sent in the last 24 hours.",
     "linkLimit": "This invoice was already sent 3 times.",
     "linkNoPayer": "This invoice has no active payer to send it to.",
     "linkFailed": "The link was not sent. Try again.",
