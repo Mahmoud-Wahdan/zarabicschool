@@ -1,0 +1,52 @@
+# S-14 — Stitch screens: map and order (D1, D71)
+
+> Branch `phase9-rest`. Owner, 2026-10-29: map first, then page by page; keep Lucide icons (D71) instead of the Stitch icon font.
+
+**Export:** `docs/stitch_zarabicschool_edtech_management_platform/` (30 screens: html + png; design tokens in `academic_precision/`, already in `app/globals.css`).
+
+**Rule per page:**
+- layout and components follow the export;
+- our data, rules, roles, i18n (ar/en, RTL) and tests are kept;
+- no fake data from the mock-up (names, "V2.8", "Stripe" and other made-up badges are not copied);
+- one page per commit, checked in the browser and with the Impeccable detector.
+
+**Status:** measured by the classes each page and panel uses ("Stitch kit" = `z-card` / `surface-container` / `text-headline` / `PageHeader` / `MetricTile` / `StatusBadge`; "old" = `dashboard-card` / `var(--navy)` / `var(--line)`).
+
+| Stitch screen | App page | Status today |
+|---|---|---|
+| admin_operations_dashboard | /admin | Stitch kit (done) |
+| supervisor_operations_dashboard_zarabicschool | /supervisor | Stitch kit (done) |
+| report_approval_queue | /admin/reports (reports-queue-panel) | Stitch kit (done) |
+| absence_replacement_management_zarabicschool | /admin/session-requests | Stitch kit (done) |
+| billing_plan_configuration_suite | /admin/billing | Stitch kit (done) |
+| financials_subscriptions_invoicing_suite | /admin/financials (Stitch kit) and /admin/invoices (old) | partly; **to do: /admin/invoices** |
+| schedule_live_sessions + recurring_session_provisioning_zarabicschool | /admin/sessions (session-management-panel, old: 42) | **to do (1)** |
+| applications_account_provisioning | /admin/applications (old: 33) | **to do (3)** |
+| people_accounts_directory_zarabicschool | /admin/students, teachers, guardians (profiles-panel, mostly old) | **to do (5)** |
+| teacher_payroll_hourly_rates_suite + monthly_payroll_closing_treasury_suite | /admin/payroll (admin-payroll-panel, old: 21) | **to do (4)** |
+| zarabicschool_1, 2, 3, 8 (landing, subjects, plans, about) | / (landing components) | Stitch kit (done) |
+| zarabicschool_9 (login) | /login | done |
+| zarabicschool_10 (mandatory password change) | /change-password | done |
+| zarabicschool_5 (admission portal) | /apply | done |
+| zarabicschool_4, 6, 7 (guardian / student / teacher application forms) | /apply?role=… (apply-form, old: 47) | **to do (8)** |
+| zarabicschool_12 (teacher week) | /teacher/calendar | done |
+| zarabicschool_13 (teacher reports) | /teacher/sessions (old) | **to do (6)** |
+| zarabicschool_14 (teacher earnings) | /teacher/payroll (old) | **to do (6)** |
+| zarabicschool_15 (guardian family home) | /guardian (old) | **to do (7)** |
+| zarabicschool_16 (guardian reports + subscriptions) | /guardian/reports (old) | **to do (7)** |
+| zarabicschool_17 (session evaluation prompt) | evaluation card on family homes | **to do (7)** |
+| zarabicschool_18, 19 (student home) | /student (old) | **to do (7)** |
+| zarabicschool_11, academic_precision | png only (11 is a variant; academic_precision is the design system) | reference |
+
+**Order** (owner, 2026-10-29: dashboard, sessions, reports queue, billing/invoices, payroll, people, family pages, landing):
+1. Admin sessions.
+2. Admin invoices.
+3. Applications inbox.
+4. Payroll.
+5. People directory.
+6. Teacher sessions and earnings.
+7. Family pages (guardian, student, evaluation prompt).
+8. Application forms.
+
+**Log**
+- 2026-10-29: map written.
