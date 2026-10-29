@@ -28,7 +28,7 @@ The owner's order is kept, with one adjustment: **a slice that needs a migration
 | S-11 | Performance + admin home | D7, D8, D8a | Admin performance table + teacher "my indicators" page; admin home cards (students, teachers, this week) + EGP charts monthly/quarterly/half-year | none | teacher sees own data only; finance Admin-only | PF-01..05, HM-01..04 | — | done (136e63f, 8d8d1eb) |
 | S-12 | Deductions & bonuses (**done** ee75a04) | D14 | Admin page: create (category + reason), list, filter, reverse by opposite entry; teacher sees own entries + reason; in-app notice | **S-5 (FINANCIAL)** | Admin only; idempotency key (A5) | DB-01..06 | OQ-8, S-5 OK | done (ee75a04) |
 | S-13 | Payment link, then refund (**done** b6ed2db, 32fbd33) | D6, D19, D20 | (a) payment-link WhatsApp; (b) webhook void/refund records + Admin flag; (c) Admin partial refund | **S-6 (FINANCIAL)** | payer-only; Admin-only refund; idempotent; cumulative cap | PL-01..06, RF-01..08 | OQ-12, OQ-13, S-6 OK | done (b6ed2db, 32fbd33) |
-| S-14 | Stitch UI migration | D1 | page by page from the Stitch export; tokens first; Impeccable later | none | no money widgets on Supervisor screens | visual review; Playwright smoke after (D22) | — | parallel track |
+| S-14 | Stitch UI migration | D1 | page by page from the Stitch export; tokens first; Impeccable later | none | no money widgets on Supervisor screens | visual review; Playwright smoke after (D22) | — | done (D78; see slices/S-14-stitch-map.md) |
 | G1 | Bug fixes A1–A7 (owner list 2026-10-28) | D67–D70 | tbody whitespace, payment-audit i18n + dynamic-key test, attendance titles, contrast (@layer base + tokens), shared badge provider, auto-renewal flag, Admin today list + D7 note | none | — | see slices/G1-bugfixes.md | — | done (b5d7334, 489526f, 31c26da, 1e9bbcb, ce1c2f9, 024a68f, 08f5802) |
 | L | Latency (owner list 2026-10-28) | D71–D73 | measured; icon font → Lucide; shell prefetch off; parallel home queries; streamed badge count; dev-tunnel.md | none | security headers, auth, ledger untouched | see slices/L-latency.md | — | done (77e9779, 73c8766, c00f112, 85f2a04, e6c6182) |
 | NEXT | Payer refund request (**done**, S-15); Netflix-style cancel check; USD via Paymob | D74 | owner 2026-10-29 | tbd | payer-only request, Admin decides | tbd | owner approval to start | refund request done (S-15); the rest waits |
@@ -66,7 +66,7 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | Console WhatsApp provider (masked) | commit fdc7e16 | done |
 | `APP_PUBLIC_URL` (the one allowed `.env` line) | `.env.example`, deploy-checklist; owner sets the value | owner to-do |
 | Secrets rotation | deploy-checklist launch blocker (D21) | deferred to deployment |
-| Stitch migration | S-14 (D1) | parallel track |
+| Stitch migration | S-14 (D1, D78) | done (0caabcf … 2c66b43) |
 | Impeccable | D62 | installed in project scope (no hooks); detector used on every new screen |
 | Card-not-present auto-renewal (Paymob subscriptions) hold | D19, D44, D69 | built; payers see it only with FEATURE_AUTO_RENEWAL=true (owner tests in Paymob test mode) |
 | Paymob callback config (localhost return, ngrok processed) | D23 | recorded; owner sets it in the dashboard |
@@ -105,3 +105,4 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 - 2026-10-29: branch closed: full suite 88/88 suites, 739/739 tests; seed unchanged; build, lint, tsc, migrate status clean (D75). Next work on `phase9-rest`.
 - 2026-10-29: S-15 payer refund request done on `phase9-rest` (SQL S-8 applied, D76).
 - 2026-10-29: S-07 roster changes done on `phase9-rest` (Q1–Q3, SQL S-9 applied, D77).
+- 2026-10-29: S-14 Stitch pages done on `phase9-rest` (D78).
