@@ -54,8 +54,8 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | M-3 ngrok host from env | S-00(j) | done (2f80028) |
 | M-4 provider comment + "console" normalization | S-00(k) | done (2f80028) |
 | M-5 payroll cap vs 100,000,000 | OQ-10 → D33 | kept + documented (lib/validation/financial.ts) |
-| M-6 complaint roster snapshot | OQ-11 → D41 | answered — SQL when S-07 starts |
-| S-1 attendance_resolutions migration | D37 | file created (52cef9b), owner applies |
+| M-6 complaint roster snapshot | OQ-11 → D41, D77 | done (S-07, SQL S-9 applied, fdac533) |
+| S-1 attendance_resolutions migration | D37 | applied (S-1, S-1b, S-1c) |
 | Automatic renewal on Paymob subscriptions (MOTO) | S-RENEW, D44, D50-D61 | built and tested with a fake Paymob; real test-mode sign-up waits for the Paymob dashboard |
 | SQL S-7 renewal invoices / S-7b INCOMPLETE | D59, D60 | applied (36, 37 migrations) |
 | Africa/Cairo time-input bug | owner 2026-10-27 | done (1a36fe0) |
@@ -67,8 +67,8 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 | `APP_PUBLIC_URL` (the one allowed `.env` line) | `.env.example`, deploy-checklist; owner sets the value | owner to-do |
 | Secrets rotation | deploy-checklist launch blocker (D21) | deferred to deployment |
 | Stitch migration | S-14 (D1) | parallel track |
-| Impeccable | after S-14 (D1) | later, not installed |
-| Card-not-present auto-renewal (Paymob subscriptions) hold | D19, D44 | on hold until Paymob answers |
+| Impeccable | D62 | installed in project scope (no hooks); detector used on every new screen |
+| Card-not-present auto-renewal (Paymob subscriptions) hold | D19, D44, D69 | built; payers see it only with FEATURE_AUTO_RENEWAL=true (owner tests in Paymob test mode) |
 | Paymob callback config (localhost return, ngrok processed) | D23 | recorded; owner sets it in the dashboard |
 | Layer 2 checklist + test cards | D24 + phase-08 Layer 2 checklist | waits for the owner's "go" |
 | Paymob diagnosis invoice 2e4ca7e1 (no webhook ever stored) | phase-08 log; fixed by D23 config + S-00(b) | owner to re-run after config |
