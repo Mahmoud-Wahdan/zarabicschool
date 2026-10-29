@@ -1,7 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
-import Icon from "../../../_components/ui/icon";
 import EvaluationCard from "../../../_components/evaluations/evaluation-card";
 import MonthlyReportContent from "../../../_components/monthly/monthly-report-content";
 import AttachmentList from "../../../_components/reports/attachment-list";
@@ -14,6 +13,7 @@ import { getClassRemarkOptions } from "../../../../lib/reports/class-remarks";
 import { classRemarkLabel, remarkDisplayLanguage, reportDir } from "../../../../lib/reports/report-language";
 import { getReportForViewer } from "../../../../lib/reports/visibility";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 const EVALUATION_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -132,24 +132,20 @@ export default async function GuardianReportsPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="menu_book" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("subtitle")}</p>
-      </section>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       {sections.map(({ child, reports,monthly }) => (
         <section key={child.id} className="mt-6 space-y-3">
-          <h2 className="text-lg font-bold text-[var(--navy)]">{child.user.displayName}</h2>
+          <h2 className="text-headline-sm font-bold text-primary">{child.user.displayName}</h2>
           {reports.map(({ session, view }) => (
             <article
               key={`${child.id}:${view.id}`}
-              className="dashboard-card space-y-2 p-5"
+              className="z-card rounded-xl space-y-2 p-5"
               dir={view.language ? reportDir(view.language) : undefined}
               lang={view.language ?? undefined}
             >
               <div className="flex flex-wrap justify-between gap-2">
-                <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
+                <strong className="text-primary">{subjectName(session.subject)}</strong>
+                <span className="text-body-sm text-on-surface-variant">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
               </div>
               {view.classRemark ? (
                 <p className="text-sm">
@@ -162,7 +158,7 @@ export default async function GuardianReportsPage() {
               {view.notes ? <p className="text-sm"><strong>{t("notes")}:</strong> {view.notes}</p> : null}
               {view.attachments.length > 0 ? (
                 <div dir={locale === "ar" ? "rtl" : "ltr"}>
-                  <p className="text-label-sm opacity-70">{t("attachmentsCount", { count: view.attachments.length })}</p>
+                  <p className="text-label-sm text-on-surface-variant">{t("attachmentsCount", { count: view.attachments.length })}</p>
                   <AttachmentList reportId={view.id} items={view.attachments} />
                 </div>
               ) : null}
@@ -170,8 +166,8 @@ export default async function GuardianReportsPage() {
               session.status !== "CANCELLED" &&
               session.status !== "MISSED" &&
               new Date() >= session.scheduledEnd ? (
-                <details className="mt-2 border-t border-[var(--line)] pt-2">
-                  <summary className="cursor-pointer text-sm font-semibold text-[var(--navy)]">{t("evaluationSummary")}</summary>
+                <details className="mt-2 border-t border-outline-variant pt-2">
+                  <summary className="cursor-pointer text-sm font-semibold text-primary">{t("evaluationSummary")}</summary>
                   <div className="mt-3">
                     <EvaluationCard
                       sessionId={session.id}
@@ -184,13 +180,13 @@ export default async function GuardianReportsPage() {
               ) : null}
             </article>
           ))}
-          {!reports.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("empty", { name: child.user.displayName })}</p> : null}
+          {!reports.length ? <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("empty", { name: child.user.displayName })}</p> : null}
           {monthly.length > 0 ? (
             <div className="mt-2 flex flex-col gap-3">
-              <h3 className="text-title-md font-bold text-[var(--navy)]">{t("monthlySection")}</h3>
+              <h3 className="text-title-md font-bold text-primary">{t("monthlySection")}</h3>
               {monthly.map(({ monthKey, view }) => (
-                <div key={view.id} className="dashboard-card flex flex-col gap-3 p-5">
-                  <strong className="text-[var(--navy)]">{formatMonthLabel(monthKey, locale === "en" ? "en" : "ar")}</strong>
+                <div key={view.id} className="z-card rounded-xl flex flex-col gap-3 p-5">
+                  <strong className="text-primary">{formatMonthLabel(monthKey, locale === "en" ? "en" : "ar")}</strong>
                   <MonthlyReportContent report={{ ...view, monthKey }} />
                 </div>
               ))}
@@ -198,7 +194,7 @@ export default async function GuardianReportsPage() {
           ) : null}
         </section>
       ))}
-      {!children.length ? <p className="dashboard-card mt-6 p-5 text-sm opacity-70">{t("noChildren")}</p> : null}
+      {!children.length ? <p className="z-card rounded-xl mt-6 p-5 text-body-sm text-on-surface-variant">{t("noChildren")}</p> : null}
     </DashboardShell>
   );
 }

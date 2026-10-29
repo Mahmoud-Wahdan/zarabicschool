@@ -37,10 +37,10 @@ export default function RefundRequestButton({ invoiceId, latest }: { invoiceId: 
   }
 
   if (latest?.status === "PENDING") {
-    return <p role="status" className="mt-4 text-sm text-[var(--navy)]">{t("refundRequestSent")}</p>;
+    return <p role="status" className="mt-4 text-sm text-primary">{t("refundRequestSent")}</p>;
   }
   if (latest?.status === "APPROVED") {
-    return <p role="status" className="mt-4 text-sm text-[var(--navy)]">{t("refundRequestApproved")}</p>;
+    return <p role="status" className="mt-4 text-sm text-primary">{t("refundRequestApproved")}</p>;
   }
 
   return (
@@ -48,19 +48,19 @@ export default function RefundRequestButton({ invoiceId, latest }: { invoiceId: 
       {latest?.status === "REJECTED" ? (
         <p className="text-sm">
           {t("refundRequestRejected")}
-          {latest.rejectionReason ? <span className="block opacity-80">{t("refundRequestReason", { reason: latest.rejectionReason })}</span> : null}
+          {latest.rejectionReason ? <span className="block text-on-surface-variant">{t("refundRequestReason", { reason: latest.rejectionReason })}</span> : null}
         </p>
       ) : null}
       {confirming ? (
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm">{t("refundRequestConfirmText")}</p>
-          <button type="button" disabled={busy} aria-busy={busy} onClick={() => void send()} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">{t("refundRequestConfirm")}</button>
-          <button type="button" disabled={busy} onClick={() => setConfirming(false)} className="rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundCancel")}</button>
+          <button type="button" disabled={busy} aria-busy={busy} onClick={() => void send()} className="btn btn-primary disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("refundRequestConfirm")}</button>
+          <button type="button" disabled={busy} onClick={() => setConfirming(false)} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundCancel")}</button>
         </div>
       ) : (
-        <button type="button" onClick={() => setConfirming(true)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--navy)] hover:border-[var(--navy)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">{t("refundRequest")}</button>
+        <button type="button" onClick={() => setConfirming(true)} className="btn btn-outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("refundRequest")}</button>
       )}
-      {message ? <p role="status" className="text-sm opacity-80">{message}</p> : null}
+      {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
     </div>
   );
 }

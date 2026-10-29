@@ -10,6 +10,7 @@ import { isAutoRenewalEnabled } from "../../../../lib/config/features";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatMoney } from "../../../../lib/payments/format";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("invoices");
@@ -65,8 +66,7 @@ export default async function GuardianInvoicesPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       {autoRenewal ? (
         <div className="mt-6">
@@ -82,19 +82,19 @@ export default async function GuardianInvoicesPage() {
 
       <section className="mt-6 space-y-4">
         {invoices.length === 0 ? (
-          <div className="rounded-xl border border-[var(--line)] bg-white p-6 text-sm opacity-70">
+          <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 text-body-sm text-on-surface-variant">
             <p>{t("empty")}</p>
             <p className="mt-1 text-xs">{t("emptyText")}</p>
           </div>
         ) : (
           invoices.map((invoice) => (
-            <article key={invoice.id} className="rounded-xl border border-[var(--line)] bg-white p-5">
+            <article key={invoice.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-[var(--navy)]">
+                  <p className="font-semibold text-primary">
                     {studentNames.get(invoice.studentId)} · {formatMoney(invoice.amountMinor, invoice.currency, locale)} · {packageLabel(invoice.packageType)} · {invoice.sessionsPurchased}
                   </p>
-                  <p className="mt-1 text-xs opacity-70">
+                  <p className="mt-1 text-label-sm text-on-surface-variant">
                     {providerLabel(invoice.provider)} ·{" "}
                     {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "medium", timeStyle: "short" }).format(invoice.createdAt)}
                   </p>
@@ -105,7 +105,7 @@ export default async function GuardianInvoicesPage() {
                 {invoice.status === "PENDING" ? (
                   <InvoicePaymentPanel invoiceId={invoice.id} provider={invoice.provider} />
                 ) : (
-                  <p className="text-xs opacity-70">{t("paidNote")}</p>
+                  <p className="text-label-sm text-on-surface-variant">{t("paidNote")}</p>
                 )}
                 {invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
                   <RefundRequestButton invoiceId={invoice.id} latest={invoice.refundRequests[0] ?? null} />

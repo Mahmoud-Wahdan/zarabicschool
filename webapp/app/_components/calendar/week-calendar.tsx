@@ -62,7 +62,7 @@ export default async function WeekCalendar({
                   const names = entry.students.map((row) => row.student.user.displayName);
                   const label = teacherEntryLabel(entry.sessionType, names);
                   return (
-                    <li key={entry.id} className={`rounded-lg bg-surface-container-low p-2 text-label-sm ${cancelled ? "opacity-60" : ""}`}>
+                    <li key={entry.id} className={`rounded-lg bg-surface-container-low p-2 text-label-sm ${cancelled ? "text-on-surface-variant" : ""}`}>
                       <p className="font-bold tabular-nums" dir="ltr">
                         <time dateTime={entry.scheduledStart.toISOString()}>{entry.startTime}</time>–<time dateTime={entry.scheduledEnd.toISOString()}>{entry.endTime}</time>
                       </p>

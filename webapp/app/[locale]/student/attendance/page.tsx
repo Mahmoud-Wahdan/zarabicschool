@@ -2,11 +2,11 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "../../../../i18n/navigation";
 import DashboardShell from "../../../_components/dashboard-shell";
-import Icon from "../../../_components/ui/icon";
 import StatusBadge from "../../../_components/ui/status-badge";
 import { requireRole, studentFinanceBlocked } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("attendance");
@@ -40,21 +40,17 @@ export default async function StudentAttendancePage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="event_available" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("student.title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("student.subtitle")}</p>
-      </section>
+      <PageHeader title={t("student.title")} subtitle={t("student.subtitle")} />
       <div className="mt-6 space-y-3">
         {sessions.map((session) => {
           const own = session.students.find((entry) => entry.student.userId === user.id);
           if (!own) return null;
           const report = session.reports.find((entry) => entry.studentId === own.studentId);
           return (
-            <article key={session.id} className="dashboard-card flex flex-wrap items-center justify-between gap-3 p-5">
+            <article key={session.id} className="z-card rounded-xl flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
-                <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                <p className="mt-1 text-sm opacity-70">
+                <strong className="text-primary">{subjectName(session.subject)}</strong>
+                <p className="mt-1 text-body-sm text-on-surface-variant">
                   {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} · {t(`sessionStatuses.${session.status}`)}
                 </p>
               </div>
@@ -72,7 +68,7 @@ export default async function StudentAttendancePage() {
           );
         })}
         {!sessions.length ? (
-          <p className="dashboard-card p-5 text-sm opacity-70">{t("student.empty")}</p>
+          <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("student.empty")}</p>
         ) : null}
       </div>
     </DashboardShell>

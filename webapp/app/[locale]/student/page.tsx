@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { getLocale } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
+import PageHeader from "../../_components/ui/page-header";
 import { requireRole, studentFinanceBlocked } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { formatSessionDateTime } from "../../../lib/schedules/display";
@@ -71,38 +72,35 @@ export default async function StudentDashboard() {
     <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
       <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
       <EvaluationPromptCard userId={user.id} academyId={user.academyId} role="STUDENT" />
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("student.title")}</h1>
-      <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
-        {t("student.welcome", { name: user.displayName })}
-      </p>
+      <PageHeader title={t("student.title")} subtitle={t("student.welcome", { name: user.displayName })} />
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-[var(--line)] bg-white p-5">
-          <h2 className="font-semibold text-[var(--navy)]">{t("student.sections.upcoming")}</h2>
+        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+          <h2 className="font-semibold text-primary">{t("student.sections.upcoming")}</h2>
           <p className="mt-2 text-2xl font-bold">{student?.sessionStudents.length ?? 0}</p>
-          <p className="mt-1 text-xs opacity-70">
+          <p className="mt-1 text-label-sm text-on-surface-variant">
             {t("guardian.metrics.remaining")}: {remaining ?? 0}
           </p>
         </div>
-        <div className="rounded-xl border border-[var(--line)] bg-white p-5">
-          <h2 className="font-semibold text-[var(--navy)]">{t("student.sections.past")}</h2>
-          <p className="mt-2 text-sm opacity-70">{t("student.metrics.attendanceFromReports")}</p>
+        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+          <h2 className="font-semibold text-primary">{t("student.sections.past")}</h2>
+          <p className="mt-2 text-body-sm text-on-surface-variant">{t("student.metrics.attendanceFromReports")}</p>
         </div>
-        <div className="rounded-xl border border-[var(--line)] bg-white p-5">
-          <h2 className="font-semibold text-[var(--navy)]">{t("student.sections.homework")}</h2>
+        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+          <h2 className="font-semibold text-primary">{t("student.sections.homework")}</h2>
           {latestHomework ? (
-            <p className="mt-2 line-clamp-3 text-sm opacity-80">{latestHomework.homework}</p>
+            <p className="mt-2 line-clamp-3 text-body-sm text-on-surface-variant">{latestHomework.homework}</p>
           ) : (
-            <p className="mt-2 text-sm opacity-70">{t("student.metrics.notAvailable")}</p>
+            <p className="mt-2 text-body-sm text-on-surface-variant">{t("student.metrics.notAvailable")}</p>
           )}
         </div>
       </section>
-      <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
-        <h2 className="font-semibold text-[var(--navy)]">{t("student.sections.upcoming")}</h2>
+      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+        <h2 className="font-semibold text-primary">{t("student.sections.upcoming")}</h2>
         <div className="mt-4 space-y-3">
           {student?.sessionStudents.length ? (
             student.sessionStudents.map((item) => (
-              <div key={item.session.id} className="flex justify-between gap-3 rounded-lg bg-[var(--background)] p-3 text-sm">
+              <div key={item.session.id} className="flex justify-between gap-3 rounded-lg bg-surface p-3 text-sm">
                 <span>{locale === "ar" ? item.session.subject.nameAr : item.session.subject.nameEn}</span>
                 <span>{formatSessionDateTime(item.session.scheduledStart, user.timezone, locale)}</span>
                 {/* No report link on upcoming sessions: a session report exists only
@@ -110,7 +108,7 @@ export default async function StudentDashboard() {
               </div>
             ))
           ) : (
-            <p className="text-sm opacity-70">{t("student.metrics.attendanceFromReports")}</p>
+            <p className="text-body-sm text-on-surface-variant">{t("student.metrics.attendanceFromReports")}</p>
           )}
         </div>
       </section>

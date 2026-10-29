@@ -46,15 +46,15 @@ export default function InvoicePaymentPanel({ invoiceId, provider }: { invoiceId
     <div className="space-y-4">
       {provider === "PAYMOB" ? (
         <div className="space-y-2">
-          <button type="button" disabled={busy} onClick={() => void pay()} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => void pay()} className="btn btn-primary disabled:opacity-50">
             {t("payNow")}
           </button>
-          <p className="text-xs opacity-70">{t("payNote")}</p>
+          <p className="text-label-sm text-on-surface-variant">{t("payNote")}</p>
         </div>
       ) : (
-        <p className="rounded-xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 p-3 text-xs opacity-80">{t("usdUnavailable")}</p>
+        <p className="rounded-xl border border-tertiary-container bg-tertiary-fixed/40 p-3 text-label-sm text-on-surface-variant">{t("usdUnavailable")}</p>
       )}
-      {message ? <p role="status" className="text-sm opacity-75">{message}</p> : null}
+      {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
     </div>
   );
 }

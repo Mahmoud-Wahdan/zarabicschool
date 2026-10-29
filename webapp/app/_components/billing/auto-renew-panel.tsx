@@ -73,12 +73,12 @@ export function RenewalRow({ subscription, timeZone, showPayer = false }: { subs
   }
 
   return (
-    <article className="rounded-xl border border-[var(--line)] bg-white p-5">
+    <article className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-semibold text-[var(--navy)]">{subscription.studentName}</p>
-          <p className="mt-1 text-sm opacity-75">{t("planLine", { plan: subscription.planName, price: subscription.priceLabel })}</p>
-          {showPayer ? <p className="mt-1 text-xs opacity-70">{t("payer", { name: subscription.payerName })}</p> : null}
+          <p className="font-semibold text-primary">{subscription.studentName}</p>
+          <p className="mt-1 text-body-sm text-on-surface-variant">{t("planLine", { plan: subscription.planName, price: subscription.priceLabel })}</p>
+          {showPayer ? <p className="mt-1 text-label-sm text-on-surface-variant">{t("payer", { name: subscription.payerName })}</p> : null}
         </div>
         <StatusBadge tone={cancelled ? "neutral" : TONE[subscription.status]}>{statusText}</StatusBadge>
       </div>
@@ -89,17 +89,17 @@ export function RenewalRow({ subscription, timeZone, showPayer = false }: { subs
       {!cancelled && (subscription.status === "ACTIVE" || subscription.status === "PAST_DUE") ? (
         <div className="mt-4">
           {state === "idle" ? (
-            <button type="button" onClick={() => setState("confirm")} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--navy)] hover:border-[var(--navy)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+            <button type="button" onClick={() => setState("confirm")} className="btn btn-outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               {t("cancel")}
             </button>
           ) : (
-            <div className="space-y-3 rounded-lg border border-[var(--gold)]/50 bg-[var(--gold)]/10 p-4">
+            <div className="space-y-3 rounded-lg border border-tertiary-container bg-tertiary-fixed/40 p-4">
               <p className="text-sm">{subscription.status === "PAST_DUE" ? t("cancelConfirmPastDue") : t("cancelConfirm", { date: periodEnd })}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={state === "busy"} onClick={() => void cancel()} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50">
+                <button type="button" disabled={state === "busy"} onClick={() => void cancel()} className="btn btn-primary disabled:opacity-50">
                   {t("cancelYes")}
                 </button>
-                <button type="button" disabled={state === "busy"} onClick={() => { setState("idle"); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">
+                <button type="button" disabled={state === "busy"} onClick={() => { setState("idle"); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">
                   {t("cancelKeep")}
                 </button>
               </div>
@@ -107,7 +107,7 @@ export function RenewalRow({ subscription, timeZone, showPayer = false }: { subs
           )}
         </div>
       ) : null}
-      {message ? <p role="status" className="mt-3 text-sm opacity-80">{message}</p> : null}
+      {message ? <p role="status" className="mt-3 text-body-sm text-on-surface-variant">{message}</p> : null}
     </article>
   );
 }
@@ -151,45 +151,45 @@ export default function AutoRenewPanel({ students, plans, subscriptions, timeZon
 
   return (
     <section aria-labelledby="auto-renew-title" className="space-y-4">
-      <h2 id="auto-renew-title" className={mode === "admin" ? "sr-only" : "text-lg font-bold text-[var(--navy)]"}>{t("title")}</h2>
+      <h2 id="auto-renew-title" className={mode === "admin" ? "sr-only" : "text-headline-sm font-bold text-primary"}>{t("title")}</h2>
       {subscriptions.map((row) => <RenewalRow key={row.id} subscription={row} timeZone={timeZone} showPayer={mode === "admin"} />)}
       {mode === "admin" ? (
-        subscriptions.length === 0 ? <p className="text-sm opacity-70">{t("adminEmpty")}</p> : null
+        subscriptions.length === 0 ? <p className="text-body-sm text-on-surface-variant">{t("adminEmpty")}</p> : null
       ) : plans.length === 0 ? (
-        <p className="rounded-xl border border-[var(--line)] bg-white p-5 text-sm opacity-75">{t("noPlans")}</p>
+        <p className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-body-sm text-on-surface-variant">{t("noPlans")}</p>
       ) : eligible.length === 0 ? null : (
-        <div className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-[var(--dashboard-shadow)] sm:p-6">
+        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[var(--dashboard-shadow)] sm:p-6">
           <p className="max-w-prose text-sm leading-relaxed">{t("intro")}</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-[var(--navy)]">{t("student")}</span>
-              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+              <span className="font-medium text-primary">{t("student")}</span>
+              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 {eligible.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
               </select>
             </label>
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-[var(--navy)]">{t("plan")}</span>
-              <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+              <span className="font-medium text-primary">{t("plan")}</span>
+              <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 {plans.map((entry) => <option key={entry.id} value={entry.id}>{t("planOption", { plan: entry.name, sessions: entry.sessions, price: entry.priceLabel })}</option>)}
               </select>
             </label>
           </div>
           <div className="mt-6">
-            <p className="mb-3 text-sm font-medium text-[var(--navy)]">{t("calendarLabel")}</p>
+            <p className="mb-3 text-sm font-medium text-primary">{t("calendarLabel")}</p>
             <ChargeDateRail dates={dates} locale={locale} firstLabel={t("today")} laterLabel={t("autoCharge", { price: plan?.priceLabel ?? "" })} />
-            <p className="mt-3 text-xs opacity-70">{t("shortMonthNote")}</p>
+            <p className="mt-3 text-label-sm text-on-surface-variant">{t("shortMonthNote")}</p>
           </div>
-          <label className="mt-6 flex items-start gap-3 rounded-lg bg-[var(--background)] p-4 text-sm leading-relaxed">
-            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[var(--emerald)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" />
+          <label className="mt-6 flex items-start gap-3 rounded-lg bg-surface p-4 text-sm leading-relaxed">
+            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
             <span>{t("consent", { price: plan?.priceLabel ?? "" })}</span>
           </label>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" aria-busy={busy} disabled={!consent || busy || !studentId || !planId} onClick={() => void start()} className="cta-primary rounded-xl px-5 py-2.5 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+            <button type="button" aria-busy={busy} disabled={!consent || busy || !studentId || !planId} onClick={() => void start()} className="btn btn-primary px-5 py-2.5 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               {t("start")}
             </button>
-            <p className="text-xs opacity-70">{t("cancelAnyTime")}</p>
+            <p className="text-label-sm text-on-surface-variant">{t("cancelAnyTime")}</p>
           </div>
-          {message ? <p role="status" className="mt-3 text-sm opacity-80">{message}</p> : null}
+          {message ? <p role="status" className="mt-3 text-body-sm text-on-surface-variant">{message}</p> : null}
         </div>
       )}
     </section>

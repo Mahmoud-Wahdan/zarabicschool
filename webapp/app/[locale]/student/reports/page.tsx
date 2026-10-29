@@ -3,7 +3,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../../_components/dashboard-shell";
 import EvaluateSessionDetails from "../../../_components/evaluations/evaluate-session-details";
 import AttachmentList from "../../../_components/reports/attachment-list";
-import Icon from "../../../_components/ui/icon";
 import { requireRole, studentFinanceBlocked } from "../../../../lib/dal";
 import { getOwnEvaluationsForSessions, isEvaluationsReady } from "../../../../lib/evaluations/service";
 import { prisma } from "../../../../lib/prisma";
@@ -12,6 +11,7 @@ import { remarkDisplayLanguage, reportDir } from "../../../../lib/reports/report
 import { getReportForViewer } from "../../../../lib/reports/visibility";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { Link } from "../../../../i18n/navigation";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("studentReports");
@@ -72,21 +72,17 @@ export default async function StudentReportsPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="description" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("subtitle")}</p>
-      </section>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-6 space-y-3">
         {reports.map(({ session, view }) => {
           const language = remarkDisplayLanguage(view.language, locale);
           return (
-            <article key={view.id} className="dashboard-card space-y-2 p-5">
+            <article key={view.id} className="z-card rounded-xl space-y-2 p-5">
               <div className="flex flex-wrap justify-between gap-2">
-                <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
+                <strong className="text-primary">{subjectName(session.subject)}</strong>
+                <span className="text-body-sm text-on-surface-variant">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
               </div>
-              <p className="text-sm opacity-70">{session.teacher.user.displayName}</p>
+              <p className="text-body-sm text-on-surface-variant">{session.teacher.user.displayName}</p>
               {/* Report content renders in the language it was written (CONTEXT §9). */}
               <div className="space-y-2" dir={view.language ? reportDir(view.language) : undefined} lang={view.language ?? undefined}>
                 {view.classRemark ? (
@@ -104,7 +100,7 @@ export default async function StudentReportsPage() {
                   <AttachmentList reportId={view.id} items={view.attachments} />
                 </div>
               ) : null}
-              <Link href={`/student/sessions/${session.id}/report`} className="text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
+              <Link href={`/student/sessions/${session.id}/report`} className="text-xs text-secondary underline-offset-2 hover:underline">
                 {t("open")}
               </Link>
               {evaluationsReady && session.status !== "CANCELLED" && session.status !== "MISSED" ? (
@@ -117,7 +113,7 @@ export default async function StudentReportsPage() {
             </article>
           );
         })}
-        {!reports.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("empty")}</p> : null}
+        {!reports.length ? <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("empty")}</p> : null}
       </div>
     </DashboardShell>
   );

@@ -3,12 +3,12 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../../_components/dashboard-shell";
 import SessionJoinLink from "../../../_components/session-join-link";
 import SessionRequestForm from "../../../_components/session-request-form";
-import Icon from "../../../_components/ui/icon";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { joinWindowState } from "../../../../lib/config/session-join";
 import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 export default async function GuardianSessionsPage() {
   const user = await requireRole("GUARDIAN");
@@ -38,27 +38,23 @@ export default async function GuardianSessionsPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="calendar_month" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("guardian.title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("guardian.subtitle")}</p>
-      </section>
+      <PageHeader title={t("guardian.title")} subtitle={t("guardian.subtitle")} />
       {children.map((child) => {
         const childSessions = sessions.filter((session) =>
           session.students.some(({ student }) => student.id === child.id),
         );
         return (
           <section key={child.id} className="mt-6 space-y-3">
-            <h2 className="text-lg font-bold text-[var(--navy)]">{child.user.displayName}</h2>
+            <h2 className="text-headline-sm font-bold text-primary">{child.user.displayName}</h2>
             {childSessions.map((session) => {
               const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
               return (
-                <article key={`${child.id}:${session.id}`} className="lift-card dashboard-card p-5">
+                <article key={`${child.id}:${session.id}`} className="z-card lift-card rounded-xl p-5">
                   <div className="flex flex-wrap justify-between gap-3">
-                    <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-                    <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
+                    <strong className="text-primary">{subjectName(session.subject)}</strong>
+                    <span className="text-body-sm text-on-surface-variant">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
                   </div>
-                  <p className="mt-2 text-sm opacity-70">
+                  <p className="mt-2 text-body-sm text-on-surface-variant">
                     {session.teacher.user.displayName} · {t(`statuses.${session.status}`)} · {t(`types.${session.sessionType}`)}
                   </p>
                   {state ? <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("openZoom")} /> : null}
@@ -67,12 +63,12 @@ export default async function GuardianSessionsPage() {
               );
             })}
             {!childSessions.length ? (
-              <p className="dashboard-card p-5 text-sm opacity-70">{t("guardian.noSessions", { name: child.user.displayName })}</p>
+              <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("guardian.noSessions", { name: child.user.displayName })}</p>
             ) : null}
           </section>
         );
       })}
-      {!children.length ? <p className="dashboard-card mt-6 p-5 text-sm opacity-70">{t("empty")}</p> : null}
+      {!children.length ? <p className="z-card rounded-xl mt-6 p-5 text-body-sm text-on-surface-variant">{t("empty")}</p> : null}
     </DashboardShell>
   );
 }

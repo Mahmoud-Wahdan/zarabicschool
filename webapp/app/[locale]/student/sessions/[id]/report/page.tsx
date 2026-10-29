@@ -69,7 +69,7 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
         // The report CONTENT renders in the language it was written (CONTEXT §9),
         // with its own dir — the surrounding chrome stays in the UI locale.
         <article
-          className="dashboard-card mt-6 space-y-3 p-5"
+          className="z-card rounded-xl mt-6 space-y-3 p-5"
           dir={view.language ? reportDir(view.language) : undefined}
           lang={view.language ?? undefined}
         >
@@ -92,7 +92,7 @@ export default async function StudentReportPage({ params }: { params: Promise<{ 
           ) : null}
         </article>
       ) : (
-        <p className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5 text-sm opacity-70">{t("pending")}</p>
+        <p className="mt-6 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-body-sm text-on-surface-variant">{t("pending")}</p>
       )}
       {evaluationsReady ? (
         <div className="mt-6">

@@ -32,10 +32,10 @@
 | zarabicschool_12 (teacher week) | /teacher/calendar | done |
 | zarabicschool_13 (teacher reports) | /teacher/sessions | **done (page 6)** |
 | zarabicschool_14 (teacher earnings) | /teacher/payroll | **done (page 6)** |
-| zarabicschool_15 (guardian family home) | /guardian (old) | **to do (7)** |
-| zarabicschool_16 (guardian reports + subscriptions) | /guardian/reports (old) | **to do (7)** |
-| zarabicschool_17 (session evaluation prompt) | evaluation card on family homes | **to do (7)** |
-| zarabicschool_18, 19 (student home) | /student (old) | **to do (7)** |
+| zarabicschool_15 (guardian family home) | /guardian | **done (page 7)** |
+| zarabicschool_16 (guardian reports + subscriptions) | /guardian/reports | **done (page 7)** |
+| zarabicschool_17 (session evaluation prompt) | evaluation card on family homes | **done (page 7)** |
+| zarabicschool_18, 19 (student home) | /student | **done (page 7)** |
 | zarabicschool_11, academic_precision | png only (11 is a variant; academic_precision is the design system) | reference |
 
 **Order** (owner, 2026-10-29: dashboard, sessions, reports queue, billing/invoices, payroll, people, family pages, landing):
@@ -56,3 +56,4 @@
 - 2026-10-29: page 4 /admin/payroll (page, entry panel, adjustments ledger) on the Stitch kit; no logic change; payroll suites green; detector clean.
 - 2026-10-29: page 5 people directory (students, teachers, guardians, privileged users) on the Stitch kit: PageHeader on each, kit cards/fields/buttons in both panels; no logic change; teacher-approval, WhatsApp link, RBAC suites green; detector clean.
 - 2026-10-29: page 6 teacher pages (home, sessions, attendance, payroll, monthly reports, calendar and indicators headers, report and monthly forms, loading/error states) on the Stitch kit; the navy banners and plain headings became PageHeader; no logic change; indicators, report, zone, contrast, i18n suites green; detector clean.
+- 2026-10-29: page 7 family pages (guardian and student home, sessions, attendance, reports, invoices, report view, loading/error) and the shared evaluation card, renewal panel, charge-date rail, payment panel, refund-request button, calendar on the Stitch kit; banners and plain headings became PageHeader; no logic change; renewal, refund-request, flag, evaluation, calendar, zone, contrast, i18n suites green; detector clean.

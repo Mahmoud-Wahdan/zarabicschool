@@ -101,7 +101,7 @@ export default function EvaluationCard({ sessionId, initialRating, initialCommen
             aria-label={tEval("ratingValue", { rating: value })}
             className={`h-10 w-10 rounded-full text-body-md font-semibold transition-colors ${
               rating !== null && value <= rating
-                ? "bg-[var(--gold)] text-[var(--navy)]"
+                ? "bg-tertiary-container text-on-tertiary-container"
                 : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
             }`}
           >

@@ -19,12 +19,12 @@ export default function StudentSessionsError({
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-      <h1 className="text-lg font-bold text-red-900">{t("error")}</h1>
+    <div role="alert" className="mx-auto max-w-md rounded-2xl border border-error/40 bg-error-container p-6 text-center">
+      <h1 className="text-lg font-bold text-on-error-container">{t("error")}</h1>
       <button
         type="button"
         onClick={reset}
-        className="mt-4 rounded-lg bg-[var(--emerald)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        className="mt-4 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
       >
         {common("retry")}
       </button>

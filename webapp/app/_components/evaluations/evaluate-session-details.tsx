@@ -15,8 +15,8 @@ export default function EvaluateSessionDetails({
   evaluation: { rating: number; comment: string | null; locked: boolean } | null;
 }) {
   return (
-    <details className="mt-2 border-t border-[var(--line)] pt-2">
-      <summary className="cursor-pointer text-sm font-semibold text-[var(--navy)]">{label}</summary>
+    <details className="mt-2 border-t border-outline-variant pt-2">
+      <summary className="cursor-pointer text-sm font-semibold text-primary">{label}</summary>
       <div className="mt-3">
         <EvaluationCard
           sessionId={sessionId}

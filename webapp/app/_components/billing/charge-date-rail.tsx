@@ -11,13 +11,13 @@ export default function ChargeDateRail({ dates, locale, firstLabel, laterLabel }
         <li key={date} className="relative flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
           <span
             aria-hidden="true"
-            className={`relative z-10 h-3 w-3 shrink-0 rounded-full border-2 ${index === 0 ? "border-[var(--emerald)] bg-[var(--emerald)]" : "border-[var(--emerald)] bg-white"}`}
+            className={`relative z-10 h-3 w-3 shrink-0 rounded-full border-2 ${index === 0 ? "border-secondary bg-secondary" : "border-secondary bg-surface-container-lowest"}`}
           />
           <span>
-            <time dateTime={date} className="block text-base font-semibold tabular-nums text-[var(--navy)]">
+            <time dateTime={date} className="block text-base font-semibold tabular-nums text-primary">
               {format.format(new Date(`${date}T12:00:00Z`))}
             </time>
-            <span className="text-xs opacity-70">{index === 0 ? firstLabel : laterLabel}</span>
+            <span className="text-label-sm text-on-surface-variant">{index === 0 ? firstLabel : laterLabel}</span>
           </span>
         </li>
       ))}

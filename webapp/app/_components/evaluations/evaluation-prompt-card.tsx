@@ -16,7 +16,7 @@ export default async function EvaluationPromptCard({ userId, academyId, role }: 
   if (pending === 0) return null;
   const t = await getTranslations("evaluationPrompt");
   return (
-    <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-white p-4">
+    <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4">
       <p className="flex items-center gap-2 text-sm">
         <Icon name="rate_review" size={18} />
         {t("text", { count: pending })}
