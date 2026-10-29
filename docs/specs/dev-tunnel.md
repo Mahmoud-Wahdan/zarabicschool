@@ -1,33 +1,42 @@
 # Dev tunnel (Cloudflare Tunnel) and how to measure speed
 
-> L3 (owner list, 2026-10-28); tunnel changed 2026-10-29. No secret, token or tunnel
+> L3 (owner list, 2026-10-28); tunnel changed 2026-10-29; D73 confirmed 2026-10-29. No secret, token or tunnel
 > address in this file; the tunnel address lives only in `webapp/.env` as `APP_PUBLIC_URL`.
 
-## Which tunnel (2026-10-29): Cloudflare Tunnel instead of ngrok
+## Rule (D73, confirmed by the owner 2026-10-29)
 
-ngrok's free plan is what the 2026-10-28 numbers below were measured on: its edge answered
-5xx under load (17–29 failed files on a dev page, 10 on a fresh production login), it shows a
-warning page to browsers, and the header that skips it breaks script loading. The new default
-is **Cloudflare Tunnel** (`cloudflared`): free, no warning page, no request cap of that kind,
-and a **stable hostname** when you use a named tunnel. ngrok still works the same way if you
-need it (`ngrok http 3000`); everything in "After the tunnel starts" applies to both.
+**A tunnel is used ONLY for Paymob webhook tests. Everything else runs on `http://localhost:3000`.**
 
-**Not measured yet:** the cloud session that made this switch could not reach Cloudflare
-(its network policy refuses `api.trycloudflare.com` and `*.argotunnel.com`). Re-measure
-with the scripts below on the PC before relying on the numbers (they are ngrok's).
-
-## When you need a tunnel
-
-- **Paymob test mode only** — Paymob's servers must reach the transaction-processed callback
-  and the return page. Nothing else needs a public URL.
-- **OpenWA does not need it** when it runs on the same PC: register its webhook with
+- **Paymob test mode:** Paymob's servers must reach the transaction-processed callback
+  (`/api/payments/paymob/webhook`) and the subscription callback
+  (`/api/payments/paymob/subscription-webhook`). Only these need a public URL.
+- **Paymob return page:** it is a browser redirect, so it can stay on localhost
+  (`http://localhost:3000/ar/payments/paymob/return`, D23). No tunnel is needed for it.
+- **OpenWA does not need a tunnel.** It runs on the same PC: register its webhook with
   `http://localhost:3000/api/whatsapp/status` and add `SSRF_ALLOWED_HOSTS=localhost,127.0.0.1`
-  to `OpenWA/.env` (OpenWA refuses private addresses otherwise). Verified 2026-10-29: OpenWA's
-  signed `session.status` and test deliveries reached the app and passed the signature check.
-- **A phone or another computer** opening the app: use the production build (below).
-- **Everything else: browse `http://localhost:3000`.**
-- **Never browse `next dev` through a tunnel.** Dev mode serves ~35 separate files per page
-  and is slow on this PC (see "The PC itself").
+  to `OpenWA/.env` (OpenWA refuses private addresses otherwise). The owner tested a real number
+  through OpenWA on 2026-10-29 and it works (D79).
+- **Daily browsing, UI checks, a phone:** localhost. Never browse `next dev` through a tunnel.
+  Dev mode serves ~35 separate files per page and is slow on this PC (see "The PC itself").
+- Stop the tunnel as soon as the webhook test is done. It exposes the dev machine and the dev database.
+
+## Which tunnel the docs recommend: Cloudflare Tunnel (ngrok stays a fallback)
+
+**Recommended: Cloudflare Tunnel (`cloudflared`), named tunnel when you have a domain on Cloudflare.**
+
+Why:
+
+1. **Stable address.** A named tunnel keeps the same hostname. Paymob's callback URLs are set
+   once in the dashboard and never change between test sessions.
+2. **No browser warning page.** ngrok's free plan shows an interstitial, and the header that
+   skips it broke script loading in the 2026-10-28 measurements.
+3. **ngrok's free edge failed under load** on 2026-10-28: 5xx answers and dropped TLS handshakes.
+
+This matters little for webhooks, which are a few small requests, but it is the measured
+difference. **Not measured yet** for Cloudflare: the cloud session that made the switch could
+not reach Cloudflare. ngrok works the same way (`ngrok http 3000`, with its free static domain
+for a stable address). Use it if `cloudflared` is not an option; every step in
+"After the tunnel starts" applies to both.
 
 ## Option A — quick tunnel (no account, new address every start)
 
@@ -57,13 +66,15 @@ The credentials file and the cert stay on the PC (`%USERPROFILE%\.cloudflared\`)
 
 ## After the tunnel starts (any tunnel)
 
-1. `webapp/.env`: `APP_PUBLIC_URL=https://<tunnel host>` (origin only). WhatsApp join links are
-   built from it, and `next dev` allows it as a dev origin (M-3).
-2. Production start (`npm run start`) only: add the same origin to `ALLOWED_ORIGINS`
-   (comma-separated, exact, no trailing slash), or every save answers 403 `ORIGIN_NOT_ALLOWED`.
-3. Restart the app (env is read at start).
-4. Paymob dashboard (test mode): processed callback `https://<tunnel host>/api/payments/paymob/webhook`,
-   response callback `https://<tunnel host>/en/payments/paymob/return`.
+1. `webapp/.env` stays as it is: `APP_PUBLIC_URL=http://localhost:3000`. The webhooks are signed
+   server-to-server calls. They need no `ALLOWED_ORIGINS` entry and no public `APP_PUBLIC_URL`,
+   because nobody browses through the tunnel (D73).
+2. Start the app as usual. `npm run dev` is fine for a webhook-only test, because the tunnel
+   carries only Paymob's few POSTs, not pages.
+3. Pay from the browser on `http://localhost:3000`.
+4. Paymob dashboard (test mode): processed callback `https://<tunnel host>/api/payments/paymob/webhook`
+   (and the subscription callback `https://<tunnel host>/api/payments/paymob/subscription-webhook`);
+   the response callback stays `http://localhost:3000/ar/payments/paymob/return` (D23).
 5. Stop the tunnel when the test is done — it exposes the dev machine and the dev database.
 
 Notes:
@@ -72,10 +83,10 @@ Notes:
   production). Use it on purpose only.
 - For a measurement that must never send anything, use `sh scripts/perf/serve.sh start <query-log-file>`.
   It turns the worker off and points OpenWA at a closed local port for that process only; `.env` is not changed.
-- **Rate limits behind a tunnel (G-A07-5, open):** the app takes the client address from the first
-  `X-Forwarded-For` entry. Cloudflare and ngrok append the real address to a header the client
-  already sent, so a client can choose its own rate-limit bucket through the tunnel. Dev only;
-  decide the trusted-proxy rule before launch (deploy checklist).
+- **Rate limits behind a tunnel (G-A07-5, fixed 2026-10-29):** the app reads the client address
+  `TRUSTED_PROXY_HOPS` entries from the right of `X-Forwarded-For` (default 1, the address the
+  tunnel/proxy added). Entries a client sends itself on the left never choose a rate-limit bucket.
+  Set `TRUSTED_PROXY_HOPS` to the number of proxies in front of the app (deploy checklist §1).
 - Each new browser profile must download the app's files once (about 200 KiB for the login page).
   After that they come from the cache (`Cache-Control: public, max-age=31536000, immutable`, gzip).
 

@@ -56,7 +56,7 @@ Started 2026-10-26 (Session 5). Extend it; never regenerate it. The launch gaps 
 
 - [ ] OpenWA runs on an always-on host with a persistent session store; the production number is linked.
 - [ ] Delivery webhook registered to `https://<site>/api/whatsapp/status` with `OPENWA_WEBHOOK_SECRET`.
-- [ ] Live test done (it stays the LAST step).
+- [x] Live test with a real number done in the dev setup (owner, 2026-10-29, D79). Repeat one send with the production number once it is linked.
 
 ## 6. Process model
 

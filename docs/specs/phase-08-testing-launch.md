@@ -275,3 +275,6 @@ so no phone linked), Paymob through a local test double (no keys, Paymob unreach
   conflict. App behaviour unchanged.
 - **Results:** Jest 92 suites / 771 tests green; Playwright 104 tests, all as expected (6.1 min;
   one `test.fail()` left: G-WA-1).
+
+### 2026-10-29 (owner) — WhatsApp live test done
+- The owner tested OpenWA with a real number on 2026-10-29 and it works (D79). This closes the "real WhatsApp delivery / OpenWA end-to-end" gaps listed above as not covered. The automated suites still never call OpenWA; `OPENWA_SEND_ALLOWLIST` still guards non-production sends.
