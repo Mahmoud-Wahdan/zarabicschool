@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import createMiddleware from "next-intl/middleware";
 
@@ -28,6 +28,46 @@ function splitLocale(pathname: string) {
 
 function localizedUrl(path: string, locale: string, base: URL) {
   return new URL(`/${locale}${path === "/" ? "" : path}`, base);
+}
+
+/**
+ * Content-Security-Policy for pages (G-A02-1, 2026-10-29), the Next.js nonce pattern
+ * (node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md): a fresh
+ * nonce per request, which Next.js puts on its own scripts, so no inline or injected
+ * script runs without it. Styles keep 'unsafe-inline' (React style attributes; a nonce
+ * there would switch it off). CSP_REPORT_ONLY=1 sends it as Report-Only instead.
+ */
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
+
+function cspHeaderName() {
+  return process.env.CSP_REPORT_ONLY === "1" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
+}
+
+/** Locale routing with the CSP on the request (Next.js reads the nonce there) and on the response. */
+function routeWithCsp(req: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const policy = contentSecurityPolicy(nonce);
+  const header = cspHeaderName();
+  const headers = new Headers(req.headers);
+  headers.set("x-nonce", nonce);
+  headers.set(header, policy);
+  const response = handleI18nRouting(new NextRequest(req, { headers }));
+  response.headers.set(header, policy);
+  return response;
 }
 
 function rolesForRoute(rest: string): string[] | undefined {
@@ -91,7 +131,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  return handleI18nRouting(req);
+  return routeWithCsp(req);
 }
 
 export const config = {

@@ -13,7 +13,7 @@ jest.mock("next-auth/jwt", () => ({
 
 jest.mock("next-intl/middleware", () => ({
   __esModule: true,
-  default: () => (request: unknown) => ({ type: "i18n", request }),
+  default: () => (request: unknown) => ({ type: "i18n", request, headers: new Headers() }),
 }));
 
 jest.mock("next-intl/server", () => ({
@@ -213,5 +213,32 @@ describe("Phase 1 authentication and RBAC gates", () => {
     }
     getTokenMock.mockResolvedValue(null);
     expect((await proxy(request("/ar/admin/complaints"))).headers.get("location")).toBe("http://localhost:3000/ar/login");
+  });
+
+  it("sends a nonce CSP on pages and hands the same policy and nonce to the renderer (G-A02-1)", async () => {
+    getTokenMock.mockResolvedValue(null);
+    type Routed = { request: NextRequest; headers: Headers };
+    const first = (await proxy(request("/ar"))) as unknown as Routed;
+    const policy = first.headers.get("content-security-policy") ?? "";
+    const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"]) {
+      expect(policy).toContain(directive);
+    }
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+    // Next.js reads the nonce from the request's CSP header when it renders the page.
+    expect(first.request.headers.get("content-security-policy")).toBe(policy);
+    expect(first.request.headers.get("x-nonce")).toBe(nonce);
+    const second = (await proxy(request("/ar"))) as unknown as Routed;
+    expect(second.headers.get("content-security-policy")).not.toBe(policy);
+
+    process.env.CSP_REPORT_ONLY = "1";
+    try {
+      const reportOnly = (await proxy(request("/ar"))) as unknown as Routed;
+      expect(reportOnly.headers.get("content-security-policy")).toBeNull();
+      expect(reportOnly.headers.get("content-security-policy-report-only")).toContain("'nonce-");
+    } finally {
+      delete process.env.CSP_REPORT_ONLY;
+    }
   });
 });
