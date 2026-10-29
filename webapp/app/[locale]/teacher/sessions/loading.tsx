@@ -8,14 +8,14 @@ export default async function TeacherSessionsLoading() {
   return (
     <DashboardShell role="TEACHER" userName="">
       <div className="animate-pulse">
-        <div className="h-8 w-56 rounded bg-[var(--line)]" />
-        <div className="mt-3 h-4 w-72 rounded bg-[var(--line)]" />
+        <div className="h-8 w-56 rounded bg-surface-container-high" />
+        <div className="mt-3 h-4 w-72 rounded bg-surface-container-high" />
         <div className="mt-6 space-y-3">
           {[0, 1, 2, 3].map((row) => (
-            <div key={row} className="h-20 rounded-xl bg-[var(--line)]" />
+            <div key={row} className="h-20 rounded-xl bg-surface-container-high" />
           ))}
         </div>
-        <p className="mt-6 text-center text-sm text-[var(--foreground)] opacity-60">{t("loading")}</p>
+        <p className="mt-6 text-center text-sm text-on-surface-variant">{t("loading")}</p>
       </div>
     </DashboardShell>
   );

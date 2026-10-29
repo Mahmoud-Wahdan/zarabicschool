@@ -237,7 +237,7 @@ export default function ReportForm({
         <div className="flex flex-col gap-1 rounded-lg bg-error-container px-4 py-3 text-on-error-container">
           <p className="text-body-md font-bold">{t("rejectedBanner")}</p>
           <p className="text-body-sm">{initial.rejectionReason}</p>
-          <p className="text-label-sm opacity-80">{t("rejectedHint")}</p>
+          <p className="text-label-sm text-on-surface-variant">{t("rejectedHint")}</p>
         </div>
       ) : null}
 

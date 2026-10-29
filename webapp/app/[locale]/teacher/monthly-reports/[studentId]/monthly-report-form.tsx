@@ -136,7 +136,7 @@ export default function MonthlyReportForm({
 
         <label className="flex flex-col gap-1 text-body-sm">
           <span className="font-semibold text-on-surface">{content.monthLabel}</span>
-          <input value={monthKey} readOnly disabled className={`${selectClass} opacity-70`} />
+          <input value={monthKey} readOnly disabled className={`${selectClass} text-on-surface-variant`} />
         </label>
         <label className="flex flex-col gap-1 text-body-sm">
           <span className="font-semibold text-on-surface">{content.languageLabel}</span>

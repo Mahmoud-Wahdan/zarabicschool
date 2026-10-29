@@ -30,8 +30,8 @@
 | zarabicschool_5 (admission portal) | /apply | done |
 | zarabicschool_4, 6, 7 (guardian / student / teacher application forms) | /apply?role=… (apply-form, old: 47) | **to do (8)** |
 | zarabicschool_12 (teacher week) | /teacher/calendar | done |
-| zarabicschool_13 (teacher reports) | /teacher/sessions (old) | **to do (6)** |
-| zarabicschool_14 (teacher earnings) | /teacher/payroll (old) | **to do (6)** |
+| zarabicschool_13 (teacher reports) | /teacher/sessions | **done (page 6)** |
+| zarabicschool_14 (teacher earnings) | /teacher/payroll | **done (page 6)** |
 | zarabicschool_15 (guardian family home) | /guardian (old) | **to do (7)** |
 | zarabicschool_16 (guardian reports + subscriptions) | /guardian/reports (old) | **to do (7)** |
 | zarabicschool_17 (session evaluation prompt) | evaluation card on family homes | **to do (7)** |
@@ -55,3 +55,4 @@
 - 2026-10-29: page 3 /admin/applications (list + detail, review, approve, credentials) on the Stitch kit; no logic change; applications suite green; detector clean.
 - 2026-10-29: page 4 /admin/payroll (page, entry panel, adjustments ledger) on the Stitch kit; no logic change; payroll suites green; detector clean.
 - 2026-10-29: page 5 people directory (students, teachers, guardians, privileged users) on the Stitch kit: PageHeader on each, kit cards/fields/buttons in both panels; no logic change; teacher-approval, WhatsApp link, RBAC suites green; detector clean.
+- 2026-10-29: page 6 teacher pages (home, sessions, attendance, payroll, monthly reports, calendar and indicators headers, report and monthly forms, loading/error states) on the Stitch kit; the navy banners and plain headings became PageHeader; no logic change; indicators, report, zone, contrast, i18n suites green; detector clean.

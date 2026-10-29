@@ -5,6 +5,7 @@ import DashboardShell from "../../../_components/dashboard-shell";
 import { getCalendarSessions } from "../../../../lib/calendar/data";
 import { buildWeek, parseWeekParam } from "../../../../lib/calendar/week";
 import { requireRole } from "../../../../lib/dal";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("calendar");
@@ -22,8 +23,7 @@ export default async function TeacherCalendarPage({ searchParams }: { searchPara
   const sessions = await getCalendarSessions({ role: user.role, userId: user.id, academyId: user.academyId }, range);
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
-      <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
-      <p className="mt-1 text-body-sm text-on-surface-variant">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <WeekCalendar sessions={sessions} weekStart={weekStart} timeZone={timeZone} locale={locale} role="TEACHER" basePath="/teacher/calendar" />
     </DashboardShell>
   );

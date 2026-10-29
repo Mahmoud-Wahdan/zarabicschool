@@ -8,6 +8,7 @@ import { entryCategory } from "../../../../lib/payroll/adjustments";
 import { creditAmountMinor } from "../../../../lib/payroll/rates";
 import { formatMoney } from "../../../../lib/payments/format";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("payroll");
@@ -78,36 +79,35 @@ export default async function TeacherPayrollPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("teacherTitle")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("teacherSubtitle")}</p>
+      <PageHeader title={t("teacherTitle")} subtitle={t("teacherSubtitle")} />
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[...balanceByCurrency.entries()].map(([currency, total]) => (
-          <div key={currency} className="rounded-xl border border-[var(--line)] bg-white p-5">
-            <h2 className="text-sm font-semibold text-[var(--navy)]">{t("balanceLabel")} ({currency})</h2>
+          <div key={currency} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+            <h2 className="text-sm font-semibold text-primary">{t("balanceLabel")} ({currency})</h2>
             <p className="mt-2 text-2xl font-bold">{formatMoney(total, currency, locale)}</p>
             {pendingByCurrency.get(currency) ? (
-              <p className="mt-1 text-xs opacity-70">
+              <p className="mt-1 text-label-sm text-on-surface-variant">
                 {t("pendingLabel")}: {formatMoney(pendingByCurrency.get(currency) ?? 0, currency, locale)}
               </p>
             ) : null}
           </div>
         ))}
         {balanceByCurrency.size === 0 ? (
-          <div className="rounded-xl border border-[var(--line)] bg-white p-5 sm:col-span-2 lg:col-span-3">
+          <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 sm:col-span-2 lg:col-span-3">
             <EmptyState icon="payments" title={t("balanceLabel")} description={t("emptyLedger")} />
           </div>
         ) : null}
       </section>
 
-      <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5">
-        <h2 className="font-semibold text-[var(--navy)]">{t("ledgerTitle")}</h2>
+      <section className="mt-6 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+        <h2 className="font-semibold text-primary">{t("ledgerTitle")}</h2>
         {entries.length === 0 ? (
-          <p className="mt-3 text-sm opacity-70">{t("emptyLedger")}</p>
+          <p className="mt-3 text-body-sm text-on-surface-variant">{t("emptyLedger")}</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[720px] text-start text-sm">
-              <thead className="border-b border-[var(--line)] text-xs opacity-70">
+              <thead className="border-b border-outline-variant text-label-sm text-on-surface-variant">
                 <tr>
                   <th className="px-3 py-2 text-start">{t("colDate")}</th>
                   <th className="px-3 py-2 text-start">{t("colType")}</th>
@@ -120,11 +120,11 @@ export default async function TeacherPayrollPage() {
               </thead>
               <tbody>
                 {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-[var(--line)] last:border-0">
-                    <td className="px-3 py-3 opacity-70">
+                  <tr key={entry.id} className="border-b border-outline-variant last:border-0">
+                    <td className="px-3 py-3 text-on-surface-variant">
                       {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone, dateStyle: "short", timeStyle: "short" }).format(entry.createdAt)}
                     </td>
-                    <td className="px-3 py-3">{t(`entryType.${entry.entryType}`)}{entry.entryType === "ADMIN_ADJUSTMENT" && entryCategory(entry) !== "UNCATEGORIZED" ? <span className="block text-xs opacity-70">{t(`category.${entryCategory(entry)}`)}</span> : null}</td>
+                    <td className="px-3 py-3">{t(`entryType.${entry.entryType}`)}{entry.entryType === "ADMIN_ADJUSTMENT" && entryCategory(entry) !== "UNCATEGORIZED" ? <span className="block text-label-sm text-on-surface-variant">{t(`category.${entryCategory(entry)}`)}</span> : null}</td>
                     <td className="px-3 py-3 font-semibold">{formatMoney(entry.amountMinor, entry.currency, locale)}</td>
                     <td className="px-3 py-3">
                       {entry.session
@@ -132,8 +132,8 @@ export default async function TeacherPayrollPage() {
                         : "—"}
                     </td>
                     <td className="px-3 py-3">{entry.minutesCredited ?? "—"}</td>
-                    <td className="px-3 py-3 opacity-70">{entry.reason ?? "—"}</td>
-                    <td className="px-3 py-3 opacity-70">{entry.createdById ? t("adminTitle") : t("system")}</td>
+                    <td className="px-3 py-3 text-on-surface-variant">{entry.reason ?? "—"}</td>
+                    <td className="px-3 py-3 text-on-surface-variant">{entry.createdById ? t("adminTitle") : t("system")}</td>
                   </tr>
                 ))}
               </tbody>

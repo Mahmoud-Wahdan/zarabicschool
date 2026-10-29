@@ -9,6 +9,7 @@ import { prisma } from "../../../../lib/prisma";
 import { currentMonthKey, formatMonthLabel, isValidMonthKey, previousMonthKey } from "../../../../lib/reports/month-key";
 import { eligibleMonthlyStudents } from "../../../../lib/reports/monthly";
 import { isSession1ReportsReady } from "../../../../lib/reports/session1-ready";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("teacherMonthly");
@@ -71,8 +72,7 @@ export default async function TeacherMonthlyReportsPage({
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
-      <p className="mt-1 text-body-sm text-on-surface-variant">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       <form className="z-card mt-4 flex flex-wrap items-end gap-3 rounded-xl p-4" action={`/teacher/monthly-reports`}>
         <label className="flex flex-col gap-1 text-label-md font-semibold text-on-surface">

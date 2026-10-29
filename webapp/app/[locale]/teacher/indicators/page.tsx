@@ -8,6 +8,7 @@ import { formatMonthLabel } from "../../../../lib/reports/month-key";
 import { getTeacherIndicators, parseMonthParam } from "../../../../lib/performance/teacher-indicators";
 import { prisma } from "../../../../lib/prisma";
 import { formatDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("performance");
@@ -41,8 +42,7 @@ export default async function TeacherIndicatorsPage({ searchParams }: { searchPa
     : [];
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
-      <h1 className="text-headline-md font-bold text-primary">{t("teacherTitle")}</h1>
-      <p className="mt-1 text-body-sm text-on-surface-variant">{t("teacherSubtitle")}</p>
+      <PageHeader title={t("teacherTitle")} subtitle={t("teacherSubtitle")} />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-title-md font-bold text-primary">{formatMonthLabel(month, locale === "en" ? "en" : "ar")}</p>
         <MonthNav month={month} basePath="/teacher/indicators" labels={{ previous: t("previousMonth"), next: t("nextMonth"), nav: t("monthNav") }} />

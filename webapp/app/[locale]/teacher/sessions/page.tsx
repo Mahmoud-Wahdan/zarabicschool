@@ -12,6 +12,7 @@ import { getJoinWindowMinutes } from "../../../../lib/sessions/join-window";
 import { getTeacherRosterReportStatuses, rosterKey } from "../../../../lib/reports/roster-status";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
 import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
+import PageHeader from "../../../_components/ui/page-header";
 
 export default async function TeacherSessionsPage() {
   const user = await requireRole("TEACHER");
@@ -64,7 +65,7 @@ export default async function TeacherSessionsPage() {
     return (
       <ul className="mt-3 space-y-2">
         {session.students.map(({ student }) => (
-          <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] p-3">
+          <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-outline-variant p-3">
             <span className="text-sm">
               <Icon name="person" size={16} className="align-middle" /> {student.user.displayName}
             </span>
@@ -92,44 +93,40 @@ export default async function TeacherSessionsPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="calendar_month" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("teacher.title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("teacher.subtitle")}</p>
-      </section>
+      <PageHeader title={t("teacher.title")} subtitle={t("teacher.subtitle")} />
 
       <section className="mt-6 space-y-3">
-        <h2 className="text-lg font-bold text-[var(--navy)]">{t("teacher.today")}</h2>
+        <h2 className="text-headline-sm font-bold text-primary">{t("teacher.today")}</h2>
         {todays.map((session) => (
-          <article key={session.id} className="lift-card dashboard-card p-5">
+          <article key={session.id} className="z-card lift-card rounded-xl p-5">
             <div className="flex flex-wrap justify-between gap-3">
-              <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-              <span className="text-sm opacity-70">
+              <strong className="text-primary">{subjectName(session.subject)}</strong>
+              <span className="text-body-sm text-on-surface-variant">
                 {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} · {statusLabel(session)} · {t(`types.${session.sessionType}`)}
               </span>
             </div>
             {roster(session, true)}
           </article>
         ))}
-        {!todays.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("teacher.todayEmpty")}</p> : null}
+        {!todays.length ? <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("teacher.todayEmpty")}</p> : null}
       </section>
 
       <section className="mt-6 space-y-3">
-        <h2 className="text-lg font-bold text-[var(--navy)]">{t("teacher.upcoming")}</h2>
+        <h2 className="text-headline-sm font-bold text-primary">{t("teacher.upcoming")}</h2>
         {sessions.map((session) => (
-          <article key={session.id} className="lift-card dashboard-card p-5">
+          <article key={session.id} className="z-card lift-card rounded-xl p-5">
             <div className="flex flex-wrap justify-between gap-3">
-              <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-              <span className="text-sm opacity-70">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
+              <strong className="text-primary">{subjectName(session.subject)}</strong>
+              <span className="text-body-sm text-on-surface-variant">{formatSessionDateTime(session.scheduledStart, user.timezone, locale)}</span>
             </div>
-            <p className="mt-2 text-sm opacity-70">
+            <p className="mt-2 text-body-sm text-on-surface-variant">
               {statusLabel(session)} · {t(`types.${session.sessionType}`)}
             </p>
             {roster(session, true)}
             {session.status === "SCHEDULED" || session.status === "COMPLETED" ? <SessionRequestForm sessionId={session.id} /> : null}
           </article>
         ))}
-        {!sessions.length ? <p className="dashboard-card p-5 text-sm opacity-70">{t("empty")}</p> : null}
+        {!sessions.length ? <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("empty")}</p> : null}
       </section>
     </DashboardShell>
   );

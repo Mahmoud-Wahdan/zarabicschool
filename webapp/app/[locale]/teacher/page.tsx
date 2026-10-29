@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
+import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
 import RosterReportAction from "../../_components/reports/roster-report-action";
 import SessionJoinLink from "../../_components/session-join-link";
@@ -94,15 +95,12 @@ export default async function TeacherDashboard() {
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
       <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("teacher.title")}</h1>
-      <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
-        {t("teacher.welcome", { name: user.displayName })}
-      </p>
+      <PageHeader title={t("teacher.title")} subtitle={t("teacher.welcome", { name: user.displayName })} />
 
-      <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5">
+      <section className="mt-6 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.today")}</h2>
-          <Link href="/teacher/sessions" className="text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
+          <h2 className="font-semibold text-primary">{t("teacher.sections.today")}</h2>
+          <Link href="/teacher/sessions" className="text-xs text-secondary underline-offset-2 hover:underline">
             {t("teacher.actions.schedule")}
           </Link>
         </div>
@@ -115,7 +113,7 @@ export default async function TeacherDashboard() {
             // link; the host link is for Admin/Supervisor only (D45).
             const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
             return (
-              <div key={session.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
+              <div key={session.id} className="rounded-lg bg-surface p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong>{currentLocale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
                   <span className="flex flex-wrap items-center gap-2">
@@ -130,7 +128,7 @@ export default async function TeacherDashboard() {
                     ) : null}
                   </span>
                 </div>
-                <p className="mt-1 opacity-70">
+                <p className="mt-1 text-on-surface-variant">
                   {session.students.length} {t("teacher.metrics.students")} · {tSessions(`types.${session.sessionType}`)}
                 </p>
                 {session.status !== "CANCELLED" && session.status !== "MISSED" ? (
@@ -161,18 +159,18 @@ export default async function TeacherDashboard() {
         </div>
       </section>
 
-      <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
+      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.monthly")}</h2>
-          <Link href="/teacher/monthly-reports" className="cta-primary rounded-lg px-3 py-2 text-xs">
+          <h2 className="font-semibold text-primary">{t("teacher.sections.monthly")}</h2>
+          <Link href="/teacher/monthly-reports" className="btn btn-primary px-3 py-2 text-xs">
             {t("teacher.actions.monthlyReports")}
           </Link>
         </div>
-        <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">{t("teacher.monthlyHint")}</p>
+        <p className="mt-2 text-sm text-on-surface-variant">{t("teacher.monthlyHint")}</p>
         {monthlyMissing > 0 ? (
           <Link
             href={`/teacher/monthly-reports?month=${lastMonthKey}`}
-            className="mt-3 block rounded-lg border border-[var(--line)] bg-error-container px-3 py-2 text-sm font-semibold text-on-error-container"
+            className="mt-3 block rounded-lg border border-outline-variant bg-error-container px-3 py-2 text-sm font-semibold text-on-error-container"
           >
             {t("teacher.monthlyMissing", {
               count: monthlyMissing,
@@ -183,23 +181,23 @@ export default async function TeacherDashboard() {
       </section>
 
       <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">{t("teacher.actions.schedule")}</Link>
-      <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
-        <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.reports")}</h2>
-        <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">
+      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+        <h2 className="font-semibold text-primary">{t("teacher.sections.reports")}</h2>
+        <p className="mt-2 text-sm text-on-surface-variant">
           {teacher?.subjects.length ?? 0} {t("teacher.metrics.subjects")}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {teacher?.subjects.map(({ subject }) => (
-            <span key={subject.nameEn} className="rounded-full bg-[var(--background)] px-3 py-1 text-sm">
+            <span key={subject.nameEn} className="rounded-full bg-surface px-3 py-1 text-sm">
               {currentLocale === "ar" ? subject.nameAr : subject.nameEn}
             </span>
           ))}
         </div>
       </section>
-      <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
-        <h2 className="font-semibold text-[var(--navy)]">{t("teacher.sections.salary")}</h2>
-        <p className="mt-2 text-sm text-[var(--foreground)] opacity-70">{t("teacher.metrics.salaryUnavailable")}</p>
-        <Link href="/teacher/payroll" className="cta-primary mt-3 inline-block rounded-lg px-3 py-2 text-xs">
+      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
+        <h2 className="font-semibold text-primary">{t("teacher.sections.salary")}</h2>
+        <p className="mt-2 text-sm text-on-surface-variant">{t("teacher.metrics.salaryUnavailable")}</p>
+        <Link href="/teacher/payroll" className="btn btn-primary mt-3 inline-block rounded-lg px-3 py-2 text-xs">
           {tShell("nav.payroll")}
         </Link>
       </section>

@@ -1,11 +1,11 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
-import Icon from "../../../_components/ui/icon";
 import StatusBadge from "../../../_components/ui/status-badge";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
+import PageHeader from "../../../_components/ui/page-header";
 
 export async function generateMetadata() {
   const t = await getTranslations("attendance");
@@ -47,23 +47,19 @@ export default async function TeacherAttendancePage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <section className="relative overflow-hidden rounded-[2rem] bg-[var(--navy)] px-6 py-8 text-white sm:px-10">
-        <Icon name="fact_check" size={32} className="text-[var(--gold)]" />
-        <h1 className="mt-3 text-3xl font-bold">{t("teacher.title")}</h1>
-        <p className="mt-2 text-sm text-white/80">{t("teacher.subtitle")}</p>
-      </section>
+      <PageHeader title={t("teacher.title")} subtitle={t("teacher.subtitle")} />
       <div className="mt-6 space-y-3">
         {sessions.map((session) => (
-          <article key={session.id} className="dashboard-card p-5">
+          <article key={session.id} className="z-card rounded-xl p-5">
             <div className="flex flex-wrap justify-between gap-2">
-              <strong className="text-[var(--navy)]">{subjectName(session.subject)}</strong>
-              <span className="text-sm opacity-70">
+              <strong className="text-primary">{subjectName(session.subject)}</strong>
+              <span className="text-body-sm text-on-surface-variant">
                 {formatSessionDateTime(session.scheduledStart, user.timezone, locale)} · {t(`sessionStatuses.${session.status}`)}
               </span>
             </div>
             <ul className="mt-3 space-y-2">
               {session.students.map(({ studentId, attendanceStatus, student }) => (
-                <li key={studentId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] p-3">
+                <li key={studentId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-outline-variant p-3">
                   <span className="text-sm">{student.user.displayName}</span>
                   <span className="flex items-center gap-2">
                     <StatusBadge
@@ -77,12 +73,12 @@ export default async function TeacherAttendancePage() {
                   </span>
                 </li>
               ))}
-              {session.students.length === 0 ? <li className="text-sm opacity-70">{t("noStudents")}</li> : null}
+              {session.students.length === 0 ? <li className="text-body-sm text-on-surface-variant">{t("noStudents")}</li> : null}
             </ul>
           </article>
         ))}
         {!sessions.length ? (
-          <p className="dashboard-card p-5 text-sm opacity-70">{t("teacher.empty")}</p>
+          <p className="z-card rounded-xl p-5 text-body-sm text-on-surface-variant">{t("teacher.empty")}</p>
         ) : null}
       </div>
     </DashboardShell>
