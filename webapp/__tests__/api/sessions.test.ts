@@ -18,6 +18,7 @@ import { POST as replacementRoute } from "../../app/api/sessions/[id]/replacemen
 import { POST as recurrencesRoute } from "../../app/api/sessions/recurrences/route";
 import { POST as changeRequestRoute } from "../../app/api/sessions/[id]/change-request/route";
 import { GET as joinRoute } from "../../app/api/sessions/[id]/join/route";
+import * as sessionLinkRoute from "../../app/api/sessions/[id]/link/route";
 import { PATCH as reviewChangeRequestRoute } from "../../app/api/session-change-requests/[id]/route";
 import { POST as enrollRoute, DELETE as unenrollRoute } from "../../app/api/admin/enrollments/route";
 import {
@@ -351,26 +352,39 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
       },
     });
 
+    // B5 (2026-10-29): the session list never carries a Zoom link for ANY role —
+    // joining goes only through the join route (click log + window), and staff
+    // read the current links for editing from GET /api/sessions/:id/link.
+    for (const actor of [fx.adminUserId, fx.supervisorUserId, fx.teacherUserId, fx.studentUserIds.student1, fx.guardianUserId]) {
+      asActor(actor);
+      const list = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
+      const text = await list.text();
+      expect(text).not.toContain("zoom.us");
+      const item = JSON.parse(text).data.find((row: { id: string }) => row.id === sessionId);
+      expect(item).toBeDefined();
+      expect(item).not.toHaveProperty("zoomJoinUrl");
+      expect(item).not.toHaveProperty("zoomHostUrl");
+    }
     asActor(fx.adminUserId);
-    const adminList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const adminPayload = await adminList.json();
-    const adminItem = adminPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(adminItem.zoomHostUrl).toBe(HOST_URL);
-    expect(adminItem.zoomJoinUrl).toBe(JOIN_URL);
-
+    const adminItem = (await (await listSessionsRoute(new Request("http://localhost:3000/api/sessions"))).json()).data.find((row: { id: string }) => row.id === sessionId);
+    expect(adminItem.hasHostLink).toBe(true);
     asActor(fx.studentUserIds.student1);
-    const studentList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const studentPayload = await studentList.json();
-    const studentItem = studentPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(studentItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(studentItem.zoomHostUrl).toBeUndefined();
+    const studentItem = (await (await listSessionsRoute(new Request("http://localhost:3000/api/sessions"))).json()).data.find((row: { id: string }) => row.id === sessionId);
+    expect(studentItem).not.toHaveProperty("hasHostLink");
 
-    asActor(fx.guardianUserId);
-    const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const guardianPayload = await guardianList.json();
-    const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(guardianItem.zoomHostUrl).toBeUndefined();
+    // The link editor's source: Admin and Supervisor only, academy-scoped, never cached.
+    const readLinks = () => sessionLinkRoute.GET(new Request(`http://localhost:3000/api/sessions/${sessionId}/link`), routeParams(sessionId));
+    for (const actor of [fx.adminUserId, fx.supervisorUserId]) {
+      asActor(actor);
+      const response = await readLinks();
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      expect((await response.json()).data).toEqual({ zoomJoinUrl: JOIN_URL, zoomHostUrl: HOST_URL });
+    }
+    for (const actor of [fx.teacherUserId, fx.studentUserIds.student1, fx.guardianUserId]) {
+      asActor(actor);
+      expect((await readLinks()).status).toBe(403);
+    }
 
     asActor(fx.studentUserIds.student1);
     const studentJoin = await joinRoute(new Request(`http://localhost:3000/api/sessions/${sessionId}/join`), routeParams(sessionId));
@@ -546,8 +560,8 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const guardianPayload = await guardianList.json();
     const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(guardianItem.zoomHostUrl).toBeUndefined();
+    expect(guardianItem.status).toBe("CANCELLED");
+    expect(guardianItem).not.toHaveProperty("zoomJoinUrl");
   });
 
   it("regression R27: change requests never mutate the session and require a scheduled target", async () => {

@@ -61,13 +61,16 @@ test("the Admin books a private session through the smart form", async ({ open, 
   await form.getByRole("button", { name: "Demo Test student4" }).click();
   await form.getByRole("button", { name: t.single.create }).click();
 
+  // The session list carries no Zoom link (B5), so the new row is found by its link in the DB.
+  const findCreated = async () =>
+    query<{ id: string; status: string; scheduled_start: Date; scheduled_end: Date }>("SELECT id, status, scheduled_start, scheduled_end FROM sessions WHERE zoom_join_url = $1", [link]);
+  await expect.poll(async () => (await findCreated()).length).toBe(1);
+  const [row] = await findCreated();
+  const session = { id: row.id, status: row.status, scheduledStart: new Date(row.scheduled_start).toISOString(), scheduledEnd: new Date(row.scheduled_end).toISOString() };
   const admin = await api("admin");
-  await expect
-    .poll(async () => ((await (await admin.get("/api/sessions")).json()).data as { zoomJoinUrl: string }[]).some((s) => s.zoomJoinUrl === link))
-    .toBe(true);
-  const session = ((await (await admin.get("/api/sessions")).json()).data as { id: string; zoomJoinUrl: string; status: string; scheduledStart: string; scheduledEnd: string }[]).find(
-    (s) => s.zoomJoinUrl === link,
-  )!;
+  const listed = ((await (await admin.get("/api/sessions")).json()).data as { id: string }[]).find((s) => s.id === session.id);
+  expect(listed).toBeDefined();
+  expect(JSON.stringify(listed)).not.toContain("zoom.us");
   expect(session.status).toBe("SCHEDULED");
   // The typed time is Cairo wall clock (the viewer's zone), stored as the right instant.
   expect(new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", hour: "2-digit", minute: "2-digit" }).format(new Date(session.scheduledStart))).toBe(slot.start.slice(11, 16));

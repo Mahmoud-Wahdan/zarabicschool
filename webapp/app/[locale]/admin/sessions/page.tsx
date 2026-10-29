@@ -3,6 +3,7 @@ import DashboardShell from "../../../_components/dashboard-shell";
 import MetricTile from "../../../_components/ui/metric-tile";
 import PageHeader from "../../../_components/ui/page-header";
 import { getTodaySessions } from "../../../../lib/dashboard/today-sessions";
+import { withoutZoomLinks } from "../../../../lib/sessions/without-zoom-links";
 import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { findLinkOverlaps } from "../../../../lib/scheduling/link-overlap";
@@ -83,11 +84,13 @@ export default async function SessionsPage() {
       <SessionManagementPanel
         viewerTimezone={user.timezone}
         locale={locale}
-        sessions={sessions.map(({ _count, ...session }) => ({
-          ...session,
+        // The links stay on the server (overlap check above); the editor loads them on
+        // demand from GET /api/sessions/:id/link (B5).
+        sessions={sessions.map(({ _count, ...row }) => ({
+          ...withoutZoomLinks(row),
           reportCount: _count.reports,
-          scheduledStart: session.scheduledStart.toISOString(),
-          scheduledEnd: session.scheduledEnd.toISOString(),
+          scheduledStart: row.scheduledStart.toISOString(),
+          scheduledEnd: row.scheduledEnd.toISOString(),
         }))}
         series={seriesList}
         changeRequests={changeRequests.map((changeRequest) => ({

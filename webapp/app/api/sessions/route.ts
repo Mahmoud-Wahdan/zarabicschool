@@ -8,6 +8,7 @@ import { SchedulingValidationError, assertTeacherFree, resolveParticipants } fro
 import { sessionCreateSchema } from "../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../lib/validation/zoom-url";
 import { requireSameOrigin } from "../../../lib/request";
+import { withoutZoomLinks } from "../../../lib/sessions/without-zoom-links";
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);
@@ -74,10 +75,11 @@ export async function GET(request: Request) {
   // reportCount = submitted session reports (display-only "awaiting reports X of Y");
   // operators and the session's teacher only — family roles never learn classmates' report state.
   const staff = user.role === "ADMIN" || user.role === "SUPERVISOR" || user.role === "TEACHER";
-  const data = sessions.map(({ zoomHostUrl, _count, ...session }) => ({
-    ...session,
-    ...(staff ? { zoomHostUrl, reportCount: _count.reports } : {}),
-  }));
+  // B5: no Zoom link leaves this list for any role (lib/sessions/without-zoom-links.ts).
+  const data = sessions.map(({ _count, ...row }) => {
+    const { hasHostLink, ...session } = withoutZoomLinks(row);
+    return { ...session, ...(staff ? { hasHostLink, reportCount: _count.reports } : {}) };
+  });
   return NextResponse.json({ data });
 }
 

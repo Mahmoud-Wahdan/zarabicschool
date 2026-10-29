@@ -14,7 +14,7 @@ import {
   useTeacherOptions,
 } from "./use-smart-session-form";
 
-type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; zoomJoinUrl: string; zoomHostUrl: string | null; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[]; reportCount?: number };
+type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; hasHostLink?: boolean; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[]; reportCount?: number };
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
@@ -160,6 +160,21 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
     setBusy(false);
   }
 
+  // B5: the list carries no Zoom link; the editor reads the current ones on demand.
+  async function openLinkEdit(sessionId: string) {
+    if (linkEdit?.id === sessionId) {
+      setLinkEdit(null);
+      return;
+    }
+    const response = await fetch(`/api/sessions/${sessionId}/link`, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(payload.error?.message ?? t("errors.submit"));
+      return;
+    }
+    setLinkEdit({ id: sessionId, joinUrl: payload.data?.zoomJoinUrl ?? "", hostUrl: payload.data?.zoomHostUrl ?? "" });
+  }
+
   async function saveSessionLinks(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!linkEdit) return;
@@ -176,7 +191,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       const hasOverlapWarning = (payload.data?.warnings ?? []).length > 0;
       setMessage(hasOverlapWarning ? t("overlap.savedWithWarning") : t("messages.linkUpdated"));
       setSessions((current) => current.map((session) => session.id === linkEdit.id
-        ? { ...session, zoomJoinUrl: linkEdit.joinUrl.trim(), zoomHostUrl: linkEdit.hostUrl.trim() || null }
+        ? { ...session, hasHostLink: linkEdit.hostUrl.trim() !== "" }
         : session));
       setLinkEdit(null);
     }
@@ -374,7 +389,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                     <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, ...rangeToInputs(session.scheduledStart, session.scheduledEnd, viewerTimezone) })} className="btn btn-outline">{t("actions.reschedule")}</button>
                     <button
                       type="button"
-                      onClick={() => setLinkEdit(linkEdit?.id === session.id ? null : { id: session.id, joinUrl: session.zoomJoinUrl, hostUrl: session.zoomHostUrl ?? "" })}
+                      onClick={() => void openLinkEdit(session.id)}
                       className="btn btn-outline"
                     >
                       {t("actions.editLink")}
