@@ -199,14 +199,14 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
   if (isSuccess) {
     return (
-      <div className="mx-auto max-w-xl rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-8 text-center shadow-sm">
-        <CheckCircle2 className="mx-auto h-16 w-16 text-[var(--emerald)]" />
-        <h2 className="mt-4 text-2xl font-bold text-[var(--navy)]">{t("successTitle")}</h2>
-        <p className="mt-3 leading-relaxed text-[var(--foreground)]/80">
+      <div className="mx-auto max-w-xl rounded-3xl border border-outline-variant bg-surface-container-lowest p-8 text-center shadow-sm">
+        <CheckCircle2 className="mx-auto h-16 w-16 text-secondary" />
+        <h2 className="mt-4 text-2xl font-bold text-primary">{t("successTitle")}</h2>
+        <p className="mt-3 leading-relaxed text-on-surface/80">
           {t("successMessage")}
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href="/" className="cta-primary">
+          <Link href="/" className="btn btn-primary">
             {t("backHome")}
           </Link>
           <button
@@ -242,22 +242,22 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
       <div className="mb-6">
         <Link
           href="/apply"
-          className="text-sm font-semibold text-[var(--emerald)] hover:underline"
+          className="text-sm font-semibold text-secondary hover:underline"
         >
           {t("backToRoles")}
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-[var(--navy)] sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">
           {roleTitle}
         </h1>
-        <p className="mt-1 text-sm text-[var(--foreground)]/80">{roleSubtitle}</p>
+        <p className="mt-1 text-sm text-on-surface/80">{roleSubtitle}</p>
       </div>
 
       {generalError ? (
         <div
           role="alert"
-          className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="mb-6 flex items-start gap-3 rounded-2xl border border-error/40 bg-error-container p-4 text-sm text-on-error-container"
         >
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+          <AlertCircle className="h-5 w-5 shrink-0 text-error" />
           <p>{generalError}</p>
         </div>
       ) : null}
@@ -265,7 +265,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="space-y-6 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm sm:p-8"
+        className="space-y-6 rounded-3xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm sm:p-8"
       >
         {/* Honeypot field (hidden from legitimate users) */}
         <div className="absolute left-[-9999px] h-0 w-0 overflow-hidden opacity-0" aria-hidden="true">
@@ -282,8 +282,8 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
         {/* Full Name */}
         <div>
-          <label htmlFor={`${formId}-name`} className="block text-sm font-semibold text-[var(--navy)]">
-            {t("fullName")} <span className="text-red-500">*</span>
+          <label htmlFor={`${formId}-name`} className="block text-sm font-semibold text-primary">
+            {t("fullName")} <span className="text-error">*</span>
           </label>
           <input
             id={`${formId}-name`}
@@ -293,19 +293,19 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
             placeholder={t("fullNamePlaceholder")}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-              fieldErrors.full_name ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+              fieldErrors.full_name ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
             }`}
           />
           {fieldErrors.full_name ? (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.full_name[0]}</p>
+            <p className="mt-1 text-xs text-error">{fieldErrors.full_name[0]}</p>
           ) : null}
         </div>
 
         {/* WhatsApp Phone */}
         <div>
-          <label htmlFor={`${formId}-phone`} className="block text-sm font-semibold text-[var(--navy)]">
-            {t("phoneWhatsapp")} <span className="text-red-500">*</span>
+          <label htmlFor={`${formId}-phone`} className="block text-sm font-semibold text-primary">
+            {t("phoneWhatsapp")} <span className="text-error">*</span>
           </label>
           <input
             id={`${formId}-phone`}
@@ -316,18 +316,18 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
             placeholder={t("phoneWhatsappPlaceholder")}
             value={phoneWhatsapp}
             onChange={(e) => setPhoneWhatsapp(e.target.value)}
-            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-              fieldErrors.phone_whatsapp ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+              fieldErrors.phone_whatsapp ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
             }`}
           />
           {fieldErrors.phone_whatsapp ? (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.phone_whatsapp[0]}</p>
+            <p className="mt-1 text-xs text-error">{fieldErrors.phone_whatsapp[0]}</p>
           ) : null}
         </div>
 
         {/* Email (Optional) */}
         <div>
-          <label htmlFor={`${formId}-email`} className="block text-sm font-semibold text-[var(--navy)]">
+          <label htmlFor={`${formId}-email`} className="block text-sm font-semibold text-primary">
             {t("email")}
           </label>
           <input
@@ -338,40 +338,40 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
             placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-              fieldErrors.email ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+              fieldErrors.email ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
             }`}
           />
           {fieldErrors.email ? (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.email[0]}</p>
+            <p className="mt-1 text-xs text-error">{fieldErrors.email[0]}</p>
           ) : null}
         </div>
 
         {/* Preferred Language */}
         <div>
-          <label className="block text-sm font-semibold text-[var(--navy)]">
+          <label className="block text-sm font-semibold text-primary">
             {t("preferredLanguage")}
           </label>
           <div className="mt-2 flex gap-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
+            <label className="flex items-center gap-2 text-sm font-medium text-on-surface">
               <input
                 type="radio"
                 name="preferred_language"
                 value="ar"
                 checked={preferredLanguage === "ar"}
                 onChange={() => setPreferredLanguage("ar")}
-                className="text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                className="text-secondary focus:ring-secondary"
               />
               {t("langAr")}
             </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
+            <label className="flex items-center gap-2 text-sm font-medium text-on-surface">
               <input
                 type="radio"
                 name="preferred_language"
                 value="en"
                 checked={preferredLanguage === "en"}
                 onChange={() => setPreferredLanguage("en")}
-                className="text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                className="text-secondary focus:ring-secondary"
               />
               {t("langEn")}
             </label>
@@ -382,14 +382,14 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
         {/* 1. GUARDIAN: Children Details */}
         {type === "guardian" ? (
-          <div className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--background)] p-4 sm:p-5">
+          <div className="space-y-4 rounded-2xl border border-outline-variant bg-surface p-4 sm:p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-[var(--navy)]">{t("childrenSectionTitle")}</h3>
+              <h3 className="font-bold text-primary">{t("childrenSectionTitle")}</h3>
               {children.length < 10 ? (
                 <button
                   type="button"
                   onClick={handleAddChild}
-                  className="flex items-center gap-1 text-xs font-semibold text-[var(--emerald)] hover:underline"
+                  className="flex items-center gap-1 text-xs font-semibold text-secondary hover:underline"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {t("addChild")}
@@ -400,17 +400,17 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
             {children.map((child, index) => (
               <div
                 key={index}
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 space-y-3"
+                className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--emerald)]">
+                  <span className="text-xs font-bold text-secondary">
                     {t("childNumber", { num: index + 1 })}
                   </span>
                   {children.length > 1 ? (
                     <button
                       type="button"
                       onClick={() => handleRemoveChild(index)}
-                      className="flex items-center gap-1 text-xs text-red-600 hover:underline"
+                      className="flex items-center gap-1 text-xs text-error hover:underline"
                     >
                       <Trash2 className="h-3 w-3" />
                       {t("removeChild")}
@@ -420,8 +420,8 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-semibold text-[var(--navy)]">
-                      {t("childName")} <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-primary">
+                      {t("childName")} <span className="text-error">*</span>
                     </label>
                     <input
                       type="text"
@@ -429,18 +429,18 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                       disabled={isSubmitting}
                       value={child.name}
                       onChange={(e) => handleChildChange(index, "name", e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+                      className="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-secondary"
                     />
                     {fieldErrors[`children.${index}.name`] ? (
-                      <p className="mt-1 text-xs text-red-600">
+                      <p className="mt-1 text-xs text-error">
                         {fieldErrors[`children.${index}.name`][0]}
                       </p>
                     ) : null}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[var(--navy)]">
-                      {t("childAge")} <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-primary">
+                      {t("childAge")} <span className="text-error">*</span>
                     </label>
                     <input
                       type="number"
@@ -450,10 +450,10 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                       disabled={isSubmitting}
                       value={child.age}
                       onChange={(e) => handleChildChange(index, "age", e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+                      className="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-secondary"
                     />
                     {fieldErrors[`children.${index}.age`] ? (
-                      <p className="mt-1 text-xs text-red-600">
+                      <p className="mt-1 text-xs text-error">
                         {fieldErrors[`children.${index}.age`][0]}
                       </p>
                     ) : null}
@@ -462,11 +462,11 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
                 {/* Child subjects checklist */}
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--navy)]">
-                    {t("childSubjects")} <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-primary">
+                    {t("childSubjects")} <span className="text-error">*</span>
                   </label>
                   {subjects.length === 0 ? (
-                    <p className="mt-1 text-xs text-[var(--foreground)]/70">
+                    <p className="mt-1 text-xs text-on-surface/70">
                       {t("noSubjectsAvailable")}
                     </p>
                   ) : (
@@ -479,15 +479,15 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                             key={sub.id}
                             className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-xs transition ${
                               checked
-                                ? "border-[var(--emerald)] bg-[var(--emerald)]/5 text-[var(--navy)] font-semibold"
-                                : "border-[var(--line)] bg-white text-[var(--foreground)]"
+                                ? "border-secondary bg-secondary/5 text-primary font-semibold"
+                                : "border-outline-variant bg-surface-container-lowest text-on-surface"
                             }`}
                           >
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => handleChildSubjectToggle(index, sub.slug)}
-                              className="rounded text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                              className="rounded text-secondary focus:ring-secondary"
                             />
                             <span>{subName}</span>
                           </label>
@@ -496,7 +496,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                     </div>
                   )}
                   {fieldErrors[`children.${index}.subjects`] ? (
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-error">
                       {fieldErrors[`children.${index}.subjects`][0]}
                     </p>
                   ) : null}
@@ -510,8 +510,8 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
         {type === "student" ? (
           <>
             <div>
-              <label htmlFor={`${formId}-dob`} className="block text-sm font-semibold text-[var(--navy)]">
-                {t("dateOfBirth")} <span className="text-red-500">*</span>
+              <label htmlFor={`${formId}-dob`} className="block text-sm font-semibold text-primary">
+                {t("dateOfBirth")} <span className="text-error">*</span>
               </label>
               <input
                 id={`${formId}-dob`}
@@ -520,23 +520,23 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 disabled={isSubmitting}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
-                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-                  fieldErrors.date_of_birth ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                  fieldErrors.date_of_birth ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                 }`}
               />
               {fieldErrors.date_of_birth ? (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.date_of_birth[0]}</p>
+                <p className="mt-1 text-xs text-error">{fieldErrors.date_of_birth[0]}</p>
               ) : null}
             </div>
 
             {/* Student Subjects */}
             <div>
-              <label className="block text-sm font-semibold text-[var(--navy)]">
-                {t("subjectsTitle")} <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-primary">
+                {t("subjectsTitle")} <span className="text-error">*</span>
               </label>
-              <p className="mt-0.5 text-xs text-[var(--foreground)]/70">{t("subjectsDescription")}</p>
+              <p className="mt-0.5 text-xs text-on-surface/70">{t("subjectsDescription")}</p>
               {subjects.length === 0 ? (
-                <p className="mt-2 text-xs text-[var(--foreground)]/70">{t("noSubjectsAvailable")}</p>
+                <p className="mt-2 text-xs text-on-surface/70">{t("noSubjectsAvailable")}</p>
               ) : (
                 <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {subjects.map((sub) => {
@@ -547,15 +547,15 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                         key={sub.id}
                         className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-sm transition ${
                           checked
-                            ? "border-[var(--emerald)] bg-[var(--emerald)]/5 text-[var(--navy)] font-semibold"
-                            : "border-[var(--line)] bg-white text-[var(--foreground)]"
+                            ? "border-secondary bg-secondary/5 text-primary font-semibold"
+                            : "border-outline-variant bg-surface-container-lowest text-on-surface"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => handleSubjectToggle(sub.slug, studentSubjects, setStudentSubjects)}
-                          className="rounded text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                          className="rounded text-secondary focus:ring-secondary"
                         />
                         <span>{subName}</span>
                       </label>
@@ -564,21 +564,21 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 </div>
               )}
               {fieldErrors.subjects ? (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.subjects[0]}</p>
+                <p className="mt-1 text-xs text-error">{fieldErrors.subjects[0]}</p>
               ) : null}
             </div>
 
             {/* Level */}
             <div>
-              <label htmlFor={`${formId}-level`} className="block text-sm font-semibold text-[var(--navy)]">
-                {t("level")} <span className="text-red-500">*</span>
+              <label htmlFor={`${formId}-level`} className="block text-sm font-semibold text-primary">
+                {t("level")} <span className="text-error">*</span>
               </label>
               <select
                 id={`${formId}-level`}
                 value={level}
                 disabled={isSubmitting}
                 onChange={(e) => setLevel(e.target.value as "beginner" | "intermediate" | "advanced")}
-                className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+                className="mt-1.5 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary"
               >
                 <option value="beginner">{t("levelBeginner")}</option>
                 <option value="intermediate">{t("levelIntermediate")}</option>
@@ -588,14 +588,14 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
 
             {/* Minor Notice & Guardian Details */}
             {isMinor ? (
-              <div className="rounded-2xl border border-[var(--gold)]/40 bg-[var(--gold)]/10 p-4 space-y-4 sm:p-5">
-                <p className="text-xs font-semibold text-[var(--navy)] leading-relaxed">
+              <div className="rounded-2xl border border-tertiary-container bg-tertiary-fixed/30 p-4 space-y-4 sm:p-5">
+                <p className="text-xs font-semibold text-primary leading-relaxed">
                   {t("minorNotice")}
                 </p>
 
                 <div>
-                  <label htmlFor={`${formId}-gname`} className="block text-xs font-semibold text-[var(--navy)]">
-                    {t("guardianName")} <span className="text-red-500">*</span>
+                  <label htmlFor={`${formId}-gname`} className="block text-xs font-semibold text-primary">
+                    {t("guardianName")} <span className="text-error">*</span>
                   </label>
                   <input
                     id={`${formId}-gname`}
@@ -605,18 +605,18 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                     placeholder={t("guardianNamePlaceholder")}
                     value={guardianName}
                     onChange={(e) => setGuardianName(e.target.value)}
-                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-                      fieldErrors.guardian_name ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                      fieldErrors.guardian_name ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                     }`}
                   />
                   {fieldErrors.guardian_name ? (
-                    <p className="mt-1 text-xs text-red-600">{fieldErrors.guardian_name[0]}</p>
+                    <p className="mt-1 text-xs text-error">{fieldErrors.guardian_name[0]}</p>
                   ) : null}
                 </div>
 
                 <div>
-                  <label htmlFor={`${formId}-gphone`} className="block text-xs font-semibold text-[var(--navy)]">
-                    {t("guardianPhone")} <span className="text-red-500">*</span>
+                  <label htmlFor={`${formId}-gphone`} className="block text-xs font-semibold text-primary">
+                    {t("guardianPhone")} <span className="text-error">*</span>
                   </label>
                   <input
                     id={`${formId}-gphone`}
@@ -627,39 +627,39 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                     placeholder={t("guardianPhonePlaceholder")}
                     value={guardianPhone}
                     onChange={(e) => setGuardianPhone(e.target.value)}
-                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-                      fieldErrors.guardian_phone ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                      fieldErrors.guardian_phone ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                     }`}
                   />
                   {fieldErrors.guardian_phone ? (
-                    <p className="mt-1 text-xs text-red-600">{fieldErrors.guardian_phone[0]}</p>
+                    <p className="mt-1 text-xs text-error">{fieldErrors.guardian_phone[0]}</p>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--navy)]">
-                    {t("guardianRelationship")} <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-primary">
+                    {t("guardianRelationship")} <span className="text-error">*</span>
                   </label>
                   <div className="mt-1.5 flex gap-4">
-                    <label className="flex items-center gap-2 text-xs font-medium text-[var(--foreground)]">
+                    <label className="flex items-center gap-2 text-xs font-medium text-on-surface">
                       <input
                         type="radio"
                         name="guardian_relationship"
                         value="father"
                         checked={guardianRelationship === "father"}
                         onChange={() => setGuardianRelationship("father")}
-                        className="text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                        className="text-secondary focus:ring-secondary"
                       />
                       {t("relationshipFather")}
                     </label>
-                    <label className="flex items-center gap-2 text-xs font-medium text-[var(--foreground)]">
+                    <label className="flex items-center gap-2 text-xs font-medium text-on-surface">
                       <input
                         type="radio"
                         name="guardian_relationship"
                         value="mother"
                         checked={guardianRelationship === "mother"}
                         onChange={() => setGuardianRelationship("mother")}
-                        className="text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                        className="text-secondary focus:ring-secondary"
                       />
                       {t("relationshipMother")}
                     </label>
@@ -674,12 +674,12 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
         {type === "teacher" ? (
           <>
             <div>
-              <label className="block text-sm font-semibold text-[var(--navy)]">
-                {t("subjectsTitle")} <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-primary">
+                {t("subjectsTitle")} <span className="text-error">*</span>
               </label>
-              <p className="mt-0.5 text-xs text-[var(--foreground)]/70">{t("subjectsDescription")}</p>
+              <p className="mt-0.5 text-xs text-on-surface/70">{t("subjectsDescription")}</p>
               {subjects.length === 0 ? (
-                <p className="mt-2 text-xs text-[var(--foreground)]/70">{t("noSubjectsAvailable")}</p>
+                <p className="mt-2 text-xs text-on-surface/70">{t("noSubjectsAvailable")}</p>
               ) : (
                 <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {subjects.map((sub) => {
@@ -690,15 +690,15 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                         key={sub.id}
                         className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-sm transition ${
                           checked
-                            ? "border-[var(--emerald)] bg-[var(--emerald)]/5 text-[var(--navy)] font-semibold"
-                            : "border-[var(--line)] bg-white text-[var(--foreground)]"
+                            ? "border-secondary bg-secondary/5 text-primary font-semibold"
+                            : "border-outline-variant bg-surface-container-lowest text-on-surface"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => handleSubjectToggle(sub.slug, teacherSubjects, setTeacherSubjects)}
-                          className="rounded text-[var(--emerald)] focus:ring-[var(--emerald)]"
+                          className="rounded text-secondary focus:ring-secondary"
                         />
                         <span>{subName}</span>
                       </label>
@@ -707,13 +707,13 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 </div>
               )}
               {fieldErrors.subjects ? (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.subjects[0]}</p>
+                <p className="mt-1 text-xs text-error">{fieldErrors.subjects[0]}</p>
               ) : null}
             </div>
 
             <div>
-              <label htmlFor={`${formId}-exp`} className="block text-sm font-semibold text-[var(--navy)]">
-                {t("yearsExperience")} <span className="text-red-500">*</span>
+              <label htmlFor={`${formId}-exp`} className="block text-sm font-semibold text-primary">
+                {t("yearsExperience")} <span className="text-error">*</span>
               </label>
               <input
                 id={`${formId}-exp`}
@@ -725,18 +725,18 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 placeholder="0"
                 value={yearsExperience}
                 onChange={(e) => setYearsExperience(e.target.value)}
-                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-                  fieldErrors.years_experience ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                  fieldErrors.years_experience ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                 }`}
               />
               {fieldErrors.years_experience ? (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.years_experience[0]}</p>
+                <p className="mt-1 text-xs text-error">{fieldErrors.years_experience[0]}</p>
               ) : null}
             </div>
 
             <div>
-              <label htmlFor={`${formId}-qual`} className="block text-sm font-semibold text-[var(--navy)]">
-                {t("qualifications")} <span className="text-red-500">*</span>
+              <label htmlFor={`${formId}-qual`} className="block text-sm font-semibold text-primary">
+                {t("qualifications")} <span className="text-error">*</span>
               </label>
               <textarea
                 id={`${formId}-qual`}
@@ -746,17 +746,17 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 placeholder={t("qualificationsPlaceholder")}
                 value={qualifications}
                 onChange={(e) => setQualifications(e.target.value)}
-                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-[var(--emerald)] ${
-                  fieldErrors.qualifications ? "border-red-400 bg-red-50/50" : "border-[var(--line)] bg-white"
+                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                  fieldErrors.qualifications ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                 }`}
               />
               {fieldErrors.qualifications ? (
-                <p className="mt-1 text-xs text-red-600">{fieldErrors.qualifications[0]}</p>
+                <p className="mt-1 text-xs text-error">{fieldErrors.qualifications[0]}</p>
               ) : null}
             </div>
 
             <div>
-              <label htmlFor={`${formId}-avail`} className="block text-sm font-semibold text-[var(--navy)]">
+              <label htmlFor={`${formId}-avail`} className="block text-sm font-semibold text-primary">
                 {t("availableTimes")}
               </label>
               <input
@@ -766,7 +766,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 placeholder={t("availableTimesPlaceholder")}
                 value={availableTimes}
                 onChange={(e) => setAvailableTimes(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+                className="mt-1.5 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary"
               />
             </div>
           </>
@@ -775,7 +775,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
         {/* Preferred times for guardian or student */}
         {type !== "teacher" ? (
           <div>
-            <label htmlFor={`${formId}-times`} className="block text-sm font-semibold text-[var(--navy)]">
+            <label htmlFor={`${formId}-times`} className="block text-sm font-semibold text-primary">
               {t("preferredTimes")}
             </label>
             <input
@@ -785,14 +785,14 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
               placeholder={t("preferredTimesPlaceholder")}
               value={preferredTimes}
               onChange={(e) => setPreferredTimes(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+              className="mt-1.5 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary"
             />
           </div>
         ) : null}
 
         {/* Additional notes */}
         <div>
-          <label htmlFor={`${formId}-notes`} className="block text-sm font-semibold text-[var(--navy)]">
+          <label htmlFor={`${formId}-notes`} className="block text-sm font-semibold text-primary">
             {t("notes")}
           </label>
           <textarea
@@ -802,7 +802,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
             placeholder={t("notesPlaceholder")}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--emerald)]"
+            className="mt-1.5 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary"
           />
         </div>
 
@@ -811,7 +811,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="cta-primary w-full justify-center text-center shadow-md disabled:opacity-60"
+            className="btn btn-primary w-full justify-center text-center shadow-md disabled:text-on-surface-variant"
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>

@@ -28,7 +28,7 @@
 | zarabicschool_9 (login) | /login | done |
 | zarabicschool_10 (mandatory password change) | /change-password | done |
 | zarabicschool_5 (admission portal) | /apply | done |
-| zarabicschool_4, 6, 7 (guardian / student / teacher application forms) | /apply?role=… (apply-form, old: 47) | **to do (8)** |
+| zarabicschool_4, 6, 7 (guardian / student / teacher application forms) | /apply?role=… (apply-form) | **done (page 8)** |
 | zarabicschool_12 (teacher week) | /teacher/calendar | done |
 | zarabicschool_13 (teacher reports) | /teacher/sessions | **done (page 6)** |
 | zarabicschool_14 (teacher earnings) | /teacher/payroll | **done (page 6)** |
@@ -57,3 +57,4 @@
 - 2026-10-29: page 5 people directory (students, teachers, guardians, privileged users) on the Stitch kit: PageHeader on each, kit cards/fields/buttons in both panels; no logic change; teacher-approval, WhatsApp link, RBAC suites green; detector clean.
 - 2026-10-29: page 6 teacher pages (home, sessions, attendance, payroll, monthly reports, calendar and indicators headers, report and monthly forms, loading/error states) on the Stitch kit; the navy banners and plain headings became PageHeader; no logic change; indicators, report, zone, contrast, i18n suites green; detector clean.
 - 2026-10-29: page 7 family pages (guardian and student home, sessions, attendance, reports, invoices, report view, loading/error) and the shared evaluation card, renewal panel, charge-date rail, payment panel, refund-request button, calendar on the Stitch kit; banners and plain headings became PageHeader; no logic change; renewal, refund-request, flag, evaluation, calendar, zone, contrast, i18n suites green; detector clean.
+- 2026-10-29: page 8 application forms (guardian / student / teacher, apply-form) on the Stitch tokens (errors on the error token, focus ring secondary, gold notes on tertiary); no logic change; application validation, contrast, i18n suites green; detector clean.
