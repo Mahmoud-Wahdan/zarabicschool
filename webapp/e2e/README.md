@@ -20,9 +20,14 @@ integration tests stay in `__tests__/` (Jest).
 | `public/apply.spec.ts` | The public application form, duplicates, honeypot, academy scoping. |
 | `whatsapp/openwa.spec.ts` | Against the **real** OpenWA: Admin health check, OpenWA's own signed test delivery, an Admin message from queue to the worker to OpenWA. Skips when OpenWA is not reachable. |
 
-Tests marked `test.fail()` pin a **known open gap** by its id (G-A02-1 CSP/HSTS, G-A07-5
-X-Forwarded-For, G-WA-1 OpenWA "session not active" treated as permanent). They pass while
-the gap is open and fail once it is fixed, so the marker is removed with the fix.
+Tests marked `test.fail()` pin a **known open gap** by its id (now only G-WA-1: OpenWA's
+"session not active" 400 treated as permanent). They pass while the gap is open and fail once
+it is fixed, so the marker is removed with the fix. G-A02-1 (CSP/HSTS/Permissions-Policy) and
+G-A07-5 (X-Forwarded-For) were fixed on 2026-10-29 and are ordinary tests now.
+
+Client addresses: the specs send `X-Forwarded-For: <address>` as the reverse proxy would
+(`TRUSTED_PROXY_HOPS=1`, the default), one address per role, so each role has its own
+rate-limit budget the way separate people would.
 
 ## Data safety
 

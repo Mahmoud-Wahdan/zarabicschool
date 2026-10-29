@@ -277,13 +277,15 @@ describe("Phase 3 — scheduling worker (database-backed)", () => {
 
   it("never creates a duplicate week when two workers extend the same series concurrently", async () => {
     await grantCredit(fx.studentProfileIds.student5, 4);
-    // One hour after the resume-test series anchor: week boundaries touch but never overlap.
+    // Its own teacher: on the night Cairo falls back, this anchor and the resume-test anchor
+    // one hour earlier can both read 23:00 local, and weekly generation keeps the wall clock,
+    // so for one teacher next week's slots are the same (a real conflict that pauses this series).
     const anchor = new Date(Date.now() + 3 * 3600 * 1000);
     anchor.setUTCMinutes(0, 0, 0);
     const series = await prisma.recurrenceSeries.create({
       data: {
         academyId: fx.academyId,
-        teacherId: fx.teacherProfileId,
+        teacherId: fx.teacher2ProfileId,
         subjectId: fx.subjectId,
         sessionType: "PRIVATE",
         recurrenceRule: {

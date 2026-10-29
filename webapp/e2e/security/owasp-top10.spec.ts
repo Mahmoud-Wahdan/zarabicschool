@@ -115,12 +115,41 @@ test.describe("A02 Security Misconfiguration", () => {
     }
   });
 
-  test("G-A02-1 (open): CSP, HSTS and Permissions-Policy are sent", async ({ api }) => {
-    test.fail(true, "Known gap G-A02-1: CSP/HSTS/Permissions-Policy are planned for launch (deploy-checklist §8).");
-    const headers = (await (await api("anon")).get("/en")).headers();
-    expect(headers["content-security-policy"]).toBeTruthy();
-    expect(headers["strict-transport-security"]).toBeTruthy();
-    expect(headers["permissions-policy"]).toBeTruthy();
+  test("G-A02-1 (fixed): pages carry a nonce CSP; HSTS and Permissions-Policy on every response", async ({ api, open }) => {
+    const anon = await api("anon");
+    const first = (await anon.get("/en")).headers();
+    const policy = first["content-security-policy"] ?? "";
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"]) {
+      expect(policy).toContain(directive);
+    }
+    expect(policy).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+    // A fresh nonce on every request.
+    const again = (await anon.get("/en")).headers()["content-security-policy"];
+    expect(again).not.toBe(policy);
+    for (const path of ["/en", "/api/subjects"]) {
+      const headers = (await anon.get(path)).headers();
+      expect.soft(headers["strict-transport-security"], path).toMatch(/^max-age=\d+/);
+      expect.soft(headers["permissions-policy"], path).toContain("camera=()");
+    }
+    // Next.js put the nonce on every script it rendered.
+    const page = await open("anon");
+    await visit(page, "/en/login");
+    const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    const scripts = await page.locator("script").evaluateAll((nodes) => nodes.map((node) => (node as HTMLScriptElement).nonce ?? ""));
+    expect(scripts.length).toBeGreaterThan(0);
+    expect(scripts.every((value) => value.length > 0)).toBe(true);
+    // Injected HTML (the stored-XSS shape) cannot run: inline handlers carry no nonce.
+    // ('strict-dynamic' still lets page scripts create scripts through DOM APIs — that is how
+    // Next.js loads its chunks; the app has no such sink for user data.)
+    await page.evaluate(() => {
+      const holder = document.createElement("div");
+      holder.innerHTML = '<img src="/e2e-missing.png" onerror="window.__cspProbe = 1">';
+      document.body.appendChild(holder);
+    });
+    await page.waitForTimeout(1000);
+    expect(await page.evaluate(() => (window as unknown as { __cspProbe?: number }).__cspProbe ?? null)).toBeNull();
   });
 
   test("no source maps, environment files or repository files are served", async ({ api, open }) => {
@@ -377,15 +406,18 @@ test.describe("A07 Identification and Authentication Failures", () => {
     expect(statuses.slice(120)).toContain(429);
   });
 
-  test("G-A07-5 (new, open): a forged X-Forwarded-For cannot reset the per-client limits", async ({ playwright }) => {
-    test.fail(true, "Open finding G-A07-5: lib/request.ts getClientIp trusts the first X-Forwarded-For entry, so a client that sets the header picks its own rate-limit bucket. Safe only behind a proxy that overwrites the header.");
+  test("G-A07-5 (fixed): a forged X-Forwarded-For cannot reset the per-client limits", async ({ playwright }) => {
+    // Behind the (one, default) reverse proxy a client's own header arrives as
+    // "<whatever it sent>, <address the proxy saw>". Only the proxy's entry picks the bucket.
     const client = await playwright.request.newContext({ baseURL: BASE_URL });
+    const real = clientIp(`forger-${Date.now()}`);
     const statuses: number[] = [];
     for (let index = 0; index < 130; index++) {
-      statuses.push((await client.get("/api/subjects", { headers: { "x-forwarded-for": `192.0.2.${index % 250}` } })).status());
+      statuses.push((await client.get("/api/subjects", { headers: { "x-forwarded-for": `192.0.2.${index % 250}, ${real}` } })).status());
     }
     await client.dispose();
-    expect(statuses).toContain(429);
+    expect(statuses.slice(0, 120).every((status) => status === 200)).toBe(true);
+    expect(statuses.slice(120)).toContain(429);
   });
 });
 

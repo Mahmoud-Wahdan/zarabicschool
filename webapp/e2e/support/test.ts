@@ -42,6 +42,10 @@ export const test = base.extend<{ open: Opener; api: ApiOpener }>({
       const errors: string[] = [];
       pageErrors.set(page, errors);
       page.on("pageerror", (error) => errors.push(error.message));
+      // A blocked script/style/connection (the CSP) counts as a page error too.
+      page.on("console", (message) => {
+        if (message.type() === "error" && /Content Security Policy/i.test(message.text())) errors.push(message.text());
+      });
       return page;
     });
     for (const context of contexts) await context.close();
