@@ -18,6 +18,8 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
   const [key, setKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // S-07 (Q3): upcoming sessions that hold this package's credit (remove the student first).
+  const [held, setHeld] = useState<{ id: string; scheduledStart: string }[]>([]);
   const count = Number(sessions);
   const valid = Number.isInteger(count) && count > 0 && count <= sessionsPurchased && reason.trim().length >= 5;
   const preview = valid ? (BigInt(count) * BigInt(amountMinor)) / BigInt(sessionsPurchased) : null;
@@ -37,6 +39,7 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
       });
       const payload = await response.json().catch(() => ({}));
       const code = payload.error?.code;
+      setHeld(Array.isArray(payload.error?.reservedSessions) ? payload.error.reservedSessions : []);
       setMessage(
         response.status === 201 || response.status === 200
           ? t("refundDone")
@@ -90,6 +93,20 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
         <button type="button" disabled={busy} onClick={() => { setOpen(false); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundCancel")}</button>
       </div>
       {message ? <p role="status" className="text-sm opacity-80">{message}</p> : null}
+      {held.length ? (
+        <div className="text-sm">
+          <p>{t("refundHeldSessions")}</p>
+          <ul className="mt-1 list-disc ps-5">
+            {held.map((session) => (
+              <li key={session.id}>
+                <a href={`/${locale}/admin/sessions/${session.id}`} className="text-[var(--navy)] underline underline-offset-4">
+                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

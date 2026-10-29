@@ -32,7 +32,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "VALIDATION_ERROR", "Sessions and a reason (5–1000 characters) are required.");
   const result = await requestRefund({ adminId: user.id, academyId: user.academyId, invoiceId: id, sessions: parsed.data.sessions, reason: parsed.data.reason, idempotencyKey: key.data.toLowerCase(), refundRequestId: parsed.data.refundRequestId?.toLowerCase() });
-  if (!result.ok) return errorResponse(result.status, result.code, result.message);
+  if (!result.ok) {
+    if (result.reservedSessions) {
+      return NextResponse.json({ error: { code: result.code, message: result.message, reservedSessions: result.reservedSessions } }, { status: result.status });
+    }
+    return errorResponse(result.status, result.code, result.message);
+  }
   return NextResponse.json({ data: result.refund }, { status: result.status });
 }
 

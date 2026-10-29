@@ -40,6 +40,7 @@ export function jobHref(kind: string, role: InboxRole, sessionId: string | null)
   if (kind.startsWith("RENEWAL_")) return role === "STUDENT" ? "/student/invoices" : "/guardian/invoices";
   if (kind === "INVOICE_PAYMENT_LINK") return role === "STUDENT" ? "/student/invoices" : "/guardian/invoices";
   if (kind === "REFUND_REQUEST_RECEIVED") return "/admin/invoices";
+  if (kind === "ROSTER_REMOVED") return `${HOME[role]}/sessions`;
   if (kind.startsWith("REFUND_REQUEST_")) return role === "STUDENT" ? "/student/invoices" : "/guardian/invoices";
   if (kind === "TEACHER_PENDING_APPROVAL") return "/admin/teachers";
   if (kind === "SESSION_REQUEST" || kind === "TEACHER_LATE_START_ADMIN") return "/admin/session-requests";

@@ -24,7 +24,7 @@ export type RefundClient = Pick<PaymobSubscriptionClient, "refundTransaction">;
 
 export type RefundResult =
   | { ok: true; status: 201 | 200 | 202; refund: { id: string; status: string; sessionsRefunded: number; amountMinor: string } }
-  | { ok: false; status: number; code: string; message: string };
+  | { ok: false; status: number; code: string; message: string; reservedSessions?: { id: string; scheduledStart: string }[] };
 
 const fail = (status: number, code: string, message: string): RefundResult => ({ ok: false, status, code, message });
 const view = (row: { id: string; status: string; sessionsRefunded: number; amountMinor: bigint }) => ({ id: row.id, status: row.status, sessionsRefunded: row.sessionsRefunded, amountMinor: row.amountMinor.toString() });
@@ -79,7 +79,17 @@ export async function requestRefund(
       const pendingSessions = earlier.filter((row) => row.status === "PENDING").reduce((sum, row) => sum + row.sessionsRefunded, 0);
       const available = (balance._sum.sessionsDelta ?? 0) - reserved - pendingSessions;
       if (input.sessions > available) {
-        throw new RefundRefusal(fail(409, "NOT_ENOUGH_CREDIT", "The package does not have that many unreserved sessions left."));
+        // S-07 (Q3, D18): name the upcoming sessions that hold credit, so the Admin
+        // removes the student from them first (read only).
+        const held = await tx.sessionReservation.findMany({
+          where: { subscriptionId: invoice.subscriptionId, status: "RESERVED", session: { scheduledStart: { gt: new Date() } } },
+          orderBy: { session: { scheduledStart: "asc" } },
+          select: { session: { select: { id: true, scheduledStart: true } } },
+        });
+        throw new RefundRefusal({
+          ok: false, status: 409, code: "NOT_ENOUGH_CREDIT", message: "The package does not have that many unreserved sessions left.",
+          reservedSessions: held.map((row) => ({ id: row.session.id, scheduledStart: row.session.scheduledStart.toISOString() })),
+        });
       }
       const refunded = earlier.reduce((sum, row) => sum + row.amountMinor, BigInt(0));
       if (refunded + amountMinor > invoice.amountMinor) {

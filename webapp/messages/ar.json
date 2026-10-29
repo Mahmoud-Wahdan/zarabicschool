@@ -2026,7 +2026,8 @@
     "refundRequestReject": "رفض",
     "refundRequestRejectReason": "السبب الذي سيصل إلى ولي الأمر",
     "refundRequestRejectConfirm": "رفض الطلب",
-    "refundRequestRejectFailed": "تعذر رفض الطلب. حاول مرة أخرى."
+    "refundRequestRejectFailed": "تعذر رفض الطلب. حاول مرة أخرى.",
+    "refundHeldSessions": "هذه الحصص القادمة تحجز رصيد الباقة. أزل الطالب منها أولًا:"
   },
   "payroll": {
     "teacherTitle": "راتبي",
@@ -2487,7 +2488,8 @@
       "INVOICE_PAYMENT_LINK": "فاتورة في انتظار الدفع",
       "REFUND_REQUEST_RECEIVED": "طلب استرداد",
       "REFUND_REQUEST_APPROVED": "تمت الموافقة على الاسترداد",
-      "REFUND_REQUEST_REJECTED": "لم تتم الموافقة على الاسترداد"
+      "REFUND_REQUEST_REJECTED": "لم تتم الموافقة على الاسترداد",
+      "ROSTER_REMOVED": "إزالة من حصة"
     }
   }
 }

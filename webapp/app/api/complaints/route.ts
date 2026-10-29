@@ -48,9 +48,13 @@ export async function POST(request: Request) {
   if (unnamed ? !options.otherParticipant : !concerned) {
     return errorResponse(400, "VALIDATION_ERROR", "Choose a party of this session.", { concernedUserId: ["Not a party of this session."] });
   }
+  // S-07 / D41 (SQL S-9): keep the roster of this moment; a later roster change
+  // does not change who "another participant" could mean.
+  const roster = await prisma.sessionStudent.findMany({ where: { sessionId: parsed.data.sessionId }, select: { studentId: true } });
   await prisma.complaint.create({
     data: {
       academyId: user.academyId,
+      rosterStudentIds: roster.map((row) => row.studentId),
       sessionId: parsed.data.sessionId,
       filedById: user.id,
       filedByRole: user.role as "TEACHER" | "STUDENT" | "GUARDIAN",

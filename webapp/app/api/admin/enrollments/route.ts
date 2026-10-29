@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
-import { prisma } from "../../../../lib/prisma";
 import { reserveCredit, runSerializable } from "../../../../lib/credits/reservation";
+import { removeStudentFromSession } from "../../../../lib/scheduling/roster";
 import { SchedulingValidationError, resolveParticipants } from "../../../../lib/scheduling/checks";
 import { enrollmentSchema } from "../../../../lib/validation/management";
-import { requireSameOrigin } from "../../../../lib/request";
+import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 
 function schedulingErrorResponse(error: SchedulingValidationError) {
   return NextResponse.json(
@@ -30,9 +30,11 @@ export async function POST(request: Request) {
   const { sessionId, studentId, assignmentOverrideReason } = parsed.data;
   try {
     const enrollment = await runSerializable(async (tx) => {
+      // S-07 (Q2): the same session-row lock as a removal, so add/remove never race.
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${sessionId}::uuid AND academy_id = ${user.academyId}::uuid FOR UPDATE`;
       const session = await tx.session.findFirst({
         where: { id: sessionId, academyId: user.academyId, status: "SCHEDULED" },
-        select: { id: true, teacherId: true, subjectId: true, scheduledStart: true, scheduledEnd: true },
+        select: { id: true, teacherId: true, subjectId: true, scheduledStart: true, scheduledEnd: true, sessionType: true, _count: { select: { students: true } } },
       });
       if (!session) {
         throw new Error("SESSION_NOT_SCHEDULED");
@@ -41,6 +43,10 @@ export async function POST(request: Request) {
       // its reports are not all in) never gains a student afterwards.
       if (session.scheduledEnd.getTime() <= Date.now()) {
         throw new Error("SESSION_ALREADY_ENDED");
+      }
+      // D18: students are added on GROUP sessions; a PRIVATE session has one student.
+      if (session.sessionType === "PRIVATE" && session._count.students >= 1) {
+        throw new Error("PRIVATE_SESSION_FULL");
       }
       await resolveParticipants(tx, {
         academyId: user.academyId,
@@ -67,6 +73,9 @@ export async function POST(request: Request) {
     if (cause instanceof Error && cause.message === "SESSION_ALREADY_ENDED") {
       return NextResponse.json({ error: { code: "SESSION_ALREADY_ENDED", message: "Students cannot be added to a session that has already ended." } }, { status: 409 });
     }
+    if (cause instanceof Error && cause.message === "PRIVATE_SESSION_FULL") {
+      return NextResponse.json({ error: { code: "PRIVATE_SESSION_FULL", message: "A private session already has its student." } }, { status: 409 });
+    }
     if (cause instanceof Error && cause.message === "SESSION_NOT_SCHEDULED") {
       return NextResponse.json({ error: { code: "SESSION_NOT_SCHEDULED", message: "Students can only be added to scheduled sessions." } }, { status: 409 });
     }
@@ -85,19 +94,8 @@ export async function DELETE(request: Request) {
   const parsed = enrollmentSchema.omit({ assignmentOverrideReason: true }).safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Session and student are required." } }, { status: 400 });
   const { sessionId, studentId } = parsed.data;
-  const session = await prisma.session.findFirst({ where: { id: sessionId, academyId: user.academyId }, select: { id: true } });
-  if (!session) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
-  const deleted = await prisma.$transaction(async (tx) => {
-    const removed = await tx.sessionStudent.deleteMany({ where: { sessionId, studentId } });
-    if (removed.count > 0) {
-      // Release the active reservation using the existing reservation lifecycle only.
-      await tx.sessionReservation.updateMany({
-        where: { sessionId, studentId, status: "RESERVED" },
-        data: { status: "RELEASED", releasedAt: new Date() },
-      });
-    }
-    return removed;
-  });
-  if (!deleted.count) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Enrollment not found." } }, { status: 404 });
+  // S-07 (D18): GROUP only, under a session lock; blocked by a report or settled attendance.
+  const result = await removeStudentFromSession(user, sessionId, studentId);
+  if (!result.ok) return errorResponse(result.status, result.code, result.message);
   return NextResponse.json({ data: { removed: true, reservationReleased: true } });
 }

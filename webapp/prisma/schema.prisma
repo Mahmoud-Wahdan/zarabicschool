@@ -1312,29 +1312,31 @@ enum ComplaintPartyRole {
 // to Admin/Supervisor (lib/complaints/service.ts); the concerned party never sees it
 // and is never notified automatically.
 model Complaint {
-  id              String              @id @default(uuid()) @db.Uuid
-  academyId       String              @map("academy_id") @db.Uuid
-  sessionId       String              @map("session_id") @db.Uuid
-  filedById       String              @map("filed_by_id") @db.Uuid
-  filedByRole     ComplaintPartyRole  @map("filed_by_role")
+  id               String              @id @default(uuid()) @db.Uuid
+  academyId        String              @map("academy_id") @db.Uuid
+  sessionId        String              @map("session_id") @db.Uuid
+  filedById        String              @map("filed_by_id") @db.Uuid
+  filedByRole      ComplaintPartyRole  @map("filed_by_role")
   // Both null = "another participant in this session" (unnamed by the filer; DB
   // CHECK complaints_concerned_pair_check keeps them null/set together).
-  concernedUserId String?             @map("concerned_user_id") @db.Uuid
-  concernedRole   ComplaintPartyRole? @map("concerned_role")
-  category        ComplaintCategory
-  title           String              @db.VarChar(200)
-  body            String              @db.VarChar(4000)
-  status          ComplaintStatus     @default(NEW)
-  handledById     String?             @map("handled_by_id") @db.Uuid
-  resolutionNote  String?             @map("resolution_note") @db.VarChar(4000)
-  resolvedAt      DateTime?           @map("resolved_at") @db.Timestamptz(6)
-  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  academy         Academy             @relation("ComplaintAcademy", fields: [academyId], references: [id], onDelete: Restrict)
-  session         Session             @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  filedBy         User                @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
-  concernedUser   User?               @relation("ComplaintConcerned", fields: [concernedUserId], references: [id], onDelete: Restrict)
-  handledBy       User?               @relation("ComplaintHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
+  concernedUserId  String?             @map("concerned_user_id") @db.Uuid
+  concernedRole    ComplaintPartyRole? @map("concerned_role")
+  category         ComplaintCategory
+  title            String              @db.VarChar(200)
+  body             String              @db.VarChar(4000)
+  status           ComplaintStatus     @default(NEW)
+  handledById      String?             @map("handled_by_id") @db.Uuid
+  resolutionNote   String?             @map("resolution_note") @db.VarChar(4000)
+  resolvedAt       DateTime?           @map("resolved_at") @db.Timestamptz(6)
+  /// S-07 / SQL S-9 (D41): roster student ids when filed; empty = filed before the snapshot existed.
+  rosterStudentIds String[]            @map("roster_student_ids") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy          Academy             @relation("ComplaintAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session          Session             @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  filedBy          User                @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
+  concernedUser    User?               @relation("ComplaintConcerned", fields: [concernedUserId], references: [id], onDelete: Restrict)
+  handledBy        User?               @relation("ComplaintHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
 
   @@index([academyId, status, createdAt(sort: Desc)], map: "complaints_academy_status_created_idx")
   @@index([sessionId], map: "complaints_session_idx")

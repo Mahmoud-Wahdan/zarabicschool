@@ -194,6 +194,12 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     // that would answer "not yet open".
     const windowOpen = joinWindowState(job.session.scheduledStart, job.session.scheduledEnd, new Date(), joinWindowMinutes) === "open";
     const joinUrl = windowOpen && job.sessionId ? sessionJoinPlatformUrl(job.sessionId) : null;
+    if (job.kind === "ROSTER_REMOVED") {
+      // S-07 (D18): removed from a group session; the time in the recipient's zone, no link.
+      return language === "en"
+        ? `A student was removed from the ${subject} session on ${time} (${timeZone}). That session's credit is back in the package.`
+        : `تمت إزالة الطالب من حصة ${subject} بتاريخ ${time} (${timeZone}). عادت حصة الرصيد إلى الباقة.`;
+    }
     if (job.kind === "TEACHER_LATE_START") {
       return language === "en"
         ? `Your session (${subject}) started at ${time} (${timeZone}) and the session link has not been opened yet. Please join now from the platform${joinUrl ? `: ${joinUrl}` : "."}`

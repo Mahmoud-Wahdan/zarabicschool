@@ -2026,7 +2026,8 @@
     "refundRequestReject": "Reject",
     "refundRequestRejectReason": "Reason for the payer",
     "refundRequestRejectConfirm": "Reject request",
-    "refundRequestRejectFailed": "The request could not be rejected. Try again."
+    "refundRequestRejectFailed": "The request could not be rejected. Try again.",
+    "refundHeldSessions": "These upcoming sessions hold this package's credit. Remove the student from them first:"
   },
   "payroll": {
     "teacherTitle": "My payroll",
@@ -2487,7 +2488,8 @@
       "INVOICE_PAYMENT_LINK": "An invoice is waiting for payment",
       "REFUND_REQUEST_RECEIVED": "Refund request",
       "REFUND_REQUEST_APPROVED": "Refund approved",
-      "REFUND_REQUEST_REJECTED": "Refund not approved"
+      "REFUND_REQUEST_REJECTED": "Refund not approved",
+      "ROSTER_REMOVED": "Removed from a session"
     }
   }
 }

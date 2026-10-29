@@ -101,6 +101,8 @@ describe("S-13 (c) Admin partial refund", () => {
     const tooMany = await refund(invoice.id, { sessions: 4, reason: "Too many sessions" });
     expect(tooMany.status).toBe(409);
     expect(tooMany.body.error.code).toBe("NOT_ENOUGH_CREDIT");
+    // S-07 (Q3): the refusal names the upcoming reserved sessions, so the Admin removes the student first.
+    expect(tooMany.body.error.reservedSessions).toEqual([{ id: session.id, scheduledStart: session.scheduledStart.toISOString() }]);
     expect((await refund(invoice.id, { sessions: 3, reason: "All unreserved" })).status).toBe(201);
     const after = await refund(invoice.id, { sessions: 1, reason: "Nothing left" });
     expect(after.status).toBe(409);

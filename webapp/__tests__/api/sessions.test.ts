@@ -820,7 +820,8 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
 
   it("hardened enrollment: assignment required, credit reserved, release on removal", async () => {
     await grantCredit(fx.studentProfileIds.student10, 2);
-    const { body: sessionBody } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 11, hour: 10 });
+    // S-07 (D18): students are added to GROUP sessions; a PRIVATE session has one student.
+    const { body: sessionBody } = await createSession(fx.adminUserId, { sessionType: "GROUP", studentIds: [fx.studentProfileIds.student6] }, { day: 11, hour: 10 });
     const sessionId = sessionBody.data.id as string;
 
     asActor(fx.adminUserId);

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ComplaintCategory, ComplaintPartyRole, ComplaintStatus } from "../../generated/prisma/client";
+import type { ComplaintCategory, ComplaintPartyRole, ComplaintStatus, Prisma } from "../../generated/prisma/client";
 
 import { isPhase7FollowupReady } from "../phase7/readiness";
 import { prisma } from "../prisma";
@@ -124,4 +124,21 @@ export function nextComplaintStatus(current: ComplaintStatus): ComplaintStatus |
 
 export function isComplaintOperator(role: string) {
   return role === "ADMIN" || role === "SUPERVISOR";
+}
+
+/**
+ * S-07 / D41 (SQL S-9): the roster to show for a complaint about "another participant":
+ * the students on the session when the complaint was filed (snapshot), or — for a
+ * complaint filed before the snapshot existed — the session's current roster.
+ */
+export async function complaintRoster(academyId: string, complaint: { sessionId: string; rosterStudentIds: string[] }) {
+  const where: Prisma.StudentWhereInput = complaint.rosterStudentIds.length
+    ? { academyId, id: { in: complaint.rosterStudentIds } }
+    : { academyId, sessionStudents: { some: { sessionId: complaint.sessionId } } };
+  const students = await prisma.student.findMany({
+    where,
+    orderBy: { user: { displayName: "asc" } },
+    select: { id: true, user: { select: { id: true, displayName: true } }, guardian: { select: { user: { select: { displayName: true } } } } },
+  });
+  return students.map((student) => ({ studentId: student.id, userId: student.user.id, name: student.user.displayName, guardianName: student.guardian?.user.displayName ?? null }));
 }

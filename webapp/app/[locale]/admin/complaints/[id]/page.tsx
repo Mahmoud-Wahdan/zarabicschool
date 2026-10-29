@@ -8,6 +8,7 @@ import ClickTimeline from "../../../../_components/sessions/click-timeline";
 import StatusBadge from "../../../../_components/ui/status-badge";
 import { Link } from "../../../../../i18n/navigation";
 import { requireRoles } from "../../../../../lib/dal";
+import { complaintRoster } from "../../../../../lib/complaints/service";
 import { isPhase7Ready } from "../../../../../lib/phase7/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { formatSessionDateTime } from "../../../../../lib/schedules/display";
@@ -47,23 +48,18 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
           status: true,
           subject: { select: { nameAr: true, nameEn: true } },
           teacher: { select: { user: { select: { displayName: true } } } },
-          // Roster, for complaints about "another participant" (unnamed by the filer).
-          students: {
-            select: {
-              student: {
-                select: {
-                  user: { select: { id: true, displayName: true } },
-                  guardian: { select: { user: { select: { id: true, displayName: true } } } },
-                },
-              },
-            },
-          },
         },
       },
+      rosterStudentIds: true,
     },
   });
   if (!complaint) notFound();
-  const timelines = await getClickTimelines(user, [complaint.sessionId]);
+  // Roster, for complaints about "another participant" (unnamed by the filer): the
+  // students on the session when it was filed (D41, SQL S-9), else the current roster.
+  const [timelines, roster] = await Promise.all([
+    getClickTimelines(user, [complaint.sessionId]),
+    complaintRoster(user.academyId, { sessionId: complaint.sessionId, rosterStudentIds: complaint.rosterStudentIds }),
+  ]);
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
@@ -94,10 +90,10 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
             <p className="font-semibold text-primary">{t("rosterTitle")}</p>
             <p className="text-on-surface-variant">{t("rosterHint")}</p>
             <ul className="mt-1 list-inside list-disc">
-              {complaint.session.students.map(({ student }) => (
-                <li key={student.user.id}>
-                  {student.user.displayName} ({t("role.STUDENT")})
-                  {student.guardian ? ` · ${student.guardian.user.displayName} (${t("role.GUARDIAN")})` : ""}
+              {roster.map((student) => (
+                <li key={student.userId}>
+                  {student.name} ({t("role.STUDENT")})
+                  {student.guardianName ? ` · ${student.guardianName} (${t("role.GUARDIAN")})` : ""}
                 </li>
               ))}
             </ul>
