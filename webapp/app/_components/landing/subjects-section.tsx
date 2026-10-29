@@ -33,8 +33,10 @@ export default async function SubjectsSection() {
   }[] = [];
 
   try {
+    // The public academy's subjects only (same rule as GET /api/subjects): the landing
+    // page listed every academy's active subjects.
     subjects = await prisma.subject.findMany({
-      where: { isActive: true },
+      where: { isActive: true, academy: { name: "Zarabicschool" } },
       orderBy: { sortOrder: "asc" },
       select: {
         id: true,

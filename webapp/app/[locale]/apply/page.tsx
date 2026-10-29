@@ -167,8 +167,10 @@ export default async function ApplyPage({
   }[] = [];
 
   try {
+    // Only the academy POST /api/applications files into (same rule as GET /api/subjects):
+    // other academies' subjects were offered here and then refused as "Unknown subjects".
     subjects = await prisma.subject.findMany({
-      where: { isActive: true },
+      where: { isActive: true, academy: { name: "Zarabicschool" } },
       orderBy: { sortOrder: "asc" },
       select: {
         id: true,
