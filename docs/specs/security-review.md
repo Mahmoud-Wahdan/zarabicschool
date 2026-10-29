@@ -227,3 +227,49 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - [ ] Backup/restore drill; error monitoring with PII scrubbing (G-A09-2).
 - [ ] Browser check: a password manager/autofill + slow network login never shows credentials in the address bar.
 - [ ] Admin/Supervisor MFA or lockout decision (G-A07-2).
+
+## Dynamic E2E pass (Playwright, 2026-10-29)
+
+**Method:** the production build (`next start`) against a local PostgreSQL 16 with every
+migration and the demo seed, a per-run test academy, the real OpenWA gateway
+(`zarabicschool/OpenWA`, not linked to a phone: the cloud session cannot reach WhatsApp), and a
+Paymob test double. Specs: `webapp/e2e/security/access-control.spec.ts` (A01 over HTTP: every
+page area × every role, every API handler anonymous, every mutation with a foreign/missing
+`Origin`, the role matrix read from each handler's own guard) and
+`webapp/e2e/security/owasp-top10.spec.ts` (A01–A10). Results and counts: phase-08 log 2026-10-29.
+
+**Confirmed dynamically:** the proxy and page guards (no role reaches another role's area);
+every handler refuses anonymous callers and cross-site mutations (incl. the routes that use
+`isSameOrigin` directly: application approve/reject/review, invoice checkout/confirm,
+evaluations); IDOR/tenancy probes; the Supervisor money wall; the login page is not an open
+redirect; Zoom links validated; baseline headers on pages, API and static files, no
+`X-Powered-By`; no source maps or repository files served; session cookie HttpOnly +
+SameSite=Lax + encrypted (JWE); not frameable; no server secret in any browser bundle;
+bcrypt cost 12 on an app-set password; stored HTML shown as text (complaints, announcements);
+login limits per username, generic login error, no credentials in URLs; forged Paymob, Paymob
+subscription and OpenWA signatures refused; no password/secret/fixture phone in the server log;
+malformed JSON 400, hostile ids 400/404, 2 MB body 413, no stack traces.
+
+**New findings:**
+- **G-A07-5 (Medium, open):** `lib/request.ts` `getClientIp` takes the FIRST `X-Forwarded-For`
+  entry. A client that sends the header chooses its own bucket for the 120/min request limit and
+  the per-IP login limit (the per-username login limit still holds). Safe only behind a proxy
+  that overwrites the header; Cloudflare and ngrok append to it. Decide the trusted-proxy rule
+  with the hosting choice (deploy checklist). Test: `owasp-top10.spec.ts` "G-A07-5" (test.fail).
+- **G-WA-1 (Medium, open):** while the OpenWA session is not started/disconnected, OpenWA answers
+  `send-text` with HTTP 400 ("Session … is not active"), not 409. `openwa-provider.ts` treats
+  400 as permanent, so the job is FAILED after one attempt and the message (reminder,
+  announcement, report notice) is lost. Seen with the real gateway. Fix options for the owner:
+  treat that 400 as transient by its message, or check the session status before failing a
+  400. Test: `whatsapp/openwa.spec.ts` "G-WA-1" (test.fail).
+- **G-A01-5 (Low/Info, open):** `GET /api/invoices/:id` answers 403 for another family's invoice
+  in the same academy but 404 for a missing id (an existence hint; no data; ids are random
+  UUIDs). Report routes answer 404 in both cases.
+- **G-A02-6 (Low/Info, open):** unknown pages answer HTTP 200 with the 404 view and
+  `noindex` (soft 404): `app/[locale]/loading.tsx` starts the stream before `notFound()`.
+  API routes answer a real 404.
+- **Fixed 2026-10-29 (G-A01-6, Low):** the public apply page and the landing subject list read
+  every academy's active subjects (the API was scoped in G-A01-3, these two pages were not):
+  other academies' subjects were shown and then refused as "Unknown subjects".
+- **Noted:** a session token copied before sign-out stays valid until it expires (stateless
+  JWT, 8 h) — consider a token version on the user row if sign-out must revoke.

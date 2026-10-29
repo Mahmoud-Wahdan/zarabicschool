@@ -1,36 +1,92 @@
-# Dev tunnel (ngrok) and how to measure speed
+# Dev tunnel (Cloudflare Tunnel) and how to measure speed
 
-> L3 (owner list, 2026-10-28). No secret, token or tunnel address in this file; the
-> tunnel address lives only in `webapp/.env` as `APP_PUBLIC_URL`.
+> L3 (owner list, 2026-10-28); tunnel changed 2026-10-29. No secret, token or tunnel
+> address in this file; the tunnel address lives only in `webapp/.env` as `APP_PUBLIC_URL`.
 
-## When to use ngrok
+## Which tunnel (2026-10-29): Cloudflare Tunnel instead of ngrok
 
-- **Only for tests that need a public URL**: Paymob webhooks (test mode) and OpenWA/WhatsApp webhooks.
-- **Everything else: browse `http://localhost:3000`.** The tunnel adds about 130 ms to every request and, on the free plan, drops requests under load (see the numbers below).
-- **Never browse `next dev` through the tunnel.** Dev mode serves ~35 separate files per page; through the free tunnel 17–29 of them failed (5xx from the ngrok edge) and the page never started.
+ngrok's free plan is what the 2026-10-28 numbers below were measured on: its edge answered
+5xx under load (17–29 failed files on a dev page, 10 on a fresh production login), it shows a
+warning page to browsers, and the header that skips it breaks script loading. The new default
+is **Cloudflare Tunnel** (`cloudflared`): free, no warning page, no request cap of that kind,
+and a **stable hostname** when you use a named tunnel. ngrok still works the same way if you
+need it (`ngrok http 3000`); everything in "After the tunnel starts" applies to both.
 
-## Realistic test from another device (production build behind ngrok)
+**Not measured yet:** the cloud session that made this switch could not reach Cloudflare
+(its network policy refuses `api.trycloudflare.com` and `*.argotunnel.com`). Re-measure
+with the scripts below on the PC before relying on the numbers (they are ngrok's).
 
-From `webapp/`:
+## When you need a tunnel
+
+- **Paymob test mode only** — Paymob's servers must reach the transaction-processed callback
+  and the return page. Nothing else needs a public URL.
+- **OpenWA does not need it** when it runs on the same PC: register its webhook with
+  `http://localhost:3000/api/whatsapp/status` and add `SSRF_ALLOWED_HOSTS=localhost,127.0.0.1`
+  to `OpenWA/.env` (OpenWA refuses private addresses otherwise). Verified 2026-10-29: OpenWA's
+  signed `session.status` and test deliveries reached the app and passed the signature check.
+- **A phone or another computer** opening the app: use the production build (below).
+- **Everything else: browse `http://localhost:3000`.**
+- **Never browse `next dev` through a tunnel.** Dev mode serves ~35 separate files per page
+  and is slow on this PC (see "The PC itself").
+
+## Option A — quick tunnel (no account, new address every start)
 
 ```sh
+winget install --id Cloudflare.cloudflared      # once (Windows); or download cloudflared from Cloudflare
+cd webapp
 npm run build
-npm run start          # serves on port 3000 (the port the tunnel forwards to)
-ngrok http 3000        # in another terminal; APP_PUBLIC_URL must match the tunnel address
+npm run start                                   # serves on port 3000
+cloudflared tunnel --url http://localhost:3000  # other terminal; prints https://<random>.trycloudflare.com
 ```
 
+The address changes every time `cloudflared` restarts, so Paymob's callback URL has to be
+changed in the Paymob dashboard each time. Fine for one test session.
+
+## Option B — named tunnel (stable address; best for Paymob)
+
+Needs a free Cloudflare account and a domain whose DNS is on Cloudflare.
+
+```sh
+cloudflared tunnel login                                  # once: browser sign-in, stores a cert locally
+cloudflared tunnel create zarabic-dev                     # once: creates the tunnel + credentials file
+cloudflared tunnel route dns zarabic-dev dev.<your-domain>  # once: DNS record for the hostname
+cloudflared tunnel --url http://localhost:3000 run zarabic-dev   # every time
+```
+
+The credentials file and the cert stay on the PC (`%USERPROFILE%\.cloudflared\`); never commit them.
+
+## After the tunnel starts (any tunnel)
+
+1. `webapp/.env`: `APP_PUBLIC_URL=https://<tunnel host>` (origin only). WhatsApp join links are
+   built from it, and `next dev` allows it as a dev origin (M-3).
+2. Production start (`npm run start`) only: add the same origin to `ALLOWED_ORIGINS`
+   (comma-separated, exact, no trailing slash), or every save answers 403 `ORIGIN_NOT_ALLOWED`.
+3. Restart the app (env is read at start).
+4. Paymob dashboard (test mode): processed callback `https://<tunnel host>/api/payments/paymob/webhook`,
+   response callback `https://<tunnel host>/en/payments/paymob/return`.
+5. Stop the tunnel when the test is done — it exposes the dev machine and the dev database.
+
 Notes:
-- A production start refuses `MESSAGING_PROVIDER=console|fake` (`instrumentation.ts`). It uses OpenWA, and the worker **can send real WhatsApp messages**. Use it on purpose only.
-- For a measurement that must never send anything, use `sh scripts/perf/serve.sh start <query-log-file>`. It turns the worker off and points OpenWA at a closed local port for that process only; `.env` is not changed.
-- The free plan shows a warning page to browsers on the first visit; click through once. Scripts send a custom User-Agent instead. An extra `ngrok-skip-browser-warning` header breaks script loading: the page's script chunks load in CORS mode, and the app does not answer the preflight.
-- Each new browser profile must download the app's files once (about 200 KiB for the login page). After that they come from the cache (`Cache-Control: public, max-age=31536000, immutable`, gzip).
+- A production start refuses `MESSAGING_PROVIDER=console|fake` (`instrumentation.ts`). It uses
+  OpenWA, and the worker **can send real WhatsApp messages** (the dev allowlist does not apply in
+  production). Use it on purpose only.
+- For a measurement that must never send anything, use `sh scripts/perf/serve.sh start <query-log-file>`.
+  It turns the worker off and points OpenWA at a closed local port for that process only; `.env` is not changed.
+- **Rate limits behind a tunnel (G-A07-5, open):** the app takes the client address from the first
+  `X-Forwarded-For` entry. Cloudflare and ngrok append the real address to a header the client
+  already sent, so a client can choose its own rate-limit bucket through the tunnel. Dev only;
+  decide the trusted-proxy rule before launch (deploy checklist).
+- Each new browser profile must download the app's files once (about 200 KiB for the login page).
+  After that they come from the cache (`Cache-Control: public, max-age=31536000, immutable`, gzip).
 
-## Reading the ngrok inspector
+## Seeing what the tunnel does
 
-- Open `http://127.0.0.1:4040` while ngrok runs.
-- Each request shows its status and duration. You can replay a webhook from there, for example a Paymob callback.
-- **5xx answers that never reach the app** (nothing in the server log) come from the ngrok edge, not from Zarabicschool.
-- `http://127.0.0.1:4040/api/status` shows the region and latency. It was `eu`, about 60 ms, during these measurements.
+- `cloudflared tunnel --loglevel debug ...` prints every request with its status.
+- `cloudflared tunnel --metrics localhost:2000 ...` exposes counters at `http://localhost:2000/metrics`
+  (requests, errors, response times).
+- **5xx answers that never reach the app** (nothing in the server log) come from the tunnel's edge,
+  not from Zarabicschool. (ngrok: the inspector at `http://127.0.0.1:4040` shows the same and can
+  replay a webhook.)
 
 ## The PC itself
 
@@ -56,7 +112,7 @@ Anything above about 0.1 s for 1 MB means the machine is throttling.
 | `waves.mjs <base> <ROLE> <path>` | Groups one page load's queries into waves: queries the page waits for one after another. Each wave costs at least one round trip to Supabase (~70 ms). |
 | `assets.mjs <base> [path] [runs]` | Fresh browser: files, failures, 5xx, bytes, load time, whether the page started (hydrated). |
 
-## Measured numbers (2026-10-28, test academy, production build unless noted)
+## Measured numbers (2026-10-28, ngrok free plan, test academy, production build unless noted)
 
 | Page | App time before (TTFB / load) | After | Queries before → after | Waves before → after | App requests per load before → after | Tunnel before | Tunnel after |
 |---|---|---|---|---|---|---|---|
