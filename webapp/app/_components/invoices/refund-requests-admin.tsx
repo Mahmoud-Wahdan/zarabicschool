@@ -72,7 +72,7 @@ export default function RefundRequestsAdmin({ requests, timeZone }: { requests: 
                 </div>
               ) : (
                 <div className="mt-1 flex flex-wrap items-start gap-3">
-                  <RefundForm invoiceId={request.invoice.id} amountMinor={request.invoice.amountMinor} currency={request.invoice.currency} sessionsPurchased={request.invoice.sessionsPurchased} refundRequestId={request.id} onDone={() => router.refresh()} />
+                  <RefundForm timeZone={timeZone} invoiceId={request.invoice.id} amountMinor={request.invoice.amountMinor} currency={request.invoice.currency} sessionsPurchased={request.invoice.sessionsPurchased} refundRequestId={request.id} onDone={() => router.refresh()} />
                   <button type="button" onClick={() => { setRejecting(request.id); setReason(""); }} className="mt-4 rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundRequestReject")}</button>
                 </div>
               )}

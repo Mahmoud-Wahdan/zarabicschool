@@ -9,7 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
  * re-checks every limit. One Idempotency-Key per attempt, kept until the attempt is
  * answered, so a retried click can never refund twice.
  */
-export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased, refundRequestId, onDone }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number; refundRequestId?: string; onDone?: () => void }) {
+export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased, timeZone, refundRequestId, onDone }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number; timeZone: string; refundRequestId?: string; onDone?: () => void }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
             {held.map((session) => (
               <li key={session.id}>
                 <a href={`/${locale}/admin/sessions/${session.id}`} className="text-[var(--navy)] underline underline-offset-4">
-                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
+                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
                 </a>
               </li>
             ))}

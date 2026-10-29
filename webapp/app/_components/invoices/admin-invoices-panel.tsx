@@ -160,7 +160,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
                 <span className="text-xs opacity-70">{t("sendLinkHint")}</span>
               </div>
             ) : invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
-              <RefundForm invoiceId={invoice.id} amountMinor={invoice.amountMinor} currency={invoice.currency} sessionsPurchased={invoice.sessionsPurchased} />
+              <RefundForm timeZone={timeZone} invoiceId={invoice.id} amountMinor={invoice.amountMinor} currency={invoice.currency} sessionsPurchased={invoice.sessionsPurchased} />
             ) : null}
           </section>
         );
