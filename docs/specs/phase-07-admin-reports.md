@@ -87,7 +87,11 @@ Unit audience filters; real-Postgres report visibility, Admin-only evaluation, q
 2. **Complaints** — written by a student, guardian or teacher. Required: the session concerned, the party concerned (teacher/student/guardian), category, title, text. The concerned party NEVER sees the complaint (server-side: lists, counts, notifications, search). Only Admin and Supervisor see and handle it: NEW → IN_PROGRESS → RESOLVED + resolution note. They inform the concerned party manually: NO automatic notification to that party.
 3. **Evaluation summaries** — per teacher: average + count + recent comments; Admin and Supervisor only; no automatic action; the teacher never sees it. Teacher performance ANALYSIS (teachers-performance page) → Phase 9 (phase-09-refinements.md).
 4. **Evaluations are OPTIONAL** for students and guardians. The post-session prompt is an in-app, non-blocking banner/card after the session is COMPLETED (no WhatsApp, no blocking). What is MANDATORY is the teacher's session report and the teacher's monthly report — not the evaluations. CONTEXT §7.7, the §9 "other rules" line and the decisions-table row still say "mandatory": listed for the next CONTEXT revision (PROGRESS.md → "Pending for the next CONTEXT revision").
+<<<<<<< HEAD
 5. **Monthly report** — 7-day edit window CONFIRMED. Missing report: the teacher gets the existing WhatsApp reminders (1st and 3rd; timing CONFIRMED by the owner later on 2026-10-26) plus an in-app card on the teacher dashboard; the Admin sees a `MONTHLY_REPORT_MISSING` teacher flag (existing teacher-flags mechanism). No money penalty is built (see the Phase 5 spec, "Missing monthly report — what the system can do").
+=======
+5. **Monthly report** — 7-day edit window CONFIRMED. Missing report: the teacher gets the existing WhatsApp reminders (1st and 3rd, PROPOSAL timing) plus an in-app card on the teacher dashboard; the Admin sees a `MONTHLY_REPORT_MISSING` teacher flag (existing teacher-flags mechanism). No money penalty is built (see the Phase 5 spec, "Missing monthly report — what the system can do").
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 6. **OWASP Top 10 (latest edition: 2025 — edition to be re-verified at the dedicated pass)** — each slice is checked against the relevant categories before it is finished; a dedicated pass at the end of Phase 7 writes `docs/specs/security-review.md`.
 
 ## Deferred / Post-MVP
@@ -100,18 +104,31 @@ Requirements, authorization, validation, failure paths, tests, lint, typecheck, 
 
 ## Tasks
 
+<<<<<<< HEAD
 - [x] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`, `Complaints` — **[audit 2026-10-26] DONE**: `prisma/schema.prisma`; migrations 20261026170000–190000.
 - [x] Run migration — **[audit 2026-10-26] DONE**: applied by the owner.
 - [~] Build admin overview dashboard with operational and financial metrics — **[audit 2026-10-26] PARTIAL**: operational KPIs on `app/[locale]/admin/page.tsx`; financial charts are Phase 9 item 9.1.
 - [x] Build teacher-to-student progress report form and listing — **[audit 2026-10-26] DONE**: monthly reports `app/[locale]/teacher/monthly-reports/*`; `monthly-reports.test.ts`.
 - [x] Build guardian/student view of student progress reports — **[audit 2026-10-26] DONE**: `app/[locale]/student/monthly-reports/page.tsx`, `app/[locale]/guardian/monthly-reports/page.tsx`; visibility in `monthly-reports.test.ts`.
 - [x] Build student/guardian teacher evaluation submission interface — **[audit 2026-10-26] DONE**: `app/_components/evaluations/*`; API tests `evaluations.test.ts` EV-01..07 (2026-10-26).
+=======
+- [ ] Add Prisma schema: `Reports`, `Evaluations`, `Announcements`, `Complaints`
+- [ ] Run migration
+- [ ] Build admin overview dashboard with operational and financial metrics
+- [ ] Build teacher-to-student progress report form and listing
+- [ ] Build guardian/student view of student progress reports
+- [ ] Build student/guardian teacher evaluation submission interface
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 - [x] Build general complaints submission form on user dashboards and Admin resolution view (2026-10-26)
 - [x] Implement the post-session evaluation prompt (in-app, non-blocking, optional evaluations — 2026-10-26)
 - [x] Build admin evaluation review and rating summaries (Admin + Supervisor, 2026-10-26)
 - [x] Build admin announcements composer (audience = everyone per owner decision, 2026-10-26)
 - [x] Build dashboard announcements widget for every role (2026-10-26)
+<<<<<<< HEAD
 - [x] Write tests: reporting authorization, evaluation submission, announcement scoping, complaints flow — **[audit 2026-10-26] DONE**: `visibility.test.ts`, `evaluations.test.ts`, `announcements.test.ts`, `phase7-visibility.test.ts`, `late-start-and-monthly-flag.test.ts` (2026-10-26).
+=======
+- [ ] Write tests: reporting authorization, evaluation submission, announcement scoping, complaints flow
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ## Execution log (updated as soon as real work happens)
 
@@ -172,7 +189,11 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
   - **Join vs host is NOT recorded** — the teacher's host-link click and a join click look the same.
   - Clicks are possible only while the session is SCHEDULED, from 15 minutes before the start to the scheduled end (operators any time); rate limit 30/min.
 - **Gaps that make a teacher punctuality metric unreliable:**
+<<<<<<< HEAD
   1. ~~The `SESSION_START` WhatsApp at T+0 carries the raw Zoom join link~~ — **fixed 2026-10-26 (owner follow-up 1):** no WhatsApp message carries a Zoom link any more; they carry the platform join URL, which logs the click. Click data is reliable **only for joins through the platform**: a teacher starting from the Zoom app, a bookmark or a link copied earlier still leaves NO click.
+=======
+  1. The `SESSION_START` WhatsApp at T+0 carries the raw Zoom join link to the teacher, students and guardians. Anyone joining from WhatsApp, or a teacher starting from the Zoom app or a bookmark, leaves NO click.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   2. A click does not prove presence in Zoom.
   3. The first click is not necessarily the join (repeat clicks, Admin test clicks).
   4. If the click insert fails, the redirect still happens and only an error is logged.
@@ -195,7 +216,11 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 
 - **Audit of the worker before the change (read-only):**
   - `SESSION_REMINDER` at T−2h to the teacher, students and guardians.
+<<<<<<< HEAD
   - `SESSION_START` at T+0 (with the join link — the raw Zoom link until the 2026-10-26 follow-up, the platform join URL since) to the same people.
+=======
+  - `SESSION_START` at T+0 (with the join link) to the same people.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   - Late-REPORT nudges at the scheduled END: `REPORT_REMINDER` T_end+0, `REPORT_REMINDER_FOLLOWUP` T_end+15, `LATE_REPORT` teacher flag T_end+30 (24 h scan window).
   - Monthly-report reminders (1st/3rd) and the new month flag (4th–7th).
   - **Nothing about a teacher who has not started/joined.** So (a)/(b) did not exist and were implemented.
@@ -207,7 +232,11 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
   - Teacher and Admins only, never students or guardians. The text carries no link.
   - The `OPENWA_SEND_ALLOWLIST` guard applies. No live send.
 - **Known limits:**
+<<<<<<< HEAD
   - A teacher who starts from the Zoom app or a saved link (not through the platform) still gets a false reminder/alert. The WhatsApp link no longer causes this (follow-up 1).
+=======
+  - The WhatsApp-start-link gap above can cause a false reminder or alert for a teacher who joined from WhatsApp or the Zoom app.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   - A session rescheduled AFTER a reminder was sent will not re-alert, because the dedup key is per session.
 - **Not built:** the punctuality metric and any late/on-time rule. Moved to Phase 9 with the threshold OPEN.
 
@@ -232,6 +261,7 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 - **Fixed — complaints** can only concern sessions that have already started (cancelled sessions remain allowed).
 - **Lint fixes:** the complaint form gets the pre-selected session's parties server-side, so there is no setState in an effect. The prompt-card count moved to `lib/evaluations/prompt.ts`.
 - **Open for the owner:**
+<<<<<<< HEAD
   - ~~the WhatsApp `SESSION_START` join link that bypasses the click log~~ — fixed in the follow-ups below (security-review G-A06-1);
   - the announcement confirmation checks the count, not the exact recipient set; there is no server idempotency key.
 - **OWASP dedicated pass:** `docs/specs/security-review.md`.
@@ -268,3 +298,8 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 - **#5 Dashboard flag counts (option a):** the Admin/Supervisor red-mark tile counts LATE session-report flags only (matching the reports queue it links to); missing monthly reports are a separate line linking to the monthly-reports page (`lib/reports/teacher-flag-counts.ts`). Test FLG-01.
 - **#6 Monthly-flag scan cost:** same rule (days 4–7 of the teacher's local month, one flag per teacher and month), now batched: 3 queries per tick per previous-month key instead of 3 per teacher. Tests MR-02 (cost) + MR-01/INT-MON-05 (rule unchanged).
 - **#3 and #8:** plans shown to the owner; no code until approved.
+=======
+  - the WhatsApp `SESSION_START` join link that bypasses the click log, causing false late-start alerts (security-review G-A06-1);
+  - the announcement confirmation checks the count, not the exact recipient set; there is no server idempotency key.
+- **OWASP dedicated pass:** `docs/specs/security-review.md`.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

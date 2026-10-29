@@ -377,8 +377,11 @@ model Academy {
   applicationRecords        ApplicationRecord[]        @relation("ApplicationRecordAcademy")
   announcements             Announcement[]             @relation("AnnouncementAcademy")
   complaints                Complaint[]                @relation("ComplaintAcademy")
+<<<<<<< HEAD
   attendanceResolutions     AttendanceResolution[]     @relation("AttendanceResolutionAcademy")
   invoiceRefunds            InvoiceRefund[]            @relation("InvoiceRefundAcademy")
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   @@map("academies")
 }
@@ -446,11 +449,18 @@ model User {
   sentAdminMessages             AdminMessage[]             @relation("AdminMessageCreatedBy")
   sessionEvaluationsAuthored    SessionEvaluation[]        @relation("SessionEvaluationAuthor")
 
+<<<<<<< HEAD
   announcementsCreated  Announcement[]         @relation("AnnouncementCreatedBy")
   complaintsFiled       Complaint[]            @relation("ComplaintFiledBy")
   complaintsConcerning  Complaint[]            @relation("ComplaintConcerned")
   complaintsHandled     Complaint[]            @relation("ComplaintHandledBy")
   attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionResolvedBy")
+=======
+  announcementsCreated Announcement[] @relation("AnnouncementCreatedBy")
+  complaintsFiled      Complaint[]    @relation("ComplaintFiledBy")
+  complaintsConcerning Complaint[]    @relation("ComplaintConcerned")
+  complaintsHandled    Complaint[]    @relation("ComplaintHandledBy")
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -1308,6 +1318,7 @@ enum ComplaintPartyRole {
 // to Admin/Supervisor (lib/complaints/service.ts); the concerned party never sees it
 // and is never notified automatically.
 model Complaint {
+<<<<<<< HEAD
   id              String              @id @default(uuid()) @db.Uuid
   academyId       String              @map("academy_id") @db.Uuid
   sessionId       String              @map("session_id") @db.Uuid
@@ -1331,12 +1342,36 @@ model Complaint {
   filedBy         User                @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
   concernedUser   User?               @relation("ComplaintConcerned", fields: [concernedUserId], references: [id], onDelete: Restrict)
   handledBy       User?               @relation("ComplaintHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
+=======
+  id              String             @id @default(uuid()) @db.Uuid
+  academyId       String             @map("academy_id") @db.Uuid
+  sessionId       String             @map("session_id") @db.Uuid
+  filedById       String             @map("filed_by_id") @db.Uuid
+  filedByRole     ComplaintPartyRole @map("filed_by_role")
+  concernedUserId String             @map("concerned_user_id") @db.Uuid
+  concernedRole   ComplaintPartyRole @map("concerned_role")
+  category        ComplaintCategory
+  title           String             @db.VarChar(200)
+  body            String             @db.VarChar(4000)
+  status          ComplaintStatus    @default(NEW)
+  handledById     String?            @map("handled_by_id") @db.Uuid
+  resolutionNote  String?            @map("resolution_note") @db.VarChar(4000)
+  resolvedAt      DateTime?          @map("resolved_at") @db.Timestamptz(6)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  academy         Academy            @relation("ComplaintAcademy", fields: [academyId], references: [id], onDelete: Restrict)
+  session         Session            @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  filedBy         User               @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
+  concernedUser   User               @relation("ComplaintConcerned", fields: [concernedUserId], references: [id], onDelete: Restrict)
+  handledBy       User?              @relation("ComplaintHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   @@index([academyId, status, createdAt(sort: Desc)], map: "complaints_academy_status_created_idx")
   @@index([sessionId], map: "complaints_session_idx")
   @@index([concernedUserId], map: "complaints_concerned_user_idx")
   @@map("complaints")
 }
+<<<<<<< HEAD
 
 // D2 / D36 (owner, 2026-10-27; SQL S-1 approved): a manual ATTENDED / STUDENT_ABSENT
 // resolution by the Admin (or the Supervisor within 7 days of the scheduled end).
@@ -1400,3 +1435,5 @@ model InvoiceRefund {
   @@index([invoiceId], map: "invoice_refunds_invoice_idx")
   @@map("invoice_refunds")
 }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

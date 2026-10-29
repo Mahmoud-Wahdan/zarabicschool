@@ -76,7 +76,11 @@ export default async function StudentSessionsPage() {
                 {session.status === "SCHEDULED" && now >= session.scheduledEnd ? t("teacher.ended") : t(`statuses.${session.status}`)} ·{" "}
                 {t(`types.${session.sessionType}`)}
               </p>
+<<<<<<< HEAD
               {state ? <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={session.id} state={state} label={t("openZoom")} /> : null}
+=======
+              {state ? <SessionJoinLink sessionId={session.id} state={state} label={t("openZoom")} /> : null}
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
               {isEnded(session) && reportedSessionIds.has(session.id) ? (
                 <Link href={`/student/sessions/${session.id}/report`} className="mt-2 inline-block text-xs text-[var(--emerald)] underline-offset-2 hover:underline">
                   {tReports("open")}

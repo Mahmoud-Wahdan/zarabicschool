@@ -4,7 +4,11 @@ import { prisma } from "../../../../../lib/prisma";
 import { writePaymentAudit } from "../../../../../lib/payments/audit";
 import { PaymobProvider, PaymentProviderError, createUsdProvider } from "../../../../../lib/payments";
 import { canActOnStudentFinance } from "../../../../../lib/guards/finance-access";
+<<<<<<< HEAD
 import { errorResponse, isSameOrigin, isUuidParam } from "../../../../../lib/request";
+=======
+import { errorResponse, isSameOrigin } from "../../../../../lib/request";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 export const runtime = "nodejs";
 
 // Paymob payment keys are created with expiration: 3600 (lib/payments/paymob.ts);
@@ -42,7 +46,10 @@ export async function POST(
       provider: true,
       status: true,
       packageType: true,
+<<<<<<< HEAD
       billingSubscriptionId: true,
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       student: {
         select: {
           userId: true,
@@ -65,9 +72,12 @@ export async function POST(
   if (invoice.status !== "PENDING") return errorResponse(409, "INVOICE_NOT_PAYABLE", "This invoice is not payable.");
   // A4: no checkout for an annual invoice until PLAN_GRANT exists (owner, 2026-10-26).
   if (invoice.packageType === "ANNUAL_PLAN") return errorResponse(409, "ANNUAL_PLAN_DISABLED", "Annual plans cannot be paid yet.");
+<<<<<<< HEAD
   // An automatic-renewal invoice is paid only through the enrolling sign-up (Unified
   // Checkout with the subscription plan); this legacy iframe would not save the card.
   if (invoice.billingSubscriptionId) return errorResponse(409, "RENEWAL_SIGNUP_INVOICE", "This invoice is paid through the automatic renewal sign-up.");
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   // Audit actor role: only ADMIN/STUDENT/GUARDIAN pass the gate above (server-guaranteed),
   // so anything else can only mean SUPERVISOR/TEACHER slipping through — recorded as SYSTEM.
   const auditActorRole = user.role === "ADMIN" ? "ADMIN" : user.role === "GUARDIAN" ? "GUARDIAN" : user.role === "STUDENT" ? "STUDENT" : "SYSTEM";

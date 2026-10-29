@@ -5,8 +5,12 @@ import { isPhase7FollowupReady } from "../../../../../lib/phase7/readiness";
 import { prisma } from "../../../../../lib/prisma";
 import { isSession1ReportsReady } from "../../../../../lib/reports/session1-ready";
 import { profileUpdateSchema } from "../../../../../lib/validation/management";
+<<<<<<< HEAD
 import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../../lib/request";
 import { isValidTimeZone } from "../../../../../lib/users/timezone";
+=======
+import { requireSameOrigin } from "../../../../../lib/request";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);

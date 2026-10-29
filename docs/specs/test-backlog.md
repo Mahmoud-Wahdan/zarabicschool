@@ -173,10 +173,17 @@
 - **AN-04** — POST /api/announcements: TEACHER/STUDENT/GUARDIAN → 403; SUPERVISOR and ADMIN → 201; stale `confirmRecipientCount` → 409 RECIPIENTS_CHANGED + new count, nothing written.
 - **AN-05** — recipients: two users sharing one number → one job; user without a number → no job but sees the widget; inactive users excluded.
 - **AN-06** — announcements row cannot be UPDATEd/DELETEd (append-only trigger); no PATCH route exists.
+<<<<<<< HEAD
 - **AN-07** — worker throttle: >8 due announcement jobs in one tick → 8 sent, the rest stay PENDING (not claimed); 60 sent in the last hour → none sent; non-announcement jobs in the same batch still go out.
 - **AN-08** — default expiry = sent + 3 days; expiresAt in the past or > 90 days → 400; expired announcement absent from the widget but present in /announcements.
 - **AN-09** — logs contain no announcement text and no phone numbers (grep the worker/route output).
 - **CP-01** — complaint by a student about the teacher of their session → 201; NAMING a classmate or any guardian → 400; about a session they are not on → 404.
+=======
+- **AN-07** — worker throttle: >8 due announcement jobs in one tick → 8 sent, the rest rescheduled +5 min (not claimed); 60 sent in the last hour → none sent; non-announcement jobs in the same batch still go out.
+- **AN-08** — default expiry = sent + 3 days; expiresAt in the past or > 90 days → 400; expired announcement absent from the widget but present in /announcements.
+- **AN-09** — logs contain no announcement text and no phone numbers (grep the worker/route output).
+- **CP-01** — complaint by a student about the teacher of their session → 201; about a classmate or any guardian → 400; about a session they are not on → 404.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 - **CP-02** — teacher files about a roster student and that student's guardian → 201; about a student of another session → 400.
 - **CP-03** — the concerned party (and the filer) cannot read the complaint: no API route returns it, /admin/complaints and /admin/complaints/:id redirect for non-operators; no notification_jobs row is created by filing or resolving.
 - **CP-04** — workflow: RESOLVE on NEW → 409; START twice → second 409; RESOLVE without a note → 400; concurrent START → one wins.
@@ -188,6 +195,7 @@
 - **LS-02** — teacher clicks between enqueue and send → job CANCELLED; session cancelled or ended → CANCELLED.
 - **LS-03** — a STUDENT click does not count; students/guardians never receive late-start jobs; message text contains no URL.
 - **LS-04** — COMPLETED/CANCELLED/MISSED sessions and sessions older than 60 minutes are never scanned.
+<<<<<<< HEAD
 
 ## Session 5 — owner follow-ups (2026-10-26)
 - **JL-01** — `composeJobMessage`: SESSION_START / SESSION_REMINDER / TEACHER_LATE_START never contain `zoom.us`; inside the join window they contain `<NEXTAUTH_URL>/api/sessions/<id>/join`; T−2h reminder contains no URL and says the link opens 15 minutes before; NEXTAUTH_URL unset → no URL.
@@ -284,3 +292,5 @@
 - **DB-01..06** — category + reason, sign rules, one reversal, list/filter + D40 overtime, DB CHECK, in-app-only notice (never WhatsApp, never the Supervisor).
 - **PL-01..06, PR-01** — payer-only link, platform URL in the payer's language, once a day / 3 per invoice, Admin only, adult self-payer; provider void/refund audited + flagged, no ledger change.
 - **RF-01..08, PS-14..15** — refund by sessions, rounding down, credit and paid caps, idempotency, provider failure/pending, teacher pay untouched, access; Paymob refund body.
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

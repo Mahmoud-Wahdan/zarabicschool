@@ -85,11 +85,26 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+<<<<<<< HEAD
   // The ONE shared origin guard (Host in dev, ALLOWED_ORIGINS in production). The old
   // duplicate "Origin === request.url origin" check refused every request behind a
   // proxy/tunnel, where request.url is internal (review #8, 2026-10-27).
   const crossOrigin = requireSameOrigin(request);
   if (crossOrigin) return crossOrigin;
+=======
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      if (origin !== new URL(request.url).origin) {
+        return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
+      }
+    } catch {
+      return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Invalid request origin.");
+    }
+  }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > maxBodyBytes) {

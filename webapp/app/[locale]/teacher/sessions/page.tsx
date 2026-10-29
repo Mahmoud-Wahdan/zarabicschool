@@ -18,7 +18,10 @@ export default async function TeacherSessionsPage() {
   const locale = await getLocale();
   const t = await getTranslations("sessions");
   const now = new Date();
+<<<<<<< HEAD
   const joinWindowMinutes = await getJoinWindowMinutes(user.academyId);
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   // C6 (plan approved 2026-10-25): a bounded window (7 days back … 30 days ahead)
   // instead of "the oldest 100", which hid today's sessions from a teacher with a
   // long history. The cap stays as a safety net.

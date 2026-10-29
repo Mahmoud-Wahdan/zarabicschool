@@ -35,7 +35,10 @@ export async function GET(request: Request) {
   const type = profileType(request);
   if (!type) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Unknown profile type." } }, { status: 400 });
   const config = roleConfig[type];
+<<<<<<< HEAD
   const optOutReady = await isPhase7FollowupReady();
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const rows = await prisma.user.findMany({
     where: { academyId: user.academyId, role: config.role },
     orderBy: { displayName: "asc" },
@@ -98,7 +101,10 @@ export async function POST(request: Request) {
           academyId: user.academyId, username: input.username.toLowerCase(), displayName: input.displayName,
           passwordHash: await bcrypt.hash(input.password, 12), role: config.role,
           phone: input.phone || null, email: input.email || null, mustChangePassword: true,
+<<<<<<< HEAD
           ...(pendingTeacher ? { isActive: false } : {}),
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           passwordSetById: user.id, passwordSetAt: new Date(), // B4 audit: Admin-set initial password
           ...(guardianInput ? { guardianProfile: { create: { academyId: user.academyId, relationship: guardianInput.relationship } } } : {}),
           ...(studentInput ? { studentProfile: { create: { academyId: user.academyId, guardianId: studentInput.guardianId ?? null, isAdult: studentInput.isAdult, enrollmentDate: studentInput.enrollmentDate ? new Date(studentInput.enrollmentDate) : null, ...(studentInput.reportLanguage ? { reportLanguage: studentInput.reportLanguage } : {}) } } } : {}),

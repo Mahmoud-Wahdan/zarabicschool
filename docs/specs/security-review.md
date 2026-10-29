@@ -61,15 +61,22 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - **Seed: Verified.** `seed-demo.ts` refuses production and non-empty databases; passwords come from env.
 
 **Gaps**
+<<<<<<< HEAD
 - **G-A02-1 (Medium → partly fixed 2026-10-26):** `next.config.ts` now sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: DENY` on every path. Still missing (launch phase, `deploy-checklist.md` §8): CSP, HSTS, `Permissions-Policy`. Original finding: no security headers were configured (`next.config.ts` has no `headers()`): no CSP, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`, `Permissions-Policy`, HSTS. Recommendation: add a conservative header set before launch (decide on CSP with the Cloudinary/Zoom/Paymob origins).
+=======
+- **G-A02-1 (Medium):** no security headers are configured (`next.config.ts` has no `headers()`): no CSP, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`, `Permissions-Policy`, HSTS. Recommendation: add a conservative header set before launch (decide on CSP with the Cloudinary/Zoom/Paymob origins).
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 - **G-A02-2 (Medium):** `ALLOWED_ORIGINS` missing or wrong in production = every mutation fails (fail closed — an availability risk, not an exposure). Mitigated by the checklist.
 - **G-A02-3 (Low):** `auth/change-password` additionally requires `Origin === new URL(request.url).origin`. Behind a reverse proxy, `request.url` may carry the internal host, so password changes could fail in production. Verify on the real host; the generic `requireSameOrigin` already covers CSRF.
 - **G-A02-4 (Info):** `next.config.ts` sets `allowedDevOrigins: ["192.168.1.41"]` (dev only).
 
 ## A03 — Software Supply Chain Failures
 
+<<<<<<< HEAD
 **Update 2026-10-26 (owner follow-up 2):** after the upgrades `npm audit` reports **1 moderate** only (`fast-uri` 3.0.0–3.1.8, transitive; fix via `npm audit fix`, not run). The critical/high findings below are resolved.
 
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 **`npm audit` (2026-10-26, report only — nothing upgraded)**
 
 | Package | Kind | Severity | Advisories (summary) | Fixed in |
@@ -130,7 +137,11 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - **Complaints:** forward-only state machine with conditional updates and a DB CHECK.
 
 **Gaps**
+<<<<<<< HEAD
 - **G-A06-1 (Medium — FIXED 2026-10-26):** no WhatsApp message carries a Zoom link any more; they carry the platform join redirect (click logged), only while the join window is open. Residual: joins from the Zoom app or a link copied from `GET /api/sessions` leave no click. Original finding: the T+0 `SESSION_START` WhatsApp carries the raw Zoom join link. Joins from WhatsApp leave no click, so the late-start reminder/alert can be a false positive and the click timeline is incomplete.
+=======
+- **G-A06-1 (Medium — owner decision):** the T+0 `SESSION_START` WhatsApp carries the raw Zoom join link. Joins from WhatsApp leave no click, so the late-start reminder/alert can be a false positive and the click timeline is incomplete.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 - **G-A06-2 (Low):** the announcement confirmation compares counts, not the exact recipient set. There is no server idempotency key (the in-memory cap of 5/hour is the only repeat backstop).
 - **G-A06-3 (Info):** Paymob callback shape and HMAC field order are unverified until the sandbox run (the parser is isolated in `parsePaymobCallback`).
 
@@ -185,13 +196,20 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 ---
 
 ## Summary of owner actions (security)
+<<<<<<< HEAD
 1. ~~Upgrade `next` ≥ 16.4.3, `prisma` 7.10.1, `zod` ≥ 4.6.6 — G-A03-1/2~~ — done 2026-10-26 (next 16.4.3 + eslint-config-next 16.4.3, prisma/@prisma/client/@prisma/adapter-pg 7.10.1, zod 4.6.7; each step tsc/lint/build exit 0). Remaining `npm audit`: 1 moderate (`fast-uri`, transitive, `npm audit fix` available — not run, report only).
 2. ~~Decide on the WhatsApp start message link (G-A06-1)~~ — done 2026-10-26.
 3. Baseline headers added 2026-10-26; CSP/HSTS/Permissions-Policy before launch (G-A02-1).
+=======
+1. **Upgrade `next` ≥ 16.4.3** (critical advisories), `prisma` 7.10.1, `zod` ≥ 4.6.6 — G-A03-1/2.
+2. Decide on the WhatsApp start message link (G-A06-1).
+3. Add security headers before launch (G-A02-1).
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 4. Set `ALLOWED_ORIGINS` correctly in production and test change-password behind the real proxy (G-A02-2/3).
 5. Encryption of application details/phones/Zoom links (G-A04-1, launch list).
 6. Error monitoring with PII scrubbing; trim `cause.message` logging (G-A09-1/2).
 7. Decide whether an Admin may create a minor without a guardian (G-A01-1).
+<<<<<<< HEAD
 
 ## Phase 8 automated OWASP tests and new findings (2026-10-26)
 
@@ -227,3 +245,5 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 - [ ] Backup/restore drill; error monitoring with PII scrubbing (G-A09-2).
 - [ ] Browser check: a password manager/autofill + slow network login never shows credentials in the address bar.
 - [ ] Admin/Supervisor MFA or lockout decision (G-A07-2).
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

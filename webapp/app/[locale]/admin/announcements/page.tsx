@@ -4,7 +4,11 @@ import AnnouncementComposer from "../../../_components/announcements/announcemen
 import DashboardShell from "../../../_components/dashboard-shell";
 import EmptyState from "../../../_components/ui/empty-state";
 import { getAnnouncementDeliveryCounts, getAnnouncementHistory } from "../../../../lib/announcements/service";
+<<<<<<< HEAD
 import { ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS, ANNOUNCEMENT_MAX_PER_DAY } from "../../../../lib/config/announcements";
+=======
+import { ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS } from "../../../../lib/config/announcements";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { requireRoles } from "../../../../lib/dal";
 import { isPhase7Ready } from "../../../../lib/phase7/readiness";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
@@ -40,7 +44,11 @@ export default async function AdminAnnouncementsPage() {
       <h1 className="text-headline-md font-bold text-primary">{t("title")}</h1>
       <p className="mt-1 text-body-sm text-on-surface-variant">{t("subtitle")}</p>
       <div className="mt-4">
+<<<<<<< HEAD
         <AnnouncementComposer defaultExpiryDays={ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS} maxPerDay={ANNOUNCEMENT_MAX_PER_DAY} timeZone={user.timezone || "Africa/Cairo"} />
+=======
+        <AnnouncementComposer defaultExpiryDays={ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS} />
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       </div>
       <section className="mt-6 flex flex-col gap-2">
         <h2 className="text-title-md font-bold text-primary">{t("historyTitle")}</h2>

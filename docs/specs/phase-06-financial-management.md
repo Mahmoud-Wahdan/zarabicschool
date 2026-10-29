@@ -496,9 +496,15 @@ Owner answers recorded (2026-10-25): (1) order approved; (2) `npm cache clean` a
 
 ### Waiting on Paymob/owner (2026-10-25)
 
+<<<<<<< HEAD
 - **Auto-renewal check:** none of the Session 5 slices A0–A5, B1–B5, C, D calls a Paymob subscriptions (card-not-present auto-renewal) API — they only touch our webhook parsing, settlement, routes, schema and UI. They are not blocked on it (D44).
 - **Waiting on the Paymob sandbox (not auto-renewal):** A1's callback shape (`obj` envelope + `?hmac=` query vs header) and the 3-DS pending→success sequence. A1 is built against the documented processed-callback format, with the parsing isolated so that a sandbox correction is a one-function change.
 - **Not built — waiting on the owner:** E payment-link message (rules given 2026-10-25, migration for the `LINK_SENT` audit type needs OK), F PLAN_GRANT (rules given, design only), refund (rules given, design only), Phase 6b renewals/grace, USD gateway (postponed), card-not-present auto-renewal via Paymob subscriptions (D44).
+=======
+- **MOTO check:** none of the Session 5 slices A0–A5, B1–B5, C, D calls a Paymob MOTO API — they only touch our webhook parsing, settlement, routes, schema and UI. They are not blocked on MOTO.
+- **Waiting on the Paymob sandbox (not MOTO):** A1's callback shape (`obj` envelope + `?hmac=` query vs header) and the 3-DS pending→success sequence. A1 is built against the documented processed-callback format, with the parsing isolated so that a sandbox correction is a one-function change.
+- **Not built — waiting on the owner:** E payment-link message (rules given 2026-10-25, migration for the `LINK_SENT` audit type needs OK), F PLAN_GRANT (rules given, design only), refund (rules given, design only), Phase 6b renewals/grace, USD gateway (postponed), anything using a Paymob MOTO integration.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ### 2026-10-26 — Session 5 phase (b): slices A0–A5, B1–B5, C, D implemented (uncommitted, owner reviews before any commit)
 
@@ -583,6 +589,7 @@ Skills used: superpowers:requesting-code-review (two independent review passes: 
   - The full `npx tsc --noEmit` / `npm run build` are queued for when the owner stops `next dev`.
   - No tests (deferred; backlog updated).
 
+<<<<<<< HEAD
 ### CONFIRMED — settlement when no ACTIVE package covers the session (owner, 2026-10-26; INT-EXP-08 option a)
 - **Rule:** an attended session is ALWAYS settled. The deduction comes from the reserved package; without a reservation, from an ACTIVE package valid on the session date (earliest-expiring, preferring one with credit); if none covers the date (e.g. a late settlement after the period ended while the package is still ACTIVE), from the student's ACTIVE package anyway, earliest-expiring first — **even into the negative**, and every Admin gets `BALANCE_NEGATIVE` (CONTEXT §7 "settle anyway and flag Admin").
 - Only a student with **no ACTIVE package at all** is settled without a deduction + `SETTLED_WITHOUT_SUBSCRIPTION` (P8).
@@ -601,3 +608,7 @@ Skills used: superpowers:requesting-code-review (two independent review passes: 
 
 ### 2026-10-26 — Phase 8 audit
 (Legend: [x] done, [~] partial, [-] obsolete/deferred, [ ] missing — verified against the code and tests on 2026-10-26.) Real defect found and fixed by the audit tests: payroll adjustment/disbursement amounts above the 32-bit column range answered 500 → now 400 (`lib/validation/financial.ts`).
+=======
+### Open — reversal / refund family (owner, 2026-10-26)
+- **Overtime reversal:** OPEN, designed together with the future refund/reversal work (E/F/6b). Constraint to respect: `payroll_ledger_one_overtime_per_report_key` allows ONE `ADMIN_ADJUSTMENT` with a `report_id` per report, so a reversal needs its own entry type (or a reversal entry without `report_id` that references the original row). Not built.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

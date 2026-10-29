@@ -28,6 +28,7 @@ import { SettlementError, creditAmountMinor, getRateForSession } from "../payrol
  * backstop for a retried transaction.
  */
 /** Admin-only flag job, one per active Admin (the dedup key includes the Admin, so every Admin gets it). */
+<<<<<<< HEAD
 export async function enqueueAdminFlag(
   tx: Prisma.TransactionClient,
   academyId: string,
@@ -37,6 +38,12 @@ export async function enqueueAdminFlag(
     | "SETTLED_OUTSIDE_PACKAGE_PERIOD"
     | "ATTENDANCE_RESOLVED"
     | "ATTENDANCE_RESOLUTION_MISMATCH",
+=======
+async function enqueueAdminFlag(
+  tx: Prisma.TransactionClient,
+  academyId: string,
+  kind: "BALANCE_NEGATIVE" | "SETTLED_WITHOUT_SUBSCRIPTION",
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   dedupBase: string,
   payload?: Prisma.InputJsonValue,
 ) {
@@ -61,7 +68,11 @@ async function fallbackSubscriptionId(
   tx: Prisma.TransactionClient,
   report: { academyId: string; studentId: string },
   sessionDate: Date,
+<<<<<<< HEAD
 ): Promise<{ id: string; outsidePeriod: boolean } | null> {
+=======
+): Promise<string | null> {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const subscriptions = await tx.subscription.findMany({
     where: {
       academyId: report.academyId,
@@ -83,6 +94,7 @@ async function fallbackSubscriptionId(
   const withCredit = subscriptions.find(
     (item) => item.ledgerEntries.reduce((sum, entry) => sum + entry.sessionsDelta, 0) - item.reservations.length > 0,
   );
+<<<<<<< HEAD
   if (withCredit ?? subscriptions[0]) return { id: (withCredit ?? subscriptions[0]).id, outsidePeriod: false };
   // CONFIRMED (owner, 2026-10-26 — INT-EXP-08 option a; CONTEXT §7 "settle anyway and
   // flag Admin"): no ACTIVE package covers the session date (e.g. a late settlement
@@ -97,6 +109,9 @@ async function fallbackSubscriptionId(
     select: { id: true },
   });
   return anyActive ? { id: anyActive.id, outsidePeriod: true } : null;
+=======
+  return (withCredit ?? subscriptions[0])?.id ?? null;
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }
 
 export async function settleApprovedReport(
@@ -166,6 +181,7 @@ export async function settleApprovedReport(
     // date, earliest-expiring first, preferring one with credit left.
     // A RELEASED reservation no longer holds credit, so it does not pick the package.
     const heldSubscriptionId = reservation && reservation.status !== "RELEASED" ? reservation.subscriptionId : null;
+<<<<<<< HEAD
     // A manual resolution already settled the student side: skip steps 2–3 entirely.
     const fallback = heldSubscriptionId || resolution ? null : await fallbackSubscriptionId(tx, report, session.scheduledStart);
     const subscriptionId = resolution ? null : heldSubscriptionId ?? fallback?.id ?? null;
@@ -173,6 +189,10 @@ export async function settleApprovedReport(
       await enqueueAdminFlag(tx, report.academyId, "SETTLED_OUTSIDE_PACKAGE_PERIOD", `SETTLED_OUTSIDE_PACKAGE_PERIOD:${report.id}`, { reportId: report.id });
     }
     if (!subscriptionId && !resolution) {
+=======
+    const subscriptionId = heldSubscriptionId ?? (await fallbackSubscriptionId(tx, report, session.scheduledStart));
+    if (!subscriptionId) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       // P8: nothing to deduct from — the teacher side still settles (the session
       // happened); the Admin decides what to do with the student side.
       await enqueueAdminFlag(tx, report.academyId, "SETTLED_WITHOUT_SUBSCRIPTION", `SETTLED_WITHOUT_SUBSCRIPTION:${report.id}`, { reportId: report.id });

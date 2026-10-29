@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
+<<<<<<< HEAD
 import { ackViewerNotifications } from "../../../../lib/notifications/badge";
 import { countUnread } from "../../../../lib/notifications/inbox";
+=======
+import { ackViewerNotifications, getViewerBadge } from "../../../../lib/notifications/badge";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { requireSameOrigin } from "../../../../lib/request";
 
 export const runtime = "nodejs";

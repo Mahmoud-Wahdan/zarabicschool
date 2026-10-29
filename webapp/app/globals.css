@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 /* Icons (L2, owner 2026-10-28): Lucide SVG components (app/_components/ui/icon.tsx),
    bundled with the app. The 3.9 MB Material Symbols icon font was removed. */
+=======
+/* Material Symbols Outlined — the icon font used by the approved Stitch exports.
+   C3 (2026-10-26): ONE source — the self-hosted `material-symbols` package imported
+   in app/[locale]/layout.tsx (variable woff2, font-display: block, so the raw
+   ligature text never flashes). The duplicate render-blocking Google Fonts
+   stylesheet that declared the same family was removed. */
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 @import "tailwindcss";
 

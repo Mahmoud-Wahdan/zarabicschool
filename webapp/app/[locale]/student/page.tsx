@@ -33,6 +33,7 @@ export default async function StudentDashboard() {
             ledgerEntries: { select: { sessionsDelta: true } },
           },
         },
+<<<<<<< HEAD
         sessionStudents: {
           // Upcoming = still scheduled; a cancelled future session is not upcoming.
           where: { session: { scheduledStart: { gte: new Date() }, status: "SCHEDULED" } },
@@ -47,6 +48,22 @@ export default async function StudentDashboard() {
                 timezone: true,
                 subject: { select: { nameAr: true, nameEn: true } },
               },
+=======
+      },
+      sessionStudents: {
+        // Upcoming = still scheduled; a cancelled future session is not upcoming.
+        where: { session: { scheduledStart: { gte: new Date() }, status: "SCHEDULED" } },
+        orderBy: { session: { scheduledStart: "asc" } },
+        take: 8,
+        select: {
+          attendanceStatus: true,
+          session: {
+            select: {
+              id: true,
+              scheduledStart: true,
+              timezone: true,
+              subject: { select: { nameAr: true, nameEn: true } },
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
             },
           },
         },
@@ -59,8 +76,21 @@ export default async function StudentDashboard() {
           select: { id: true, homework: true, submittedAt: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
         },
       },
+<<<<<<< HEAD
     }),
   ]);
+=======
+      reports: {
+        // Submit-time visibility (owner, 2026-10-18 — CONTEXT §9): the student sees
+        // homework from the moment the teacher SUBMITS the report — in EVERY status,
+        // incl. REJECTED (same row, latest content); approval gates pay only.
+        orderBy: { submittedAt: "desc" },
+        take: 5,
+        select: { id: true, homework: true, submittedAt: true, session: { select: { scheduledStart: true, subject: { select: { nameAr: true, nameEn: true } } } } },
+      },
+    },
+  });
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   const remaining = student?.subscriptions.reduce((total, subscription) => {
     return total + subscription.ledgerEntries.reduce((sum, entry) => sum + entry.sessionsDelta, 0);

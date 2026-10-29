@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   if (error) return error;
   const sessionId = z.guid().safeParse(new URL(request.url).searchParams.get("sessionId"));
   if (!sessionId.success) return errorResponse(400, "VALIDATION_ERROR", "Invalid session identifier.");
+<<<<<<< HEAD
   const options = await getComplaintParties(user, sessionId.data);
   if (!options) return errorResponse(404, "NOT_FOUND", "Session not found.");
   return NextResponse.json({
@@ -23,4 +24,9 @@ export async function GET(request: Request) {
       otherParticipant: options.otherParticipant,
     },
   });
+=======
+  const parties = await getComplaintParties(user, sessionId.data);
+  if (!parties) return errorResponse(404, "NOT_FOUND", "Session not found.");
+  return NextResponse.json({ data: parties.map((party) => ({ userId: party.userId, role: party.role, displayName: party.displayName })) });
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }

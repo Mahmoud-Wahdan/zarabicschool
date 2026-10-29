@@ -134,8 +134,12 @@ async function recordIgnoredWebhookEvent(event: VerifiedPaymentEvent, status: "I
           {
             academyId: invoice.academyId,
             invoiceId,
+<<<<<<< HEAD
             // S-13 (b) / D43: a void or refund seen at the provider is recorded as such.
             eventType: event.outcome === "VOIDED" ? "VOIDED" : event.outcome === "REFUNDED" ? "PROVIDER_REFUND_SEEN" : "FAILED",
+=======
+            eventType: "FAILED",
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
             actorId: null,
             actorRole: "WEBHOOK",
             metadata: {

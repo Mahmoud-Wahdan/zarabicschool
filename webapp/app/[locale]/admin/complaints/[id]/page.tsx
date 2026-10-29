@@ -47,6 +47,7 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
           status: true,
           subject: { select: { nameAr: true, nameEn: true } },
           teacher: { select: { user: { select: { displayName: true } } } },
+<<<<<<< HEAD
           // Roster, for complaints about "another participant" (unnamed by the filer).
           students: {
             select: {
@@ -58,6 +59,8 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
               },
             },
           },
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
         },
       },
     },
@@ -84,6 +87,7 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
           <strong>{t("filedByLabel")}:</strong> {complaint.filedBy.displayName} ({t(`role.${complaint.filedByRole}`)})
         </p>
         <p>
+<<<<<<< HEAD
           <strong>{t("concernedLabel")}:</strong>{" "}
           {complaint.concernedUser && complaint.concernedRole
             ? `${complaint.concernedUser.displayName} (${t(`role.${complaint.concernedRole}`)})`
@@ -103,6 +107,10 @@ export default async function AdminComplaintDetailPage({ params }: { params: Pro
             </ul>
           </div>
         ) : null}
+=======
+          <strong>{t("concernedLabel")}:</strong> {complaint.concernedUser.displayName} ({t(`role.${complaint.concernedRole}`)})
+        </p>
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
         <p>
           <strong>{t("sessionLabel")}:</strong> {locale === "ar" ? complaint.session.subject.nameAr : complaint.session.subject.nameEn} ·{" "}
           {complaint.session.teacher.user.displayName} · {formatSessionDateTime(complaint.session.scheduledStart, user.timezone, locale)}{" "}

@@ -50,10 +50,28 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       prisma.teacher.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
       prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
       prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
+<<<<<<< HEAD
       // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
       getTeacherFlagCounts(user.academyId),
       // A7: the whole viewer-local day, every status, no row cap.
       getTodaySessions(user.academyId, now, viewerZone),
+=======
+      // Late session reports + missing monthly reports (owner decision 7, 2026-10-26).
+      prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: { in: ["LATE_REPORT", "MONTHLY_REPORT_MISSING"] } } }),
+      prisma.session.findMany({
+        where: {
+          academyId: user.academyId,
+          scheduledStart: { gte: startOfDay, lt: endOfDay },
+        },
+        orderBy: { scheduledStart: "asc" },
+        take: 8,
+        include: {
+          subject: { select: { nameAr: true, nameEn: true } },
+          teacher: { select: { user: { select: { displayName: true } } } },
+          students: { include: { student: { select: { user: { select: { displayName: true } } } } } },
+        },
+      }),
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     ]);
   const todaysSessions = today.sessions;
 

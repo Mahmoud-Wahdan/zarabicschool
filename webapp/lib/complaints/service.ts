@@ -2,7 +2,10 @@ import "server-only";
 
 import type { ComplaintCategory, ComplaintPartyRole, ComplaintStatus } from "../../generated/prisma/client";
 
+<<<<<<< HEAD
 import { isPhase7FollowupReady } from "../phase7/readiness";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { prisma } from "../prisma";
 
 /**
@@ -20,6 +23,7 @@ export const COMPLAINT_CATEGORIES: ComplaintCategory[] = ["TEACHING_QUALITY", "B
 
 export type ComplaintParty = { userId: string; role: ComplaintPartyRole; displayName: string };
 
+<<<<<<< HEAD
 /**
  * The choices offered to one filer for one session: named parties, plus — for a
  * student or guardian only — whether "another participant in this session" may be
@@ -31,6 +35,8 @@ export type ComplaintPartyOptions = { parties: ComplaintParty[]; otherParticipan
 /** Form/API value of the unnamed "another participant in this session" choice. */
 export const OTHER_PARTICIPANT = "OTHER_PARTICIPANT";
 
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 type Filer = { id: string; academyId: string; role: string };
 
 /**
@@ -39,7 +45,11 @@ type Filer = { id: string; academyId: string; role: string };
  * not a participant of that session (teacher of it, a roster student, or the
  * guardian of a roster student). The filer is never offered as a party.
  */
+<<<<<<< HEAD
 export async function getComplaintParties(filer: Filer, sessionId: string): Promise<ComplaintPartyOptions | null> {
+=======
+export async function getComplaintParties(filer: Filer, sessionId: string): Promise<ComplaintParty[] | null> {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   if (filer.role !== "TEACHER" && filer.role !== "STUDENT" && filer.role !== "GUARDIAN") return null;
   // Only sessions that have started (a complaint is about something that happened;
   // a cancelled session stays allowed — e.g. a late cancellation).
@@ -75,6 +85,7 @@ export async function getComplaintParties(filer: Filer, sessionId: string): Prom
   }
   const filerIsParticipant = parties.some((party) => party.userId === filer.id && party.role === filer.role);
   if (!filerIsParticipant) return null;
+<<<<<<< HEAD
   // A teacher (assigned to these students) may name any roster student or guardian.
   if (filer.role === "TEACHER") return { parties: parties.filter((party) => party.userId !== filer.id), otherParticipant: false };
   // Minors' data (owner, 2026-10-26): a student or guardian never sees other
@@ -97,6 +108,14 @@ export async function getComplaintParties(filer: Filer, sessionId: string): Prom
     parties: parties.filter((party) => party.role === "TEACHER"),
     otherParticipant: hasOtherFamily && (await isPhase7FollowupReady()),
   };
+=======
+  // Minors' data: a student or guardian does not otherwise see other families'
+  // names, so they may only name the session's TEACHER. A teacher (assigned to
+  // these students) may name any roster student or guardian. Complaints between
+  // families are OPEN for the owner.
+  if (filer.role !== "TEACHER") return parties.filter((party) => party.role === "TEACHER");
+  return parties.filter((party) => party.userId !== filer.id);
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }
 
 /** Sessions the filer took part in (newest first) — the complaint form's choices. */

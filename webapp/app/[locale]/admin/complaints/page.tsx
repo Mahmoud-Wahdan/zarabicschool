@@ -87,9 +87,13 @@ export default async function AdminComplaintsPage({ searchParams }: { searchPara
               </div>
               <p className="text-body-sm text-on-surface-variant">
                 {t(`category.${complaint.category}`)} · {t("filedBy", { name: complaint.filedBy.displayName, role: t(`role.${complaint.filedByRole}`) })} ·{" "}
+<<<<<<< HEAD
                 {complaint.concernedUser && complaint.concernedRole
                   ? t("concerning", { name: complaint.concernedUser.displayName, role: t(`role.${complaint.concernedRole}`) })
                   : t("concerningOther")}
+=======
+                {t("concerning", { name: complaint.concernedUser.displayName, role: t(`role.${complaint.concernedRole}`) })}
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
               </p>
               <p className="text-label-sm text-outline">
                 {t("sessionOf", { time: formatSessionDateTime(complaint.session.scheduledStart, user.timezone, locale) })} ·{" "}

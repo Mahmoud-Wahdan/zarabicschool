@@ -7,7 +7,10 @@ import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { joinWindowState } from "../../../lib/config/session-join";
+<<<<<<< HEAD
 import { getJoinWindowMinutes } from "../../../lib/sessions/join-window";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { currentMonthKey, formatMonthLabel, previousMonthKey } from "../../../lib/reports/month-key";
 import { eligibleMonthlyStudents } from "../../../lib/reports/monthly";
 import { getTeacherRosterReportStatuses, rosterKey } from "../../../lib/reports/roster-status";
@@ -58,13 +61,25 @@ export default async function TeacherDashboard() {
           },
         },
       },
+<<<<<<< HEAD
     }),
     getLocale(),
   ]);
+=======
+    },
+  });
+  const currentLocale = await getLocale();
+  const reportStatuses = await getTeacherRosterReportStatuses(
+    user.id,
+    user.academyId,
+    teacher?.sessions.map((session) => session.id) ?? [],
+  );
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   // In-app monthly-report reminder (owner decision 7, 2026-10-26): missing reports for
   // the PREVIOUS month in the teacher's calendar — the same month and eligibility rule
   // as the WhatsApp reminders and the Admin flag. Shown all month until submitted.
   const lastMonthKey = previousMonthKey(currentMonthKey(user.timezone || "Africa/Cairo", now));
+<<<<<<< HEAD
   // Both only need the teacher: together.
   const [reportStatuses, monthly] = await Promise.all([
     getTeacherRosterReportStatuses(
@@ -82,6 +97,14 @@ export default async function TeacherDashboard() {
   let monthlyMissing = 0;
   if (monthly) {
     const [eligible, submitted] = monthly;
+=======
+  let monthlyMissing = 0;
+  if (teacher) {
+    const [eligible, submitted] = await Promise.all([
+      eligibleMonthlyStudents(teacher.id, lastMonthKey),
+      prisma.monthlyReport.findMany({ where: { teacherId: teacher.id, monthKey: lastMonthKey }, select: { studentId: true } }),
+    ]);
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     const submittedIds = new Set(submitted.map((row) => row.studentId));
     monthlyMissing = eligible.filter((student) => !submittedIds.has(student.studentId)).length;
   }

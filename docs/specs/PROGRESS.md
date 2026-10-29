@@ -2,7 +2,11 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
+<<<<<<< HEAD
 > Last updated: 2026-10-27
+=======
+> Last updated: 2026-10-26
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ## Phase Status
 
@@ -18,6 +22,7 @@
 | 8 | Testing & Launch | In Progress — **runs BEFORE Phase 9** (owner, 2026-10-26); session 1: 41 suites / 465 tests green | 2026-10-26 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green. Session 5 (d): OWASP Top 10:2025 review (`security-review.md`), baseline security headers, deploy checklist (`deploy-checklist.md`), next 16.4.3 / prisma 7.10.1 / zod 4.6.7 (critical/high advisories resolved; `fast-uri` moderate deferred to the final phase) |
 | 9 | Refinements & UI/UX Polish | Not Started — after Phase 8; "Plan (draft)" written 2026-10-26, waiting for owner answers | 2026-10-26 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
 
+<<<<<<< HEAD
 ## Where to resume (2026-10-27, master execution prompt)
 
 - **Phase 9 sources of truth:** `phase-09-decisions.md` (D1–D49), `phase-09-plan.md` (slices S-00..S-14 + traceability table), `phase-09-open-questions.md` (OQ-1..OQ-17 + SQL S-1..S-6 waiting for the owner). `phase-09-refinements.md` is history only. Slice files: `docs/specs/slices/`.
@@ -59,6 +64,11 @@
 **Session 5 outcome (2026-10-26):** (a) Reports wrap-up, (b) Phase 6 slices, (c) Phase 7, lateness rules, (d) OWASP pass and the owner follow-ups (WhatsApp platform join links, complaint/announcement rules, security headers, dependency upgrades) are done; static checks and builds green; tests deferred to the final phase (`test-backlog.md`). Committed after the owner's OK as small commits on `feature/whatsapp` (the earlier WIP backup commit is kept on branch `backup/wip-a36b92a`). Not pushed, not merged.
 
 **Working mode (owner, 2026-10-26):** phases in order (a) Reports wrap-up → (b) Phase 6 slices A0–A5, B, C, D → (c) Phase 7 → (d) OWASP pass (`docs/specs/security-review.md`). Do not stop except for an OPEN/undefined rule, a financial/attendance table change (show SQL, wait), a destructive action or anything out of scope. **NO commits until the whole session is finished** (then: `git status` + `git diff --stat` + a commit plan, wait for OK). No stash/reset/checkout. After each phase: `git diff` + untracked list saved as a .patch in the session scratchpad. Full `npm run build` only when the owner stops `next dev` (once per phase); meanwhile lint + scratch-config typecheck. Out: WhatsApp live test, Phase 9, E/F, 6b, USD, card-not-present auto-renewal (D44). Owner decisions of 2026-10-26: phase-07 spec § "Owner decisions (2026-10-26)".
+=======
+## Current Active Task (2026-10-26, Session 5 continued on feature/whatsapp)
+
+**Working mode (owner, 2026-10-26):** phases in order (a) Reports wrap-up → (b) Phase 6 slices A0–A5, B, C, D → (c) Phase 7 → (d) OWASP pass (`docs/specs/security-review.md`). Do not stop except for an OPEN/undefined rule, a financial/attendance table change (show SQL, wait), a destructive action or anything out of scope. **NO commits until the whole session is finished** (then: `git status` + `git diff --stat` + a commit plan, wait for OK). No stash/reset/checkout. After each phase: `git diff` + untracked list saved as a .patch in the session scratchpad. Full `npm run build` only when the owner stops `next dev` (once per phase); meanwhile lint + scratch-config typecheck. Out: WhatsApp live test, Phase 9, E/F, 6b, USD, MOTO. Owner decisions of 2026-10-26: phase-07 spec § "Owner decisions (2026-10-26)".
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 - **Done before this message (uncommitted):** DB wipe + hardening H1–H7/H9 (committed fd0f44e/168f550); new seed `prisma/seed-demo.ts` run on dev (diff reviewed by the owner); student dashboard/report-link fixes (3c/3d).
 - **(a) Reports — done, uncommitted:** September monthly report moved to October (1 row); missing-monthly-report teacher card + `MONTHLY_REPORT_MISSING` Admin flag (migration `20261026120000_teacher_flags_monthly_missing`, owner-applied); 7-day edit window CONFIRMED; evaluation "mandatory" wording fixed in specs. Details: phase-05 § "2026-10-26 — Monthly reports wrap-up".
@@ -67,6 +77,7 @@
 - **(c) Phase 7 — done, uncommitted:** announcements (WhatsApp via jobs + throttle + widget/history), complaints (Admin/Supervisor-only visibility), link click timeline (complaint detail + report queue), evaluation summaries, post-session prompt card. Migration **`20261026170000_phase7_announcements_complaints` — owner to apply.** Review fixes applied. Details: phase-07 log.
 - **Lateness rules — done, uncommitted:** T+5 teacher WhatsApp reminder, T+10 Admin alert (`lib/config/lateness.ts`). The worker had nothing for late starts before.
 - **(d) OWASP pass — done:** `docs/specs/security-review.md` (Top 10:2025). Top owner actions: upgrade `next` ≥ 16.4.3 (critical advisories), the WhatsApp start link decision, security headers.
+<<<<<<< HEAD
 - **Owner follow-ups 2026-10-26 (after the Phase 7 report) — done, uncommitted:** WhatsApp messages carry the platform join URL, never a Zoom link; complaints "another participant in this session" (unnamed); announcements exclude Admin/Supervisor + Admin-only "no announcements" flag + max 2 per rolling 24 h; monthly-report timing CONFIRMED; baseline security headers. Migrations **`20261026180000_users_announcements_opt_out` and `20261026190000_complaints_unnamed_participant` — owner to apply.** Dependency upgrades (next, prisma, zod) run one at a time after dev is stopped. Details: phase-07 § "Owner follow-ups".
 - **Follow-up migrations applied by the owner; dependency upgrades done** (next 16.4.3, prisma 7.10.1, zod 4.6.7 — each tsc/lint/build exit 0; `npm audit`: 1 moderate `fast-uri`).
 - **Owner decisions after the upgrades (2026-10-26):** commits split per the commit plan (Option B, safety branch `backup/wip-a36b92a`, dependency upgrades in one commit); "2 announcements per day" = rolling 24 hours (CONFIRMED); npm install-scripts note + `fast-uri` deferral recorded in `deploy-checklist.md` §2b.
@@ -74,21 +85,31 @@
 - **Phase 8 session 1 (2026-10-26):** stale tests fixed without weakening any rule; leftover test data cleaned (owner GO; seed unchanged); console WhatsApp provider + `APP_PUBLIC_URL`; Layer 1 full-cycle test; phase audit (every checklist marked done/partial/obsolete/missing); risk-ranked coverage matrix and OWASP tests. **Full suite 41 suites / 465 tests, all passing (dev stopped).** Real defects fixed: credentials-in-URL, 500s on malformed ids, payroll overflow 500, cross-academy subject list, origin error code, evaluations 201, complaint siblings, INT-EXP-08. Not covered: UI/RTL journeys, timezone display, real Paymob/OpenWA, operations — see phase-08 "Phase 8 session 1 result".
 - **Code-review slices (2026-10-27, uncommitted):** #1 late-start dedup per teacher, #4 announcement cap counts accepted only, #5 dashboard flag counts split, #6 monthly scan batched — all test-first and green; #3 (announcement scheduling) and #8 (origin checks) wait for the owner's OK on the plan; #7/#9/#10 recorded as tech debt TD-07/09/10.
 - **Next:** owner answers Phase 9 questions (Q1–Q16) and the open Phase 8 items (X-Powered-By, Paymob test-mode run, E2E accounts); Layer 2 real payment only when the owner says; WhatsApp live test stays last.
+=======
+- **Next:** owner applies the Phase 7 migration, stops dev for the final build, reviews, then the commit plan.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ### Pending for the next CONTEXT revision (10th)
 
 1. §7.7, §9 "Other report-related rules", decisions table row "Student evaluation MANDATORY": evaluations are OPTIONAL for students and guardians; in-app non-blocking prompt after COMPLETED, no WhatsApp; mandatory = the teacher's session report and monthly report (owner, 2026-10-26).
 2. Decisions table "Monthly report teacher edit window = 7 days": PROPOSAL → CONFIRMED (owner, 2026-10-26).
+<<<<<<< HEAD
 3. Monthly report missing: in-app teacher card + `MONTHLY_REPORT_MISSING` Admin flag (timing CONFIRMED 2026-10-26: reminders 1st/3rd, flag from the 4th); money penalty OPEN.
 11. Settlement fallback (owner, 2026-10-26): an attended session always settles; with no package covering the date, deduct from the student's ACTIVE package even into the negative + Admin flag; only "no ACTIVE package at all" settles without a deduction; the teacher is always paid (CONTEXT §7 wording to make explicit).
+=======
+3. Monthly report missing: in-app teacher card + `MONTHLY_REPORT_MISSING` Admin flag (timing PROPOSAL: reminders 1st/3rd, flag from the 4th); money penalty OPEN.
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 4. Announcements (Admin + Supervisor → everyone, WhatsApp + in-app copy), complaints (concerned party never sees; NEW → IN_PROGRESS → RESOLVED), evaluation summaries (Admin + Supervisor only) — phase-07 § "Owner decisions (2026-10-26)". OPEN: announcement opt-out, max frequency.
 5. Teacher performance ANALYSIS → Phase 9 (9.5).
 6. Teacher late start (owner, 2026-10-26, final): T+5 WhatsApp reminder to the assigned teacher, T+10 Admin alert (named constants), only SCHEDULED sessions, based on platform link clicks; punctuality METRIC + threshold OPEN (Phase 9).
 7. Complaint categories (Teaching quality / Behaviour / Punctuality / Technical / Billing / Other); announcement default in-app expiry 3 days.
+<<<<<<< HEAD
 8. WhatsApp messages never carry a Zoom link — only the platform join URL, and only inside the join window (CONTEXT §6/§8 currently describe the start message "with the join link").
 9. Complaints: students/guardians name only the teacher or choose an unnamed "another participant in this session"; teachers name roster students/guardians.
 10. Announcements: recipients = teachers, students, guardians (not Admin/Supervisor); Admin-only per-user "no announcements" flag (self-service opt-out OPEN); max 2 per rolling 24 h.
 12. §6 notification chain + §21.6 (owner, 2026-10-27, D4/D28): the "about 2 hours before" reminder is REPLACED by a reminder when the join window opens (Admin setting, default 30 min, range 5–120) with the platform join link; the start message stays; the "15" join-window figure is now the setting. Teacher join button opens the host link when stored (D32).
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ## Previous Task (2026-10-25, Session 5 on feature/whatsapp)
 
@@ -218,7 +239,11 @@ Brand alignment pass on 2026-10-06: reconciled the Context with the supplied log
 - [x] Confirm unified immutable Reports: Teacher + Student + Session FKs; `SUBMITTED → REJECTED → SUBMITTED` or `APPROVED → ARCHIVED`; Admin/Supervisor approval gates settlement; no revision/version table.
 - [x] Confirm SessionStudents is the persisted attendance source; evaluations are separate and missing evaluation is not absence.
 - [x] Decide whether student evaluation is mandatory after every completed session: MANDATORY, filled by the student (owner, 2026-10-07 — CONTEXT §7.7); Phase 7 scope. **Superseded 2026-10-26: OPTIONAL** (see "Pending for the next CONTEXT revision").
+<<<<<<< HEAD
 - [x] Confirm the development database before applying `20261004000000_phase2_profiles`. *(Resolved: applied during the confirmed 2026-10-06 reset.)*
+=======
+- [ ] Confirm the development database before applying `20261004000000_phase2_profiles`. *(Resolved: applied during the confirmed 2026-10-06 reset.)*
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 ## 2026-10-03 Confirmed owner decisions (all marked CONFIRMED in CONTEXT.md §7 and the phase-02 spec)
 

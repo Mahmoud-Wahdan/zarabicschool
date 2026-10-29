@@ -15,11 +15,20 @@ function errorResponse(status: number, code: string, message: string, fieldError
 }
 
 export async function POST(request: Request) {
+<<<<<<< HEAD
   // The ONE shared origin guard (it already refuses a missing Origin). The old duplicate
   // check against the internal request.url blocked forced password changes behind a
   // proxy/tunnel (review #8, 2026-10-27).
   const crossOrigin = requireSameOrigin(request);
   if (crossOrigin) return crossOrigin;
+=======
+  const crossOrigin = requireSameOrigin(request);
+  if (crossOrigin) return crossOrigin;
+  const origin = request.headers.get("origin");
+  if (!origin || origin !== new URL(request.url).origin) {
+    return errorResponse(403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed.");
+  }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   const user = await getAuthSession();
   if (!user) {

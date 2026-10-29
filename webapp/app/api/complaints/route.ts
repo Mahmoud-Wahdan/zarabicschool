@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+<<<<<<< HEAD
 import { COMPLAINT_CATEGORIES, getComplaintParties, OTHER_PARTICIPANT } from "../../../lib/complaints/service";
+=======
+import { COMPLAINT_CATEGORIES, getComplaintParties } from "../../../lib/complaints/service";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { requireApiRoles } from "../../../lib/dal";
 import { isPhase7Ready } from "../../../lib/phase7/readiness";
 import { prisma } from "../../../lib/prisma";
@@ -16,9 +20,13 @@ import { errorResponse, requireSameOrigin } from "../../../lib/request";
  */
 const createSchema = z.object({
   sessionId: z.guid(),
+<<<<<<< HEAD
   // A party's user id, or OTHER_PARTICIPANT ("another participant in this session",
   // unnamed — students/guardians only, when offered).
   concernedUserId: z.union([z.guid(), z.literal(OTHER_PARTICIPANT)]),
+=======
+  concernedUserId: z.guid(),
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   category: z.enum(COMPLAINT_CATEGORIES as [string, ...string[]]),
   title: z.string().trim().min(2).max(200),
   body: z.string().trim().min(2).max(4000),
@@ -39,6 +47,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return errorResponse(400, "VALIDATION_ERROR", "Invalid complaint.", parsed.error.flatten().fieldErrors);
   }
+<<<<<<< HEAD
   const options = await getComplaintParties(user, parsed.data.sessionId);
   // Not a participant of this session, or the session is not in this academy: the
   // same 404 either way (no existence leak).
@@ -46,6 +55,14 @@ export async function POST(request: Request) {
   const unnamed = parsed.data.concernedUserId === OTHER_PARTICIPANT;
   const concerned = unnamed ? null : options.parties.find((party) => party.userId === parsed.data.concernedUserId);
   if (unnamed ? !options.otherParticipant : !concerned) {
+=======
+  const parties = await getComplaintParties(user, parsed.data.sessionId);
+  // Not a participant of this session, or the session is not in this academy: the
+  // same 404 either way (no existence leak).
+  if (!parties) return errorResponse(404, "NOT_FOUND", "Session not found.");
+  const concerned = parties.find((party) => party.userId === parsed.data.concernedUserId);
+  if (!concerned) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     return errorResponse(400, "VALIDATION_ERROR", "Choose a party of this session.", { concernedUserId: ["Not a party of this session."] });
   }
   await prisma.complaint.create({
@@ -54,8 +71,13 @@ export async function POST(request: Request) {
       sessionId: parsed.data.sessionId,
       filedById: user.id,
       filedByRole: user.role as "TEACHER" | "STUDENT" | "GUARDIAN",
+<<<<<<< HEAD
       concernedUserId: concerned?.userId ?? null,
       concernedRole: concerned?.role ?? null,
+=======
+      concernedUserId: concerned.userId,
+      concernedRole: concerned.role,
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       category: parsed.data.category as (typeof COMPLAINT_CATEGORIES)[number],
       title: parsed.data.title,
       body: parsed.data.body,

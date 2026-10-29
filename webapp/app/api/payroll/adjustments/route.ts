@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireApiRoles } from "../../../../lib/dal";
+<<<<<<< HEAD
 import { listAdjustments } from "../../../../lib/payroll/adjustments";
 import { createManualPayrollEntry } from "../../../../lib/payroll/manual-entry";
 import { prisma } from "../../../../lib/prisma";
+=======
+import { createManualPayrollEntry } from "../../../../lib/payroll/manual-entry";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { payrollAdjustmentSchema } from "../../../../lib/validation/financial";
 import { requireSameOrigin } from "../../../../lib/request";
 
@@ -29,6 +33,7 @@ export async function POST(request: Request) {
     amountMinor: parsed.data.amountMinor,
     currency: parsed.data.currency,
     reason: parsed.data.reason,
+<<<<<<< HEAD
     adjustmentCategory: parsed.data.category,
   });
 }
@@ -64,4 +69,7 @@ export async function GET(request: Request) {
     forAdmin: user.role === "ADMIN",
   });
   return NextResponse.json({ data: entries });
+=======
+  });
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }

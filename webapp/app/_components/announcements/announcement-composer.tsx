@@ -4,9 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+<<<<<<< HEAD
 import { zonedDayRangeUtc } from "../../../lib/schedules/recurrence";
 
 type Summary = { activeUsers: number; whatsappRecipients: number; withoutPhone: number; optedOut: number; sharedNumbersMerged: number };
+=======
+type Summary = { activeUsers: number; whatsappRecipients: number; withoutPhone: number; sharedNumbersMerged: number };
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 /**
  * Two-step composer (owner, 2026-10-26): write → "Review recipients" fetches the
@@ -14,7 +18,11 @@ type Summary = { activeUsers: number; whatsappRecipients: number; withoutPhone: 
  * (409 RECIPIENTS_CHANGED) when the confirmed count is stale. A sent announcement
  * cannot be edited.
  */
+<<<<<<< HEAD
 export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, timeZone }: { defaultExpiryDays: number; maxPerDay: number; timeZone: string }) {
+=======
+export default function AnnouncementComposer({ defaultExpiryDays }: { defaultExpiryDays: number }) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const t = useTranslations("announcementsAdmin");
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -55,8 +63,12 @@ export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, tim
         body: JSON.stringify({
           title,
           body,
+<<<<<<< HEAD
           // End of the chosen day in the viewer's zone, not the browser's (Cairo time-input fix, 2026-10-27).
           ...(expiresOn ? { expiresAt: new Date(zonedDayRangeUtc(expiresOn, timeZone).end.getTime() - 1000).toISOString() } : {}),
+=======
+          ...(expiresOn ? { expiresAt: new Date(`${expiresOn}T23:59:59`).toISOString() } : {}),
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           confirmRecipientCount: summary.whatsappRecipients,
         }),
       });
@@ -67,10 +79,13 @@ export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, tim
         setMessage(t("recipientsChanged"));
         return;
       }
+<<<<<<< HEAD
       if (response.status === 429 && payload.error?.code === "ANNOUNCEMENT_DAILY_LIMIT") {
         setMessage(t("dailyLimit", { count: maxPerDay }));
         return;
       }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       if (!response.ok) {
         setMessage(payload.error?.message ?? t("error"));
         return;
@@ -110,7 +125,10 @@ export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, tim
         <input type="date" value={expiresOn} onChange={(event) => setExpiresOn(event.target.value)} className="z-input" />
         <span className="text-label-sm font-normal text-on-surface-variant">{t("expiryHint", { days: defaultExpiryDays })}</span>
       </label>
+<<<<<<< HEAD
       <p className="text-label-sm text-on-surface-variant">{t("dailyLimitHint", { count: maxPerDay })}</p>
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
       {summary ? (
         <div className="rounded-lg border border-outline-variant bg-surface-container-lowest p-3 text-body-sm">
@@ -118,7 +136,10 @@ export default function AnnouncementComposer({ defaultExpiryDays, maxPerDay, tim
           <p className="text-on-surface-variant">
             {t("recipientDetail", { users: summary.activeUsers, noPhone: summary.withoutPhone, merged: summary.sharedNumbersMerged })}
           </p>
+<<<<<<< HEAD
           <p className="text-on-surface-variant">{t("recipientScope", { optedOut: summary.optedOut })}</p>
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           <label className="mt-2 flex items-start gap-2">
             <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
             <span>{t("confirmLabel", { count: summary.whatsappRecipients })}</span>

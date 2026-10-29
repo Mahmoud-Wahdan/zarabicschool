@@ -59,12 +59,17 @@
       "complaints": "Complaints",
       "evaluations": "Evaluation Summaries",
       "announcements": "Announcements",
+<<<<<<< HEAD
       "fileComplaint": "File a Complaint",
       "calendar": "Weekly Calendar",
       "performance": "Teacher Performance",
       "indicators": "My Indicators"
     },
     "account": "Account"
+=======
+      "fileComplaint": "File a Complaint"
+    }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "whatsappAdmin": {
     "title": "WhatsApp",
@@ -2168,11 +2173,15 @@
     "startAction": "Start handling",
     "resolutionNoteLabel": "Resolution note (required)",
     "resolveAction": "Mark as resolved",
+<<<<<<< HEAD
     "actionError": "The action failed. Please try again.",
     "concerningOther": "About: another participant (not named)",
     "concernedOther": "Another participant in this session (not named by the filer)",
     "rosterTitle": "Session participants",
     "rosterHint": "The filer did not name the person. Use the description and this list to identify them."
+=======
+    "actionError": "The action failed. Please try again."
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "complaintForm": {
     "title": "File a complaint",
@@ -2204,9 +2213,13 @@
       "TECHNICAL": "Technical",
       "BILLING": "Billing",
       "OTHER": "Other"
+<<<<<<< HEAD
     },
     "otherParticipant": "Another participant in this session",
     "otherParticipantHint": "No name is needed: the administration will identify the person from the session."
+=======
+    }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "announcementsAdmin": {
     "title": "Announcements",
@@ -2230,10 +2243,14 @@
     "emptyTitle": "No announcements yet",
     "visibleUntil": "On dashboards until {time}",
     "expired": "No longer on dashboards",
+<<<<<<< HEAD
     "deliverySummary": "WhatsApp: {sent} sent · {pending} waiting · {failed} failed",
     "recipientScope": "Teachers, students and guardians only (Admins and Supervisors are not included). Turned off by an Admin: {optedOut}.",
     "dailyLimit": "The limit of {count} announcements in 24 hours has been reached. Nothing was sent.",
     "dailyLimitHint": "At most {count} announcements can be sent in any 24 hours."
+=======
+    "deliverySummary": "WhatsApp: {sent} sent · {pending} waiting · {failed} failed"
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "announcementsWidget": {
     "title": "Announcements",
@@ -2257,6 +2274,7 @@
   "evaluationPrompt": {
     "text": "{count, plural, one {You can evaluate 1 recent session (optional).} other {You can evaluate # recent sessions (optional).}}",
     "action": "Evaluate"
+<<<<<<< HEAD
   },
   "attendanceResolution": {
     "open": "Resolve attendance manually",
@@ -2470,5 +2488,7 @@
       "PAYROLL_ADJUSTMENT": "A payroll entry was added",
       "INVOICE_PAYMENT_LINK": "An invoice is waiting for payment"
     }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   }
 }

@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { PaymobProvider, PaymentProviderError } from "../../../../../lib/payments";
 import { PaymobSignedShapeError, readPaymobSignature } from "../../../../../lib/payments/paymob";
 import { recordInvalidSignedEvent, settlePaidInvoice } from "../../../../../lib/payments/settlement";
+<<<<<<< HEAD
 import { activateSignup } from "../../../../../lib/billing/renewal";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 export const runtime = "nodejs";
 

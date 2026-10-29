@@ -1,15 +1,23 @@
 import "server-only";
 
+<<<<<<< HEAD
 import { isPhase7FollowupReady } from "../phase7/readiness";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { prisma } from "../prisma";
 import { toInternationalDigits } from "../messaging/phone";
 
 /**
+<<<<<<< HEAD
  * Announcement recipients (owner, 2026-10-26): EVERYONE in the academy except the
  * senders' side — every active TEACHER, STUDENT and GUARDIAN (Admin and Supervisor
  * are excluded, follow-up 2026-10-26) — minus users an Admin flagged "no
  * announcements" (users.announcements_opt_out; they still see the in-app copy).
  * No new recipient rule otherwise: a student and their guardian
+=======
+ * Announcement recipients (owner, 2026-10-26): EVERYONE in the academy — every
+ * active user of every role. No new recipient rule: a student and their guardian
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
  * are separate users and each counts (the same as report notices), and the WhatsApp
  * list is deduped by PHONE NUMBER so one number (e.g. a guardian with several
  * children, or a child using the parent's number) gets ONE message. Users without
@@ -19,6 +27,7 @@ import { toInternationalDigits } from "../messaging/phone";
  * the confirmed count and the enqueued jobs match.
  */
 export async function computeAnnouncementRecipients(academyId: string) {
+<<<<<<< HEAD
   const optOutReady = await isPhase7FollowupReady();
   const users = await prisma.user.findMany({
     where: { academyId, isActive: true, role: { in: ["TEACHER", "STUDENT", "GUARDIAN"] } },
@@ -39,12 +48,25 @@ export async function computeAnnouncementRecipients(academyId: string) {
       optedOut += 1;
       continue;
     }
+=======
+  const users = await prisma.user.findMany({
+    where: { academyId, isActive: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, phone: true },
+  });
+  const byNumber = new Map<string, string>();
+  let withoutPhone = 0;
+  for (const user of users) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     const digits = toInternationalDigits(user.phone);
     if (!digits) {
       withoutPhone += 1;
       continue;
     }
+<<<<<<< HEAD
     if (optedOutNumbers.has(digits)) continue;
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     if (!byNumber.has(digits)) byNumber.set(digits, user.id);
   }
   const recipientUserIds = [...byNumber.values()];
@@ -52,8 +74,12 @@ export async function computeAnnouncementRecipients(academyId: string) {
     activeUsers: users.length,
     whatsappRecipients: recipientUserIds.length,
     withoutPhone,
+<<<<<<< HEAD
     optedOut,
     sharedNumbersMerged: users.length - optedOut - withoutPhone - recipientUserIds.length,
+=======
+    sharedNumbersMerged: users.length - withoutPhone - recipientUserIds.length,
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     recipientUserIds,
   };
 }
@@ -65,7 +91,10 @@ export async function announcementRecipientSummary(academyId: string) {
     activeUsers: recipients.activeUsers,
     whatsappRecipients: recipients.whatsappRecipients,
     withoutPhone: recipients.withoutPhone,
+<<<<<<< HEAD
     optedOut: recipients.optedOut,
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     sharedNumbersMerged: recipients.sharedNumbersMerged,
   };
 }

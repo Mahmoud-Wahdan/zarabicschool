@@ -67,7 +67,11 @@ export function isSameOrigin(headers: Headers): boolean {
  * B3 (S1): the one guard for every state-changing route — `null` when the request is
  * same-origin, otherwise the 403 to return. Usage, first line of the handler:
  *   const crossOrigin = requireSameOrigin(request); if (crossOrigin) return crossOrigin;
+<<<<<<< HEAD
  * Exempt by design (signed server-to-server): the Paymob (transaction + subscription) and OpenWA webhooks;
+=======
+ * Exempt by design (signed server-to-server): the Paymob and OpenWA webhooks;
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
  * NextAuth's own /api/auth/[...nextauth] (its CSRF token).
  */
 export function requireSameOrigin(request: Request): NextResponse | null {

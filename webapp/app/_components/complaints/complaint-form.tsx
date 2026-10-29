@@ -7,8 +7,11 @@ type SessionOption = { id: string; label: string };
 type Party = { userId: string; role: "TEACHER" | "STUDENT" | "GUARDIAN"; displayName: string };
 
 const CATEGORIES = ["TEACHING_QUALITY", "BEHAVIOUR", "PUNCTUALITY", "TECHNICAL", "BILLING", "OTHER"] as const;
+<<<<<<< HEAD
 // Unnamed "another participant in this session" (students/guardians, when offered).
 const OTHER_PARTICIPANT = "OTHER_PARTICIPANT";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 /**
  * File a complaint (student/guardian/teacher). After sending, the form shows a
@@ -19,18 +22,27 @@ export default function ComplaintForm({
   sessions,
   initialSessionId,
   initialParties = [],
+<<<<<<< HEAD
   initialOtherParticipant = false,
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }: {
   sessions: SessionOption[];
   initialSessionId?: string;
   /** Parties of the pre-selected session, resolved server-side (same rule as the API). */
   initialParties?: Party[];
+<<<<<<< HEAD
   initialOtherParticipant?: boolean;
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 }) {
   const t = useTranslations("complaintForm");
   const [sessionId, setSessionId] = useState(initialSessionId ?? "");
   const [parties, setParties] = useState<Party[]>(initialParties);
+<<<<<<< HEAD
   const [otherParticipant, setOtherParticipant] = useState(initialOtherParticipant);
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const [concernedUserId, setConcernedUserId] = useState("");
   const [category, setCategory] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -43,15 +55,23 @@ export default function ComplaintForm({
     setSessionId(id);
     setConcernedUserId("");
     setParties([]);
+<<<<<<< HEAD
     setOtherParticipant(false);
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     if (!id) return;
     try {
       const response = await fetch(`/api/complaints/parties?sessionId=${encodeURIComponent(id)}`);
       const payload = await response.json().catch(() => ({}));
+<<<<<<< HEAD
       if (response.ok) {
         setParties(payload.data?.parties ?? []);
         setOtherParticipant(payload.data?.otherParticipant === true);
       } else setMessage(payload.error?.message ?? t("error"));
+=======
+      if (response.ok) setParties(payload.data ?? []);
+      else setMessage(payload.error?.message ?? t("error"));
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     } catch {
       setMessage(t("error"));
     }
@@ -110,18 +130,26 @@ export default function ComplaintForm({
       </label>
       <label className="flex flex-col gap-1 text-label-md font-semibold text-on-surface">
         {t("concernedLabel")}
+<<<<<<< HEAD
         <select required value={concernedUserId} onChange={(event) => setConcernedUserId(event.target.value)} className="z-input" disabled={!parties.length && !otherParticipant}>
+=======
+        <select required value={concernedUserId} onChange={(event) => setConcernedUserId(event.target.value)} className="z-input" disabled={!parties.length}>
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           <option value="">{t("choose")}</option>
           {parties.map((party) => (
             <option key={party.userId} value={party.userId}>
               {party.displayName} ({t(`role.${party.role}`)})
             </option>
           ))}
+<<<<<<< HEAD
           {otherParticipant ? <option value={OTHER_PARTICIPANT}>{t("otherParticipant")}</option> : null}
         </select>
         {concernedUserId === OTHER_PARTICIPANT ? (
           <span className="text-label-sm font-normal text-on-surface-variant">{t("otherParticipantHint")}</span>
         ) : null}
+=======
+        </select>
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       </label>
       <label className="flex flex-col gap-1 text-label-md font-semibold text-on-surface">
         {t("categoryLabel")}

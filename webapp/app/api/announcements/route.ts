@@ -5,14 +5,21 @@ import { computeAnnouncementRecipients, getAnnouncementHistory } from "../../../
 import {
   ANNOUNCEMENT_DEFAULT_EXPIRY_DAYS,
   ANNOUNCEMENT_MAX_EXPIRY_DAYS,
+<<<<<<< HEAD
   ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR,
   ANNOUNCEMENT_MAX_PER_DAY,
   ANNOUNCEMENT_SEND_JITTER_MS,
   ANNOUNCEMENT_SEND_SPACING_MS,
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 } from "../../../lib/config/announcements";
 import { requireApiRoles } from "../../../lib/dal";
 import { isPhase7Ready } from "../../../lib/phase7/readiness";
 import { prisma } from "../../../lib/prisma";
+<<<<<<< HEAD
+=======
+import { allowRequest } from "../../../lib/rate-limit";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { errorResponse, requireSameOrigin } from "../../../lib/request";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -52,6 +59,7 @@ export async function POST(request: Request) {
   if (!(await isPhase7Ready())) {
     return errorResponse(409, "PHASE7_MIGRATION_PENDING", "Apply migration 20261026170000 first.");
   }
+<<<<<<< HEAD
   // Technical safety cap against accidental repeats, counted from ACCEPTED
   // announcements only (owner 2026-10-27): refused attempts (stale count, bad
   // expiry, validation) never use it up. The business frequency rule
@@ -60,6 +68,11 @@ export async function POST(request: Request) {
     where: { academyId: user.academyId, createdById: user.id, sentAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
   });
   if (acceptedLastHour >= ANNOUNCEMENT_MAX_PER_AUTHOR_PER_HOUR) {
+=======
+  // Technical safety cap against accidental repeats — NOT the business frequency
+  // rule (the maximum announcement frequency is OPEN for the owner).
+  if (!allowRequest(`announcement:${user.id}`, 5, 60 * 60 * 1000)) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     return errorResponse(429, "RATE_LIMITED", "Too many announcements. Try again later.");
   }
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
@@ -89,6 +102,7 @@ export async function POST(request: Request) {
   }
 
   const created = await prisma.$transaction(async (tx) => {
+<<<<<<< HEAD
     // Frequency rule (owner, 2026-10-26): at most ANNOUNCEMENT_MAX_PER_DAY per
     // academy in any rolling 24 hours. A per-academy advisory lock serialises
     // concurrent sends so two requests cannot both pass the count.
@@ -97,6 +111,8 @@ export async function POST(request: Request) {
       where: { academyId: user.academyId, sentAt: { gt: new Date(now.getTime() - DAY_MS) } },
     });
     if (sentLastDay >= ANNOUNCEMENT_MAX_PER_DAY) return null;
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     const announcement = await tx.announcement.create({
       data: {
         academyId: user.academyId,
@@ -110,6 +126,7 @@ export async function POST(request: Request) {
       select: { id: true, sentAt: true, expiresAt: true, whatsappRecipientCount: true },
     });
     if (recipients.recipientUserIds.length) {
+<<<<<<< HEAD
       // Review #3 (2026-10-27): each job gets its own eligible time, SPACING + random
       // JITTER after the previous one, so the worker never sleeps between announcements.
       let offsetMs = 0;
@@ -119,12 +136,20 @@ export async function POST(request: Request) {
       });
       await tx.notificationJob.createMany({
         data: recipients.recipientUserIds.map((recipientUserId, index) => ({
+=======
+      await tx.notificationJob.createMany({
+        data: recipients.recipientUserIds.map((recipientUserId) => ({
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           academyId: user.academyId,
           sessionId: null,
           recipientUserId,
           kind: "ANNOUNCEMENT",
           dedupKey: `ANNOUNCEMENT:${announcement.id}:${recipientUserId}`,
+<<<<<<< HEAD
           scheduledFor: eligibleAt[index],
+=======
+          scheduledFor: now,
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
           // Redaction rule: ids only — the text stays in announcements.
           payload: { announcementId: announcement.id },
         })),
@@ -133,6 +158,7 @@ export async function POST(request: Request) {
     }
     return announcement;
   });
+<<<<<<< HEAD
   if (!created) {
     return errorResponse(
       429,
@@ -140,6 +166,8 @@ export async function POST(request: Request) {
       `At most ${ANNOUNCEMENT_MAX_PER_DAY} announcements can be sent in 24 hours. Nothing was sent.`,
     );
   }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   // Redacted summary only: id + count, never the text or any number.
   console.info(`[announcements] ${created.id} queued for ${created.whatsappRecipientCount} WhatsApp recipient(s).`);

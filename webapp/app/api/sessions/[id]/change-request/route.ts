@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { requireApiRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { sessionChangeRequestSchema } from "../../../../../lib/validation/management";
+<<<<<<< HEAD
 import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
+=======
+import { requireSameOrigin } from "../../../../../lib/request";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);

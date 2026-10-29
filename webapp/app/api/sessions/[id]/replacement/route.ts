@@ -7,7 +7,11 @@ import { createReplacementSession, enqueueReplacementJobs } from "../../../../..
 import { SchedulingValidationError } from "../../../../../lib/scheduling/checks";
 import { replacementSessionSchema } from "../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../lib/validation/zoom-url";
+<<<<<<< HEAD
 import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
+=======
+import { requireSameOrigin } from "../../../../../lib/request";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);

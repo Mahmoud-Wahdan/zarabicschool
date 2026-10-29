@@ -5,15 +5,23 @@ import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 import {
   ANNOUNCEMENT_MAX_PER_BATCH,
   ANNOUNCEMENT_MAX_PER_HOUR,
+<<<<<<< HEAD
   ANNOUNCEMENT_SENDS_PER_TICK,
+=======
+  ANNOUNCEMENT_SEND_JITTER_MS,
+  ANNOUNCEMENT_SEND_SPACING_MS,
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 } from "../config/announcements";
 import {
   ADMIN_LATE_ALERT_MINUTES,
   LATE_START_SCAN_WINDOW_MINUTES,
   TEACHER_LATE_REMINDER_MINUTES,
 } from "../config/lateness";
+<<<<<<< HEAD
 import { platformUrl, sessionJoinPlatformUrl } from "../config/platform-url";
 import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { processRenewals } from "../billing/renewal";
@@ -40,7 +48,11 @@ const LATE_REPORT_FLAG_MS = 30 * 60 * 1000;
 // TEACHER's local calendar (CONFIRMED by the owner 2026-10-26 — CONTEXT §9).
 const MONTHLY_REPORT_REMINDER_DAYS = [1, 3];
 // Still missing after the last reminder → a MONTHLY_REPORT_MISSING teacher flag for
+<<<<<<< HEAD
 // the Admin (owner decision 7; timing CONFIRMED 2026-10-26). Days 4–7 of the
+=======
+// the Admin (owner decision 7, 2026-10-26; the timing is a PROPOSAL). Days 4–7 of the
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 // teacher's local month form a scan window so a worker outage on the 4th does not
 // drop the flag; the partial unique index keeps it to one flag per teacher and month.
 const MONTHLY_REPORT_FLAG_FIRST_DAY = 4;
@@ -187,6 +199,7 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     // session reminders reference the start (Phase 5 review F-08).
     const anchor = isReportNudgeKind(job.kind) ? job.session.scheduledEnd : job.session.scheduledStart;
     const time = formatSessionTime(anchor, timeZone, language);
+<<<<<<< HEAD
     // Join links (owner, 2026-10-26): NEVER the raw Zoom link in any WhatsApp message.
     // Only the platform's join redirect, and only while its join window is open at
     // send time — before the window the text says when it opens instead of a link
@@ -197,6 +210,14 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       return language === "en"
         ? `Your session (${subject}) started at ${time} (${timeZone}) and the session link has not been opened yet. Please join now from the platform${joinUrl ? `: ${joinUrl}` : "."}`
         : `بدأت حصتك (${subject}) في ${time} (${timeZone}) ولم يتم فتح رابط الحصة بعد. يرجى الدخول الآن من المنصة${joinUrl ? `: ${joinUrl}` : "."}`;
+=======
+    // Late start (owner, 2026-10-26): never a link in the text (no Zoom link in logs
+    // or late notices) — the teacher opens the session from the platform.
+    if (job.kind === "TEACHER_LATE_START") {
+      return language === "en"
+        ? `Your session (${subject}) started at ${time} (${timeZone}) and the session link has not been opened yet. Please join now from the platform.`
+        : `بدأت حصتك (${subject}) في ${time} (${timeZone}) ولم يتم فتح رابط الحصة بعد. يرجى الدخول الآن من المنصة.`;
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     }
     if (job.kind === "TEACHER_LATE_START_ADMIN") {
       const teacherName = job.session.teacher?.user.displayName ?? "";
@@ -256,6 +277,7 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "A session report was approved for a student without an active package: the teacher was credited, no session was deducted. Please review it."
       : "تم اعتماد تقرير حصة لطالب ليس لديه باقة نشطة: تمت إضافة أجر المعلم ولم يُخصم أي رصيد. يرجى المراجعة.";
   }
+<<<<<<< HEAD
   if (job.kind === "SETTLED_OUTSIDE_PACKAGE_PERIOD") {
     // Admin-only flag (I-2, 2026-10-27): no package covered the session date, so the
     // session was deducted from the student's ACTIVE package outside its period.
@@ -276,6 +298,8 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "An approved teacher report disagrees with a manual attendance resolution. Nothing was changed automatically; review the session and correct it with an adjustment if needed."
       : "تقرير معلم معتمد يخالف تسجيل حضور يدوي. لم يتغير شيء تلقائيًا؛ راجِع الحصة وصحّحها بقيد تعديل عند الحاجة.";
   }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   if (job.kind === "PAYMENT_ANOMALY") {
     // Admin-only flag (Phase 6 A1): a signed payment event that did not move money
     // and needs a human look. Reason code only — no amounts, no payer data.
@@ -283,6 +307,7 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "A payment event needs your review (no money was moved automatically). Check the payments audit page."
       : "حدث دفع يحتاج إلى مراجعتك (لم تُنفَّذ أي حركة مالية تلقائيًا). راجع صفحة سجل المدفوعات.";
   }
+<<<<<<< HEAD
   // Automatic renewal (D51/D52/D58): no amounts, no card data; every payer notice
   // after a charge offers the cancel option. Final wording waits for the owner (D57).
   const cancelOption =
@@ -340,6 +365,8 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       ? "A Supervisor added a new teacher. Approve them and set the rate on the teachers page."
       : "أضاف أحد المشرفين معلمًا جديدًا. اعتمده وحدّد الأجر من صفحة المعلمين.";
   }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   if (job.kind === "OVERTIME_DECISION") {
     // Teacher notice after the Admin reviews an overtime claim — no amounts.
     return language === "en"
@@ -401,6 +428,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   // conditional and pre-migration sends keep working unchanged.
   const session1Ready = await isSession1ReportsReady();
   // Announcements never compete with time-critical kinds (session start notices,
+<<<<<<< HEAD
   // late-start reminders): ordinary jobs get the full batch and are sent FIRST;
   // announcement jobs are fetched SEPARATELY, after them, and only up to the throttle
   // budget (lib/config/announcements.ts: per-tick send count + rolling-hour cap). The
@@ -413,6 +441,15 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
     0,
     Math.min(ANNOUNCEMENT_SENDS_PER_TICK, ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_HOUR - sentLastHour),
   );
+=======
+  // late-start reminders): ordinary jobs get the full batch; announcement jobs are
+  // fetched SEPARATELY and only up to the throttle budget (lib/config/announcements.ts:
+  // per-tick cap + rolling-hour cap). Jobs over budget simply stay PENDING.
+  const sentLastHour = await prisma.notificationJob.count({
+    where: { kind: "ANNOUNCEMENT", status: "SENT", sentAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+  });
+  const announcementBudget = Math.max(0, Math.min(ANNOUNCEMENT_MAX_PER_BATCH, ANNOUNCEMENT_MAX_PER_HOUR - sentLastHour));
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const findDue = (kind: Prisma.StringFilter, take: number) => prisma.notificationJob.findMany({
     where: {
       status: "PENDING",
@@ -469,9 +506,12 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
   const provider = getMessagingProvider();
   const deliveryReady = await isWhatsAppDeliveryReady();
   let sendsThisTick = 0;
+<<<<<<< HEAD
   // Join window per academy (D4), read once per tick: the reminder text and its
   // platform link follow the Admin setting at send time.
   const joinWindowByAcademy = new Map<string, number>();
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   const announcementTally = { sent: 0, failed: 0 };
   for (const job of due as JobWithRelations[]) {
     const claimed = await prisma.notificationJob.updateMany({
@@ -584,6 +624,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         continue;
       }
     }
+<<<<<<< HEAD
     // S-08 / D5: composed at send time from {localDate}; never sent at or after 08:00
     // local (a late tick cancels it — later changes are shown in-app only).
     let dailyScheduleText: string | null = null;
@@ -615,6 +656,13 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
     // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
     // heavier announcement spacing is the job's staggered eligible time, not a sleep.
     if (sendsThisTick > 0) {
+=======
+    const message = composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement });
+    if (job.kind === "ANNOUNCEMENT") {
+      // Heavier spacing + random jitter for bulk sends (ban risk, CONTEXT §8).
+      await sleep(ANNOUNCEMENT_SEND_SPACING_MS + Math.floor(Math.random() * ANNOUNCEMENT_SEND_JITTER_MS));
+    } else if (sendsThisTick > 0) {
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
       await sleep(SEND_SPACING_MS);
     }
     sendsThisTick += 1;
@@ -795,6 +843,15 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
     if (!candidates.length) continue;
     const candidateIds = candidates.map((due) => due.teacherId);
 
+    if (flagToday) {
+      // Already flagged for this month → nothing left to do for this teacher today.
+      const flagged = await prisma.teacherFlag.findFirst({
+        where: { teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey },
+        select: { id: true },
+      });
+      if (flagged) continue;
+    }
+
     const { start, end } = monthKeyRangeUtc(monthKey);
     const eligible = await prisma.sessionStudent.findMany({
       where: {
@@ -823,6 +880,7 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
       missingByTeacher.set(row.session.teacherId, missing);
     }
 
+<<<<<<< HEAD
     for (const due of candidates) {
       const missingCount = missingByTeacher.get(due.teacherId)?.size ?? 0;
       if (missingCount === 0) continue;
@@ -842,6 +900,23 @@ export async function processMonthlyReportReminders(now = new Date(), academyId?
         payload: { monthKey, missingCount },
       });
     }
+=======
+    if (flagToday) {
+      flags.push({ academyId: teacher.academyId, teacherId: teacher.id, flagType: "MONTHLY_REPORT_MISSING", monthKey });
+      continue;
+    }
+    jobs.push({
+      academyId: teacher.academyId,
+      sessionId: null,
+      recipientUserId: teacher.user.id,
+      kind: "MONTHLY_REPORT_REMINDER",
+      dedupKey: `MONTHLY_REPORT_REMINDER:${teacher.id}:${monthKey}:d${day}`,
+      scheduledFor: now,
+      // Redacted composition context: month key + count only (CONTEXT §5/§24 —
+      // ids/keys, never message content).
+      payload: { monthKey, missingCount },
+    });
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   }
 
   if (jobs.length) {
@@ -902,9 +977,13 @@ export async function processLateStartAlerts(now = new Date(), academyId?: strin
         sessionId: session.id,
         recipientUserId: session.teacher.userId,
         kind: "TEACHER_LATE_START",
+<<<<<<< HEAD
         // Per (session, ASSIGNED teacher) — owner 2026-10-27: a teacher replaced
         // after the T+5 reminder is reminded once too (the old one is cancelled at send).
         dedupKey: `TEACHER_LATE_START:${session.id}:${session.teacher.userId}`,
+=======
+        dedupKey: `TEACHER_LATE_START:${session.id}`,
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
         scheduledFor: now,
       });
     }
@@ -982,6 +1061,7 @@ export async function extendDueSeries(now = new Date(), academyId?: string) {
   }
 }
 
+<<<<<<< HEAD
 /**
  * One worker tick (review #3, owner 2026-10-27): the scans run FIRST so the jobs they
  * create (T+5 / T+10 lateness, report nudges, monthly reminders) are sent in the same
@@ -1007,5 +1087,42 @@ export async function runWorkerTick(now = new Date(), academyId?: string) {
     } catch (cause) {
       console.error(`[worker] ${name} failed.`, cause instanceof Error ? cause.message : cause);
     }
+=======
+export async function runWorkerTick(now = new Date()) {
+  try {
+    await recoverStaleProcessingJobs(now);
+  } catch (cause) {
+    console.error("[worker] stale job recovery failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processDueNotificationJobs(now);
+  } catch (cause) {
+    console.error("[worker] notification job processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processLateReportNotifications(now);
+  } catch (cause) {
+    console.error("[worker] late report processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processLateStartAlerts(now);
+  } catch (cause) {
+    console.error("[worker] late start processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processMonthlyReportReminders(now);
+  } catch (cause) {
+    console.error("[worker] monthly report reminder processing failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await processMonthlyCreditExpiry(now);
+  } catch (cause) {
+    console.error("[worker] monthly credit expiry failed.", cause instanceof Error ? cause.message : cause);
+  }
+  try {
+    await extendDueSeries(now);
+  } catch (cause) {
+    console.error("[worker] series extension failed.", cause instanceof Error ? cause.message : cause);
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   }
 }

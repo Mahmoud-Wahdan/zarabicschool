@@ -6,7 +6,11 @@ import { writeLinkAudit } from "../../../../../../lib/scheduling/link-audit";
 import { findLinkOverlaps, type LinkOverlapInput } from "../../../../../../lib/scheduling/link-overlap";
 import { sessionLinkUpdateSchema } from "../../../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../../../lib/validation/zoom-url";
+<<<<<<< HEAD
 import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../../lib/request";
+=======
+import { requireSameOrigin } from "../../../../../../lib/request";
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
 function zoomUrlErrorResponse(value: string) {
   const result = validateZoomUrl(value);

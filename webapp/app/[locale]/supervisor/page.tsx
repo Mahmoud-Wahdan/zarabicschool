@@ -46,8 +46,13 @@ export default async function SupervisorDashboard() {
       prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
     ]),
     prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
+<<<<<<< HEAD
     // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
     getTeacherFlagCounts(user.academyId),
+=======
+    // Late session reports + missing monthly reports (owner decision 7, 2026-10-26).
+    prisma.teacherFlag.count({ where: { academyId: user.academyId, flagType: { in: ["LATE_REPORT", "MONTHLY_REPORT_MISSING"] } } }),
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     prisma.session.findMany({
       where: {
         academyId: user.academyId,

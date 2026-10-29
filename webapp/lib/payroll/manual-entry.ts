@@ -30,6 +30,7 @@ export async function createManualPayrollEntry(
     amountMinor: number;
     currency: string;
     reason: string;
+<<<<<<< HEAD
     /** S-12 / D14: the category of an ADMIN_ADJUSTMENT (SQL S-5). */
     adjustmentCategory?: "BONUS" | "FINE" | "OVERTIME" | "OTHER";
   },
@@ -37,6 +38,11 @@ export async function createManualPayrollEntry(
   fixedIdempotencyKey?: string,
 ) {
   const rawKey = fixedIdempotencyKey ?? request.headers.get("idempotency-key");
+=======
+  },
+) {
+  const rawKey = request.headers.get("idempotency-key");
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   let idempotencyKey: string | null = null;
   if (rawKey !== null) {
     const parsedKey = z.uuid().safeParse(rawKey.trim());
@@ -48,7 +54,11 @@ export async function createManualPayrollEntry(
 
   const teacher = await prisma.teacher.findFirst({
     where: { id: entry.teacherId, academyId: admin.academyId },
+<<<<<<< HEAD
     select: { id: true, userId: true },
+=======
+    select: { id: true },
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   });
   if (!teacher) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Teacher not found." } }, { status: 404 });
 
@@ -91,6 +101,7 @@ export async function createManualPayrollEntry(
         reason: entry.reason,
         createdById: admin.id,
         idempotencyKey,
+<<<<<<< HEAD
         ...(entry.entryType === "ADMIN_ADJUSTMENT" && entry.adjustmentCategory ? { adjustmentCategory: entry.adjustmentCategory } : {}),
       },
       select: ENTRY_SELECT,
@@ -103,6 +114,11 @@ export async function createManualPayrollEntry(
         skipDuplicates: true,
       });
     }
+=======
+      },
+      select: ENTRY_SELECT,
+    });
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
     return NextResponse.json({ data: created }, { status: 201 });
   } catch (cause) {
     // Two concurrent requests with the same key: the loser reads the winner's row.

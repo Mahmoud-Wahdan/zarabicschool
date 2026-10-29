@@ -28,6 +28,7 @@ export async function isPhase7Ready(): Promise<boolean> {
   }
   return phase7Ready;
 }
+<<<<<<< HEAD
 
 let followupReady = false;
 
@@ -49,3 +50,5 @@ export async function isPhase7FollowupReady(): Promise<boolean> {
   }
   return followupReady;
 }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488

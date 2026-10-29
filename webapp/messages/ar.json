@@ -59,12 +59,17 @@
       "complaints": "الشكاوى",
       "evaluations": "ملخص التقييمات",
       "announcements": "الإعلانات",
+<<<<<<< HEAD
       "fileComplaint": "تقديم شكوى",
       "calendar": "التقويم الأسبوعي",
       "performance": "أداء المعلمين",
       "indicators": "مؤشراتي"
     },
     "account": "الحساب"
+=======
+      "fileComplaint": "تقديم شكوى"
+    }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "whatsappAdmin": {
     "title": "واتساب",
@@ -2168,11 +2173,15 @@
     "startAction": "بدء المعالجة",
     "resolutionNoteLabel": "ملاحظة الحل (مطلوبة)",
     "resolveAction": "تحديد كمحلولة",
+<<<<<<< HEAD
     "actionError": "تعذّر تنفيذ الإجراء. حاول مرة أخرى.",
     "concerningOther": "بخصوص: مشارك آخر (بدون اسم)",
     "concernedOther": "مشارك آخر في هذه الحصة (لم يحدده مقدم الشكوى)",
     "rosterTitle": "المشاركون في الحصة",
     "rosterHint": "لم يذكر مقدم الشكوى اسم الشخص. استخدم الوصف وهذه القائمة لتحديده."
+=======
+    "actionError": "تعذّر تنفيذ الإجراء. حاول مرة أخرى."
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "complaintForm": {
     "title": "تقديم شكوى",
@@ -2204,9 +2213,13 @@
       "TECHNICAL": "مشكلة تقنية",
       "BILLING": "الفواتير والمدفوعات",
       "OTHER": "أخرى"
+<<<<<<< HEAD
     },
     "otherParticipant": "مشارك آخر في هذه الحصة",
     "otherParticipantHint": "لا حاجة لذكر الاسم: ستحدد الإدارة الشخص من بيانات الحصة."
+=======
+    }
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "announcementsAdmin": {
     "title": "الإعلانات",
@@ -2230,10 +2243,14 @@
     "emptyTitle": "لا توجد إعلانات بعد",
     "visibleUntil": "يظهر في لوحات التحكم حتى {time}",
     "expired": "لم يعد يظهر في لوحات التحكم",
+<<<<<<< HEAD
     "deliverySummary": "واتساب: {sent} أُرسلت · {pending} في الانتظار · {failed} فشلت",
     "recipientScope": "المعلمون والطلاب وأولياء الأمور فقط (لا يشمل المديرين والمشرفين). أوقفها المدير لعدد: {optedOut}.",
     "dailyLimit": "تم الوصول إلى الحد الأقصى وهو {count} إعلانات خلال 24 ساعة. لم يتم إرسال أي شيء.",
     "dailyLimitHint": "يمكن إرسال {count} إعلانات كحد أقصى خلال أي 24 ساعة."
+=======
+    "deliverySummary": "واتساب: {sent} أُرسلت · {pending} في الانتظار · {failed} فشلت"
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   },
   "announcementsWidget": {
     "title": "الإعلانات",
@@ -2257,6 +2274,7 @@
   "evaluationPrompt": {
     "text": "{count, plural, one {يمكنك تقييم حصة حديثة واحدة (اختياري).} other {يمكنك تقييم # حصص حديثة (اختياري).}}",
     "action": "تقييم"
+<<<<<<< HEAD
   },
   "attendanceResolution": {
     "open": "تسجيل الحضور يدويًا",
@@ -2470,5 +2488,7 @@
       "PAYROLL_ADJUSTMENT": "أُضيف قيد في الرواتب",
       "INVOICE_PAYMENT_LINK": "فاتورة في انتظار الدفع"
     }
+=======
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
   }
 }

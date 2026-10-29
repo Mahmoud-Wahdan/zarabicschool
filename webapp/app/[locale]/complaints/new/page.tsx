@@ -22,7 +22,11 @@ export default async function NewComplaintPage({ searchParams }: { searchParams:
   const ready = await isPhase7Ready();
   const sessions = ready ? await getComplaintSessions(user) : [];
   const initialSessionId = sessions.some((row) => row.id === session) ? session : undefined;
+<<<<<<< HEAD
   const initialOptions = initialSessionId ? await getComplaintParties(user, initialSessionId) : null;
+=======
+  const initialParties = initialSessionId ? ((await getComplaintParties(user, initialSessionId)) ?? []) : [];
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
@@ -39,8 +43,12 @@ export default async function NewComplaintPage({ searchParams }: { searchParams:
             label: `${locale === "ar" ? row.subject.nameAr : row.subject.nameEn} · ${formatSessionDateTime(row.scheduledStart, user.timezone, locale)}`,
           }))}
           initialSessionId={initialSessionId}
+<<<<<<< HEAD
           initialParties={initialOptions?.parties ?? []}
           initialOtherParticipant={initialOptions?.otherParticipant ?? false}
+=======
+          initialParties={initialParties}
+>>>>>>> a36b92a5884fce32fbf1247ff19460553cbdf488
         />
       )}
     </DashboardShell>
