@@ -69,37 +69,37 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
   if (!open) {
     return (
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--navy)] hover:border-[var(--navy)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">{t("refund")}</button>
-        {message ? <p role="status" className="text-sm opacity-80">{message}</p> : null}
+        <button type="button" onClick={() => setOpen(true)} className="btn btn-outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("refund")}</button>
+        {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
       </div>
     );
   }
 
   return (
-    <div className="mt-4 space-y-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
+    <div className="mt-4 space-y-3 rounded-lg border border-outline-variant bg-surface p-4">
       <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-[var(--navy)]">{t("refundSessions")}</span>
-          <input type="number" min={1} max={sessionsPurchased} step={1} value={sessions} onChange={(event) => setSessions(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" />
+          <span className="font-medium text-primary">{t("refundSessions")}</span>
+          <input type="number" min={1} max={sessionsPurchased} step={1} value={sessions} onChange={(event) => setSessions(event.target.value)} className="z-input tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-[var(--navy)]">{t("refundReason")}</span>
-          <input value={reason} minLength={5} maxLength={1000} onChange={(event) => setReason(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" />
+          <span className="font-medium text-primary">{t("refundReason")}</span>
+          <input value={reason} minLength={5} maxLength={1000} onChange={(event) => setReason(event.target.value)} className="z-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
         </label>
       </div>
       <p className="text-sm">{preview !== null ? t("refundPreview", { amount: money(preview), sessions: count }) : t("refundHint")}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!valid || busy} aria-busy={busy} onClick={() => void submit()} className="cta-primary rounded-xl px-4 py-2 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">{t("refundConfirm")}</button>
-        <button type="button" disabled={busy} onClick={() => { setOpen(false); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundCancel")}</button>
+        <button type="button" disabled={!valid || busy} aria-busy={busy} onClick={() => void submit()} className="btn btn-primary disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("refundConfirm")}</button>
+        <button type="button" disabled={busy} onClick={() => { setOpen(false); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundCancel")}</button>
       </div>
-      {message ? <p role="status" className="text-sm opacity-80">{message}</p> : null}
+      {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
       {held.length ? (
         <div className="text-sm">
           <p>{t("refundHeldSessions")}</p>
           <ul className="mt-1 list-disc ps-5">
             {held.map((session) => (
               <li key={session.id}>
-                <a href={`/${locale}/admin/sessions/${session.id}`} className="text-[var(--navy)] underline underline-offset-4">
+                <a href={`/${locale}/admin/sessions/${session.id}`} className="text-primary underline underline-offset-4">
                   {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(session.scheduledStart))}
                 </a>
               </li>

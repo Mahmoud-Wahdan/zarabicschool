@@ -49,38 +49,38 @@ export default function RefundRequestsAdmin({ requests, timeZone }: { requests: 
   }
 
   return (
-    <section className="dashboard-card p-5" aria-labelledby="refund-requests-title">
-      <h2 id="refund-requests-title" className="font-semibold text-[var(--navy)]">{t("refundRequestsTitle")}</h2>
+    <section className="z-card rounded-xl p-5" aria-labelledby="refund-requests-title">
+      <h2 id="refund-requests-title" className="font-semibold text-primary">{t("refundRequestsTitle")}</h2>
       {requests.length === 0 ? (
-        <p className="mt-2 text-sm opacity-75">{t("refundRequestsEmpty")}</p>
+        <p className="mt-2 text-body-sm text-on-surface-variant">{t("refundRequestsEmpty")}</p>
       ) : (
         <ul className="mt-3 space-y-4">
           {requests.map((request) => (
-            <li key={request.id} className="rounded-lg border border-[var(--line)] p-4">
-              <p className="text-sm font-semibold text-[var(--navy)]">{request.invoice.studentName}</p>
-              <p className="mt-1 text-sm opacity-80">
+            <li key={request.id} className="rounded-lg border border-outline-variant p-4">
+              <p className="text-sm font-semibold text-primary">{request.invoice.studentName}</p>
+              <p className="mt-1 text-body-sm text-on-surface-variant">
                 {t("refundRequestMeta", { payer: request.requestedBy, amount: money(request.invoice.amountMinor, request.invoice.currency), date: date.format(new Date(request.createdAt)) })}
               </p>
               {rejecting === request.id ? (
                 <div className="mt-3 flex flex-wrap items-end gap-2">
                   <label className="grid flex-1 gap-1 text-sm">
-                    <span className="font-medium text-[var(--navy)]">{t("refundRequestRejectReason")}</span>
-                    <input value={reason} minLength={2} maxLength={1000} onChange={(event) => setReason(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" />
+                    <span className="font-medium text-primary">{t("refundRequestRejectReason")}</span>
+                    <input value={reason} minLength={2} maxLength={1000} onChange={(event) => setReason(event.target.value)} className="z-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
                   </label>
-                  <button type="button" disabled={busy || reason.trim().length < 2} aria-busy={busy} onClick={() => void reject(request.id)} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--navy)] disabled:opacity-50">{t("refundRequestRejectConfirm")}</button>
-                  <button type="button" disabled={busy} onClick={() => setRejecting(null)} className="rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundCancel")}</button>
+                  <button type="button" disabled={busy || reason.trim().length < 2} aria-busy={busy} onClick={() => void reject(request.id)} className="btn btn-outline text-primary disabled:opacity-50">{t("refundRequestRejectConfirm")}</button>
+                  <button type="button" disabled={busy} onClick={() => setRejecting(null)} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundCancel")}</button>
                 </div>
               ) : (
                 <div className="mt-1 flex flex-wrap items-start gap-3">
                   <RefundForm timeZone={timeZone} invoiceId={request.invoice.id} amountMinor={request.invoice.amountMinor} currency={request.invoice.currency} sessionsPurchased={request.invoice.sessionsPurchased} refundRequestId={request.id} onDone={() => router.refresh()} />
-                  <button type="button" onClick={() => { setRejecting(request.id); setReason(""); }} className="mt-4 rounded-xl px-4 py-2 text-sm text-[var(--navy)] underline-offset-4 hover:underline">{t("refundRequestReject")}</button>
+                  <button type="button" onClick={() => { setRejecting(request.id); setReason(""); }} className="mt-4 rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundRequestReject")}</button>
                 </div>
               )}
             </li>
           ))}
         </ul>
       )}
-      {message ? <p role="status" className="mt-3 text-sm opacity-80">{message}</p> : null}
+      {message ? <p role="status" className="mt-3 text-body-sm text-on-surface-variant">{message}</p> : null}
     </section>
   );
 }
