@@ -104,26 +104,26 @@ export default async function AdminApplicationDetailPage({
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <Link href="/admin/applications" className="text-sm font-semibold text-[var(--emerald)] hover:underline">
+      <Link href="/admin/applications" className="text-sm font-semibold text-secondary hover:underline">
         ← {label("back")}
       </Link>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--navy)]">
+          <h1 className="text-headline-md font-bold text-primary">
             {text(details.full_name) ?? label("notFound")}
           </h1>
-          <p className="mt-1 text-sm opacity-70">
+          <p className="mt-1 text-body-sm text-on-surface-variant">
             {t(`type.${type}`)} · {t(`status.${application.status}`)}
           </p>
         </div>
-        <span className="rounded-full bg-[var(--navy)]/10 px-3 py-1 text-xs font-semibold">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold">
           {t(`status.${application.status}`)}
         </span>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-[var(--line)] bg-white p-5">
-          <h2 className="font-semibold text-[var(--navy)]">{label("contactSection")}</h2>
+        <section className="z-card rounded-xl p-5">
+          <h2 className="font-semibold text-primary">{label("contactSection")}</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <DetailRow label={label("phone")} value={application.contactPhone} />
             <DetailRow label={label("email")} value={application.contactEmail} />
@@ -139,17 +139,17 @@ export default async function AdminApplicationDetailPage({
           <OptionalText label={label("notes")} value={text(details.notes)} />
         </section>
 
-        <section className="rounded-xl border border-[var(--line)] bg-white p-5">
-          <h2 className="font-semibold text-[var(--navy)]">{label("subjects")}</h2>
+        <section className="z-card rounded-xl p-5">
+          <h2 className="font-semibold text-primary">{label("subjects")}</h2>
           <TagList values={list(details.subjects)} empty="—" />
           {type === "GUARDIAN" && (
             <>
-              <h2 className="mt-6 font-semibold text-[var(--navy)]">{label("children")}</h2>
+              <h2 className="mt-6 font-semibold text-primary">{label("children")}</h2>
               <ul className="mt-3 space-y-3">
                 {children.map((child, index) => (
-                  <li key={`${String(child.name)}-${index}`} className="rounded-lg bg-[var(--background)] p-3 text-sm">
+                  <li key={`${String(child.name)}-${index}`} className="rounded-lg bg-surface p-3 text-sm">
                     <p className="font-semibold">{text(child.name) ?? `#${index + 1}`}</p>
-                    {child.age != null && <p className="mt-1 opacity-70">{t("detail.childAge", { age: String(child.age) })}</p>}
+                    {child.age != null && <p className="mt-1 text-on-surface-variant">{t("detail.childAge", { age: String(child.age) })}</p>}
                     <TagList values={list(child.subjects)} empty="—" />
                   </li>
                 ))}
@@ -158,7 +158,7 @@ export default async function AdminApplicationDetailPage({
           )}
           {type === "STUDENT" && (
             <>
-              <h2 className="mt-6 font-semibold text-[var(--navy)]">{label("guardianSection")}</h2>
+              <h2 className="mt-6 font-semibold text-primary">{label("guardianSection")}</h2>
               <dl className="mt-3 space-y-3 text-sm">
                 <DetailRow label={label("guardianName")} value={text(details.guardian_name)} />
                 <DetailRow label={label("guardianPhone")} value={text(details.guardian_phone)} />
@@ -169,8 +169,8 @@ export default async function AdminApplicationDetailPage({
         </section>
       </div>
 
-      <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
-        <h2 className="font-semibold text-[var(--navy)]">{label("reviewSection")}</h2>
+      <section className="mt-4 z-card rounded-xl p-5">
+        <h2 className="font-semibold text-primary">{label("reviewSection")}</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <DetailRow label={label("reviewedAt")} value={application.reviewedAt ? formatDate(application.reviewedAt) : null} />
           <DetailRow label={label("approvedAt")} value={application.approvedAt ? formatDate(application.approvedAt) : null} />
@@ -194,7 +194,7 @@ export default async function AdminApplicationDetailPage({
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <dt className="text-xs font-semibold opacity-60">{label}</dt>
+      <dt className="text-xs font-semibold text-on-surface-variant">{label}</dt>
       <dd className="mt-1 break-words">{value ?? "—"}</dd>
     </div>
   );
@@ -202,8 +202,8 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 
 function OptionalText({ label, value }: { label: string; value: string | null }) {
   return value ? (
-    <div className="mt-4 border-t border-[var(--line)] pt-4 text-sm">
-      <p className="text-xs font-semibold opacity-60">{label}</p>
+    <div className="mt-4 border-t border-outline-variant pt-4 text-sm">
+      <p className="text-xs font-semibold text-on-surface-variant">{label}</p>
       <p className="mt-1 whitespace-pre-wrap">{value}</p>
     </div>
   ) : null;
@@ -213,12 +213,12 @@ function TagList({ values, empty }: { values: string[]; empty: string }) {
   return values.length ? (
     <ul className="mt-3 flex flex-wrap gap-2">
       {values.map((value) => (
-        <li key={value} className="rounded-full bg-[var(--emerald)]/10 px-2.5 py-1 text-xs">
+        <li key={value} className="rounded-full bg-secondary/10 px-2.5 py-1 text-xs">
           {value}
         </li>
       ))}
     </ul>
   ) : (
-    <p className="mt-3 text-sm opacity-60">{empty}</p>
+    <p className="mt-3 text-body-sm text-on-surface-variant">{empty}</p>
   );
 }

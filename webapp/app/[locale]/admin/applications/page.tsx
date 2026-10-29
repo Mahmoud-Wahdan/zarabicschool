@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import PageHeader from "../../../_components/ui/page-header";
 import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { Link, Link as LocaleLink } from "../../../../i18n/navigation";
@@ -28,10 +29,10 @@ type ApplicationListItem = {
 };
 
 const statusBadgeClasses: Record<string, string> = {
-  NEW: "bg-[var(--gold)]/15 text-[var(--navy)]",
+  NEW: "bg-tertiary-fixed text-on-tertiary-fixed",
   REVIEWED: "bg-sky-100 text-sky-800",
   APPROVED: "bg-emerald-100 text-emerald-800",
-  REJECTED: "bg-red-100 text-red-800",
+  REJECTED: "bg-error-container text-on-error-container",
 };
 
 export default async function AdminApplicationsPage({
@@ -126,13 +127,12 @@ export default async function AdminApplicationsPage({
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
-      <p className="mt-1 text-sm text-[var(--foreground)] opacity-70">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       {loadFailed ? (
         <div
           role="alert"
-          className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="mt-6 rounded-xl border border-error/40 bg-error-container p-4 text-sm text-on-error-container"
         >
           {t("states.loadFailed")}
         </div>
@@ -140,7 +140,7 @@ export default async function AdminApplicationsPage({
         <>
           <div className="mt-6 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-[var(--foreground)] opacity-60">
+              <span className="text-xs font-semibold text-on-surface-variant">
                 {t("filters.status")}:
               </span>
               {([undefined, ...validStatuses] as (StatusValue | undefined)[]).map((value) => (
@@ -150,8 +150,8 @@ export default async function AdminApplicationsPage({
                   aria-current={status === value ? "true" : undefined}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     status === value
-                      ? "border-[var(--navy)] bg-[var(--navy)] text-white"
-                      : "border-[var(--line)] bg-white text-[var(--foreground)] hover:border-[var(--navy)]"
+                      ? "border-primary bg-primary text-white"
+                      : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary"
                   }`}
                 >
                   {value ? t(`status.${value}`) : t("filters.all")}
@@ -159,7 +159,7 @@ export default async function AdminApplicationsPage({
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-[var(--foreground)] opacity-60">
+              <span className="text-xs font-semibold text-on-surface-variant">
                 {t("filters.type")}:
               </span>
               {([undefined, ...validTypes] as (TypeValue | undefined)[]).map((value) => (
@@ -169,8 +169,8 @@ export default async function AdminApplicationsPage({
                   aria-current={type === value ? "true" : undefined}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     type === value
-                      ? "border-[var(--navy)] bg-[var(--navy)] text-white"
-                      : "border-[var(--line)] bg-white text-[var(--foreground)] hover:border-[var(--navy)]"
+                      ? "border-primary bg-primary text-white"
+                      : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary"
                   }`}
                 >
                   {value ? t(`type.${value}`) : t("filters.all")}
@@ -180,49 +180,49 @@ export default async function AdminApplicationsPage({
           </div>
 
           {applications.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--foreground)] opacity-70">
+            <div className="mt-6 rounded-xl border border-outline-variant bg-surface-container-lowest p-8 text-center text-sm text-on-surface-variant">
               {t("states.empty")}
             </div>
           ) : (
             <>
-              <div className="mt-6 hidden overflow-hidden rounded-xl border border-[var(--line)] bg-white md:block">
+              <div className="mt-6 hidden overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest md:block">
                 <table className="w-full text-start text-sm">
-                  <thead className="border-b border-[var(--line)] bg-[var(--background)] text-start">
+                  <thead className="border-b border-outline-variant bg-surface text-start">
                     <tr>
-                      <th scope="col" className="px-4 py-3 text-start font-semibold text-[var(--navy)]">
+                      <th scope="col" className="px-4 py-3 text-start font-semibold text-primary">
                         {t("table.name")}
                       </th>
-                      <th scope="col" className="px-4 py-3 text-start font-semibold text-[var(--navy)]">
+                      <th scope="col" className="px-4 py-3 text-start font-semibold text-primary">
                         {t("table.type")}
                       </th>
-                      <th scope="col" className="px-4 py-3 text-start font-semibold text-[var(--navy)]">
+                      <th scope="col" className="px-4 py-3 text-start font-semibold text-primary">
                         {t("table.status")}
                       </th>
-                      <th scope="col" className="px-4 py-3 text-start font-semibold text-[var(--navy)]">
+                      <th scope="col" className="px-4 py-3 text-start font-semibold text-primary">
                         {t("table.date")}
                       </th>
-                      <th scope="col" className="px-4 py-3 text-start font-semibold text-[var(--navy)]">
+                      <th scope="col" className="px-4 py-3 text-start font-semibold text-primary">
                         <span className="sr-only">{t("table.actions")}</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {applications.map((application) => (
-                      <tr key={application.id} className="border-b border-[var(--line)] last:border-b-0">
-                        <td className="px-4 py-3 font-medium text-[var(--navy)]">{application.fullName}</td>
+                      <tr key={application.id} className="border-b border-outline-variant last:border-b-0">
+                        <td className="px-4 py-3 font-medium text-primary">{application.fullName}</td>
                         <td className="px-4 py-3">{t(`type.${application.applicationType}`)}</td>
                         <td className="px-4 py-3">
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClasses[application.status] ?? "bg-[var(--background)]"}`}
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClasses[application.status] ?? "bg-surface"}`}
                           >
                             {t(`status.${application.status}`)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 opacity-70">{formatDate(application.createdAt)}</td>
+                        <td className="px-4 py-3 text-on-surface-variant">{formatDate(application.createdAt)}</td>
                         <td className="px-4 py-3 text-end">
                           <LocaleLink 
                             href={`/admin/applications/${application.id}`}
-                            className="font-semibold text-[var(--emerald)] hover:underline"
+                            className="font-semibold text-secondary hover:underline"
                           >
                             {t("table.view")}
                           </LocaleLink>
@@ -237,20 +237,20 @@ export default async function AdminApplicationsPage({
                 {applications.map((application) => (
                   <li
                     key={application.id}
-                    className="rounded-xl border border-[var(--line)] bg-white p-4"
+                    className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-[var(--navy)]">{application.fullName}</p>
-                        <p className="mt-1 text-xs text-[var(--foreground)] opacity-70">
+                        <p className="font-semibold text-primary">{application.fullName}</p>
+                        <p className="mt-1 text-xs text-on-surface-variant">
                           {t(`type.${application.applicationType}`)}
                         </p>
-                        <p className="mt-1 text-xs text-[var(--foreground)] opacity-60">
+                        <p className="mt-1 text-xs text-on-surface-variant">
                           {formatDate(application.createdAt)}
                         </p>
                       </div>
                       <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClasses[application.status] ?? "bg-[var(--background)]"}`}
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClasses[application.status] ?? "bg-surface"}`}
                       >
                         {t(`status.${application.status}`)}
                       </span>
@@ -258,7 +258,7 @@ export default async function AdminApplicationsPage({
                     <div className="mt-3 text-end">
                       <Link
                         href={`/admin/applications/${application.id}`}
-                        className="text-sm font-semibold text-[var(--emerald)] hover:underline"
+                        className="text-sm font-semibold text-secondary hover:underline"
                       >
                         {t("table.view")}
                       </Link>
@@ -274,20 +274,20 @@ export default async function AdminApplicationsPage({
                 {page > 1 ? (
                   <Link
                     href={pageHref(page - 1)}
-                    className="rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--navy)] hover:border-[var(--navy)]"
+                    className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-primary hover:border-primary"
                   >
                     {t("pagination.previous")}
                   </Link>
                 ) : (
                   <span />
                 )}
-                <span className="text-xs text-[var(--foreground)] opacity-70">
+                <span className="text-xs text-on-surface-variant">
                   {t("pagination.pageInfo", { page, totalPages })}
                 </span>
                 {page < totalPages ? (
                   <Link
                     href={pageHref(page + 1)}
-                    className="rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--navy)] hover:border-[var(--navy)]"
+                    className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-primary hover:border-primary"
                   >
                     {t("pagination.next")}
                   </Link>

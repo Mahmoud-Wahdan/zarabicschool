@@ -24,14 +24,14 @@ export default function CredentialsPanel({ accounts }: { accounts: Account[] }) 
       <p className="mt-2 text-sm text-amber-900">{t("credentials.warning")}</p>
       <div className="mt-4 space-y-3">
         {accounts.map((account) => (
-          <div key={account.key} className="rounded-lg bg-white p-3 text-sm">
+          <div key={account.key} className="rounded-lg bg-surface-container-lowest p-3 text-sm">
             <p className="font-semibold">{account.displayName}</p>
             <CredentialRow label={t("credentials.username")} value={account.username} copied={copied === `${account.key}-username`} onCopy={() => void copy(account.username, `${account.key}-username`)} t={t} />
             <CredentialRow label={t("credentials.tempPassword")} value={account.tempPassword} copied={copied === `${account.key}-password`} onCopy={() => void copy(account.tempPassword, `${account.key}-password`)} t={t} />
           </div>
         ))}
       </div>
-      <button type="button" onClick={() => setHidden(true)} className="mt-4 rounded-lg bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white">
+      <button type="button" onClick={() => setHidden(true)} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">
         {t("credentials.done")}
       </button>
     </section>
@@ -39,5 +39,5 @@ export default function CredentialsPanel({ accounts }: { accounts: Account[] }) 
 }
 
 function CredentialRow({ label, value, copied, onCopy, t }: { label: string; value: string; copied: boolean; onCopy: () => void; t: (key: string) => string }) {
-  return <div className="mt-2 flex items-center gap-2"><span className="w-32 text-xs opacity-60">{label}</span><code className="min-w-0 flex-1 break-all rounded bg-slate-100 px-2 py-1">{value}</code><button type="button" onClick={onCopy} className="shrink-0 text-xs font-semibold text-[var(--emerald)]">{copied ? t("credentials.copied") : t("credentials.copy")}</button></div>;
+  return <div className="mt-2 flex items-center gap-2"><span className="w-32 text-label-sm text-on-surface-variant">{label}</span><code className="min-w-0 flex-1 break-all rounded bg-slate-100 px-2 py-1">{value}</code><button type="button" onClick={onCopy} className="shrink-0 text-xs font-semibold text-secondary">{copied ? t("credentials.copied") : t("credentials.copy")}</button></div>;
 }

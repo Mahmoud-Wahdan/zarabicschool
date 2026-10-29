@@ -94,12 +94,12 @@ export default function ApproveForm({
 
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => setOpen((value) => !value)} className="rounded-lg bg-[var(--emerald)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => setOpen((value) => !value)} className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
         {t("actions.approve")}
       </button>
       {open && (
-        <div className="mt-4 basis-full rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
-          <h3 className="font-semibold text-[var(--navy)]">{t("approveForm.title")}</h3>
+        <div className="mt-4 basis-full rounded-lg border border-outline-variant bg-surface p-4">
+          <h3 className="font-semibold text-primary">{t("approveForm.title")}</h3>
           {applicationType === "GUARDIAN" && <RelationshipSelect value={relationship} onChange={setRelationship} t={t} />}
           {keys.includes("guardian") && applicationType === "STUDENT" && (
             <div className="mt-3 space-y-3">
@@ -124,18 +124,18 @@ export default function ApproveForm({
             {keys.map((key, index) => (
               <input key={key} value={usernames[key] ?? ""} onChange={(event) => setUsernames((current) => ({ ...current, [key]: event.target.value }))} placeholder={t("approveForm.usernameFor", { account: accountLabel(t, key, index) })} className="w-full rounded-lg border p-2 text-sm" />
             ))}
-            <p className="text-xs opacity-70">{t("approveForm.usernameHint")}</p>
+            <p className="text-label-sm text-on-surface-variant">{t("approveForm.usernameHint")}</p>
           </div>
           {applicationType !== "TEACHER" && keys.some((key) => (accountSubjectEntries[key] ?? []).some((entry) => (subjectTeachersByEntry[entry] ?? []).length > 0)) ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm font-semibold">{t("approveForm.teachers.title")}</p>
-              <p className="text-xs opacity-70">{t("approveForm.teachers.optional")}</p>
+              <p className="text-label-sm text-on-surface-variant">{t("approveForm.teachers.optional")}</p>
               {keys.map((key) => {
                 const entries = (accountSubjectEntries[key] ?? []).filter((entry) => (subjectTeachersByEntry[entry] ?? []).length > 0);
                 if (!entries.length) return null;
                 return (
-                  <div key={key} className="rounded-lg border border-[var(--line)] p-3">
-                    <p className="text-xs font-semibold opacity-70">{accountLabel(t, key, Number(key.startsWith("child-") ? key.slice("child-".length) : 0))}</p>
+                  <div key={key} className="rounded-lg border border-outline-variant p-3">
+                    <p className="text-xs font-semibold text-on-surface-variant">{accountLabel(t, key, Number(key.startsWith("child-") ? key.slice("child-".length) : 0))}</p>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       {entries.map((entry) => (
                         <label key={entry} className="block text-sm">
@@ -158,7 +158,7 @@ export default function ApproveForm({
               })}
             </div>
           ) : null}
-          <button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-lg bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {busy ? t("actions.submitting") : t("approveForm.confirm")}
           </button>
         </div>

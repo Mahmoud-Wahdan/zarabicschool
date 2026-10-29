@@ -21,7 +21,7 @@
 | billing_plan_configuration_suite | /admin/billing | Stitch kit (done) |
 | financials_subscriptions_invoicing_suite | /admin/financials and /admin/invoices | **done (page 2)** |
 | schedule_live_sessions + recurring_session_provisioning_zarabicschool | /admin/sessions (session-management-panel) | **done (page 1)** |
-| applications_account_provisioning | /admin/applications (old: 33) | **to do (3)** |
+| applications_account_provisioning | /admin/applications (+ detail) | **done (page 3)** |
 | people_accounts_directory_zarabicschool | /admin/students, teachers, guardians (profiles-panel, mostly old) | **to do (5)** |
 | teacher_payroll_hourly_rates_suite + monthly_payroll_closing_treasury_suite | /admin/payroll (admin-payroll-panel, old: 21) | **to do (4)** |
 | zarabicschool_1, 2, 3, 8 (landing, subjects, plans, about) | / (landing components) | Stitch kit (done) |
@@ -52,3 +52,4 @@
 - 2026-10-29: map written.
 - 2026-10-29: page 1 /admin/sessions on the Stitch kit: PageHeader instead of the navy banner; four real metric tiles (sessions today with done/upcoming from getTodaySessions, waiting change requests, paused series, same-link overlaps); cards, fields (z-input), buttons (btn), status chips and notes on Stitch tokens; no logic change. Not copied from the mock-up: Zoom API bridge %, biometric check-ins, Export ICS, Sync Rooms (not features of the app). Browser check (ar) done; detector clean. Found: the sidebar lit Dashboard on every Admin page (fixed in its own commit).
 - 2026-10-29: page 2 /admin/invoices on the Stitch kit (PageHeader; invoices panel, refund form and refund-request list on kit cards, fields, buttons and tokens; no logic change). Checked on a production build (ar); detector clean. Note: a dev server started before a new migration must be restarted (its in-memory database client does not know the new tables).
+- 2026-10-29: page 3 /admin/applications (list + detail, review, approve, credentials) on the Stitch kit; no logic change; applications suite green; detector clean.

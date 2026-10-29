@@ -78,9 +78,9 @@ export default function ReviewActions({
   if (status === "APPROVED") return null;
 
   return (
-    <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5">
-      <h2 className="font-semibold text-[var(--navy)]">{t("actions.title")}</h2>
-      {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+    <section className="mt-4 z-card rounded-xl p-5">
+      <h2 className="font-semibold text-primary">{t("actions.title")}</h2>
+      {error && <p role="alert" className="mt-3 rounded-lg bg-error-container p-3 text-sm text-on-error-container">{error}</p>}
 
       <div className="mt-4 flex flex-wrap gap-3">
         {status === "NEW" && (
@@ -88,7 +88,7 @@ export default function ReviewActions({
             type="button"
             disabled={busy}
             onClick={() => void post("review")}
-            className="rounded-lg border border-[var(--navy)] px-4 py-2 text-sm font-semibold text-[var(--navy)] disabled:opacity-50"
+            className="rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
           >
             {busy ? t("actions.submitting") : t("actions.markReviewed")}
           </button>
@@ -99,7 +99,7 @@ export default function ReviewActions({
               type="button"
               disabled={busy}
               onClick={() => setShowReject((value) => !value)}
-              className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+              className="rounded-lg border border-error/40 px-4 py-2 text-sm font-semibold text-error disabled:opacity-50"
             >
               {t("actions.reject")}
             </button>
@@ -120,8 +120,8 @@ export default function ReviewActions({
       </div>
 
       {showReject && (
-        <div className="mt-4 max-w-xl rounded-lg border border-red-100 bg-red-50/50 p-4">
-          <label className="text-sm font-semibold text-red-900" htmlFor="rejection-reason">
+        <div className="mt-4 max-w-xl rounded-lg border border-error/30 bg-error-container/50 p-4">
+          <label className="text-sm font-semibold text-on-error-container" htmlFor="rejection-reason">
             {t("rejectForm.title")}
           </label>
           <textarea
@@ -131,10 +131,10 @@ export default function ReviewActions({
             maxLength={1000}
             rows={4}
             placeholder={t("rejectForm.placeholder")}
-            className="mt-2 w-full rounded-lg border border-red-200 bg-white p-3 text-sm"
+            className="mt-2 w-full rounded-lg border border-error/40 bg-surface-container-lowest p-3 text-sm"
           />
           <div className="mt-3 flex gap-2">
-            <button type="button" disabled={busy} onClick={() => void reject()} className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void reject()} className="rounded-lg btn bg-error text-on-error disabled:opacity-50">
               {busy ? t("actions.submitting") : t("rejectForm.confirm")}
             </button>
             <button type="button" onClick={() => setShowReject(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold">
