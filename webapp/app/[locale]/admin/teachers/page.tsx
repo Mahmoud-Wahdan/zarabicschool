@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import PageHeader from "../../../_components/ui/page-header";
 import ProfilesPanel from "../profiles-panel";
 import { requireRoles } from "../../../../lib/dal";
 
@@ -14,8 +15,7 @@ export default async function TeachersPage() {
   const t = await getTranslations("management");
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("teachers.title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("teachers.subtitle")}</p>
+      <PageHeader title={t("teachers.title")} subtitle={t("teachers.subtitle")} />
       <ProfilesPanel type="teacher" title={t("teachers.title")} canSetAnnouncements={user.role === "ADMIN"} viewerRole={user.role === "ADMIN" ? "ADMIN" : "SUPERVISOR"} />
     </DashboardShell>
   );

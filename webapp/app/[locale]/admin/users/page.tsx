@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import PageHeader from "../../../_components/ui/page-header";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import PrivilegedUsersPanel from "./privileged-users-panel";
@@ -28,8 +29,7 @@ export default async function PrivilegedUsersPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <PrivilegedUsersPanel initialUsers={users} currentUserId={user.id} />
     </DashboardShell>
   );

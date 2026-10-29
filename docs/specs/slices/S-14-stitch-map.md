@@ -22,7 +22,7 @@
 | financials_subscriptions_invoicing_suite | /admin/financials and /admin/invoices | **done (page 2)** |
 | schedule_live_sessions + recurring_session_provisioning_zarabicschool | /admin/sessions (session-management-panel) | **done (page 1)** |
 | applications_account_provisioning | /admin/applications (+ detail) | **done (page 3)** |
-| people_accounts_directory_zarabicschool | /admin/students, teachers, guardians (profiles-panel, mostly old) | **to do (5)** |
+| people_accounts_directory_zarabicschool | /admin/students, teachers, guardians, users (profiles-panel, privileged-users-panel) | **done (page 5)** |
 | teacher_payroll_hourly_rates_suite + monthly_payroll_closing_treasury_suite | /admin/payroll (panel + adjustments ledger) | **done (page 4)** |
 | zarabicschool_1, 2, 3, 8 (landing, subjects, plans, about) | / (landing components) | Stitch kit (done) |
 | zarabicschool_9 (login) | /login | done |
@@ -54,3 +54,4 @@
 - 2026-10-29: page 2 /admin/invoices on the Stitch kit (PageHeader; invoices panel, refund form and refund-request list on kit cards, fields, buttons and tokens; no logic change). Checked on a production build (ar); detector clean. Note: a dev server started before a new migration must be restarted (its in-memory database client does not know the new tables).
 - 2026-10-29: page 3 /admin/applications (list + detail, review, approve, credentials) on the Stitch kit; no logic change; applications suite green; detector clean.
 - 2026-10-29: page 4 /admin/payroll (page, entry panel, adjustments ledger) on the Stitch kit; no logic change; payroll suites green; detector clean.
+- 2026-10-29: page 5 people directory (students, teachers, guardians, privileged users) on the Stitch kit: PageHeader on each, kit cards/fields/buttons in both panels; no logic change; teacher-approval, WhatsApp link, RBAC suites green; detector clean.
