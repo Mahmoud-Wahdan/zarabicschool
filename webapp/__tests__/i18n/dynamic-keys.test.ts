@@ -84,6 +84,7 @@ const REGISTRY: Record<string, () => string[]> = {
   "adminApplications.status.*": () => prismaEnum("ApplicationStatus"),
   "adminApplications.type.*": () => prismaEnum("ApplicationType"),
   "adminDash.status.*": SESSION_STATUS,
+  "management.enrollments.errors.*": () => literals("app/[locale]/admin/enrollments/enrollments-panel.tsx", "KNOWN_ERRORS"),
   "supervisorDash.status.*": SESSION_STATUS,
   "sessions.statuses.*": SESSION_STATUS,
   "sessionsAdmin.statuses.*": SESSION_STATUS,
