@@ -127,6 +127,7 @@ export default function WhatsAppAdminPanel({
           className="z-input w-full"
           dir="ltr"
           inputMode="tel"
+          aria-label={t("contactTitle")}
           value={contact}
           onChange={(event) => setContact(event.target.value)}
           maxLength={32}

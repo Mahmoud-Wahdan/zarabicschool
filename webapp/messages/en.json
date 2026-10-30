@@ -1724,7 +1724,9 @@
       "anyStudent": "Any student",
       "from": "From",
       "to": "To",
-      "apply": "Apply filters"
+      "apply": "Apply filters",
+      "status": "Status",
+      "student": "Student"
     },
     "single": {
       "title": "New single session",
@@ -2074,7 +2076,9 @@
       "subjectList": "Subjects",
       "subjectCreated": "Subject added.",
       "slugTaken": "This slug is already used by another subject.",
-      "noSubjects": "No subjects yet."
+      "noSubjects": "No subjects yet.",
+      "relationship": "Relationship",
+      "guardian": "Guardian"
     }
   },
   "paymentReturn": {
@@ -2258,7 +2262,8 @@
       "OTHER": "Other",
       "UNCATEGORIZED": "Earlier entry (no category)"
     },
-    "adjustmentsLedgerTitle": "Deductions and bonuses"
+    "adjustmentsLedgerTitle": "Deductions and bonuses",
+    "currencyLabel": "Currency"
   },
   "overtime": {
     "title": "Overtime review",

@@ -302,17 +302,17 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       <section className="z-card space-y-3 rounded-xl p-5">
         <h2 className="text-headline-sm font-bold text-primary">{t("filters.title")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className={inputClass}>
+          <select aria-label={t("filters.status")} value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className={inputClass}>
             <option value="">{t("filters.anyStatus")}</option>
-            {["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => <option key={status} value={status}>{status}</option>)}
+            {["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => <option key={status} value={status}>{t(`statuses.${status}`)}</option>)}
           </select>
           <label className="text-sm">{t("filters.from")} ({viewerTimezone})<input type="datetime-local" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className={inputClass} /></label>
           <label className="text-sm">{t("filters.to")} ({viewerTimezone})<input type="datetime-local" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className={inputClass} /></label>
-          <select value={filters.teacherId} onChange={(event) => setFilters({ ...filters, teacherId: event.target.value })} className={inputClass}>
+          <select aria-label={t("labels.teacher")} value={filters.teacherId} onChange={(event) => setFilters({ ...filters, teacherId: event.target.value })} className={inputClass}>
             <option value="">{t("filters.anyTeacher")}</option>
             {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
           </select>
-          <select value={filters.studentId} onChange={(event) => setFilters({ ...filters, studentId: event.target.value })} className={inputClass}>
+          <select aria-label={t("filters.student")} value={filters.studentId} onChange={(event) => setFilters({ ...filters, studentId: event.target.value })} className={inputClass}>
             <option value="">{t("filters.anyStudent")}</option>
             {students.map((student) => <option key={student.id} value={student.id}>{student.displayName}</option>)}
           </select>

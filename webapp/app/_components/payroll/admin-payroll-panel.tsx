@@ -97,14 +97,14 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
           }}
           className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
-          <select required value={rate.teacherId} onChange={(e) => setRate({ ...rate, teacherId: e.target.value })} className="z-input">
+          <select required aria-label={t("teacherLabel")} value={rate.teacherId} onChange={(e) => setRate({ ...rate, teacherId: e.target.value })} className="z-input">
             <option value="">{t("teacherLabel")}</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>
             ))}
           </select>
           <input required type="number" min={1} value={rate.hourlyRateMinor} onChange={(e) => setRate({ ...rate, hourlyRateMinor: e.target.value })} placeholder={t("rateAmountLabel")} className="z-input" />
-          <select value={rate.currency} onChange={(e) => setRate({ ...rate, currency: e.target.value })} className="z-input">
+          <select aria-label={t("currencyLabel")} value={rate.currency} onChange={(e) => setRate({ ...rate, currency: e.target.value })} className="z-input">
             <option value="EGP">EGP</option>
             <option value="USD">USD</option>
           </select>
@@ -140,7 +140,7 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
           }}
           className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
-          <select required value={adjustment.teacherId} onChange={(e) => setAdjustment({ ...adjustment, teacherId: e.target.value })} className="z-input">
+          <select required aria-label={t("teacherLabel")} value={adjustment.teacherId} onChange={(e) => setAdjustment({ ...adjustment, teacherId: e.target.value })} className="z-input">
             <option value="">{t("teacherLabel")}</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>
@@ -150,7 +150,7 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
             {["BONUS", "FINE", "OVERTIME", "OTHER"].map((value) => <option key={value} value={value}>{t(`category.${value}`)}</option>)}
           </select>
           <input required type="number" min={adjustment.category === "OTHER" ? undefined : 1} value={adjustment.amountMinor} onChange={(e) => setAdjustment({ ...adjustment, amountMinor: e.target.value })} placeholder={adjustment.category === "OTHER" ? t("amountSignedPlaceholder") : t("colAmount")} aria-describedby="adjustment-sign-hint" className="z-input" />
-          <select value={adjustment.currency} onChange={(e) => setAdjustment({ ...adjustment, currency: e.target.value })} className="z-input">
+          <select aria-label={t("currencyLabel")} value={adjustment.currency} onChange={(e) => setAdjustment({ ...adjustment, currency: e.target.value })} className="z-input">
             <option value="EGP">EGP</option>
             <option value="USD">USD</option>
           </select>
@@ -184,14 +184,14 @@ export default function AdminPayrollPanel({ teachers, timeZone }: { teachers: Te
           }}
           className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
-          <select required value={disbursement.teacherId} onChange={(e) => setDisbursement({ ...disbursement, teacherId: e.target.value })} className="z-input">
+          <select required aria-label={t("teacherLabel")} value={disbursement.teacherId} onChange={(e) => setDisbursement({ ...disbursement, teacherId: e.target.value })} className="z-input">
             <option value="">{t("teacherLabel")}</option>
             {teachers.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>
             ))}
           </select>
           <input required type="number" min={1} value={disbursement.amountMinor} onChange={(e) => setDisbursement({ ...disbursement, amountMinor: e.target.value })} placeholder={t("colAmount")} className="z-input" />
-          <select value={disbursement.currency} onChange={(e) => setDisbursement({ ...disbursement, currency: e.target.value })} className="z-input">
+          <select aria-label={t("currencyLabel")} value={disbursement.currency} onChange={(e) => setDisbursement({ ...disbursement, currency: e.target.value })} className="z-input">
             <option value="EGP">EGP</option>
             <option value="USD">USD</option>
           </select>

@@ -372,7 +372,7 @@ export default function DashboardShell({
         <span className="flex items-center gap-1">
           <Icon name={"verified_user"} size={16} className="text-secondary-container" />
           <span className="flex flex-col">
-            <span className="text-label-sm uppercase leading-none text-on-primary-container">
+            <span className="text-label-sm uppercase leading-none text-on-primary/80">
               {t("activeScope")}
             </span>
             <span className="text-title-md leading-tight text-on-primary">{roleLabel}</span>

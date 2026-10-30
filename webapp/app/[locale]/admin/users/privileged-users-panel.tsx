@@ -65,7 +65,7 @@ export default function PrivilegedUsersPanel({
         <input required minLength={2} placeholder={t("displayName")} value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className="z-input" />
         <input required minLength={12} type="password" placeholder={t("password")} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className="z-input" />
         <div className="flex gap-2">
-          <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="min-w-0 flex-1 z-input">
+          <select aria-label={t("role")} value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="min-w-0 flex-1 z-input">
             <option value="SUPERVISOR">{t("supervisorRole")}</option>
             <option value="ADMIN">{t("adminRole")}</option>
           </select>

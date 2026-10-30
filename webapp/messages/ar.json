@@ -1724,7 +1724,9 @@
       "anyStudent": "أي طالب",
       "from": "من",
       "to": "إلى",
-      "apply": "تطبيق الفلاتر"
+      "apply": "تطبيق الفلاتر",
+      "status": "الحالة",
+      "student": "الطالب"
     },
     "single": {
       "title": "حصة واحدة جديدة",
@@ -2074,7 +2076,9 @@
       "subjectList": "المواد",
       "subjectCreated": "تمت إضافة المادة.",
       "slugTaken": "هذا المعرّف مستخدم لمادة أخرى.",
-      "noSubjects": "لا توجد مواد بعد."
+      "noSubjects": "لا توجد مواد بعد.",
+      "relationship": "صلة القرابة",
+      "guardian": "ولي الأمر"
     }
   },
   "paymentReturn": {
@@ -2258,7 +2262,8 @@
       "OTHER": "أخرى",
       "UNCATEGORIZED": "قيد سابق (بلا نوع)"
     },
-    "adjustmentsLedgerTitle": "الخصومات والمكافآت"
+    "adjustmentsLedgerTitle": "الخصومات والمكافآت",
+    "currencyLabel": "العملة"
   },
   "overtime": {
     "title": "مراجعة الوقت الإضافي",
