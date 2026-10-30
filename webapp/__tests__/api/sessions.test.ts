@@ -581,6 +581,55 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     expect((await prisma.session.findUniqueOrThrow({ where: { id: sessionId } })).timezone).toBe("Africa/Cairo");
   });
 
+  describe("B2 / D88 — reschedule", () => {
+    const reschedule = (sessionId: string, start: Date, minutes = 60) =>
+      updateSessionRoute(
+        apiRequest(`/api/sessions/${sessionId}`, "PATCH", { scheduledStart: start.toISOString(), scheduledEnd: new Date(start.getTime() + minutes * 60_000).toISOString() }),
+        routeParams(sessionId),
+      );
+
+    it("RS-01: moving onto another session of the same teacher is refused; nothing changes", async () => {
+      await grantCredit(fx.studentProfileIds.student7, 2);
+      const first = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] }, { day: 24, hour: 6 });
+      const second = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] }, { day: 24, hour: 9 });
+      const firstStart = new Date(first.body.data.scheduledStart);
+      asActor(fx.adminUserId);
+      const response = await reschedule(second.body.data.id, new Date(firstStart.getTime() + 30 * 60_000));
+      expect(response.status).toBe(409);
+      expect((await response.json()).error.code).toBe("TEACHER_TIME_CONFLICT");
+      const stored = await prisma.session.findUniqueOrThrow({ where: { id: second.body.data.id } });
+      expect(stored.scheduledStart.toISOString()).toBe(second.body.data.scheduledStart);
+    });
+
+    it("RS-02: a free slot works, and so does shifting a session inside its own old time", async () => {
+      await grantCredit(fx.studentProfileIds.student8, 1);
+      const created = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student8] }, { day: 24, hour: 12 });
+      const start = new Date(created.body.data.scheduledStart);
+      asActor(fx.adminUserId);
+      expect((await reschedule(created.body.data.id, new Date(start.getTime() + 30 * 60_000))).status).toBe(200);
+      expect((await reschedule(created.body.data.id, new Date(start.getTime() + 3 * 3_600_000))).status).toBe(200);
+    });
+
+    it("RS-03: a time change after a SUBMITTED, APPROVED or REJECTED report is refused (409 SESSION_HAS_REPORTS)", async () => {
+      for (const status of ["SUBMITTED", "APPROVED", "REJECTED"] as const) {
+        await grantCredit(fx.studentProfileIds.student6, 1);
+        const hour = status === "SUBMITTED" ? 6 : status === "APPROVED" ? 8 : 10;
+        const created = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 25, hour });
+        expect(created.body.error).toBeUndefined();
+        const sessionId = created.body.data.id as string;
+        await prisma.report.create({
+          data: { academyId: fx.academyId, sessionId, studentId: fx.studentProfileIds.student6, teacherId: fx.teacherProfileId, reportType: "SESSION_COMPLETION_REPORT", status, attendanceOutcome: "ATTENDED", classRemark: "demo_test", summary: "demo_test", homework: "demo_test" },
+        });
+        asActor(fx.adminUserId);
+        const response = await reschedule(sessionId, new Date(Date.parse(created.body.data.scheduledStart) + 26 * 3_600_000));
+        expect(response.status).toBe(409);
+        expect((await response.json()).error.code).toBe("SESSION_HAS_REPORTS");
+        // A link-only edit is still allowed.
+        expect((await updateSessionRoute(apiRequest(`/api/sessions/${sessionId}`, "PATCH", { zoomJoinUrl: JOIN_URL }), routeParams(sessionId))).status).toBe(200);
+      }
+    });
+  });
+
   it("regression R27: change requests never mutate the session and require a scheduled target", async () => {
     await grantCredit(fx.studentProfileIds.student6, 2);
     const { body } = await createSession(fx.adminUserId, {}, { day: 6, hour: 14 });

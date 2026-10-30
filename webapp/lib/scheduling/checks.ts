@@ -104,12 +104,15 @@ export async function assertTeacherFree(
   teacherId: string,
   scheduledStart: Date,
   scheduledEnd: Date,
+  options: { excludeSessionId?: string } = {},
 ): Promise<void> {
   const conflicts = await tx.session.findMany({
     where: {
       academyId,
       teacherId,
       status: "SCHEDULED",
+      // A reschedule never conflicts with the session's own old time (B2).
+      ...(options.excludeSessionId ? { id: { not: options.excludeSessionId } } : {}),
       scheduledStart: { lt: scheduledEnd },
       scheduledEnd: { gt: scheduledStart },
     },
