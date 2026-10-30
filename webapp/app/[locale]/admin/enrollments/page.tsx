@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import PageHeader from "../../../_components/ui/page-header";
 import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import EnrollmentsPanel from "./enrollments-panel";
@@ -21,6 +22,8 @@ export default async function EnrollmentsPage() {
       select: {
         id: true,
         scheduledStart: true,
+        scheduledEnd: true,
+        status: true,
         sessionType: true,
         subject: { select: { nameEn: true, nameAr: true } },
         teacher: { select: { user: { select: { displayName: true } } } },
@@ -36,15 +39,16 @@ export default async function EnrollmentsPage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("enrollments.title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("enrollments.subtitle")}</p>
+      <PageHeader title={t("enrollments.title")} subtitle={t("enrollments.subtitle")} />
       <EnrollmentsPanel
         sessions={sessions.map((session) => ({
           ...session,
           scheduledStart: session.scheduledStart.toISOString(),
+          scheduledEnd: session.scheduledEnd.toISOString(),
         }))}
         students={students}
         timeZone={user.timezone || "Africa/Cairo"}
+        now={new Date().toISOString()}
       />
     </DashboardShell>
   );
