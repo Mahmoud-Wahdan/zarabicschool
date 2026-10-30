@@ -31,7 +31,7 @@ const AREAS: { roles: AppRole[]; paths: string[] }[] = [
     roles: ["ADMIN", "SUPERVISOR"],
     paths: [
       "/admin/students", "/admin/teachers", "/admin/guardians", "/admin/subjects", "/admin/assignments",
-      "/admin/enrollments", "/admin/sessions", "/admin/complaints", "/admin/evaluations", "/admin/announcements",
+      "/admin/enrollments", "/admin/sessions", "/admin/schedule", "/admin/complaints", "/admin/evaluations", "/admin/announcements",
     ],
   },
   { roles: ["SUPERVISOR"], paths: ["/supervisor", "/supervisor/reports", "/supervisor/monthly-reports", "/supervisor/session-requests"] },

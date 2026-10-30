@@ -62,7 +62,8 @@
       "fileComplaint": "File a Complaint",
       "calendar": "Weekly Calendar",
       "performance": "Teacher Performance",
-      "indicators": "My Indicators"
+      "indicators": "My Indicators",
+      "scheduleBoard": "Teacher Schedule Board"
     },
     "account": "Account"
   },
@@ -2501,6 +2502,59 @@
       "REFUND_REQUEST_APPROVED": "Refund approved",
       "REFUND_REQUEST_REJECTED": "Refund not approved",
       "ROSTER_REMOVED": "Removed from a session"
+    }
+  },
+  "scheduleBoard": {
+    "eyebrow": "Scheduling",
+    "title": "Teacher Schedule Board",
+    "subtitle": "Every teacher's day at a glance. Times in {zone}.",
+    "legend": "Hours count scheduled minutes only; cancelled and missed sessions never count. A teacher above {hours} h in a day is highlighted.",
+    "empty": "No teachers or sessions match these filters.",
+    "free": "No sessions — free all day.",
+    "weekNeedsTeacher": "The week view shows one teacher: choose a teacher. The day view is shown meanwhile.",
+    "truncated": "Too many sessions for one view; narrow the filters to see all of them.",
+    "group": "Group ({count})",
+    "totals": "{sessions} sessions · {hours} h",
+    "overThreshold": "Above {hours} h this day",
+    "columns": {
+      "teacher": "Teacher",
+      "day": "Day",
+      "totals": "Sessions · hours"
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "missed": "Missed"
+    },
+    "filters": {
+      "date": "Date",
+      "view": "View",
+      "day": "Day",
+      "week": "Week (one teacher)",
+      "teacher": "Teacher",
+      "allTeachers": "All teachers",
+      "student": "Student",
+      "allStudents": "All students",
+      "status": "Status",
+      "today": "Today",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "threshold": {
+      "label": "Highlight above (hours per day)",
+      "hint": "Admin setting, default 6.",
+      "save": "Save",
+      "saved": "Saved: {hours} h per day.",
+      "invalid": "Enter whole hours from {min} to {max}.",
+      "error": "Could not save. Try again."
+    },
+    "form": {
+      "title": "{teacher}'s day",
+      "loading": "Loading the teacher's day…",
+      "overlap": "Overlaps an existing session at {time}.",
+      "free": "No overlap with this teacher's sessions.",
+      "newSession": "New session"
     }
   }
 }

@@ -1,7 +1,6 @@
 # S-16 — Admin/Supervisor teacher schedule board (Part C, owner 2026-10-29)
 
-> **Design only. Waiting for the owner's OK. Nothing is built yet.** No SQL: one new
-> `academy_settings` key; no schema change.
+> **Built 2026-10-30** (owner answers D91). No SQL: one new `academy_settings` key; no schema change.
 
 ## What the owner asked
 
@@ -91,7 +90,7 @@ crossing midnight is split between the two days.
     "teacherId": "…", "teacherName": "Mona Adel", "day": "2026-10-30",
     "totals": { "sessions": 6, "minutes": 420, "overThreshold": true },
     "sessions": [ { "id": "…", "start": "…Z", "end": "…Z", "status": "SCHEDULED", "type": "PRIVATE",
-                   "label": "Lina", "studentCount": 1, "href": "/admin/sessions/…" } ]
+                   "studentNames": ["Lina"], "studentCount": 1, "href": "/admin/sessions/…" } ]
   } ]
 } }
 ```
@@ -125,3 +124,24 @@ crossing midnight is split between the two days.
   A filter applies the moment it is selected (no Apply button), and the URL keeps them (`?teacherId=&studentId=&status=`).
   The default status filter is scheduled + completed. Cancelled and missed show only when chosen, and never count in the totals.
 - **Daily hours:** scheduled minutes only; gaps are not counted.
+
+## Built (2026-10-30)
+
+- **Server:**
+  - `lib/calendar/board.ts` (read model, bounded, viewer zone, academy scope, no Zoom / money fields).
+  - `lib/calendar/board-layout.ts` (pure totals: scheduled minutes inside the local day, split at midnight; a flag only ABOVE the threshold).
+  - `lib/validation/schedule-board.ts` (filters shared by the API and the page).
+  - `lib/config/schedule-board.ts` (statuses, threshold key, default 6 h).
+- **API:**
+  - `GET /api/admin/schedule-board` (ADMIN + SUPERVISOR, no-store).
+  - `GET/PUT /api/admin/settings/teacher-hours-threshold` (ADMIN only).
+- **Page `/[locale]/admin/schedule`** (Admin + Supervisor nav, proxy role list):
+  - filters for date, day/week, teacher, student and status, each applied on select (`router.replace`, no button);
+  - the Admin threshold card;
+  - a grid with logical insets (RTL mirrors) and cards on phones.
+- **Session form:** under the busy list of the create forms, the chosen teacher's day as a timeline with the new
+  session outlined, plus an overlap note (display only; the server check stays authoritative).
+- **Tests:**
+  - API, written first: `__tests__/api/schedule-board.test.ts` TB-01..08.
+  - Component, written after the component: `__tests__/lib/schedule-board-grid.test.tsx` SBG-01..03.
+  - The E2E crawl and access control include `/admin/schedule` (day view and week view).

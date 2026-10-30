@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { Link } from "../../../../i18n/navigation";
 import Icon from "../../../_components/ui/icon";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
-import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
+import { wallClockInputToUtc, zonedYmd } from "../../../../lib/schedules/recurrence";
+import TeacherDayStrip from "../../../_components/schedule-board/teacher-day-strip";
 import { rangeFromInputs, rangeToInputs } from "../../../../lib/schedules/form-times";
 import { validateZoomUrl, type ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
 import {
@@ -324,6 +325,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <SmartFormFields
           form={seriesForm}
           teachers={teachers}
+          viewerTimezone={viewerTimezone}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
           locale={locale}
@@ -346,6 +348,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <SmartFormFields
           form={single}
           teachers={teachers}
+          viewerTimezone={viewerTimezone}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
           locale={locale}
@@ -450,8 +453,10 @@ function SmartFormFields({
   teachersState,
   busyTitle,
   locale,
+  viewerTimezone,
 }: {
   form: ReturnType<typeof useSmartSessionForm>;
+  viewerTimezone: string;
   teachers: { id: string; displayName: string }[];
   teachersState: "loading" | "ready" | "error";
   busyTitle: (day: string) => string;
@@ -558,6 +563,18 @@ function SmartFormFields({
             <p role="alert" className="mt-2 rounded-lg bg-error-container p-2 text-body-sm text-on-error-container">{t("busy.conflict")}</p>
           ) : null}
           <p className="mt-2 text-label-sm text-on-surface-variant">{t("busy.note")}</p>
+          {/* S-16 (D91): the chosen teacher's day as a timeline, the new session outlined. */}
+          {form.teacherId ? (
+            <div className="mt-3 border-t border-outline-variant pt-3">
+              <TeacherDayStrip
+                teacherId={form.teacherId}
+                date={form.selectedRange ? zonedYmd(form.selectedRange.start, viewerTimezone) : form.scheduledStart.slice(0, 10)}
+                draft={form.selectedRange}
+                timeZone={viewerTimezone}
+                locale={locale}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

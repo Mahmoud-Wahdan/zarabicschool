@@ -16,7 +16,8 @@ function pagesFor(role: RoleKey, ids: { complaint: string | null }): string[] {
   const sessionDetail = `/admin/sessions/${r.ids.reportSession}`;
   const operator = [
     "/admin/students", "/admin/teachers", "/admin/guardians", "/admin/subjects", "/admin/assignments",
-    "/admin/enrollments", "/admin/sessions", sessionDetail, "/admin/complaints", "/admin/evaluations",
+    "/admin/enrollments", "/admin/sessions", sessionDetail, "/admin/schedule", "/admin/schedule?view=week&teacherId=" + r.fixtures.teacherProfileId,
+    "/admin/complaints", "/admin/evaluations",
     "/admin/announcements", ...(ids.complaint ? [`/admin/complaints/${ids.complaint}`] : []),
   ];
   const shared = ["/account", "/notifications"];
