@@ -1,5 +1,7 @@
 import type { Prisma } from "../../generated/prisma/client";
 
+import { studentsInRenewalGrace } from "../credits/renewal-grace";
+
 export class SchedulingValidationError extends Error {
   code: string;
   studentIds?: string[];
@@ -87,6 +89,15 @@ export async function resolveParticipants(
       "STUDENT_NOT_ASSIGNED_TO_TEACHER_SUBJECT",
       "One or more students are not assigned to this teacher for this subject.",
       unassignedIds,
+    );
+  }
+
+  const inGrace = await studentsInRenewalGrace(tx, options.academyId, uniqueStudentIds);
+  if (inGrace.length > 0) {
+    throw new SchedulingValidationError(
+      "RENEWAL_PAST_DUE",
+      "The automatic renewal of one or more students is past due; new sessions can be booked again once the payment succeeds.",
+      inGrace,
     );
   }
 
