@@ -6,8 +6,8 @@ import { clientIp, ROLE_HOME, ROLES, run, statePath } from "./support/run";
 
 /**
  * One real sign-in through the login form per role; the specs reuse the saved
- * browser states. The login limit (5 per 10 min per username and per client
- * address) is why the specs do not sign in again for every test.
+ * browser states, so the specs do not sign in again for every test (quicker, and
+ * failed-login limits never interfere — D90 counts failures only).
  */
 /** E2E_REUSE_STATE=1: keep a saved state younger than 7 h (the JWT lives 8 h) — for quick re-runs. */
 function reusable(path: string) {

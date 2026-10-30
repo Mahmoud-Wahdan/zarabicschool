@@ -361,15 +361,20 @@ test.describe("A07 Identification and Authentication Failures", () => {
     await expect(unknown.getByText(messages.en.login.invalidCredentials)).toBeVisible();
   });
 
-  test("five failed logins lock that username for 10 minutes, even from another address", async ({ open }) => {
+  test("three wrong passwords block that sign-in for 15 minutes, but not the real user elsewhere (D90)", async ({ open }) => {
     const { users, password } = r();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const page = await signIn(open, users.rateLimited, `Wrong-Pass-${attempt}x`, clientIp(`brute-${attempt}`));
+    const attacker = clientIp("brute-attacker");
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const page = await signIn(open, users.rateLimited, `Wrong-Pass-${attempt}x`, attacker);
       await expect(page.getByText(messages.en.login.invalidCredentials)).toBeVisible();
     }
-    const page = await signIn(open, users.rateLimited, password, clientIp("brute-new-address"));
-    await expect(page.getByText(messages.en.login.invalidCredentials)).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe("/en/login");
+    // Blocked from that address, even with the right password.
+    const blocked = await signIn(open, users.rateLimited, password, attacker);
+    await expect(blocked.getByText(messages.en.login.invalidCredentials)).toBeVisible();
+    expect(new URL(blocked.url()).pathname).toBe("/en/login");
+    // The real user at another address still signs in.
+    const owner = await signIn(open, users.rateLimited, password, clientIp("brute-real-user"));
+    await owner.waitForURL((url) => !url.pathname.endsWith("/login"));
   });
 
   test("a submit before the page script runs never puts the password in the URL", async ({ open }) => {

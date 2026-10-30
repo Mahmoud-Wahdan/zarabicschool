@@ -137,7 +137,7 @@ Legend: **Fixed** = changed this session · **Verified** = checked, nothing to c
 ## A07 — Authentication Failures
 
 **Evidence**
-- **Login rate limit: Verified.** 5 attempts per 10 minutes per username key and per IP key (`lib/auth.ts`, `rateLimitKeys`). There is also a global per-IP limit in `proxy.ts` of 120 requests/min, and change-password is limited to 5 per 10 minutes.
+- **Login rate limit: Verified (changed 2026-10-30, D90).** Failed attempts only: 3 per (username, address) block that sign-in for 15 minutes; 20 per address in 10 minutes block the address; 50 per username in an hour from all addresses block the username for 15 minutes. A success clears its counter, so an attacker elsewhere cannot lock the real user out with 3 tries (`lib/auth/login-throttle.ts`). There is also a global per-IP limit in `proxy.ts` of 120 requests/min, and change-password is limited to 5 per 10 minutes.
 - **Forced password change: Fixed (B4).** An Admin-set password for ADMIN/SUPERVISOR/TEACHER forces a change, and other edits no longer clear the flag. Audit columns `password_set_by_id/at`. The proxy redirects `mustChangePassword` users.
 - **Demo passwords:** from env only; the old public literal was removed from the seed.
 

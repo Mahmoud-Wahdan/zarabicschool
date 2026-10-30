@@ -71,8 +71,8 @@ Switches:
 | `E2E_BASE_URL=…` | test an app that is already running (its own env applies) |
 | `E2E_WHATSAPP=off` | OpenWA at a closed port; the WhatsApp spec skips |
 | `E2E_REUSE_FIXTURE=1` / `E2E_KEEP_FIXTURE=1` | keep the same test academy between runs (debugging) |
-| `E2E_REUSE_STATE=1` | reuse saved sign-ins younger than 7 h (the login limit is 5 per 10 min) |
+| `E2E_REUSE_STATE=1` | reuse saved sign-ins younger than 7 h (quicker re-runs) |
 | `E2E_CHROMIUM_PATH=…` | a Chromium binary when Playwright's own build is not installed |
 
-A repeated run against the **same** server can hit the app's in-memory limits (5 logins per
-username per 10 min, 10 complaints per user per hour). A fresh server resets them.
+A repeated run against the **same** server can hit the app's in-memory limits (3 failed logins per
+username and address block it for 15 min, 10 complaints per user per hour). A fresh server resets them.

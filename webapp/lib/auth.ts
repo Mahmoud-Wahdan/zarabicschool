@@ -5,9 +5,9 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { prisma } from "./prisma";
-import { allowRequest } from "./rate-limit";
+import { loginBlocked, recordLoginFailure, recordLoginSuccess } from "./auth/login-throttle";
 import { getClientIp } from "./request";
-import { loginSchema, normalizeUsername, rateLimitKeys } from "./validation/auth";
+import { loginSchema, normalizeUsername } from "./validation/auth";
 
 export type SessionRole = "ADMIN" | "SUPERVISOR" | "TEACHER" | "STUDENT" | "GUARDIAN";
 
@@ -38,8 +38,6 @@ declare module "next-auth/jwt" {
   }
 }
 
-const loginRateLimit = { limit: 5, windowMs: 10 * 60 * 1000 };
-
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
@@ -57,10 +55,8 @@ export const authOptions: NextAuthOptions = {
 
         const { username, password } = parsed.data;
         const ip = getClientIp(req.headers);
-        const keys = rateLimitKeys(username, ip);
-        if (keys.some((key) => !allowRequest(key, loginRateLimit.limit, loginRateLimit.windowMs))) {
-          return null;
-        }
+        // D90: 3 wrong passwords block this sign-in for 15 minutes (lib/auth/login-throttle.ts).
+        if (loginBlocked(username, ip)) return null;
 
         const user = await prisma.user.findFirst({
           where: { username: normalizeUsername(username) },
@@ -76,10 +72,17 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (!user || !user.isActive) return null;
+        if (!user || !user.isActive) {
+          recordLoginFailure(username, ip);
+          return null;
+        }
 
         const passwordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!passwordValid) return null;
+        if (!passwordValid) {
+          recordLoginFailure(username, ip);
+          return null;
+        }
+        recordLoginSuccess(username, ip);
 
         return {
           id: user.id,

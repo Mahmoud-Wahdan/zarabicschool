@@ -135,12 +135,17 @@ describe("Phase 1 authentication and RBAC gates", () => {
     expect(await provider.authorize(credentials, authRequest)).toBeNull();
     expect(compareMock).not.toHaveBeenCalled();
 
+    // D90: 3 failed attempts (the inactive one counts) block this username from this
+    // address for 15 minutes — the 4th attempt never reaches the database.
     prismaMock.user.findFirst.mockResolvedValue(null);
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       expect(await provider.authorize(credentials, authRequest)).toBeNull();
     }
     expect(await provider.authorize(credentials, authRequest)).toBeNull();
-    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(5);
+    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(3);
+    // Another address is not locked out by those failures.
+    await provider.authorize(credentials, { headers: new Headers({ "x-forwarded-for": "198.51.100.44" }) });
+    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(4);
   });
 
   it("rejects inactive database sessions even when the JWT session exists", async () => {
