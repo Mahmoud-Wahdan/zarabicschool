@@ -16,12 +16,12 @@ export default function CredentialsPanel({ accounts }: { accounts: Account[] }) 
     window.setTimeout(() => setCopied(""), 1500);
   }
 
-  if (hidden) return <p className="mt-4 text-sm text-emerald-700">{t("credentials.done")}</p>;
+  if (hidden) return <p className="mt-4 text-sm text-secondary">{t("credentials.done")}</p>;
 
   return (
-    <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-5">
-      <h2 className="font-semibold text-amber-950">{t("credentials.title")}</h2>
-      <p className="mt-2 text-sm text-amber-900">{t("credentials.warning")}</p>
+    <section className="mt-4 rounded-xl border border-tertiary-fixed-dim bg-tertiary-fixed/40 p-5">
+      <h2 className="font-semibold text-on-tertiary-fixed">{t("credentials.title")}</h2>
+      <p className="mt-2 text-sm text-on-tertiary-fixed-variant">{t("credentials.warning")}</p>
       <div className="mt-4 space-y-3">
         {accounts.map((account) => (
           <div key={account.key} className="rounded-lg bg-surface-container-lowest p-3 text-sm">
@@ -31,7 +31,7 @@ export default function CredentialsPanel({ accounts }: { accounts: Account[] }) 
           </div>
         ))}
       </div>
-      <button type="button" onClick={() => setHidden(true)} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">
+      <button type="button" onClick={() => setHidden(true)} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary">
         {t("credentials.done")}
       </button>
     </section>
@@ -39,5 +39,5 @@ export default function CredentialsPanel({ accounts }: { accounts: Account[] }) 
 }
 
 function CredentialRow({ label, value, copied, onCopy, t }: { label: string; value: string; copied: boolean; onCopy: () => void; t: (key: string) => string }) {
-  return <div className="mt-2 flex items-center gap-2"><span className="w-32 text-label-sm text-on-surface-variant">{label}</span><code className="min-w-0 flex-1 break-all rounded bg-slate-100 px-2 py-1">{value}</code><button type="button" onClick={onCopy} className="shrink-0 text-xs font-semibold text-secondary">{copied ? t("credentials.copied") : t("credentials.copy")}</button></div>;
+  return <div className="mt-2 flex items-center gap-2"><span className="w-32 text-label-sm text-on-surface-variant">{label}</span><code className="min-w-0 flex-1 break-all rounded bg-surface-container-high px-2 py-1">{value}</code><button type="button" onClick={onCopy} className="shrink-0 text-xs font-semibold text-secondary">{copied ? t("credentials.copied") : t("credentials.copy")}</button></div>;
 }

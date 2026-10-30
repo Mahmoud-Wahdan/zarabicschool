@@ -58,6 +58,10 @@
   /* Chart tokens (S-11 / D8): revenue bars passed the dataviz palette validator vs #ffffff. */
   --chart-revenue: #008f7f;
   --chart-grid: #e6e8ee;
+  /* Analytics series (validated light: completed, missed, scheduled). */
+  --chart-completed: #008f7f;
+  --chart-missed: #c2410c;
+  --chart-scheduled: #2f6db5;
   --surface-container-lowest: #ffffff;
   --surface-container-low: #eff4ff;
   --surface-container: #e6eeff;
@@ -85,11 +89,225 @@
   --content: #1f2937;
   --content-secondary: #64748b;
   --content-disabled: #94a3b8;
+  /* Component colours that used to be written into the rules below (dark mode swaps them). */
+  --input-border: #cbd5e1;
+  --row-hover: #f8fafc;
+  --badge-honor-bg: #fefce8;
+  --badge-honor-fg: #854d0e;
+  --badge-info-fg: #1d4ed8;
+  --badge-neutral-fg: #475569;
+  --btn-primary-hover: #007367;
+  --btn-primary-active: #005c53;
+  --on-emerald: #ffffff;
+  --btn-outline-fg: #1b365d;
 
   /* Elevation (DESIGN.md) */
   --elev-1: 0 1px 3px rgb(27 54 93 / 0.04);
   --elev-2: 0 4px 12px -2px rgb(27 54 93 / 0.08), 0 2px 4px -1px rgb(27 54 93 / 0.04);
   --elev-3: 0 20px 25px -5px rgb(27 54 93 / 0.16), 0 8px 10px -6px rgb(27 54 93 / 0.08);
+}
+
+
+/* Dark mode (owner, 2026-10-31). The same tokens, re-stepped for a dark surface. The
+   header switch stores light / dark / system in the `theme` cookie; the root layout
+   writes data-theme. "System" (no attribute) follows the device. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0d1420;
+  --foreground: #e3e9f4;
+  --navy: #aec7f7;
+  --emerald: #0f8a7c;
+  --gold: #e9c349;
+  --line: #2a3547;
+  --surface: #151e2c;
+  --dashboard-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  --primary: #aec7f7;
+  --on-primary: #0f2a52;
+  --primary-container: #2e476f;
+  --on-primary-container: #d6e3ff;
+  --primary-fixed: #23395c;
+  --primary-fixed-dim: #2e476f;
+  --on-primary-fixed: #d6e3ff;
+  --on-primary-fixed-variant: #aec7f7;
+  --inverse-primary: #465f88;
+  --secondary: #70d8c8;
+  --on-secondary: #00382f;
+  --secondary-container: #005048;
+  --on-secondary-container: #8df5e4;
+  --secondary-fixed: #0f4a43;
+  --secondary-fixed-dim: #1d5f56;
+  --on-secondary-fixed: #8df5e4;
+  --on-secondary-fixed-variant: #70d8c8;
+  --tertiary: #e9c349;
+  --on-tertiary: #3c2f00;
+  --tertiary-container: #574500;
+  --on-tertiary-container: #ffe088;
+  --tertiary-fixed: #4a3b00;
+  --tertiary-fixed-dim: #574500;
+  --on-tertiary-fixed: #ffe088;
+  --on-tertiary-fixed-variant: #e9c349;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #5c1a17;
+  --on-error-container: #ffdad6;
+  --on-background: #e3e9f4;
+  --surface-variant: #2f3a4b;
+  --surface-dim: #0b111b;
+  --surface-bright: #0d1420;
+  --chart-revenue: #1f9c8f;
+  --chart-grid: #2a3547;
+  --chart-completed: #1f9c8f;
+  --chart-missed: #dd6f37;
+  --chart-scheduled: #5b8bd6;
+  --surface-container-lowest: #151e2c;
+  --surface-container-low: #1a2433;
+  --surface-container: #1f2a3a;
+  --surface-container-high: #273244;
+  --surface-container-highest: #2f3a4d;
+  --on-surface-variant: #c0c7d4;
+  --inverse-surface: #e3e9f4;
+  --inverse-on-surface: #27313f;
+  --outline: #8b93a1;
+  --outline-variant: #3a4556;
+  --surface-tint: #aec7f7;
+  --success: #5fd4a6;
+  --success-surface: #0f2e24;
+  --warning: #f2b25c;
+  --warning-surface: #33240a;
+  --danger: #ff8a80;
+  --danger-surface: #3a1414;
+  --system-info: #7fb0ff;
+  --system-info-surface: #13233f;
+  --canvas: #0d1420;
+  --inset: #1a2433;
+  --hairline: #2a3547;
+  --content: #e3e9f4;
+  --content-secondary: #a7b0bf;
+  --content-disabled: #6b7586;
+  --input-border: #3a4556;
+  --row-hover: #1a2433;
+  --badge-honor-bg: #3a3010;
+  --badge-honor-fg: #f5d76e;
+  --badge-info-fg: #a9c8ff;
+  --badge-neutral-fg: #c0c7d4;
+  --btn-primary-hover: #12a090;
+  --btn-primary-active: #0b7a6d;
+  --on-emerald: #ffffff;
+  --btn-outline-fg: #aec7f7;
+  --elev-1: 0 1px 3px rgb(0 0 0 / 0.3);
+  --elev-2: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 4px -1px rgb(0 0 0 / 0.3);
+  --elev-3: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #0d1420;
+    --foreground: #e3e9f4;
+    --navy: #aec7f7;
+    --emerald: #0f8a7c;
+    --gold: #e9c349;
+    --line: #2a3547;
+    --surface: #151e2c;
+    --dashboard-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+    --primary: #aec7f7;
+    --on-primary: #0f2a52;
+    --primary-container: #2e476f;
+    --on-primary-container: #d6e3ff;
+    --primary-fixed: #23395c;
+    --primary-fixed-dim: #2e476f;
+    --on-primary-fixed: #d6e3ff;
+    --on-primary-fixed-variant: #aec7f7;
+    --inverse-primary: #465f88;
+    --secondary: #70d8c8;
+    --on-secondary: #00382f;
+    --secondary-container: #005048;
+    --on-secondary-container: #8df5e4;
+    --secondary-fixed: #0f4a43;
+    --secondary-fixed-dim: #1d5f56;
+    --on-secondary-fixed: #8df5e4;
+    --on-secondary-fixed-variant: #70d8c8;
+    --tertiary: #e9c349;
+    --on-tertiary: #3c2f00;
+    --tertiary-container: #574500;
+    --on-tertiary-container: #ffe088;
+    --tertiary-fixed: #4a3b00;
+    --tertiary-fixed-dim: #574500;
+    --on-tertiary-fixed: #ffe088;
+    --on-tertiary-fixed-variant: #e9c349;
+    --error: #ffb4ab;
+    --on-error: #690005;
+    --error-container: #5c1a17;
+    --on-error-container: #ffdad6;
+    --on-background: #e3e9f4;
+    --surface-variant: #2f3a4b;
+    --surface-dim: #0b111b;
+    --surface-bright: #0d1420;
+    --chart-revenue: #1f9c8f;
+    --chart-grid: #2a3547;
+    --chart-completed: #1f9c8f;
+    --chart-missed: #dd6f37;
+    --chart-scheduled: #5b8bd6;
+    --surface-container-lowest: #151e2c;
+    --surface-container-low: #1a2433;
+    --surface-container: #1f2a3a;
+    --surface-container-high: #273244;
+    --surface-container-highest: #2f3a4d;
+    --on-surface-variant: #c0c7d4;
+    --inverse-surface: #e3e9f4;
+    --inverse-on-surface: #27313f;
+    --outline: #8b93a1;
+    --outline-variant: #3a4556;
+    --surface-tint: #aec7f7;
+    --success: #5fd4a6;
+    --success-surface: #0f2e24;
+    --warning: #f2b25c;
+    --warning-surface: #33240a;
+    --danger: #ff8a80;
+    --danger-surface: #3a1414;
+    --system-info: #7fb0ff;
+    --system-info-surface: #13233f;
+    --canvas: #0d1420;
+    --inset: #1a2433;
+    --hairline: #2a3547;
+    --content: #e3e9f4;
+    --content-secondary: #a7b0bf;
+    --content-disabled: #6b7586;
+    --input-border: #3a4556;
+    --row-hover: #1a2433;
+    --badge-honor-bg: #3a3010;
+    --badge-honor-fg: #f5d76e;
+    --badge-info-fg: #a9c8ff;
+    --badge-neutral-fg: #c0c7d4;
+    --btn-primary-hover: #12a090;
+    --btn-primary-active: #0b7a6d;
+    --on-emerald: #ffffff;
+    --btn-outline-fg: #aec7f7;
+    --elev-1: 0 1px 3px rgb(0 0 0 / 0.3);
+    --elev-2: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 4px -1px rgb(0 0 0 / 0.3);
+    --elev-3: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  }
+}
+
+
+/* The side menu stays deep navy in dark mode (brand); its own tokens are re-stepped. */
+:root[data-theme="dark"] .app-nav {
+  --color-primary: #08111f;
+  --color-on-primary: #e3e9f4;
+  --color-primary-container: #0f1a2b;
+  --color-on-primary-container: #9fb3d6;
+  --color-secondary: #1f9c8f;
+  --color-on-secondary: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .app-nav {
+    --color-primary: #08111f;
+    --color-on-primary: #e3e9f4;
+    --color-primary-container: #0f1a2b;
+    --color-on-primary-container: #9fb3d6;
+    --color-secondary: #1f9c8f;
+    --color-on-secondary: #ffffff;
+  }
 }
 
 @theme inline {
@@ -242,7 +460,7 @@ html[lang="en"] {
   justify-content: center;
   border-radius: 1rem;
   background: var(--emerald);
-  color: #fff;
+  color: var(--on-emerald);
   font-weight: 700;
   padding: 0.75rem 1.5rem;
   box-shadow: 0 8px 20px rgb(0 137 123 / 0.18);
@@ -323,16 +541,16 @@ html[lang="en"] {
 
 .btn-primary {
   background: var(--emerald);
-  color: #ffffff;
+  color: var(--on-emerald);
 }
 
-.btn-primary:hover:not(:disabled) { background: #007367; }
-.btn-primary:active:not(:disabled) { background: #005c53; }
+.btn-primary:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.btn-primary:active:not(:disabled) { background: var(--btn-primary-active); }
 
 .btn-outline {
   background: var(--surface-container-lowest);
-  border: 1px solid var(--primary-container);
-  color: var(--primary-container);
+  border: 1px solid var(--btn-outline-fg);
+  color: var(--btn-outline-fg);
 }
 
 .btn-outline:hover:not(:disabled) { background: var(--inset); }
@@ -361,7 +579,7 @@ html[lang="en"] {
 
 .z-card-raised {
   background: var(--surface-container-lowest);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border);
   border-radius: 0.5rem;
   box-shadow: var(--elev-2);
 }
@@ -383,11 +601,11 @@ html[lang="en"] {
 
 .badge--live { background: var(--success-surface); color: var(--success); }
 .badge--pending { background: var(--warning-surface); color: var(--warning); }
-.badge--honor { background: #fefce8; color: #854d0e; border: 1px solid var(--gold); }
-.badge--info { background: var(--system-info-surface); color: #1d4ed8; }
+.badge--honor { background: var(--badge-honor-bg); color: var(--badge-honor-fg); border: 1px solid var(--gold); }
+.badge--info { background: var(--system-info-surface); color: var(--badge-info-fg); }
 .badge--danger { background: var(--danger-surface); color: var(--danger); }
-.badge--neutral { background: var(--inset); color: #475569; }
-.badge--role { background: var(--system-info-surface); color: #1d4ed8; }
+.badge--neutral { background: var(--inset); color: var(--badge-neutral-fg); }
+.badge--role { background: var(--system-info-surface); color: var(--badge-info-fg); }
 .badge--success { background: var(--success-surface); color: var(--success); }
 
 .badge-dot {
@@ -414,7 +632,7 @@ html[lang="en"] {
   width: 100%;
   min-height: 40px;
   background: var(--surface-container-lowest);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border);
   border-radius: 0.25rem;
   padding: 0 0.75rem;
   color: var(--content);
@@ -480,7 +698,7 @@ html[lang="en"] {
 .z-table tbody tr:last-child td { border-bottom: none; }
 
 @media (hover: hover) {
-  .z-table tbody tr:hover { background: #f8fafc; }
+  .z-table tbody tr:hover { background: var(--row-hover); }
 }
 
 /* Sidebar links (Stitch app shell) */
@@ -518,7 +736,7 @@ html[lang="en"] {
   transform: translateY(-200%);
   border-radius: 0.75rem;
   background: var(--emerald);
-  color: #fff;
+  color: var(--on-emerald);
   font-weight: 700;
   padding: 0.5rem 1rem;
   transition: transform 0.2s ease;

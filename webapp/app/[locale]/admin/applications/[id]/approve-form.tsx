@@ -94,7 +94,7 @@ export default function ApproveForm({
 
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => setOpen((value) => !value)} className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => setOpen((value) => !value)} className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-on-secondary disabled:opacity-50">
         {t("actions.approve")}
       </button>
       {open && (
@@ -158,7 +158,7 @@ export default function ApproveForm({
               })}
             </div>
           ) : null}
-          <button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary disabled:opacity-50">
             {busy ? t("actions.submitting") : t("approveForm.confirm")}
           </button>
         </div>

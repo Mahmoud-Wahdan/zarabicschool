@@ -31,7 +31,7 @@ type ApplicationListItem = {
 const statusBadgeClasses: Record<string, string> = {
   NEW: "bg-tertiary-fixed text-on-tertiary-fixed",
   REVIEWED: "bg-sky-100 text-sky-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
+  APPROVED: "bg-secondary-fixed/40 text-on-secondary-fixed-variant",
   REJECTED: "bg-error-container text-on-error-container",
 };
 
@@ -150,7 +150,7 @@ export default async function AdminApplicationsPage({
                   aria-current={status === value ? "true" : undefined}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     status === value
-                      ? "border-primary bg-primary text-white"
+                      ? "border-primary bg-primary text-on-primary"
                       : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary"
                   }`}
                 >
@@ -169,7 +169,7 @@ export default async function AdminApplicationsPage({
                   aria-current={type === value ? "true" : undefined}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     type === value
-                      ? "border-primary bg-primary text-white"
+                      ? "border-primary bg-primary text-on-primary"
                       : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary"
                   }`}
                 >

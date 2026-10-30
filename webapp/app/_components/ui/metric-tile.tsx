@@ -8,7 +8,7 @@ const ICON_TONE_CLASSES = {
   tertiary: "bg-tertiary-fixed/40 text-tertiary",
   error: "bg-error-container/60 text-error",
   info: "bg-primary-fixed/50 text-primary",
-  navy: "bg-surface-container-high text-primary-container",
+  navy: "bg-surface-container-high text-primary",
 } as const;
 
 export default function MetricTile({

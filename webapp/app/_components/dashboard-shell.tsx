@@ -7,6 +7,7 @@ import { Link, usePathname } from "../../i18n/navigation";
 import DeviceTimeZoneSync from "./device-timezone-sync";
 import { useBadge } from "./notifications/badge-provider";
 import LocaleSwitcher from "./locale-switcher";
+import ThemeSwitch from "./theme-switch";
 import SignOutButton from "./sign-out-button";
 import Icon, { type IconName } from "./ui/icon";
 
@@ -389,7 +390,7 @@ export default function DashboardShell({
       <DeviceTimeZoneSync />
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 start-0 z-50 hidden w-72 flex-col overflow-y-auto bg-primary-container text-on-primary shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:flex">
+      <aside className="app-nav fixed inset-y-0 start-0 z-50 hidden w-72 flex-col overflow-y-auto bg-primary-container text-on-primary shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:flex">
         {brandBar()}
         {scopeChip}
         <SidebarNav items={navItems} badges={navBadges} />
@@ -409,7 +410,7 @@ export default function DashboardShell({
             aria-modal="true"
             aria-label={t("primaryNav")}
             tabIndex={-1}
-            className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-primary-container text-on-primary shadow-[var(--elev-3)] outline-none"
+            className="app-nav absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-primary-container text-on-primary shadow-[var(--elev-3)] outline-none"
           >
             {brandBar(() => setDrawerOpen(false))}
             {scopeChip}
@@ -436,6 +437,7 @@ export default function DashboardShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeSwitch />
             <ShellClock timezone={timezone} />
             <NotificationBell inboxHref="/notifications" />
             <UserMenu userName={userName} roleLabel={roleLabel} />

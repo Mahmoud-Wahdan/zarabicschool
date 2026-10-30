@@ -60,7 +60,7 @@ export default function InboxList({ items: initial, timeZone }: { items: InboxLi
   }
 
   if (items.length === 0) {
-    return <p className="rounded-xl border border-[var(--line)] bg-white p-6 text-sm opacity-75">{t("empty")}</p>;
+    return <p className="rounded-xl border border-[var(--line)] bg-surface-container-lowest p-6 text-sm opacity-75">{t("empty")}</p>;
   }
 
   const row = (item: InboxListItem) => (
@@ -97,13 +97,13 @@ export default function InboxList({ items: initial, timeZone }: { items: InboxLi
       {unread.length ? (
         <section aria-labelledby="inbox-unread">
           <h2 id="inbox-unread" className="mb-2 text-sm font-semibold text-[var(--navy)]">{t("newHeading")}</h2>
-          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-white">{unread.map(row)}</ul>
+          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-surface-container-lowest">{unread.map(row)}</ul>
         </section>
       ) : null}
       {read.length ? (
         <section aria-labelledby="inbox-read">
           <h2 id="inbox-read" className="mb-2 text-sm font-semibold text-[var(--navy)]">{t("earlierHeading")}</h2>
-          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-white">{read.map(row)}</ul>
+          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-surface-container-lowest">{read.map(row)}</ul>
         </section>
       ) : null}
     </div>

@@ -10,7 +10,7 @@ export default async function Hero() {
     { icon: "group", tone: "text-primary", title: tRibbon("item1Title"), text: tRibbon("item1Text") },
     { icon: "fact_check", tone: "text-secondary", title: tRibbon("item2Title"), text: tRibbon("item2Text") },
     { icon: "notifications_active", tone: "text-tertiary", title: tRibbon("item3Title"), text: tRibbon("item3Text") },
-    { icon: "family_restroom", tone: "text-primary-container", title: tRibbon("item4Title"), text: tRibbon("item4Text") },
+    { icon: "family_restroom", tone: "text-primary", title: tRibbon("item4Title"), text: tRibbon("item4Text") },
   ] as const;
 
   return (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Cairo, Inter, Montserrat, Tajawal } from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import "../globals.css";
@@ -66,11 +67,16 @@ export default async function RootLayout({ children, params }: Props) {
   // so the page's own auth check shares the same user read).
   const userId = await getSessionUserId();
   const badgeCount = userId ? getAuthSession().then(initialBadgeCount) : null;
+  // Dark mode (owner, 2026-10-31): light / dark from the `theme` cookie; anything else
+  // follows the device (no attribute). Set here so the first paint is already right.
+  const themeCookie = (await cookies()).get("theme")?.value;
+  const theme = themeCookie === "dark" || themeCookie === "light" ? themeCookie : undefined;
 
   return (
     <html
       lang={locale}
       dir={locale === "ar" ? "rtl" : "ltr"}
+      data-theme={theme}
       className={`${cairo.variable} ${tajawal.variable} ${montserrat.variable} ${inter.variable}`}
     >
       <body>

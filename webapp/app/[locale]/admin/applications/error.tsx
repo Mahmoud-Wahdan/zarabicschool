@@ -18,9 +18,9 @@ export default function AdminApplicationsError({
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-      <h1 className="text-lg font-bold text-red-900">{common("errorTitle")}</h1>
-      <p className="mt-2 text-sm text-red-800">{common("errorBody")}</p>
+    <div role="alert" className="mx-auto max-w-md rounded-2xl border border-error/30 bg-error-container/40 p-6 text-center">
+      <h1 className="text-lg font-bold text-on-error-container">{common("errorTitle")}</h1>
+      <p className="mt-2 text-sm text-on-error-container">{common("errorBody")}</p>
       <button
         type="button"
         onClick={reset}

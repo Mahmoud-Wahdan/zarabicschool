@@ -79,7 +79,7 @@ export default function TimeZoneForm({ current, source }: { current: string; sou
     <div className="space-y-4">
       <label className="grid max-w-md gap-1 text-sm">
         <span className="font-medium text-[var(--navy)]">{t("timeZone")}</span>
-        <select value={zone} onChange={(event) => setZone(event.target.value)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
+        <select value={zone} onChange={(event) => setZone(event.target.value)} className="rounded-lg border border-[var(--line)] bg-surface-container-lowest px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]">
           {groups.length === 1 && groups[0].zones.length === 1 ? (
             <option value={current}>{current.replaceAll("_", " ")}</option>
           ) : (

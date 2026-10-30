@@ -16,7 +16,7 @@ export default async function AnnouncementsWidget({ academyId, timeZone }: { aca
   if (!announcements.length) return null;
   const [t, locale] = await Promise.all([getTranslations("announcementsWidget"), getLocale()]);
   return (
-    <section className="mt-4 rounded-xl border border-[var(--line)] bg-white p-5" aria-label={t("title")}>
+    <section className="mt-4 rounded-xl border border-[var(--line)] bg-surface-container-lowest p-5" aria-label={t("title")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-semibold text-[var(--navy)]">
           <Icon name="campaign" size={18} />

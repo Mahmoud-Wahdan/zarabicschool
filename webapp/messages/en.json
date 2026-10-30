@@ -2797,5 +2797,11 @@
     "colWeek": "Week",
     "showTable": "Show as table",
     "noAttendance": "No session reports in these weeks yet."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Device setting",
+    "switch": "Theme: {current}. Switch to {next}"
   }
 }

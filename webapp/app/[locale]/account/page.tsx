@@ -19,7 +19,7 @@ export default async function AccountPage() {
     <DashboardShell role={user.role} userName={user.displayName} timezone={stored.timezone}>
       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
       <p className="mt-2 max-w-prose text-sm opacity-70">{t("subtitle")}</p>
-      <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5 sm:p-6">
+      <section className="mt-6 rounded-xl border border-[var(--line)] bg-surface-container-lowest p-5 sm:p-6">
         <TimeZoneForm current={stored.timezone} source={stored.timezoneSource} />
       </section>
     </DashboardShell>

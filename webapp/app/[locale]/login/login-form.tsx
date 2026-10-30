@@ -137,7 +137,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
       ) : null}
 
       <div className="flex items-center gap-2.5 rounded-lg bg-surface-container-low p-3">
-        <Icon name={"verified_user"} size={18} className="shrink-0 text-primary-container" />
+        <Icon name={"verified_user"} size={18} className="shrink-0 text-primary" />
         <span className="text-body-sm leading-tight text-on-surface-variant">{t("rolesHint")}</span>
       </div>
 

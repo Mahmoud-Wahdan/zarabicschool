@@ -24,7 +24,7 @@ export default function TeacherSessionsError({
       <button
         type="button"
         onClick={reset}
-        className="mt-4 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        className="mt-4 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-on-secondary transition hover:opacity-90"
       >
         {common("retry")}
       </button>

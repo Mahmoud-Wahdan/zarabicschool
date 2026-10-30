@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
  * Text never wears the series colour. Palette (validated, light surface, stack order):
  * completed #008f7f, missed #c2410c, scheduled #2f6db5 — ALL CHECKS PASS.
  */
-export const CHART_COLORS = { completed: "#008f7f", missed: "#c2410c", scheduled: "#2f6db5", single: "#008f7f" } as const;
+export const CHART_COLORS = { completed: "var(--chart-completed)", missed: "var(--chart-missed)", scheduled: "var(--chart-scheduled)", single: "var(--chart-completed)" } as const;
 const GRID = "var(--chart-grid, #e6e8ee)";
 const SURFACE = "var(--color-surface-container-lowest, #ffffff)";
 const MAX_BAR = 24;
