@@ -16,7 +16,7 @@ export default async function AdminApplicationsLoading() {
             <div key={row} className="h-16 rounded-xl bg-[var(--line)]" />
           ))}
         </div>
-        <p className="mt-6 text-center text-sm text-[var(--foreground)] opacity-60">
+        <p className="mt-6 text-center text-sm text-on-surface-variant">
           {t("states.loading")}
         </p>
       </div>

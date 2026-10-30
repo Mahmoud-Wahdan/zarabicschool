@@ -11,7 +11,7 @@ import { call, expect, expectHealthyPage, messages, test, visit } from "../suppo
  *      student's and the guardian's calendars, and on the Supervisor's session list;
  *   3. the student reports an outage on it → the Supervisor and the Admin see the request;
  *      the Supervisor rejects it;
- *   4. the guardian files a complaint about it through the form → the Supervisor resolves it
+ *   4. the guardian files a complaint about the child's last session through the form → the Supervisor resolves it
  *      and the Admin sees it resolved;
  *   5. the Admin cancels the session → the student's calendar shows it cancelled and the
  *      credit returns.
@@ -116,14 +116,15 @@ test("3. the student reports an outage; the Supervisor and the Admin see it; the
   expect(stored.status).toBe("REJECTED");
 });
 
-test("4. the guardian complains about the session through the form; the Supervisor resolves it; the Admin sees it resolved", async ({ open }) => {
+test("4. the guardian complains about the last session through the form; the Supervisor resolves it; the Admin sees it resolved", async ({ open }) => {
   const r = run();
   const form = messages.en.complaintForm;
   story.complaintTitle = `Teacher was late ${tag}`;
   const guardian = await open("guardian", { locale: "en" });
   await visit(guardian, "/en/complaints/new");
   await expectHealthyPage(guardian, "en", "guardian complaint form");
-  await guardian.getByLabel(form.sessionLabel).selectOption(story.sessionId!);
+  // Complaints are about a session that took place: the fixture's past one with student1.
+  await guardian.getByLabel(form.sessionLabel).selectOption(r.ids.reportSession);
   const concerned = guardian.getByLabel(form.concernedLabel);
   await expect(concerned.locator(`option[value="${r.fixtures.teacherUserId}"]`)).toHaveCount(1);
   await concerned.selectOption(r.fixtures.teacherUserId);

@@ -32,7 +32,7 @@ export default async function SessionJoinLink({
       <span
         title={t("window.notYetOpen", { minutes: windowMinutes })}
         aria-label={t("window.notYetOpen", { minutes: windowMinutes })}
-        className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-xs opacity-60"
+        className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-xs text-on-surface-variant"
       >
         <Icon name={"videocam_off"} size={14} />
         {t("window.notYetOpen", { minutes: windowMinutes })}
@@ -41,7 +41,7 @@ export default async function SessionJoinLink({
   }
   if (state === "after") {
     return (
-      <span className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-xs opacity-60">
+      <span className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-xs text-on-surface-variant">
         <Icon name={"videocam_off"} size={14} />
         {t("window.closed")}
       </span>

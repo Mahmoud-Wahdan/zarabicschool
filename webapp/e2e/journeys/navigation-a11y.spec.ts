@@ -57,6 +57,8 @@ for (const who of PEOPLE) {
           await visit(page, item.href);
         }
         await expectHealthyPage(page, locale, label);
+        // The title is streamed after the page body: let it arrive before the scan.
+        await expect.soft(page, `${label}: title`).toHaveTitle(/\S/);
         await expect.soft(nav.locator(`a[href="${item.href}"]`), `${label}: current page`).toHaveAttribute("aria-current", "page");
         expect.soft(await a11yViolations(page), `${label}: accessibility`).toEqual([]);
       }

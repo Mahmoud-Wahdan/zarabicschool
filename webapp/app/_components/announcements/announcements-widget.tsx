@@ -31,7 +31,7 @@ export default async function AnnouncementsWidget({ academyId, timeZone }: { aca
           <li key={row.id} className="rounded-lg bg-[var(--background)] p-3 text-sm">
             <p className="font-semibold">{row.title}</p>
             <p className="mt-1 whitespace-pre-wrap opacity-80">{row.body}</p>
-            <p className="mt-1 text-xs opacity-60">{formatSessionDateTime(row.sentAt, timeZone, locale)}</p>
+            <p className="mt-1 text-xs text-on-surface-variant">{formatSessionDateTime(row.sentAt, timeZone, locale)}</p>
           </li>
         ))}
       </ul>
