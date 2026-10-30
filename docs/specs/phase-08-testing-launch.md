@@ -278,3 +278,10 @@ so no phone linked), Paymob through a local test double (no keys, Paymob unreach
 
 ### 2026-10-29 (owner) — WhatsApp live test done
 - The owner tested OpenWA with a real number on 2026-10-29 and it works (D79). This closes the "real WhatsApp delivery / OpenWA end-to-end" gaps listed above as not covered. The automated suites still never call OpenWA; `OPENWA_SEND_ALLOWLIST` still guards non-production sends.
+
+### 2026-10-30 — MVP close-out for staging (D94, D95)
+- Staging readiness: `staging-runbook.md` (ngrok static domain, separate demo DB, `next start` + `npm run worker`,
+  WhatsApp and Paymob off), rehearsed through a local HTTPS stand-in. New tooling: `npm run worker` and
+  `npm run db:verify`. Guard ENV-01 keeps `.env.example` complete.
+- The Paymob test-mode run stays prepared only (runbook §6) until the owner writes "go".
+- The Known risks / Post-MVP list is in `PROGRESS.md` (2026-10-30, later).

@@ -20,6 +20,10 @@
   Dev mode serves ~35 separate files per page and is slow on this PC (see "The PC itself").
 - Stop the tunnel as soon as the webhook test is done. It exposes the dev machine and the dev database.
 
+**Exception — temporary staging for testers (D95, owner 2026-10-30):** an ngrok static free domain in front of
+a production build, with its own database. That is a different setup from daily development; follow
+`staging-runbook.md`, not this file.
+
 ## Which tunnel the docs recommend: Cloudflare Tunnel (ngrok stays a fallback)
 
 **Recommended: Cloudflare Tunnel (`cloudflared`), named tunnel when you have a domain on Cloudflare.**

@@ -334,7 +334,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Auth = NextAuth only, forced password change, no self-reset, login rate limit | CONFIRMED |
 | Supabase Postgres; private file storage on Cloudinary (switched 2026-10-25; legacy Supabase Storage rows read-only) | CONFIRMED |
 | Delivery to the client in stages | CONFIRMED (boundaries OPEN) |
-| Hosting | OPEN until deployment |
+| Hosting | Production: OPEN until deployment. Temporary staging for testers (owner, 2026-10-30): the owner's PC behind an ngrok static free domain, separate demo database, `next start` + a separate worker, WhatsApp/Paymob off (`docs/specs/staging-runbook.md`, D95) — not the production decision |
 | ~~**Free trial session** (owner, 2026-10-14) — reverses the earlier "no trial-session type"; scheduled for Phase 9, NOT in Phases 5–6; teacher pay/limits for trials OPEN~~ **SUPERSEDED (owner, 2026-10-27, `phase-09-decisions.md` D15): no trial — nothing is built; "no trial sessions" stands.** | SUPERSEDED |
 | Scheduler for timed jobs = database-polling worker (no Redis) | CONFIRMED (2026-10-06) |
 | Reports per student (also in groups); teacher report visible to guardian + Admin; student evaluation visible to Admin only; no trial sessions | CONFIRMED |

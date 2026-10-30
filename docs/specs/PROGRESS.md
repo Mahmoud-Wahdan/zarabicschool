@@ -18,6 +18,50 @@
 | 8 | Testing & Launch | Test suites done; launch steps open | 2026-10-30 | 2026-10-29: Jest 92 suites / 771 tests green; Playwright whole-site E2E 104 tests (crawl every page × role, access control, OWASP Top 10, Session 1/2 plans); WhatsApp live test done by the owner (D79). Open: monitoring/alerting, production hosting + deploy, backup/restore drill, mobile-viewport and RTL visual review, Paymob Layer 2 (owner), `fast-uri` moderate advisory |
 | 9 | Refinements & UI/UX Polish | In progress — most slices done | 2026-10-30 | Done: S-00…S-15 (return page, attendance resolution, teacher approval, time zones, join window, WhatsApp icon, inbox, roster changes, daily schedule, Supervisor finance view, calendar, performance + Admin home, deductions/bonuses, payment link + refunds, Stitch UI, payer refund request), G1 bug fixes, L latency, automatic renewal. Open: review fixes B1–B4 (designs waiting for the owner, 2026-10-29), Admin/Supervisor teacher schedule board (Part C), payroll statements and advances (Part D), OQ-14 assignments list, OQ-R3–R5 (Paymob), D47 week start (PROPOSAL) |
 
+## 2026-10-30 (later) — MVP close-out for staging (branch `mvp/staging-readiness`)
+
+- **Owner decisions:**
+  - D94: advances removed from the MVP. Nothing was ever built or migrated; deferred in CONTEXT §18.
+  - D95: staging = an ngrok static free domain, a separate demo DB, `next start` and a separate worker. This is
+    not the production hosting decision.
+- **Built (test-first):**
+  - the worker as its own process (`WORKER_MODE=separate` + `npm run worker`; WM-01..03);
+  - `npm run db:verify` (read-only, counts only, 24 checks);
+  - `.env.example` completeness guard (ENV-01: six missing names added);
+  - a fix so the standalone worker exits on SIGTERM.
+- **Staging:**
+  - runbook `staging-runbook.md`, rehearsed on a separate database through a local HTTPS stand-in for ngrok;
+  - login and the forced password change work over HTTPS with the public origin; the cookie is `__Secure-`;
+  - no Zoom link in the session list; WhatsApp and Paymob are off.
+- **Waiting for the owner:**
+  - explicit OK on SQL S-10 (B1 refund hold), S-11 (B4 worker loops) and S-12 (Part D statements and payments,
+    without advances);
+  - "go" for the Paymob test-mode run;
+  - confirm Dodo (CONTEXT §20.3) vs Paymob USD (D74).
+
+### Known risks / Post-MVP (2026-10-30)
+- **OpenWA ban risk:** OpenWA is unofficial WhatsApp automation. The number can be banned at any time, so WhatsApp
+  is never the only channel: every notice also exists in-app (CONTEXT §8). Use a dedicated number, keep the send
+  spacing and throttles, and switch numbers before real data (CONTEXT §7.9).
+- **No attendance verification (trust model):** attendance and pay rest on the teacher's report (CONTEXT §6).
+  The safeguards are the report rules, approval before money, the join-click log (soft evidence), and family
+  visibility. A Zoom API verification layer and a dispute button are Post-MVP.
+- **USD gateway still unverified:**
+  - CONTEXT §20.3 records Dodo Payments as the USD choice, "verification still required".
+  - D74 (2026-10-29) says USD through Paymob with the same keys, pending Paymob's approval.
+  - Both are unverified and nothing USD is built (checkout answers NOT_CONFIGURED). **CONTEXT §20.3 and D74
+    disagree: the owner should confirm which one stands.**
+- **Hosting OPEN:** production hosting is undecided. Staging is a temporary ngrok tunnel on the owner's PC (D95),
+  not a production plan.
+- **Also open for launch:**
+  - in-memory rate limits (one app instance only);
+  - no monitoring or alerting;
+  - no backup/restore drill;
+  - secrets rotation (D21);
+  - the Paymob test-mode run (Layer 2, after "go");
+  - `npm audit`: 1 moderate (`fast-uri`).
+- **Deferred:** teacher advances (D94, CONTEXT §18).
+
 ## 2026-10-30 — branch fix/review-2026-10-29 (local, not pushed)
 
 - **Done (test-first, one commit each):**
