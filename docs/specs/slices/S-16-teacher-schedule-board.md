@@ -74,7 +74,7 @@ crossing midnight is split between the two days.
 
 ## API contract
 
-`GET /api/admin/schedule-board?date=YYYY-MM-DD&view=day|week&teacherId=<uuid>&studentId=<uuid>`
+`GET /api/admin/schedule-board?date=YYYY-MM-DD&view=day|week&teacherId=<uuid>&studentId=<uuid>&status=SCHEDULED,COMPLETED,CANCELLED,MISSED`
 - **Auth:**
   - `requireApiRoles(["ADMIN","SUPERVISOR"])`; TEACHER, STUDENT and GUARDIAN get 403, anonymous 401;
   - ids validated with `z.guid()`; a teacher or student from another academy returns an empty board (no existence leak);
@@ -119,7 +119,9 @@ crossing midnight is split between the two days.
 - UI: the RTL grid renders, and a click links to the admin session page (component test). The E2E crawl gets
   the new page for Admin and Supervisor.
 
-## Questions for the owner
+## Owner answers (2026-10-30, D91)
 
-1. Should cancelled and missed sessions show on the board (striped, not counted) or be hidden? Recommended: show them striped.
-2. Should the threshold count scheduled minutes only (recommended), or include the 15-minute gaps between sessions?
+- **Filters:** teacher, student and status (scheduled / completed / cancelled / missed), alone or together.
+  A filter applies the moment it is selected (no Apply button), and the URL keeps them (`?teacherId=&studentId=&status=`).
+  The default status filter is scheduled + completed. Cancelled and missed show only when chosen, and never count in the totals.
+- **Daily hours:** scheduled minutes only; gaps are not counted.

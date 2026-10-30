@@ -30,8 +30,14 @@ bookable (booking and expiry do not subtract pending refunds).
    - Back-off: 5 min, 15 min, 1 h, 6 h, then daily up to 14 days. After that the row is flagged to the
      Admin once (`REFUND_STUCK`) and checked daily.
    - With a `provider_refund_id`, the worker retrieves that transaction and applies rule 2 or 3.
-   - Without one (the crash case), nothing is decided automatically: the Admin is flagged at once, because
-     money may already have left.
+   - Without one (the crash case, **D93**): the outcome is unknown, never "failed", and the refund is
+     **never re-sent automatically**, because Paymob documents no idempotency key for refunds and a resend
+     could refund twice. A signed Paymob refund callback (it carries `parent_transaction` and the parent gets
+     `is_refunded: true`) is used only as a trigger. The worker then retrieves the parent transaction from
+     Paymob (`refunded_amount_cents`) with back-off and settles the row only when the amount matches exactly.
+     After 24 h without an answer the row goes to the Admin's **"unknown refunds"** list, where the Admin
+     records what the Paymob dashboard shows (succeeded / failed, reason required, audited row; the same
+     rules 2/3 apply).
 5. **Admin list:** a "Pending refunds" card on `/admin/invoices`, Admin only. It shows invoice, sessions,
    amount, age, last check and Paymob refund id, plus a link to the invoice.
 
@@ -84,8 +90,7 @@ yet, so it will be verified in the Layer 2 run.
 - `assertTeacherFree` gains an optional `excludeSessionId`.
 - The approval path's `FOR SHARE` lock conflicts with this `FOR UPDATE`, so an approval and a reschedule are serialized.
 - Link-only and cancellation edits are unchanged.
-- **Question for the owner:** should a **REJECTED** report (waiting for the teacher's correction) also block
-  a time change? Recommended: **yes**. The report and its frozen outcome belong to the original time.
+- **Owner, 2026-10-30 (D88):** a REJECTED report also blocks a time change.
 
 **Tests (RS-01..03):** overlapping slot gives 409 `TEACHER_TIME_CONFLICT`; a free slot gives 200 and moves the
 pending notices; a change after a SUBMITTED report gives 409 with nothing changed. Plus moving the session
@@ -148,26 +153,26 @@ No ledger table changes. Existing rows start with NULL, so they are checked on t
 - Sessions already booked stay. As soon as a verified renewal books the new period (status ACTIVE),
   booking works again.
 - One check in `reserveCredit` / `hasAvailableCredit` (one query on `billing_subscriptions`), so every path is covered.
-- **Question for the owner:** should a pay-per-session package the student also holds still be usable during
-  the grace? D80 as written says "no new bookings", so the recommendation is **no**: block all new bookings.
+- **Owner, 2026-10-30 (D89):** pay-per-session is blocked too (it never renews).
 
 **Tests (GR-01..04):** PAST_DUE refuses each booking path; a verified renewal unblocks; existing bookings are
 untouched; the series pauses.
 
-## Low — per-username lockout redesign (to show before building)
+## Low — login lockout (owner, 2026-10-30, D90)
 
-**Today:** five failed logins in 10 minutes for a username block that username from **every** address.
-Anyone can lock a teacher out by typing wrong passwords.
-
-**Proposal (no SQL, in-memory like today):**
-| Key | Limit | Purpose |
+| Key | Limit (failed attempts only) | Purpose |
 |---|---|---|
-| `login:pair:<username>:<ip>` | 5 per 10 min | the normal brute-force brake for one attacker on one account |
-| `login:ip:<ip>` | 20 per 10 min | one address spraying many usernames |
-| `login:user:<username>` | 50 per hour, then a 2 s delay per attempt (not a block) | a distributed attack on one account slows down, but the real user can still sign in |
+| `login:pair:<username>:<address>` | 3, then blocked for 15 min | the owner's rule: 3 wrong passwords block that sign-in |
+| `login:ip:<address>` | 20 per 10 min | one address spraying many usernames |
+| `login:user:<username>` | 50 per hour from all addresses, then blocked for 15 min | a distributed attack on one account |
 
-- A successful login clears the pair bucket.
-- Messages stay generic ("invalid username or password").
-- **Tests:** an attacker at address A cannot lock out the user at address B; A is blocked after 5; spraying from A
-  is blocked after 20; the user-wide delay applies after 50.
-- **Question for the owner:** is the 2 s delay acceptable, or a hard block for 15 minutes after 50?
+- A successful sign-in clears its pair counter.
+- An attacker at another address cannot lock the real user out with 3 tries.
+- Messages stay generic.
+
+**Tests:**
+- 3 failures, then the 4th attempt is refused even with the right password, until 15 min pass.
+- Another address still signs in.
+- 20 failures from one address over many usernames get it blocked.
+- 50 failures from many addresses block the username.
+- Success clears the pair counter.
