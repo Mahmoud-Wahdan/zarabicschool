@@ -2432,6 +2432,14 @@
       "ACTIVE": "Renews automatically",
       "PAST_DUE": "Renewal payment failed",
       "CANCELED": "Cancelled"
+    },
+    "graceSetting": {
+      "label": "Grace days after a failed renewal",
+      "save": "Save",
+      "hint": "During the grace, booking still works. After it, new sessions cannot be booked until the payment succeeds. Applies to graces that start after you save.",
+      "saved": "Saved: {days} days.",
+      "invalid": "Enter a whole number from {min} to {max}.",
+      "error": "Could not save. Try again."
     }
   },
   "account": {

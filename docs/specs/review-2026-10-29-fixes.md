@@ -190,20 +190,32 @@ No ledger table changes. Existing rows start with NULL, so they are checked on t
 - 101 stale PAST_DUE subscriptions: a newer ACTIVE one is still swept.
 - After a restart (a fresh module), the throttle holds because it is read from the DB.
 
-## D80 — No new booking during the renewal grace (no SQL)
+## D80 / D89 / D96 — New bookings blocked only AFTER the renewal grace (no SQL)
+
+> **Corrected by the owner on 2026-10-30 (D96).** The first version refused bookings as soon as the renewal
+> was PAST_DUE; that was wrong. CONTEXT §7 and §20.6: the grace comes first, the block only after it.
 
 **Rule:**
-- While a student has an automatic renewal in **PAST_DUE**, every new booking path refuses with
-  409 `RENEWAL_PAST_DUE`: single session, series creation, enrollment, replacement and roster add.
-- The worker's weekly series extension pauses the series, the same way as a lack of credit
-  (an Admin `SERIES_PAUSED` notice).
-- Sessions already booked stay. As soon as a verified renewal books the new period (status ACTIVE),
-  booking works again.
-- One check in `reserveCredit` / `hasAvailableCredit` (one query on `billing_subscriptions`), so every path is covered.
-- **Owner, 2026-10-30 (D89):** pay-per-session is blocked too (it never renews).
+- **During the grace** (PAST_DUE and `now < grace_ends_at`): every booking path works.
+- **After the grace** (PAST_DUE and `now >= grace_ends_at`, or no grace end stored): every new booking path refuses
+  with 409 `RENEWAL_PAST_DUE`: single session, series creation, enrollment, replacement and roster add,
+  pay-per-session included (D89).
+- The worker's weekly series extension then pauses the series, the same way as a lack of credit (an Admin
+  `SERIES_PAUSED` notice). During the grace it does not pause.
+- Sessions already booked, reports and teacher pay are never affected. A verified renewal (status ACTIVE) unblocks.
+- **Where "past due since" is stored:** nothing new is needed. `billing_subscriptions.grace_ends_at` already exists
+  and is written when the worker marks the row PAST_DUE (period end + grace days).
+- **Grace days:** the Admin setting `billing.renewal_grace_days` (1–14, default 3), read at that moment. A change
+  applies to graces that start later.
+- One check in `reserveCredit` and `resolveParticipants` (`studentsPastRenewalGrace`), so every path is covered.
 
-**Tests (GR-01..04):** PAST_DUE refuses each booking path; a verified renewal unblocks; existing bookings are
-untouched; the series pauses.
+**Tests:**
+- GR-01: during the grace, single, series, enrollment and the worker reservation all book.
+- GR-02: after the grace, each path gets 409 and the worker reservation refuses.
+- GR-03: existing bookings stay; ACTIVE unblocks. GR-04: no renewal problem → books.
+- GR-05: boundary: 1 ms before `grace_ends_at` books; at the exact end and after, blocked.
+- GR-06: PAST_DUE with no stored end → blocked.
+- RN-05b: a setting of 5 days gives `grace_ends_at` = period end + 5 days. GS-01..04: the setting route.
 
 ## Low — login lockout (owner, 2026-10-30, D90)
 

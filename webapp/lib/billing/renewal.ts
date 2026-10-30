@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "../../generated/prisma/client";
 
+import { getRenewalGraceDays } from "../config/renewal-grace";
 import { writePaymentAudit } from "../payments/audit";
 import { PaymobSubscriptionClient, type PaymobRecord } from "../payments/paymob-subscriptions";
 import { PaymentProviderError } from "../payments/types";
@@ -27,7 +28,6 @@ export type RenewalClient = Pick<PaymobSubscriptionClient, "listTransactions" | 
 export type RenewalDeps = { client?: RenewalClient; now?: Date };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const RENEWAL_GRACE_DAYS = 3;
 /** A charge may land up to this long before the period end (Paymob's 30-day count drifts). */
 const EARLY_CHARGE_MS = 3 * DAY_MS;
 /** Grace is detected only after Paymob had the night to charge (D58 starts it at period end). */
@@ -266,7 +266,9 @@ export async function processRenewals(now = new Date(), options: { client?: Rene
         await sweepBillingSubscription(sub.id, { client, now });
         lastSweepAt.set(sub.id, now.getTime());
       }
-      const graceEndsAt = new Date(sub.currentPeriodEnd.getTime() + RENEWAL_GRACE_DAYS * DAY_MS);
+      // The grace length is the Admin setting (default 3 days), fixed into grace_ends_at here.
+      const graceDays = await getRenewalGraceDays(prisma, sub.academyId);
+      const graceEndsAt = new Date(sub.currentPeriodEnd.getTime() + graceDays * DAY_MS);
       const marked = await prisma.billingSubscription.updateMany({
         where: { id: sub.id, status: "ACTIVE", autoRenew: true, currentPeriodEnd: sub.currentPeriodEnd },
         data: { status: "PAST_DUE", graceEndsAt },

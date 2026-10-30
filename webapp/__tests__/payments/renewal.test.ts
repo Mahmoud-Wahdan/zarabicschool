@@ -9,6 +9,7 @@ import {
   sweepBillingSubscription,
   type RenewalClient,
 } from "../../lib/billing/renewal";
+import { RENEWAL_GRACE_DAYS_KEY } from "../../lib/config/renewal-grace";
 import { composeJobMessage } from "../../lib/worker/notifications";
 import { prisma } from "../../lib/prisma";
 import { PaymentProviderError } from "../../lib/payments/types";
@@ -199,6 +200,19 @@ describe("automatic renewal", () => {
     const mine = (kind: string) => jobs(kind).then((rows) => rows.filter((job) => (job.payload as { billingSubscriptionId?: string }).billingSubscriptionId === sub.id));
     expect((await mine("RENEWAL_PAST_DUE")).map((job) => job.recipientUserId)).toEqual([fx.guardianUserId]);
     expect((await mine("RENEWAL_PAST_DUE_ADMIN")).map((job) => job.recipientUserId)).toEqual([fx.adminUserId]);
+  });
+
+  it("RN-05b: the grace length comes from the Admin setting billing.renewal_grace_days (here 5), not a constant", async () => {
+    await prisma.academySetting.create({ data: { academyId: fx.academyId, key: RENEWAL_GRACE_DAYS_KEY, value: 5 } });
+    try {
+      const sub = await billingSubscription("student12");
+      await processRenewals(new Date(NOV_10.getTime() + 7 * 60 * 60 * 1000), { client: new FakeClient(), academyId: fx.academyId, sweepIntervalMs: 0 });
+      const after = await prisma.billingSubscription.findUniqueOrThrow({ where: { id: sub.id } });
+      expect(after.status).toBe("PAST_DUE");
+      expect(after.graceEndsAt?.toISOString()).toBe(new Date(NOV_10.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString());
+    } finally {
+      await prisma.academySetting.deleteMany({ where: { academyId: fx.academyId, key: RENEWAL_GRACE_DAYS_KEY } });
+    }
   });
 
   it("RN-06: a verified paid retry during grace restores ACTIVE; a retry weeks later pays the period that contains it", async () => {

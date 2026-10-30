@@ -1,6 +1,6 @@
 import type { Prisma } from "../../generated/prisma/client";
 
-import { studentsInRenewalGrace } from "./renewal-grace";
+import { studentsPastRenewalGrace } from "./renewal-grace";
 
 // Pure credit-booking helpers: they take a transaction/prisma client as a parameter
 // and intentionally import nothing from lib/prisma (no "server-only"), so seeds,
@@ -13,8 +13,8 @@ export async function reserveCredit(
   sessionId: string,
   sessionDate: Date,
 ) {
-  // D80 / D89: no new booking during the renewal grace (the worker's series pauses).
-  if ((await studentsInRenewalGrace(tx, academyId, [studentId])).length > 0) return false;
+  // D80 / D89: no new booking once the renewal grace has ended (the worker's series pauses).
+  if ((await studentsPastRenewalGrace(tx, academyId, [studentId])).length > 0) return false;
   const subscriptions = await tx.subscription.findMany({
     where: {
       academyId,
