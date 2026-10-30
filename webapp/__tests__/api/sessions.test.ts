@@ -564,6 +564,23 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     expect(guardianItem).not.toHaveProperty("zoomJoinUrl");
   });
 
+  it("TZV-01: session create, series create and update refuse a time zone that is not a real IANA name", async () => {
+    asActor(fx.adminUserId);
+    for (const timezone of ["Mars/Olympus", "Cairo", "Africa/Cairo; DROP", "+02:00"]) {
+      const single = await createSessionRoute(apiRequest("/api/sessions", "POST", sessionPayload({ timezone }, { day: 23, hour: 5 })));
+      expect(single.status).toBe(400);
+      const series = await recurrencesRoute(apiRequest("/api/sessions/recurrences", "POST", sessionPayload({ timezone, weekCount: 2 }, { day: 23, hour: 7 })));
+      expect(series.status).toBe(400);
+    }
+    expect(await prisma.session.count({ where: { academyId: fx.academyId, timezone: "Mars/Olympus" } })).toBe(0);
+    await grantCredit(fx.studentProfileIds.student2, 1);
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student2] }, { day: 23, hour: 9 });
+    const sessionId = body.data.id as string;
+    const update = await updateSessionRoute(apiRequest(`/api/sessions/${sessionId}`, "PATCH", { timezone: "Mars/Olympus" }), routeParams(sessionId));
+    expect(update.status).toBe(400);
+    expect((await prisma.session.findUniqueOrThrow({ where: { id: sessionId } })).timezone).toBe("Africa/Cairo");
+  });
+
   it("regression R27: change requests never mutate the session and require a scheduled target", async () => {
     await grantCredit(fx.studentProfileIds.student6, 2);
     const { body } = await createSession(fx.adminUserId, {}, { day: 6, hour: 14 });
