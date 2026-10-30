@@ -1,24 +1,16 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
-import Icon from "../../_components/ui/icon";
-import MetricTile from "../../_components/ui/metric-tile";
-import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
-import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
+import PageHeader from "../../_components/ui/page-header";
+import { ActionRow, TodayCard, WeekSessionsSection } from "../../_components/dashboard/ops-sections";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
-import { prisma } from "../../../lib/prisma";
-import { zonedDayRangeUtc, zonedYmd } from "../../../lib/schedules/recurrence";
+import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
+import { getAdminActionCounts, getTeacherAlerts, getWeekSessions } from "../../../lib/dashboard/admin-overview";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
-const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
-  SCHEDULED: "info",
-  COMPLETED: "success",
-  MISSED: "danger",
-  CANCELLED: "neutral",
-};
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -26,201 +18,77 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: `${t("title")} | Zarabicschool` };
 }
 
+/**
+ * Supervisor home (owner, 2026-10-31): the Admin's operations dashboard without any
+ * money (CONTEXT §4), with teacher alerts in place of the money card. Applications are
+ * Admin-only pages, so they are not listed here.
+ */
 export default async function SupervisorDashboard() {
   const user = await requireRole("SUPERVISOR");
   const locale = await getLocale();
   const t = await getTranslations("supervisorDash");
-  const tSupervisor = await getTranslations("supervisor");
+  const tAdmin = await getTranslations("adminDash");
 
   const now = new Date();
-  // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27): the
-  // host's setHours day is wrong on a UTC server and shifts with DST.
   const viewerZone = user.timezone || "Africa/Cairo";
-  const { start: startOfDay, end: endOfDay } = zonedDayRangeUtc(zonedYmd(now, viewerZone), viewerZone);
-
-  const [profileCounts, pendingReports, flagCounts, todaysSessions] = await Promise.all([
-    Promise.all([
-      prisma.student.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.guardian.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.teacher.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
-    ]),
-    prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
-    // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
+  const [actions, flagCounts, alerts, today, week] = await Promise.all([
+    getAdminActionCounts(user.academyId),
     getTeacherFlagCounts(user.academyId),
-    prisma.session.findMany({
-      where: {
-        academyId: user.academyId,
-        scheduledStart: { gte: startOfDay, lt: endOfDay },
-      },
-      orderBy: { scheduledStart: "asc" },
-      take: 8,
-      include: {
-        subject: { select: { nameAr: true, nameEn: true } },
-        teacher: { select: { user: { select: { displayName: true } } } },
-        students: { include: { student: { select: { user: { select: { displayName: true } } } } } },
-      },
-    }),
+    getTeacherAlerts(user.academyId),
+    getTodaySessions(user.academyId, now, viewerZone),
+    getWeekSessions(user.academyId, now, viewerZone),
   ]);
-  const [students, guardians, teachers, subjects] = profileCounts;
-
-  const completedToday = todaysSessions.filter((session) => session.status === "COMPLETED").length;
-  const upcomingToday = todaysSessions.filter((session) => session.status === "SCHEDULED").length;
-  const totalToday = todaysSessions.length;
-  const donePercent = totalToday ? Math.round((completedToday / totalToday) * 100) : 0;
-  const upcomingPercent = totalToday ? Math.round((upcomingToday / totalToday) * 100) : 0;
-
-  const timeFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const actionTotal = actions.reports + actions.sessionRequests + actions.complaints;
 
   return (
     <DashboardShell
       role={user.role}
       userName={user.displayName}
       timezone={user.timezone}
-      navBadges={{ reports: pendingReports }}
+      navBadges={{ reports: actions.reports, requests: actions.sessionRequests }}
     >
-      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
-      <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
+      <AnnouncementsWidget academyId={user.academyId} timeZone={viewerZone} />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label={t("kpiTodaySessions")}
-          icon="video_camera_front"
-          value={totalToday}
-          valueLabel={t("kpiTodaySessionsUnit")}
-        >
-          <div className="space-y-1.5 pt-1">
-            <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-container" aria-hidden="true">
-              <div className="bg-primary h-full" style={{ width: `${donePercent}%` }} />
-              <div className="h-full bg-secondary" style={{ width: `${upcomingPercent}%` }} />
-              <div className="h-full bg-surface-tint" style={{ width: `${100 - donePercent - upcomingPercent}%` }} />
-            </div>
-            <div className="flex items-center justify-between text-label-sm text-on-surface-variant">
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-                {completedToday} {t("done")}
-              </span>
-              <span className="flex items-center gap-1 font-semibold text-secondary">
-                <span className="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true" />
-                {upcomingToday} {t("upcoming")}
-              </span>
-            </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <TodayCard sessions={today.sessions} now={now} />
+
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-actions">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="dash-actions" className="text-title-md font-semibold text-on-surface-variant">{tAdmin("actionsTitle")}</h2>
+            <span className="text-label-md text-on-surface-variant tabular-nums">{tAdmin("actionsTotal", { count: actionTotal })}</span>
           </div>
-        </MetricTile>
-        <MetricTile
-          label={t("kpiPendingReports")}
-          icon="fact_check"
-          iconTone="info"
-          value={pendingReports}
-          valueLabel={t("kpiPendingReportsUnit")}
-          badge={{ tone: pendingReports > 0 ? "honor" : "neutral", text: t("kpiPendingReportsNote") }}
-        />
-        <MetricTile
-          label={t("kpiRedMarks")}
-          icon="flag"
-          iconTone="tertiary"
-          value={flagCounts.lateReports}
-          valueLabel={t("kpiRedMarksUnit")}
-          badge={{ tone: flagCounts.lateReports > 0 ? "danger" : "neutral", text: t("kpiRedMarksNote") }}
-        >
-          <Link href="/supervisor/monthly-reports" className="text-label-sm text-on-surface-variant underline-offset-2 hover:underline">
-            {t("kpiMonthlyMissing", { count: flagCounts.missingMonthly })}
-          </Link>
-        </MetricTile>
-        <MetricTile
-          label={tSupervisor("profiles.teachers")}
-          icon="co_present"
-          iconTone="secondary"
-          value={teachers}
-          valueLabel={`${students} ${tSupervisor("profiles.students")} · ${guardians} ${tSupervisor("profiles.guardians")}`}
-        />
+          <ul className="mt-2 -mx-2 flex flex-col">
+            <ActionRow href="/supervisor/reports" icon="fact_check" label={tAdmin("actionReports")} count={actions.reports} tone="honor" />
+            <ActionRow href="/supervisor/session-requests" icon="event" label={tAdmin("actionRequests")} count={actions.sessionRequests} tone="pending" />
+            <ActionRow href="/admin/complaints" icon="feedback" label={tAdmin("actionComplaints")} count={actions.complaints} tone="danger" />
+          </ul>
+        </section>
+
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-alerts">
+          <h2 id="dash-alerts" className="text-title-md font-semibold text-on-surface-variant">{t("alertsTitle")}</h2>
+          {alerts.length ? (
+            <ul className="mt-2 flex flex-col divide-y divide-outline-variant">
+              {alerts.map((alert) => (
+                <li key={alert.teacherId} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="truncate text-body-md text-on-surface">{alert.name}</span>
+                  <span className="flex shrink-0 gap-1.5">
+                    {alert.late ? <Link href="/supervisor/reports" className="badge badge--danger">{t("alertLate", { count: alert.late })}</Link> : null}
+                    {alert.monthly ? <Link href="/supervisor/monthly-reports" className="badge badge--pending">{t("alertMonthly", { count: alert.monthly })}</Link> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState icon="verified" title={t("alertsNone")} />
+          )}
+          <p className="mt-auto pt-3 text-label-md text-on-surface-variant">
+            {tAdmin("lateFlags", { late: flagCounts.lateReports, monthly: flagCounts.missingMonthly })}
+          </p>
+        </section>
       </div>
 
-      <section className="z-card flex flex-col gap-4 rounded-xl p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-headline-sm font-bold text-primary">{t("dispatchTitle")}</h2>
-            <p className="text-body-sm text-on-surface-variant">{t("dispatchSubtitle")}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/supervisor/reports" className="btn btn-primary">
-              <Icon name="fact_check" size={18} />
-              <span>{tSupervisor("operations.reports")}</span>
-            </Link>
-            <Link href="/admin/sessions" className="btn btn-soft">
-              <Icon name="calendar_month" size={18} />
-              <span>{t("dispatchViewAll")}</span>
-            </Link>
-          </div>
-        </div>
-        {todaysSessions.length === 0 ? (
-          <EmptyState icon="video_camera_front" title={t("dispatchEmpty")} description={t("dispatchEmptyText")} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="z-table min-w-[680px]">
-              <thead>
-                <tr>
-                  <th scope="col">{t("colTime")}</th>
-                  <th scope="col">{t("colSubject")}</th>
-                  <th scope="col">{t("colTeacher")}</th>
-                  <th scope="col">{t("colStudents")}</th>
-                  <th scope="col">{t("colType")}</th>
-                  <th scope="col">{t("colStatus")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todaysSessions.map((session) => (
-                  <tr key={session.id}>
-                    <td className="font-mono font-semibold">
-                      {timeFormatter.format(session.scheduledStart)}–{timeFormatter.format(session.scheduledEnd)}
-                    </td>
-                    <td className="font-semibold">
-                      {locale === "en" ? session.subject.nameEn : session.subject.nameAr}
-                    </td>
-                    <td>{session.teacher.user.displayName}</td>
-                    <td className="max-w-56 truncate">
-                      {session.students.map((item) => item.student.user.displayName).join(locale === "ar" ? "، " : ", ") || "—"}
-                    </td>
-                    <td>{session.sessionType === "PRIVATE" ? t("private") : t("group")}</td>
-                    <td>
-                      <StatusBadge tone={SESSION_STATUS_TONE[session.status] ?? "neutral"}>
-                        {t(`status.${session.status}`)}
-                      </StatusBadge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {([
-          { href: "/admin/students", icon: "school", title: tSupervisor("actions.students"), text: tSupervisor("actions.studentsDescription") },
-          { href: "/admin/teachers", icon: "co_present", title: tSupervisor("actions.teachers"), text: tSupervisor("actions.teachersDescription") },
-          { href: "/admin/subjects", icon: "menu_book", title: tSupervisor("actions.subjects"), text: `${subjects} ${tSupervisor("profiles.subjects")}` },
-          { href: "/admin/assignments", icon: "hub", title: tSupervisor("actions.assignments"), text: tSupervisor("actions.assignmentsDescription") },
-          { href: "/admin/enrollments", icon: "how_to_reg", title: tSupervisor("actions.enrollments"), text: tSupervisor("actions.enrollmentsDescription") },
-        ] as const).map((link) => (
-          <Link key={link.href} href={link.href} className="z-card lift-card flex items-start gap-3 rounded-xl p-5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container-low text-primary">
-              <Icon name={link.icon} />
-            </span>
-            <span className="flex flex-col">
-              <span className="text-title-md font-bold text-primary">{link.title}</span>
-              <span className="text-body-sm text-on-surface-variant">{link.text}</span>
-            </span>
-          </Link>
-        ))}
-      </section>
-
-      <p className="rounded-xl border border-outline-variant bg-surface-container-low p-4 text-body-sm text-on-surface-variant">
-        {tSupervisor("restricted")}
-      </p>
+      <WeekSessionsSection sessions={week} locale={locale} timeZone={viewerZone} exportName="zarabicschool-week-sessions" />
     </DashboardShell>
   );
 }

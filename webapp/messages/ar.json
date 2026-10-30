@@ -532,7 +532,11 @@
       "MISSED": "فائتة",
       "CANCELLED": "ملغاة"
     },
-    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}"
+    "kpiMonthlyMissing": "تقارير شهرية مفقودة: {count}",
+    "alertsTitle": "تنبيهات المعلمين",
+    "alertLate": "{count} متأخر",
+    "alertMonthly": "{count} شهري ناقص",
+    "alertsNone": "لا يوجد معلم لديه تقرير متأخر أو ناقص."
   },
   "landing": {
     "nav": {
@@ -1190,7 +1194,22 @@
       "actions": {
         "session": "تقرير الحصة",
         "schedule": "عرض الجدول الكامل"
-      }
+      },
+      "nextTitle": "حصتك القادمة",
+      "joinSession": "ادخل الحصة",
+      "withTeacher": "مع {name}",
+      "noNext": "لا توجد حصة قادمة بعد.",
+      "homeworkTitle": "من آخر حصة",
+      "homeworkLabel": "الواجب",
+      "notesLabel": "ملاحظات المعلم",
+      "allReports": "كل تقارير حصصك",
+      "weekTitle": "أسبوعك",
+      "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
+      "colDay": "اليوم",
+      "colTime": "الوقت",
+      "colSubject": "المادة",
+      "colTeacher": "المعلم",
+      "colStatus": "الحالة"
     },
     "guardian": {
       "title": "لوحة ولي الأمر",

@@ -532,7 +532,11 @@
       "MISSED": "Missed",
       "CANCELLED": "Cancelled"
     },
-    "kpiMonthlyMissing": "{count} monthly reports missing"
+    "kpiMonthlyMissing": "{count} monthly reports missing",
+    "alertsTitle": "Teacher alerts",
+    "alertLate": "{count} late",
+    "alertMonthly": "{count} monthly missing",
+    "alertsNone": "No teacher has a late or missing report."
   },
   "landing": {
     "nav": {
@@ -1190,7 +1194,22 @@
       "actions": {
         "session": "Session report",
         "schedule": "View full schedule"
-      }
+      },
+      "nextTitle": "Your next session",
+      "joinSession": "Join session",
+      "withTeacher": "With {name}",
+      "noNext": "No upcoming session yet.",
+      "homeworkTitle": "From your last session",
+      "homeworkLabel": "Homework",
+      "notesLabel": "Teacher's notes",
+      "allReports": "All your session reports",
+      "weekTitle": "Your week",
+      "weekSubtitle": "Today and the next 6 days, in your time zone.",
+      "colDay": "Day",
+      "colTime": "Time",
+      "colSubject": "Subject",
+      "colTeacher": "Teacher",
+      "colStatus": "Status"
     },
     "guardian": {
       "title": "Guardian dashboard",

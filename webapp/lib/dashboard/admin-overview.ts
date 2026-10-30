@@ -69,3 +69,29 @@ export async function getWeekSessions(academyId: string, now: Date, timeZone: st
     },
   });
 }
+
+/**
+ * Supervisor home (owner, 2026-10-31): teachers with late session reports or missing
+ * monthly reports, most flags first. Names and counts only (no money).
+ */
+export async function getTeacherAlerts(academyId: string, limit = 6) {
+  const groups = await prisma.teacherFlag.groupBy({
+    by: ["teacherId", "flagType"],
+    where: { academyId },
+    _count: { _all: true },
+  });
+  const byTeacher = new Map<string, { late: number; monthly: number }>();
+  for (const group of groups) {
+    const entry = byTeacher.get(group.teacherId) ?? { late: 0, monthly: 0 };
+    if (group.flagType === "LATE_REPORT") entry.late += group._count._all;
+    else entry.monthly += group._count._all;
+    byTeacher.set(group.teacherId, entry);
+  }
+  const teachers = byTeacher.size
+    ? await prisma.teacher.findMany({ where: { id: { in: [...byTeacher.keys()] } }, select: { id: true, user: { select: { displayName: true } } } })
+    : [];
+  return teachers
+    .map((teacher) => ({ teacherId: teacher.id, name: teacher.user.displayName, ...byTeacher.get(teacher.id)! }))
+    .sort((a, b) => b.late + b.monthly - (a.late + a.monthly))
+    .slice(0, limit);
+}

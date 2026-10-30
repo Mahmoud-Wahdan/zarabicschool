@@ -1,10 +1,9 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
-import Icon, { type IconName } from "../../_components/ui/icon";
+import Icon from "../../_components/ui/icon";
 import PageHeader from "../../_components/ui/page-header";
-import DataTable, { type DataRow } from "../../_components/ui/data-table";
-import { type BadgeTone } from "../../_components/ui/status-badge";
+import { ActionRow, TodayCard, WeekSessionsSection } from "../../_components/dashboard/ops-sections";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
@@ -18,28 +17,6 @@ import AnnouncementsWidget from "../../_components/announcements/announcements-w
 export async function generateMetadata() {
   const t = await getTranslations("adminDash");
   return { title: `${t("title")} | Zarabicschool` };
-}
-
-const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
-  SCHEDULED: "info",
-  COMPLETED: "success",
-  MISSED: "danger",
-  CANCELLED: "neutral",
-};
-
-/** One row of "needs you": a count that links to where it is handled. */
-function ActionRow({ href, icon, label, count, tone }: { href: string; icon: IconName; label: string; count: number; tone: BadgeTone }) {
-  return (
-    <li>
-      <Link href={href} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-container-low">
-        <span className="flex items-center gap-2.5 text-body-md text-on-surface">
-          <Icon name={icon} size={20} className="text-on-surface-variant" />
-          {label}
-        </span>
-        <span className={`badge ${count > 0 ? `badge--${tone}` : "badge--neutral"} tabular-nums`}>{count}</span>
-      </Link>
-    </li>
-  );
 }
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string }> }) {
@@ -60,28 +37,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     getTodaySessions(user.academyId, now, viewerZone),
     getWeekSessions(user.academyId, now, viewerZone),
   ]);
-  const liveNow = today.sessions.filter((session) => session.status === "SCHEDULED" && session.scheduledStart <= now && session.scheduledEnd > now).length;
-  const upcomingToday = today.sessions.filter((session) => session.status === "SCHEDULED" && session.scheduledStart > now).length;
-
-  const dateLocale = locale === "ar" ? "ar-EG" : "en-GB";
-  const dayFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, weekday: "short", day: "numeric", month: "short" });
-  const timeFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, hour: "numeric", minute: "2-digit" });
-  const monthName = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, month: "long", year: "numeric" }).format(now);
-  const listSeparator = locale === "ar" ? "، " : ", ";
-
-  const weekRows: DataRow[] = week.map((session) => ({
-    id: session.id,
-    filter: session.status,
-    cells: {
-      day: { text: dayFormat.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
-      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
-      subject: { text: locale === "en" ? session.subject.nameEn : session.subject.nameAr },
-      teacher: { text: session.teacher.user.displayName },
-      students: { text: session.students.map((item) => item.student.user.displayName).join(listSeparator) || "—" },
-      type: { text: session.sessionType === "PRIVATE" ? t("private") : t("group") },
-      status: { text: t(`status.${session.status}`), tone: SESSION_STATUS_TONE[session.status] ?? "neutral" },
-    },
-  }));
+  const monthName = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: viewerZone, month: "long", year: "numeric" }).format(now);
   const actionTotal = actions.reports + actions.applications + actions.sessionRequests + actions.complaints;
 
   return (
@@ -110,30 +66,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-today">
-          <h2 id="dash-today" className="text-title-md font-semibold text-on-surface-variant">{t("todayTitle")}</h2>
-          <p className="mt-2 flex items-baseline gap-2">
-            <span className="text-display-hero font-bold leading-none text-primary tabular-nums">{today.total}</span>
-            <span className="text-body-md text-on-surface-variant">{t("kpiTodaySessionsUnit")}</span>
-          </p>
-          <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-outline-variant pt-4">
-            <div>
-              <dt className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-                <span className={`h-2 w-2 rounded-full ${liveNow ? "bg-secondary badge-dot--pulse" : "bg-outline-variant"}`} aria-hidden="true" />
-                {t("liveNow")}
-              </dt>
-              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{liveNow}</dd>
-            </div>
-            <div>
-              <dt className="text-label-sm text-on-surface-variant">{t("upcoming")}</dt>
-              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{upcomingToday}</dd>
-            </div>
-            <div>
-              <dt className="text-label-sm text-on-surface-variant">{t("done")}</dt>
-              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{today.completed}</dd>
-            </div>
-          </dl>
-        </section>
+        <TodayCard sessions={today.sessions} now={now} />
 
         <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-actions">
           <div className="flex items-baseline justify-between gap-2">
@@ -172,36 +105,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </section>
       </div>
 
-      <section className="z-card flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="dash-week">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
-          <div>
-            <h2 id="dash-week" className="text-headline-sm font-bold text-primary">{t("weekTitle")}</h2>
-            <p className="text-body-sm text-on-surface-variant">{t("weekSubtitle")}</p>
-          </div>
-          <Link href="/admin/sessions" className="btn btn-soft">
-            <Icon name="calendar_month" size={18} />
-            <span>{t("dispatchViewAll")}</span>
-          </Link>
-        </div>
-        <DataTable
-          caption={t("weekTitle")}
-          columns={[
-            { key: "day", label: t("colDay") },
-            { key: "time", label: t("colTime") },
-            { key: "subject", label: t("colSubject") },
-            { key: "teacher", label: t("colTeacher") },
-            { key: "students", label: t("colStudents"), sortable: false },
-            { key: "type", label: t("colType") },
-            { key: "status", label: t("colStatus") },
-          ]}
-          rows={weekRows}
-          quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: t(`status.${status}`) }))}
-          exportName="zarabicschool-week-sessions"
-          emptyTitle={t("weekEmpty")}
-          emptyIcon="video_camera_front"
-          initialSort={{ key: "day", direction: "asc" }}
-        />
-      </section>
+      <WeekSessionsSection sessions={week} locale={locale} timeZone={viewerZone} exportName="zarabicschool-week-sessions" />
 
       <RevenueChart buckets={revenue} period={revenuePeriod} locale={locale} />
     </DashboardShell>
