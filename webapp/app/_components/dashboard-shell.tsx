@@ -440,7 +440,7 @@ export default function DashboardShell({
           </div>
         </header>
         <main id="main-content" className="relative min-h-screen bg-surface pt-16">
-          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-4 lg:p-6">{children}</div>
+          <div className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-col gap-6 p-4 lg:p-6 [&>*]:min-w-0">{children}</div>
         </main>
       </div>
     </div>

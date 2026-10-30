@@ -1,17 +1,17 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../_components/dashboard-shell";
-import Icon from "../../_components/ui/icon";
-import MetricTile from "../../_components/ui/metric-tile";
+import Icon, { type IconName } from "../../_components/ui/icon";
 import PageHeader from "../../_components/ui/page-header";
-import EmptyState from "../../_components/ui/empty-state";
-import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
+import DataTable, { type DataRow } from "../../_components/ui/data-table";
+import { type BadgeTone } from "../../_components/ui/status-badge";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
-import { prisma } from "../../../lib/prisma";
 import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
+import { getAdminActionCounts, getMonthMoney, getWeekSessions } from "../../../lib/dashboard/admin-overview";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
-import { getEgpRevenue, getHomeCounts, parsePeriod } from "../../../lib/finance/revenue";
+import { getEgpRevenue, parsePeriod } from "../../../lib/finance/revenue";
+import { formatMoney } from "../../../lib/payments/format";
 import RevenueChart from "../../_components/charts/revenue-chart";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -27,66 +27,72 @@ const SESSION_STATUS_TONE: Record<string, BadgeTone> = {
   CANCELLED: "neutral",
 };
 
+/** One row of "needs you": a count that links to where it is handled. */
+function ActionRow({ href, icon, label, count, tone }: { href: string; icon: IconName; label: string; count: number; tone: BadgeTone }) {
+  return (
+    <li>
+      <Link href={href} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-container-low">
+        <span className="flex items-center gap-2.5 text-body-md text-on-surface">
+          <Icon name={icon} size={20} className="text-on-surface-variant" />
+          {label}
+        </span>
+        <span className={`badge ${count > 0 ? `badge--${tone}` : "badge--neutral"} tabular-nums`}>{count}</span>
+      </Link>
+    </li>
+  );
+}
+
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string }> }) {
   const user = await requireRole("ADMIN");
   const locale = await getLocale();
   const t = await getTranslations("adminDash");
-  const tDash = await getTranslations("dashboard");
 
   const now = new Date();
-  // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27): the
-  // host's setHours day is wrong on a UTC server and shifts with DST.
+  // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27).
   const viewerZone = user.timezone || "Africa/Cairo";
-  // S-11 / D8: home cards + EGP revenue (Admin only).
   const revenuePeriod = parsePeriod((await searchParams).revenue);
-  // L2c: ONE round of independent reads (the cards and revenue no longer wait first).
-  const [homeCounts, revenue, applications, students, guardians, teachers, subjects, pendingReports, flagCounts, today] =
-    await Promise.all([
-      getHomeCounts(user.academyId, now, viewerZone),
-      getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
-      prisma.application.count({ where: { academyId: user.academyId, status: { in: ["NEW", "REVIEWED"] } } }),
-      prisma.student.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.guardian.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.teacher.count({ where: { academyId: user.academyId, user: { isActive: true } } }),
-      prisma.subject.count({ where: { academyId: user.academyId, isActive: true } }),
-      prisma.report.count({ where: { academyId: user.academyId, status: "SUBMITTED" } }),
-      // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
-      getTeacherFlagCounts(user.academyId),
-      // A7: the whole viewer-local day, every status, no row cap.
-      getTodaySessions(user.academyId, now, viewerZone),
-    ]);
-  const todaysSessions = today.sessions;
+  const [revenue, actions, money, flagCounts, today, week] = await Promise.all([
+    getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
+    getAdminActionCounts(user.academyId),
+    getMonthMoney(user.academyId, now, viewerZone),
+    // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
+    getTeacherFlagCounts(user.academyId),
+    getTodaySessions(user.academyId, now, viewerZone),
+    getWeekSessions(user.academyId, now, viewerZone),
+  ]);
+  const liveNow = today.sessions.filter((session) => session.status === "SCHEDULED" && session.scheduledStart <= now && session.scheduledEnd > now).length;
+  const upcomingToday = today.sessions.filter((session) => session.status === "SCHEDULED" && session.scheduledStart > now).length;
 
-  const completedToday = today.completed;
-  const upcomingToday = today.upcoming;
-  const totalToday = today.total;
-  const donePercent = totalToday ? Math.round((completedToday / totalToday) * 100) : 0;
-  const upcomingPercent = totalToday ? Math.round((upcomingToday / totalToday) * 100) : 0;
+  const dateLocale = locale === "ar" ? "ar-EG" : "en-GB";
+  const dayFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, weekday: "short", day: "numeric", month: "short" });
+  const timeFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, hour: "numeric", minute: "2-digit" });
+  const monthName = new Intl.DateTimeFormat(dateLocale, { timeZone: viewerZone, month: "long", year: "numeric" }).format(now);
+  const listSeparator = locale === "ar" ? "، " : ", ";
 
-  const timeFormatter = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: user.timezone,
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  const opsLinks = [
-    { href: "/admin/students", icon: "school", title: tDash("admin.sections.accounts"), text: `${students} ${tDash("admin.metrics.students")} · ${guardians} ${tDash("admin.metrics.guardians")} · ${teachers} ${tDash("admin.metrics.teachers")}` },
-    { href: "/admin/subjects", icon: "menu_book", title: tDash("admin.sections.schedules"), text: `${subjects} ${tDash("admin.metrics.subjects")}` },
-    { href: "/admin/assignments", icon: "hub", title: t("opsAssignments"), text: t("opsAssignmentsText") },
-    { href: "/admin/enrollments", icon: "how_to_reg", title: t("opsEnrollments"), text: t("opsEnrollmentsText") },
-    { href: "/admin/financials", icon: "receipt_long", title: t("opsFinancials"), text: t("opsFinancialsText") },
-    { href: "/admin/users", icon: "manage_accounts", title: t("opsAccounts"), text: t("opsAccountsText") },
-  ] as const;
+  const weekRows: DataRow[] = week.map((session) => ({
+    id: session.id,
+    filter: session.status,
+    cells: {
+      day: { text: dayFormat.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
+      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
+      subject: { text: locale === "en" ? session.subject.nameEn : session.subject.nameAr },
+      teacher: { text: session.teacher.user.displayName },
+      students: { text: session.students.map((item) => item.student.user.displayName).join(listSeparator) || "—" },
+      type: { text: session.sessionType === "PRIVATE" ? t("private") : t("group") },
+      status: { text: t(`status.${session.status}`), tone: SESSION_STATUS_TONE[session.status] ?? "neutral" },
+    },
+  }));
+  const actionTotal = actions.reports + actions.applications + actions.sessionRequests + actions.complaints;
 
   return (
     <DashboardShell
       role={user.role}
       userName={user.displayName}
       timezone={user.timezone}
-      navBadges={{ applications, reports: pendingReports }}
+      navBadges={{ applications: actions.applications, reports: actions.reports }}
     >
-      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
+      <AnnouncementsWidget academyId={user.academyId} timeZone={viewerZone} />
       <PageHeader
-        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -103,135 +109,101 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label={t("kpiTodaySessions")}
-          icon="video_camera_front"
-          value={totalToday}
-          valueLabel={t("kpiTodaySessionsUnit")}
-        >
-          <div className="space-y-1.5 pt-1">
-            <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-container" aria-hidden="true">
-              <div className="bg-primary h-full" style={{ width: `${donePercent}%` }} />
-              <div className="h-full bg-secondary" style={{ width: `${upcomingPercent}%` }} />
-              <div className="h-full bg-surface-tint" style={{ width: `${100 - donePercent - upcomingPercent}%` }} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-today">
+          <h2 id="dash-today" className="text-title-md font-semibold text-on-surface-variant">{t("todayTitle")}</h2>
+          <p className="mt-2 flex items-baseline gap-2">
+            <span className="text-display-hero font-bold leading-none text-primary tabular-nums">{today.total}</span>
+            <span className="text-body-md text-on-surface-variant">{t("kpiTodaySessionsUnit")}</span>
+          </p>
+          <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-outline-variant pt-4">
+            <div>
+              <dt className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+                <span className={`h-2 w-2 rounded-full ${liveNow ? "bg-secondary badge-dot--pulse" : "bg-outline-variant"}`} aria-hidden="true" />
+                {t("liveNow")}
+              </dt>
+              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{liveNow}</dd>
             </div>
-            <div className="flex items-center justify-between text-label-sm text-on-surface-variant">
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-                {completedToday} {t("done")}
-              </span>
-              <span className="flex items-center gap-1 font-semibold text-secondary">
-                <span className="h-1.5 w-1.5 rounded-full bg-secondary" aria-hidden="true" />
-                {upcomingToday} {t("upcoming")}
-              </span>
+            <div>
+              <dt className="text-label-sm text-on-surface-variant">{t("upcoming")}</dt>
+              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{upcomingToday}</dd>
             </div>
+            <div>
+              <dt className="text-label-sm text-on-surface-variant">{t("done")}</dt>
+              <dd className="text-headline-sm font-semibold text-on-surface tabular-nums">{today.completed}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-actions">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="dash-actions" className="text-title-md font-semibold text-on-surface-variant">{t("actionsTitle")}</h2>
+            <span className="text-label-md text-on-surface-variant tabular-nums">{t("actionsTotal", { count: actionTotal })}</span>
           </div>
-        </MetricTile>
-        <MetricTile
-          label={t("kpiAdmissions")}
-          icon="person_pin"
-          iconTone="tertiary"
-          value={applications}
-          valueLabel={t("kpiAdmissionsUnit")}
-          badge={{ tone: applications > 0 ? "pending" : "neutral", text: t("kpiAdmissionsNote") }}
-        />
-        <MetricTile
-          label={t("kpiPendingReports")}
-          icon="fact_check"
-          iconTone="info"
-          value={pendingReports}
-          valueLabel={t("kpiPendingReportsUnit")}
-          badge={{ tone: pendingReports > 0 ? "honor" : "neutral", text: t("kpiPendingReportsNote") }}
-        />
-        <MetricTile
-          label={t("kpiRedMarks")}
-          icon="flag"
-          iconTone="tertiary"
-          value={flagCounts.lateReports}
-          valueLabel={t("kpiRedMarksUnit")}
-          badge={{ tone: flagCounts.lateReports > 0 ? "danger" : "neutral", text: t("kpiRedMarksNote") }}
-        >
-          <Link href="/admin/monthly-reports" className="text-label-sm text-on-surface-variant underline-offset-2 hover:underline">
-            {t("kpiMonthlyMissing", { count: flagCounts.missingMonthly })}
+          <ul className="mt-2 -mx-2 flex flex-col">
+            <ActionRow href="/admin/reports" icon="fact_check" label={t("actionReports")} count={actions.reports} tone="honor" />
+            <ActionRow href="/admin/applications" icon="person_pin" label={t("actionApplications")} count={actions.applications} tone="pending" />
+            <ActionRow href="/admin/session-requests" icon="event" label={t("actionRequests")} count={actions.sessionRequests} tone="pending" />
+            <ActionRow href="/admin/complaints" icon="feedback" label={t("actionComplaints")} count={actions.complaints} tone="danger" />
+          </ul>
+          <Link href="/admin/monthly-reports" className="mt-auto pt-3 text-label-md text-on-surface-variant underline-offset-2 hover:underline">
+            {t("lateFlags", { late: flagCounts.lateReports, monthly: flagCounts.missingMonthly })}
           </Link>
-        </MetricTile>
+        </section>
+
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-money">
+          <h2 id="dash-money" className="text-title-md font-semibold text-on-surface-variant">{t("moneyTitle", { month: monthName })}</h2>
+          {money.paid.length ? (
+            <ul className="mt-2 flex flex-col gap-1">
+              {money.paid.map((row) => (
+                <li key={row.currency} className="flex items-baseline justify-between gap-2">
+                  <span className="text-headline-md font-bold text-primary tabular-nums" dir="ltr">{formatMoney(row.amountMinor, row.currency, locale)}</span>
+                  <span className="text-label-md text-on-surface-variant">{t("paidCount", { count: row.count })}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-body-md text-on-surface-variant">{t("noPayments")}</p>
+          )}
+          <ul className="mt-4 -mx-2 flex flex-col border-t border-outline-variant pt-2">
+            <ActionRow href="/admin/invoices" icon="receipt_long" label={t("unpaidInvoices")} count={money.unpaid} tone="pending" />
+            <ActionRow href="/admin/renewals" icon="autorenew" label={t("pastDueRenewals")} count={money.pastDueRenewals} tone="danger" />
+          </ul>
+        </section>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricTile label={t("homeStudents")} icon="school" value={homeCounts.students} valueLabel={t("homeStudentsUnit")} />
-        <MetricTile label={t("homeTeachers")} icon="co_present" iconTone="info" value={homeCounts.teachers} valueLabel={t("homeTeachersUnit")} />
-        <MetricTile label={t("homeWeekSessions")} icon="date_range" iconTone="tertiary" value={homeCounts.sessionsThisWeek} valueLabel={t("homeWeekSessionsUnit")} />
-      </div>
-
-      <RevenueChart buckets={revenue} period={revenuePeriod} locale={locale} />
-
-      <section className="z-card flex flex-col gap-4 rounded-xl p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <section className="z-card flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="dash-week">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
           <div>
-            <h2 className="text-headline-sm font-bold text-primary">{t("dispatchTitle")}</h2>
-            <p className="text-body-sm text-on-surface-variant">{t("dispatchSubtitle")}</p>
+            <h2 id="dash-week" className="text-headline-sm font-bold text-primary">{t("weekTitle")}</h2>
+            <p className="text-body-sm text-on-surface-variant">{t("weekSubtitle")}</p>
           </div>
           <Link href="/admin/sessions" className="btn btn-soft">
             <Icon name="calendar_month" size={18} />
             <span>{t("dispatchViewAll")}</span>
           </Link>
         </div>
-        {todaysSessions.length === 0 ? (
-          <EmptyState icon="video_camera_front" title={t("dispatchEmpty")} description={t("dispatchEmptyText")} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="z-table min-w-[680px]">
-              <thead>
-                <tr>
-                  <th scope="col">{t("colTime")}</th>
-                  <th scope="col">{t("colSubject")}</th>
-                  <th scope="col">{t("colTeacher")}</th>
-                  <th scope="col">{t("colStudents")}</th>
-                  <th scope="col">{t("colType")}</th>
-                  <th scope="col">{t("colStatus")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todaysSessions.map((session) => (
-                  <tr key={session.id}>
-                    <td className="font-mono font-semibold">
-                      {timeFormatter.format(session.scheduledStart)}–{timeFormatter.format(session.scheduledEnd)}
-                    </td>
-                    <td className="font-semibold">
-                      {locale === "en" ? session.subject.nameEn : session.subject.nameAr}
-                    </td>
-                    <td>{session.teacher.user.displayName}</td>
-                    <td className="max-w-56 truncate">
-                      {session.students.map((item) => item.student.user.displayName).join(locale === "ar" ? "، " : ", ") || "—"}
-                    </td>
-                    <td>{session.sessionType === "PRIVATE" ? t("private") : t("group")}</td>
-                    <td>
-                      <StatusBadge tone={SESSION_STATUS_TONE[session.status] ?? "neutral"}>
-                        {t(`status.${session.status}`)}
-                      </StatusBadge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          caption={t("weekTitle")}
+          columns={[
+            { key: "day", label: t("colDay") },
+            { key: "time", label: t("colTime") },
+            { key: "subject", label: t("colSubject") },
+            { key: "teacher", label: t("colTeacher") },
+            { key: "students", label: t("colStudents"), sortable: false },
+            { key: "type", label: t("colType") },
+            { key: "status", label: t("colStatus") },
+          ]}
+          rows={weekRows}
+          quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: t(`status.${status}`) }))}
+          exportName="zarabicschool-week-sessions"
+          emptyTitle={t("weekEmpty")}
+          emptyIcon="video_camera_front"
+          initialSort={{ key: "day", direction: "asc" }}
+        />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {opsLinks.map((link) => (
-          <Link key={link.href} href={link.href} className="z-card lift-card flex items-start gap-3 rounded-xl p-5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container-low text-primary">
-              <Icon name={link.icon} />
-            </span>
-            <span className="flex flex-col">
-              <span className="text-title-md font-bold text-primary">{link.title}</span>
-              <span className="text-body-sm text-on-surface-variant">{link.text}</span>
-            </span>
-          </Link>
-        ))}
-      </section>
+      <RevenueChart buckets={revenue} period={revenuePeriod} locale={locale} />
     </DashboardShell>
   );
 }

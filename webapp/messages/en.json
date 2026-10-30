@@ -479,7 +479,25 @@
     "homeTeachers": "Active teachers",
     "homeTeachersUnit": "teachers",
     "homeWeekSessions": "Sessions this week",
-    "homeWeekSessionsUnit": "sessions"
+    "homeWeekSessionsUnit": "sessions",
+    "todayTitle": "Today's sessions",
+    "liveNow": "Live now",
+    "actionsTitle": "Needs you",
+    "actionsTotal": "{count} in total",
+    "actionReports": "Reports waiting for approval",
+    "actionApplications": "New applications",
+    "actionRequests": "Absence and outage requests",
+    "actionComplaints": "Open complaints",
+    "lateFlags": "Late reports: {late} · missing monthly reports: {monthly}",
+    "moneyTitle": "Paid in {month}",
+    "paidCount": "{count, plural, one {# invoice} other {# invoices}}",
+    "noPayments": "No payments yet this month.",
+    "unpaidInvoices": "Unpaid invoices",
+    "pastDueRenewals": "Renewals past due",
+    "weekTitle": "This week's sessions",
+    "weekSubtitle": "Today and the next 6 days, in your time zone.",
+    "colDay": "Day",
+    "weekEmpty": "No sessions this week."
   },
   "supervisorDash": {
     "eyebrow": "Academic monitoring room",
@@ -2639,5 +2657,12 @@
       "free": "No overlap with this teacher's sessions.",
       "newSession": "New session"
     }
+  },
+  "dataTable": {
+    "filters": "Quick filters",
+    "all": "All",
+    "export": "Export to Excel",
+    "noMatch": "Nothing matches this filter.",
+    "sortBy": "Sort by {column}"
   }
 }

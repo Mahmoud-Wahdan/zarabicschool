@@ -479,7 +479,25 @@
     "homeTeachers": "المعلمون النشطون",
     "homeTeachersUnit": "معلم",
     "homeWeekSessions": "حصص هذا الأسبوع",
-    "homeWeekSessionsUnit": "حصة"
+    "homeWeekSessionsUnit": "حصة",
+    "todayTitle": "حصص اليوم",
+    "liveNow": "شغالة الآن",
+    "actionsTitle": "مطلوب منك",
+    "actionsTotal": "{count} إجمالًا",
+    "actionReports": "تقارير تنتظر الاعتماد",
+    "actionApplications": "طلبات التحاق جديدة",
+    "actionRequests": "طلبات الغياب والأعطال",
+    "actionComplaints": "شكاوى مفتوحة",
+    "lateFlags": "تقارير متأخرة: {late} · تقارير شهرية ناقصة: {monthly}",
+    "moneyTitle": "المدفوع في {month}",
+    "paidCount": "{count, plural, one {فاتورة واحدة} two {فاتورتان} few {# فواتير} many {# فاتورة} other {# فاتورة}}",
+    "noPayments": "لا مدفوعات بعد هذا الشهر.",
+    "unpaidInvoices": "فواتير غير مدفوعة",
+    "pastDueRenewals": "تجديدات متأخرة",
+    "weekTitle": "حصص الأسبوع",
+    "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
+    "colDay": "اليوم",
+    "weekEmpty": "لا حصص هذا الأسبوع."
   },
   "supervisorDash": {
     "eyebrow": "غرفة الرصد الأكاديمي",
@@ -2639,5 +2657,12 @@
       "free": "لا تعارض مع حصص هذا المعلم.",
       "newSession": "الحصة الجديدة"
     }
+  },
+  "dataTable": {
+    "filters": "فلاتر سريعة",
+    "all": "الكل",
+    "export": "تصدير Excel",
+    "noMatch": "لا شيء يطابق هذا الفلتر.",
+    "sortBy": "ترتيب حسب {column}"
   }
 }
