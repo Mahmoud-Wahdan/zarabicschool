@@ -393,6 +393,7 @@ We build the **MVP only**. Anything disproportionately large is **documented in 
 - **OUT OF SCOPE (owner):** embedded Zoom interface, recordings/replay, Zoom API.
 - **MOVED INTO SCOPE (owner, 2026-10-06):** payment gateway with automatic recurring billing (Section 20); Supervisor role (Section 4); OpenWA credential delivery now (Section 5).
 - **DEFERRED (owner):** SMS fallback (may never be built).
+- **DEFERRED (owner, 2026-10-30):** Teacher advance (سلفة): request + Admin approval + repayment — deferred; repayment policy (full deduction vs installments, teacher leaving with an outstanding advance) must be decided by the owner before any build. Until then, money the Academy lends outside the system is recorded with the existing payroll entries only — a `DISBURSEMENT` when it is paid out and an `ADMIN_ADJUSTMENT` when it is repaid — each with a written reason; no new mechanism.
 - **DEFERRED — documented for later:** Zoom API verification layer (real attendance proof from Zoom events, join/leave alerts, automatic checks against the teacher's report); student/guardian "dispute this attendance" button.
 - **CANDIDATES to defer (PROPOSAL — owner decides):** low-balance alert; the post-session student evaluation prompt; announcements; recurring-schedule editing tools beyond generation; estimated-salary widget; activation-link credential flow.
 - Everything in Section 11's "explicitly out of MVP" list stays out.

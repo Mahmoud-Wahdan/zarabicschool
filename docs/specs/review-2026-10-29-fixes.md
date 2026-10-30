@@ -63,7 +63,42 @@ ALTER TABLE "invoice_refunds" ADD COLUMN "next_check_at" TIMESTAMPTZ(6);
 ALTER TABLE "invoice_refunds" ADD COLUMN "check_count" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_check_count_check" CHECK ("check_count" >= 0);
 CREATE INDEX "invoice_refunds_pending_next_check_idx" ON "invoice_refunds"("next_check_at") WHERE "status" = 'PENDING';
+-- D93: the Admin records the outcome of an "unknown" refund (seen in the Paymob dashboard).
+ALTER TABLE "invoice_refunds" ADD COLUMN "resolved_by" UUID;
+ALTER TABLE "invoice_refunds" ADD COLUMN "resolution_note" TEXT;
+ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_resolved_by_fkey"
+  FOREIGN KEY ("resolved_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_manual_resolution_check" CHECK (
+  ("resolved_by" IS NULL AND "resolution_note" IS NULL)
+  OR ("resolved_by" IS NOT NULL AND "status" <> 'PENDING' AND char_length(btrim("resolution_note")) BETWEEN 5 AND 500)
+);
 ```
+
+**Why the money is safe (reasoning):**
+- **Append-only:** the hold is an INSERT, and so is the restore after a refusal (a new `ADMIN_ADJUSTMENT +n`).
+  The existing trigger on `subscription_ledger` refuses UPDATE and DELETE. `invoice_refunds` is a normal
+  table: only its status, completion time and resolution fields change, exactly once, under the invoice lock
+  (`WHERE status = 'PENDING'` conditional update).
+- **Unique constraints:**
+  - one hold per refund (`…one_refund_hold_key`) and one restore per refund (`…one_refund_reversal_key`), so a
+    retried worker or a double Admin click cannot hold or restore twice;
+  - `invoice_refunds.idempotency_key` stays unique;
+  - the CHECK keeps the link only on a negative REFUND or a positive restore.
+- **Rollback:**
+  - The PENDING row, the hold and the `REFUND_REQUESTED` audit row commit together, or not at all.
+  - Paymob is called **only after** that commit. A crash before the call leaves PENDING + hold with no money
+    sent: the worker finds no refund at Paymob, and after 24 h the Admin resolves it.
+  - Finishing (SUCCEEDED, or FAILED + restore + audit) is a second transaction; it is all-or-nothing too.
+- **Concurrency with booking:**
+  - Booking runs `runSerializable`. The refund request will run in the same `runSerializable` helper (retry
+    on a serialization failure), so a booking and a refund that read the same balance cannot both commit.
+  - Today the refund runs at READ COMMITTED; this closes that gap.
+- **Idempotency:**
+  - The same `Idempotency-Key` returns the first refund row (200) before anything is written.
+  - A concurrent duplicate loses on the unique key and re-reads the winner.
+  - Paymob is never called twice for one refund row: the call is made once, right after the row is created,
+    and the worker only reads Paymob.
+
 - **Existing rows:** older SUCCEEDED refunds keep their unlinked `REFUND` rows. There is no backfill (append-only).
 - **Pre-existing PENDING refunds:** any PENDING refund without a hold gets one when the worker first sees it,
   in the same row-locked transaction. A pre-flight count is shown before applying; it is 0 in the test data.
@@ -136,6 +171,18 @@ CREATE INDEX "billing_subscriptions_next_check_idx" ON "billing_subscriptions"("
   WHERE "status" IN ('INCOMPLETE', 'ACTIVE', 'PAST_DUE');
 ```
 No ledger table changes. Existing rows start with NULL, so they are checked on the first tick.
+
+**Why it is safe (reasoning):**
+- **Append-only:** no ledger row is touched. Only the two new scheduling columns on `subscriptions` and
+  `billing_subscriptions` change; they are mutable tables, and those columns carry no money.
+- **No starvation:** a row that cannot progress (live reservation, past-due renewal) moves its `*_next_check_at`
+  into the future, so the 100-row batch always reaches newer rows. Batches are ordered by that column (NULL first).
+- **Rollback / idempotency:**
+  - The expiry pass stays ONE serializable transaction per package; the `EXPIRY` amount is recomputed inside
+    it, so a repeated or overlapping pass writes nothing twice.
+  - Setting the next-check time is part of the same transaction (expiry), or a single conditional UPDATE
+    (renewal), so a crash only means the row is checked again.
+- **D84:** the reservation is never changed by the worker; it waits for the report or a manual resolution.
 
 **Tests (WK-01..05):**
 - 101 packages with live reservations plus one newer drained package: the newer one expires in the first tick.

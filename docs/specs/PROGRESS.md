@@ -33,7 +33,7 @@
   - `review-2026-10-29-fixes.md`: B1 refund hold (SQL S-10), B2 reschedule, B3 guardian, B4 worker loops
     (SQL S-11), D80 grace booking, login lockout;
   - `slices/S-16-teacher-schedule-board.md` (Part C);
-  - `slices/S-17-payroll-statements-advances.md` (Part D, SQL S-12).
+  - `slices/S-17-payroll-statements-payments.md` (Part D, SQL S-12).
 - **Verified 2026-10-30:**
   - `tsc` exit 0, `npm run lint` exit 0, `npm run build` exit 0;
   - Jest: 93 suites / 781 tests, 0 failed (8 shards, each exit 0);
