@@ -18,6 +18,28 @@
 | 8 | Testing & Launch | Test suites done; launch steps open | 2026-10-30 | 2026-10-29: Jest 92 suites / 771 tests green; Playwright whole-site E2E 104 tests (crawl every page × role, access control, OWASP Top 10, Session 1/2 plans); WhatsApp live test done by the owner (D79). Open: monitoring/alerting, production hosting + deploy, backup/restore drill, mobile-viewport and RTL visual review, Paymob Layer 2 (owner), `fast-uri` moderate advisory |
 | 9 | Refinements & UI/UX Polish | In progress — most slices done | 2026-10-30 | Done: S-00…S-15 (return page, attendance resolution, teacher approval, time zones, join window, WhatsApp icon, inbox, roster changes, daily schedule, Supervisor finance view, calendar, performance + Admin home, deductions/bonuses, payment link + refunds, Stitch UI, payer refund request), G1 bug fixes, L latency, automatic renewal. Open: review fixes B1–B4 (designs waiting for the owner, 2026-10-29), Admin/Supervisor teacher schedule board (Part C), payroll statements and advances (Part D), OQ-14 assignments list, OQ-R3–R5 (Paymob), D47 week start (PROPOSAL) |
 
+## 2026-10-30 — branch fix/review-2026-10-29 (local, not pushed)
+
+- **Done (test-first, one commit each):**
+  - `.claude/` untracked;
+  - owner decisions D79–D87 recorded, with D73 confirmed and OQ-R2 / OQ-S13-1 closed;
+  - payment link limited to one per rolling 24 h (D81);
+  - the session list never returns a Zoom link (B5);
+  - the rate-limit store drops expired buckets;
+  - real IANA time zones required on session create, update and series;
+  - CSP and client-IP follow-ups;
+  - docs refreshed (schema §31, business-model, encoding, phase 5–9 status).
+- **Waiting for the owner (design + SQL, nothing built):**
+  - `review-2026-10-29-fixes.md`: B1 refund hold (SQL S-10), B2 reschedule, B3 guardian, B4 worker loops
+    (SQL S-11), D80 grace booking, login lockout;
+  - `slices/S-16-teacher-schedule-board.md` (Part C);
+  - `slices/S-17-payroll-statements-advances.md` (Part D, SQL S-12).
+- **Verified 2026-10-30:**
+  - `tsc` exit 0, `npm run lint` exit 0, `npm run build` exit 0;
+  - Jest: 93 suites / 781 tests, 0 failed (8 shards, each exit 0);
+  - Playwright: 104 tests, 100 passed and 4 skipped (the OpenWA specs; this run had OpenWA off), exit 0;
+  - 0 test academies and 0 `demo_test_*` users left.
+
 ## 2026-10-29 — branches merged, whole-site E2E, OWASP dynamic pass
 
 - **All branches merged** into the working branch and `main` (feature/whatsapp: only its new files — Impeccable skill + `answer_on_phase-09-open-questions.md`, its tip carried unresolved conflict markers; whatsapp-clean, stitch-ui and the phase-1/2/3 branches recorded as merged, their content was already here).
