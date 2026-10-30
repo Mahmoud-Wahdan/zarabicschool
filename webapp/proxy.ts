@@ -97,6 +97,8 @@ function rolesForRoute(rest: string): string[] | undefined {
     || rest === "/admin/sessions" || rest.startsWith("/admin/sessions/")
     // S-16 (D91): the teacher schedule board is operational (no money fields).
     || rest === "/admin/schedule" || rest.startsWith("/admin/schedule/")
+    // Analytics (owner, 2026-10-31): operational charts; the page hides revenue from the Supervisor.
+    || rest === "/admin/analytics" || rest.startsWith("/admin/analytics/")
     // Phase 7 (owner, 2026-10-26): complaints, evaluation summaries and
     // announcements are handled by Admin AND Supervisor (pages re-check the role).
     || rest === "/admin/complaints" || rest.startsWith("/admin/complaints/")

@@ -63,7 +63,8 @@
       "calendar": "Weekly Calendar",
       "performance": "Teacher Performance",
       "indicators": "My Indicators",
-      "scheduleBoard": "Teacher Schedule Board"
+      "scheduleBoard": "Teacher Schedule Board",
+      "analytics": "Analytics"
     },
     "account": "Account"
   },
@@ -2136,7 +2137,6 @@
     "createTitle": "Create invoice",
     "createHint": "The amount you enter here is the amount the payer is charged at checkout.",
     "createInvoice": "Create invoice",
-    "amountMinorLabel": "Amount (minor units, e.g. 50000 = 500.00)",
     "created": "Invoice created.",
     "confirmInvoice": "Confirm payment",
     "confirmHint": "Marks the invoice paid, creates the subscription, and grants the sessions — one atomic step.",
@@ -2183,7 +2183,10 @@
     "refundRequestRejectFailed": "The request could not be rejected. Try again.",
     "refundHeldSessions": "These upcoming sessions hold this package's credit. Remove the student from them first:",
     "listTitle": "Invoices",
-    "colCreated": "Created"
+    "colCreated": "Created",
+    "chooseStudent": "Choose student",
+    "amountLabel": "Amount",
+    "currencyLabel": "Currency"
   },
   "payroll": {
     "teacherTitle": "My payroll",
@@ -2751,5 +2754,48 @@
     "colWho": "Teacher and students",
     "colType": "Type",
     "colStatus": "Status"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "How the academy is doing. Weeks start on Saturday; times in {zone}.",
+    "summaryTitle": "{month} so far",
+    "summaryAttendance": "Attendance rate",
+    "summaryCompleted": "Completed sessions",
+    "summaryMissed": "Missed sessions",
+    "summaryHours": "Hours taught",
+    "summaryNewStudents": "New students",
+    "sessionsTitle": "Sessions per week",
+    "sessionsSubtitle": "The last 12 weeks by status. Cancelled sessions are in the tooltip and the table.",
+    "completed": "Completed",
+    "missed": "Missed",
+    "scheduled": "Scheduled",
+    "cancelled": "Cancelled",
+    "sessionsTooltip": "Week of {week}: {completed} completed, {missed} missed, {scheduled} scheduled, {cancelled} cancelled",
+    "attendanceTitle": "Attendance rate per week",
+    "attendanceSubtitle": "Share of session reports where the student attended.",
+    "attendanceTooltip": "Week of {week}: {rate} ({attended} of {reported} reports)",
+    "noReports": "Week of {week}: no reports yet",
+    "attended": "Attended",
+    "reported": "Reports",
+    "rate": "Rate",
+    "hoursTitle": "Hours taught per teacher, {month}",
+    "hoursSubtitle": "Completed sessions only.",
+    "hoursValue": "{hours} h",
+    "noHours": "No completed sessions this month yet.",
+    "colTeacher": "Teacher",
+    "colHours": "Hours",
+    "subjectsTitle": "Sessions per subject, {month}",
+    "subjectsSubtitle": "Every session except cancelled ones.",
+    "noSubjects": "No sessions this month yet.",
+    "colSubject": "Subject",
+    "colSessions": "Sessions",
+    "studentsTitle": "New students per month",
+    "studentsSubtitle": "By enrollment date, the last 6 months.",
+    "studentsTooltip": "{month}: {count} new students",
+    "colMonth": "Month",
+    "colNewStudents": "New students",
+    "colWeek": "Week",
+    "showTable": "Show as table",
+    "noAttendance": "No session reports in these weeks yet."
   }
 }

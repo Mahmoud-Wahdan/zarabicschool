@@ -32,7 +32,9 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [refundFor, setRefundFor] = useState<string | null>(null);
-  const [create, setCreate] = useState({ studentId: "", packageType: "MONTHLY_PLAN", sessionsPurchased: 8, amountMinor: "", currency: "EGP", provider: "PAYMOB" });
+  const [create, setCreate] = useState({ studentId: "", packageType: "MONTHLY_PLAN", sessionsPurchased: 8, amount: "", currency: "EGP", provider: "PAYMOB" });
+  // The Admin types the amount in pounds/dollars; the API takes minor units (cents/piastres).
+  const amountMinor = /^\d+(\.\d{1,2})?$/.test(create.amount.trim()) && Number(create.amount) > 0 ? Math.round(Number(create.amount) * 100) : null;
 
   // S-13 (a) / D6: WhatsApp the payer a link to the platform invoices page.
   async function sendLink(invoiceId: string) {
@@ -70,7 +72,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
           studentId: create.studentId,
           packageType: create.packageType,
           sessionsPurchased: Number(create.sessionsPurchased),
-          amountMinor: Number(create.amountMinor),
+          amountMinor,
           currency: create.currency,
           provider: create.provider,
         }),
@@ -98,7 +100,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
         ...current,
       ]);
       setMessage(t("created"));
-      setCreate({ ...create, studentId: "", amountMinor: "" });
+      setCreate({ ...create, studentId: "", amount: "" });
     } finally {
       setBusy(false);
     }
@@ -117,27 +119,35 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
       <section className="z-card rounded-xl p-5">
         <h2 className="font-semibold text-primary">{t("createTitle")}</h2>
         <p className="mt-1 text-label-sm text-on-surface-variant">{t("createHint")}</p>
-        <form onSubmit={createInvoice} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <select required value={create.studentId} onChange={(e) => setCreate({ ...create, studentId: e.target.value })} className="z-input">
-            <option value="">{t("colStudent")}</option>
-            {students.map((student) => (
-              <option key={student.id} value={student.id}>{student.displayName}</option>
-            ))}
-          </select>
-          <select value={create.packageType} onChange={(e) => setCreate({ ...create, packageType: e.target.value })} className="z-input">
-            <option value="MONTHLY_PLAN">{t("packageMonthly")}</option>
-            {/* ANNUAL_PLAN hidden until PLAN_GRANT exists (A4, owner 2026-10-26); the API refuses it too. */}
-            <option value="PAY_PER_SESSION">{t("packagePayPerSession")}</option>
-          </select>
-          <input type="number" min={1} max={500} required value={create.sessionsPurchased} onChange={(e) => setCreate({ ...create, sessionsPurchased: Number(e.target.value) })} placeholder={t("colSessions")} className="z-input" />
-          <input type="number" min={1} required value={create.amountMinor} onChange={(e) => setCreate({ ...create, amountMinor: e.target.value })} placeholder={t("amountMinorLabel")} className="z-input lg:col-span-2" />
-          <div className="flex gap-2">
-            <select value={create.currency} onChange={(e) => setCreate({ ...create, currency: e.target.value, provider: e.target.value === "USD" ? "USD_GATEWAY" : "PAYMOB" })} className="min-w-0 flex-1 z-input">
+        <form onSubmit={createInvoice} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_8rem_10rem_7rem_auto] lg:items-end">
+          <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("colStudent")}
+            <select required value={create.studentId} onChange={(e) => setCreate({ ...create, studentId: e.target.value })} className="z-input">
+              <option value="">{t("chooseStudent")}</option>
+              {students.map((student) => (
+                <option key={student.id} value={student.id}>{student.displayName}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("colPackage")}
+            <select value={create.packageType} onChange={(e) => setCreate({ ...create, packageType: e.target.value })} className="z-input">
+              <option value="MONTHLY_PLAN">{t("packageMonthly")}</option>
+              {/* ANNUAL_PLAN hidden until PLAN_GRANT exists (A4, owner 2026-10-26); the API refuses it too. */}
+              <option value="PAY_PER_SESSION">{t("packagePayPerSession")}</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("colSessions")}
+            <input type="number" min={1} max={500} required value={create.sessionsPurchased} onChange={(e) => setCreate({ ...create, sessionsPurchased: Number(e.target.value) })} className="z-input" dir="ltr" />
+          </label>
+          <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("amountLabel")}
+            <input type="number" min={0.01} step={0.01} inputMode="decimal" required value={create.amount} onChange={(e) => setCreate({ ...create, amount: e.target.value })} placeholder="500.00" className="z-input" dir="ltr" />
+          </label>
+          <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("currencyLabel")}
+            <select value={create.currency} onChange={(e) => setCreate({ ...create, currency: e.target.value, provider: e.target.value === "USD" ? "USD_GATEWAY" : "PAYMOB" })} className="z-input">
               <option value="EGP">EGP</option>
               <option value="USD">USD</option>
             </select>
-            <button type="submit" disabled={busy} className="btn btn-primary disabled:opacity-50">{t("createInvoice")}</button>
-          </div>
+          </label>
+          <button type="submit" disabled={busy || amountMinor === null} className="btn btn-primary disabled:opacity-50">{t("createInvoice")}</button>
         </form>
       </section>
 

@@ -63,7 +63,8 @@
       "calendar": "التقويم الأسبوعي",
       "performance": "أداء المعلمين",
       "indicators": "مؤشراتي",
-      "scheduleBoard": "لوحة جداول المعلمين"
+      "scheduleBoard": "لوحة جداول المعلمين",
+      "analytics": "التحليلات"
     },
     "account": "الحساب"
   },
@@ -2136,7 +2137,6 @@
     "createTitle": "إنشاء فاتورة",
     "createHint": "المبلغ الذي تُدخله هنا هو المبلغ الذي سيُحصَّل من الدافع في صفحة الدفع.",
     "createInvoice": "إنشاء الفاتورة",
-    "amountMinorLabel": "المبلغ (بالوحدة الصغرى، مثال: 50000 = 500.00)",
     "created": "تم إنشاء الفاتورة.",
     "confirmInvoice": "تأكيد الدفع",
     "confirmHint": "يُعلّم الفاتورة كمدفوعة وينشئ الاشتراك ويمنح الحصص — خطوة واحدة ذرية.",
@@ -2183,7 +2183,10 @@
     "refundRequestRejectFailed": "تعذر رفض الطلب. حاول مرة أخرى.",
     "refundHeldSessions": "هذه الحصص القادمة تحجز رصيد الباقة. أزل الطالب منها أولًا:",
     "listTitle": "الفواتير",
-    "colCreated": "تاريخ الإصدار"
+    "colCreated": "تاريخ الإصدار",
+    "chooseStudent": "اختر الطالب",
+    "amountLabel": "المبلغ",
+    "currencyLabel": "العملة"
   },
   "payroll": {
     "teacherTitle": "راتبي",
@@ -2751,5 +2754,48 @@
     "colWho": "المعلم والطلاب",
     "colType": "النوع",
     "colStatus": "الحالة"
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "subtitle": "أداء الأكاديمية. الأسبوع يبدأ السبت، والمواعيد بتوقيت {zone}.",
+    "summaryTitle": "{month} حتى الآن",
+    "summaryAttendance": "نسبة الحضور",
+    "summaryCompleted": "حصص مكتملة",
+    "summaryMissed": "حصص فائتة",
+    "summaryHours": "ساعات التدريس",
+    "summaryNewStudents": "طلاب جدد",
+    "sessionsTitle": "الحصص أسبوعيًا",
+    "sessionsSubtitle": "آخر 12 أسبوعًا حسب الحالة. الحصص الملغاة تظهر في التلميح والجدول.",
+    "completed": "مكتملة",
+    "missed": "فائتة",
+    "scheduled": "مجدولة",
+    "cancelled": "ملغاة",
+    "sessionsTooltip": "أسبوع {week}: {completed} مكتملة، {missed} فائتة، {scheduled} مجدولة، {cancelled} ملغاة",
+    "attendanceTitle": "نسبة الحضور أسبوعيًا",
+    "attendanceSubtitle": "نسبة تقارير الحصص التي حضر فيها الطالب.",
+    "attendanceTooltip": "أسبوع {week}: {rate} ({attended} من {reported} تقرير)",
+    "noReports": "أسبوع {week}: لا تقارير بعد",
+    "attended": "حضر",
+    "reported": "التقارير",
+    "rate": "النسبة",
+    "hoursTitle": "ساعات التدريس لكل معلم، {month}",
+    "hoursSubtitle": "الحصص المكتملة فقط.",
+    "hoursValue": "{hours} س",
+    "noHours": "لا حصص مكتملة هذا الشهر بعد.",
+    "colTeacher": "المعلم",
+    "colHours": "الساعات",
+    "subjectsTitle": "الحصص لكل مادة، {month}",
+    "subjectsSubtitle": "كل الحصص ما عدا الملغاة.",
+    "noSubjects": "لا حصص هذا الشهر بعد.",
+    "colSubject": "المادة",
+    "colSessions": "الحصص",
+    "studentsTitle": "الطلاب الجدد شهريًا",
+    "studentsSubtitle": "حسب تاريخ الالتحاق، آخر 6 أشهر.",
+    "studentsTooltip": "{month}: {count} طالب جديد",
+    "colMonth": "الشهر",
+    "colNewStudents": "طلاب جدد",
+    "colWeek": "الأسبوع",
+    "showTable": "عرض كجدول",
+    "noAttendance": "لا تقارير حصص في هذه الأسابيع بعد."
   }
 }

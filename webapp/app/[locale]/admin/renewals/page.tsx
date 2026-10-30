@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import AutoRenewPanel from "../../../_components/billing/auto-renew-panel";
 import GraceDaysSetting from "../../../_components/billing/grace-days-setting";
+import PageHeader from "../../../_components/ui/page-header";
 import DashboardShell from "../../../_components/dashboard-shell";
 import { requireRole } from "../../../../lib/dal";
 import { loadRenewalRows } from "../../../../lib/billing/renewal-view";
@@ -24,12 +25,11 @@ export default async function AdminRenewalsPage() {
   const [renewals, graceDays] = await Promise.all([loadRenewalRows(user, locale), getRenewalGraceDays(prisma, user.academyId)]);
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("adminTitle")}</h1>
-      <p className="mt-2 max-w-prose text-sm opacity-70">{t("adminSubtitle")}</p>
-      <div className="mt-6">
+      <PageHeader title={t("adminTitle")} subtitle={t("adminSubtitle")} />
+      <div>
         <GraceDaysSetting initialDays={graceDays} />
       </div>
-      <div className="mt-6">
+      <div>
         <AutoRenewPanel mode="admin" students={[]} plans={[]} subscriptions={renewals} timeZone={user.timezone} now={new Date().toISOString()} />
       </div>
     </DashboardShell>
