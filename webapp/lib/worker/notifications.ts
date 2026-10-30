@@ -19,6 +19,7 @@ import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { processRenewals } from "../billing/renewal";
 import { getMessagingProvider } from "../messaging/provider";
+import { replaceRawZoomLinks } from "../messaging/zoom-link-guard";
 import { isWhatsAppDeliveryReady } from "../messaging/readiness";
 import { prisma } from "../prisma";
 import { getJoinWindowMinutes } from "../sessions/join-window";
@@ -644,7 +645,15 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
       joinWindowMinutes = await getJoinWindowMinutes(job.academyId);
       joinWindowByAcademy.set(job.academyId, joinWindowMinutes);
     }
-    const message = dailyScheduleText ?? composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement }, joinWindowMinutes);
+    // Never a raw Zoom link in WhatsApp, whatever built the text (an Admin message or an
+    // announcement may contain one typed by hand): it becomes the platform join link.
+    const message = replaceRawZoomLinks(
+      dailyScheduleText ?? composeJobMessage({ ...job, monthlyReport, adminMessageBody, announcement }, joinWindowMinutes),
+      {
+        platformLink: job.sessionId ? sessionJoinPlatformUrl(job.sessionId) : null,
+        language: job.recipientUser.preferredLanguage === "en" ? "en" : "ar",
+      },
+    );
     // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
     // heavier announcement spacing is the job's staggered eligible time, not a sleep.
     if (sendsThisTick > 0) {
