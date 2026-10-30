@@ -1872,7 +1872,13 @@
       "failure": "Unable to update enrollment.",
       "current": "Current enrollments",
       "noStudents": "No students enrolled",
-      "noSessions": "No sessions found."
+      "noSessions": "No sessions found.",
+      "chooseSessionFirst": "Choose a session first",
+      "loadingStudents": "Loading the session's students…",
+      "availableGroup": "Can be added (assigned to this teacher and subject)",
+      "enrolledGroup": "Enrolled in this session",
+      "noCandidates": "No student is assigned to this session's teacher and subject.",
+      "loadFailure": "Could not load this session's students."
     },
     "form": {
       "username": "Username",

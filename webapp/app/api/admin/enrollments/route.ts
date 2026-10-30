@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "../../../../lib/prisma";
 
 import { requireApiRoles } from "../../../../lib/dal";
 import { reserveCredit, runSerializable } from "../../../../lib/credits/reservation";
@@ -18,6 +21,42 @@ function schedulingErrorResponse(error: SchedulingValidationError) {
     },
     { status: 409 },
   );
+}
+
+const candidatesQuery = z.object({ sessionId: z.string().uuid() });
+
+/**
+ * The chosen session's students only (owner, 2026-10-30): `enrolled` (can be removed)
+ * and `available` (an ACTIVE assignment to the session's teacher and subject, an active
+ * account, not already enrolled). ADMIN and SUPERVISOR; ids and names only.
+ */
+export async function GET(request: Request) {
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
+  if (error) return error;
+  const parsed = candidatesQuery.safeParse({ sessionId: new URL(request.url).searchParams.get("sessionId") });
+  if (!parsed.success) return errorResponse(400, "VALIDATION_ERROR", "A valid session id is required.");
+  const session = await prisma.session.findFirst({
+    where: { id: parsed.data.sessionId, academyId: user.academyId },
+    select: { teacherId: true, subjectId: true, students: { select: { studentId: true } } },
+  });
+  if (!session) return errorResponse(404, "NOT_FOUND", "Session not found.");
+  const enrolledIds = session.students.map((row) => row.studentId);
+  const select = { id: true, user: { select: { displayName: true } } } as const;
+  const [enrolled, available] = await Promise.all([
+    prisma.student.findMany({ where: { academyId: user.academyId, id: { in: enrolledIds } }, select, orderBy: { user: { displayName: "asc" } } }),
+    prisma.student.findMany({
+      where: {
+        academyId: user.academyId,
+        id: { notIn: enrolledIds },
+        user: { isActive: true },
+        assignments: { some: { academyId: user.academyId, teacherId: session.teacherId, subjectId: session.subjectId, status: "ACTIVE" } },
+      },
+      select,
+      orderBy: { user: { displayName: "asc" } },
+    }),
+  ]);
+  const names = (rows: typeof enrolled) => rows.map((row) => ({ id: row.id, displayName: row.user.displayName }));
+  return NextResponse.json({ data: { enrolled: names(enrolled), available: names(available) } }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
