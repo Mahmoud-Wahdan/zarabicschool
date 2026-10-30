@@ -20,8 +20,8 @@ test("choosing a session loads only that session's students", async ({ open }) =
   await page.getByLabel(t.sessionLabel, { exact: true }).selectOption(r.ids.futureSession);
   expect((await loaded).status()).toBe(200);
 
-  const enrolled = page.locator("section", { has: page.getByRole("heading", { name: t.enrolledGroup }) });
-  const available = page.locator("section", { has: page.getByRole("heading", { name: t.availableTitle }) });
+  const enrolled = page.getByRole("region", { name: t.enrolledGroup, exact: true });
+  const available = page.getByRole("region", { name: t.availableTitle, exact: true });
   await expect(enrolled.getByRole("listitem")).toHaveText(["Demo Test student2"]);
   await expect(available.getByText("Demo Test student1", { exact: true })).toBeVisible();
   // Another teacher's student and an unassigned student are never offered.
