@@ -3,9 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
-import DataTable, { type DataRow } from "../../_components/ui/data-table";
 import Icon from "../../_components/ui/icon";
-import { type BadgeTone } from "../../_components/ui/status-badge";
 import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
@@ -13,7 +11,10 @@ import { joinWindowState } from "../../../lib/config/session-join";
 import { getJoinWindowMinutes } from "../../../lib/sessions/join-window";
 import { currentMonthKey, formatMonthLabel, previousMonthKey } from "../../../lib/reports/month-key";
 import { eligibleMonthlyStudents } from "../../../lib/reports/monthly";
-import { getTeacherNextSession, getTeacherReportsToWrite, getTeacherWeekSessions } from "../../../lib/dashboard/teacher-overview";
+import { getTeacherNextSession, getTeacherReportsToWrite } from "../../../lib/dashboard/teacher-overview";
+import { calendarPeriod, getCalendarRangeSessions } from "../../../lib/dashboard/calendar-range";
+import { parseMonthParam, parseView } from "../../../lib/calendar/month";
+import SessionsCalendar from "../../_components/calendar/sessions-calendar";
 import { Link } from "../../../i18n/navigation";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -22,12 +23,16 @@ export async function generateMetadata() {
   return { title: `${t("teacher.title")} | Zarabicschool` };
 }
 
-export default async function TeacherDashboard() {
+export default async function TeacherDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string }> }) {
   const user = await requireRole("TEACHER");
   const [t, tSessions] = await Promise.all([getTranslations("dashboard"), getTranslations("sessions")]);
   const now = new Date();
 
   const zone = user.timezone || "Africa/Cairo";
+  const params = await searchParams;
+  const view = parseView(params.view);
+  const month = parseMonthParam(params.month, now, zone);
+  const period = calendarPeriod(view, { week: params.week, month }, now, zone);
   const [joinWindowMinutes, teacher, currentLocale] = await Promise.all([
     getJoinWindowMinutes(user.academyId),
     prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } }),
@@ -39,7 +44,7 @@ export default async function TeacherDashboard() {
   const lastMonthKey = previousMonthKey(currentMonthKey(user.timezone || "Africa/Cairo", now));
   const [nextSession, week, reportsToWrite, monthly] = await Promise.all([
     teacher ? getTeacherNextSession(teacher.id, now) : null,
-    teacher ? getTeacherWeekSessions(teacher.id, now, zone) : [],
+    teacher ? getCalendarRangeSessions({ teacherId: teacher.id }, period.range) : [],
     teacher ? getTeacherReportsToWrite(teacher.id, now) : [],
     teacher
       ? Promise.all([
@@ -61,20 +66,6 @@ export default async function TeacherDashboard() {
   const subjectName = (subject: { nameAr: string; nameEn: string }) => (currentLocale === "ar" ? subject.nameAr : subject.nameEn);
   const separator = currentLocale === "ar" ? "، " : ", ";
   const nextState = nextSession ? joinWindowState(nextSession.scheduledStart, nextSession.scheduledEnd, now, joinWindowMinutes) : null;
-  const statusTone: Record<string, BadgeTone> = { SCHEDULED: "info", COMPLETED: "success", MISSED: "danger", CANCELLED: "neutral" };
-
-  const weekRows: DataRow[] = week.map((session) => ({
-    id: session.id,
-    filter: session.status,
-    cells: {
-      day: { text: shortDay.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
-      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
-      subject: { text: subjectName(session.subject) },
-      students: { text: session.students.map((row) => row.student.user.displayName).join(separator) || "—" },
-      type: { text: tSessions(`types.${session.sessionType}`) },
-      status: { text: tSessions(`statuses.${session.status}`), tone: statusTone[session.status] ?? "neutral" },
-    },
-  }));
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
@@ -146,35 +137,23 @@ export default async function TeacherDashboard() {
         </section>
       </div>
 
-      <section className="z-card flex flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="teacher-week">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
-          <div>
-            <h2 id="teacher-week" className="text-headline-sm font-bold text-primary">{t("teacher.weekTitle")}</h2>
-            <p className="text-body-sm text-on-surface-variant">{t("teacher.weekSubtitle")}</p>
-          </div>
-          <Link href="/teacher/sessions" className="btn btn-soft">
-            <Icon name="calendar_month" size={18} />
-            <span>{t("teacher.actions.schedule")}</span>
-          </Link>
-        </div>
-        <DataTable
-          caption={t("teacher.weekTitle")}
-          columns={[
-            { key: "day", label: t("teacher.colDay") },
-            { key: "time", label: t("teacher.colTime") },
-            { key: "subject", label: t("teacher.colSubject") },
-            { key: "students", label: t("teacher.colStudents"), sortable: false },
-            { key: "type", label: t("teacher.colType") },
-            { key: "status", label: t("teacher.colStatus") },
-          ]}
-          rows={weekRows}
-          quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: tSessions(`statuses.${status}`) }))}
-          exportName="my-week-sessions"
-          emptyTitle={tSessions("empty")}
-          emptyIcon="event_available"
-          initialSort={{ key: "day", direction: "asc" }}
-        />
-      </section>
+      <SessionsCalendar
+        title={t("teacher.weekTitle")}
+        subtitle={t("teacher.calendarSubtitle")}
+        view={view}
+        weekStart={period.weekStart}
+        month={month}
+        monthDays={period.grid?.days ?? null}
+        sessions={week}
+        now={now}
+        timeZone={zone}
+        locale={currentLocale}
+        basePath="/teacher"
+        show="students"
+        scheduleHref="/teacher/sessions"
+        scheduleLabel={t("teacher.actions.schedule")}
+        exportName="my-sessions"
+      />
     </DashboardShell>
   );
 }

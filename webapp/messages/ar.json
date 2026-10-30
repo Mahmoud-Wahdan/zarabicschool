@@ -494,10 +494,11 @@
     "noPayments": "لا مدفوعات بعد هذا الشهر.",
     "unpaidInvoices": "فواتير غير مدفوعة",
     "pastDueRenewals": "تجديدات متأخرة",
-    "weekTitle": "حصص الأسبوع",
+    "weekTitle": "تقويم الحصص",
     "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
     "colDay": "اليوم",
-    "weekEmpty": "لا حصص هذا الأسبوع."
+    "weekEmpty": "لا حصص هذا الأسبوع.",
+    "calendarSubtitle": "بدّل بين الأسبوع والشهر والجدول."
   },
   "supervisorDash": {
     "eyebrow": "غرفة الرصد الأكاديمي",
@@ -1170,14 +1171,15 @@
       "reportRejected": "يحتاج تعديل",
       "reportsDone": "كل تقاريرك مُرسَلة.",
       "reportsMore": "و{count} أخرى في صفحة حصصك",
-      "weekTitle": "أسبوعك",
+      "weekTitle": "تقويمك",
       "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
       "colDay": "اليوم",
       "colTime": "الوقت",
       "colSubject": "المادة",
       "colStudents": "الطلاب",
       "colType": "النوع",
-      "colStatus": "الحالة"
+      "colStatus": "الحالة",
+      "calendarSubtitle": "بدّل بين الأسبوع والشهر والجدول."
     },
     "student": {
       "title": "لوحة الطالب",
@@ -1203,13 +1205,14 @@
       "homeworkLabel": "الواجب",
       "notesLabel": "ملاحظات المعلم",
       "allReports": "كل تقارير حصصك",
-      "weekTitle": "أسبوعك",
+      "weekTitle": "تقويمك",
       "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
       "colDay": "اليوم",
       "colTime": "الوقت",
       "colSubject": "المادة",
       "colTeacher": "المعلم",
-      "colStatus": "الحالة"
+      "colStatus": "الحالة",
+      "calendarSubtitle": "بدّل بين الأسبوع والشهر والجدول."
     },
     "guardian": {
       "title": "لوحة ولي الأمر",
@@ -2699,5 +2702,31 @@
     "export": "تصدير Excel",
     "noMatch": "لا شيء يطابق هذا الفلتر.",
     "sortBy": "ترتيب حسب {column}"
+  },
+  "sessionsCalendar": {
+    "week": "أسبوع",
+    "month": "شهر",
+    "table": "جدول",
+    "views": "طرق العرض",
+    "periodNav": "تغيير الفترة",
+    "previous": "السابق",
+    "next": "التالي",
+    "today": "اليوم",
+    "todayMark": "(اليوم)",
+    "weekOf": "أسبوع {date}",
+    "zone": "المواعيد بتوقيت {zone}",
+    "free": "لا حصص",
+    "more": "+{count} أخرى",
+    "openDay": "{date}: {count, plural, =0 {لا حصص} one {حصة واحدة} two {حصتان} few {# حصص} other {# حصة}}. افتح الأسبوع",
+    "legend": "ألوان الحالات",
+    "empty": "لا حصص في هذه الفترة.",
+    "colDay": "اليوم",
+    "colTime": "الوقت",
+    "colSubject": "المادة",
+    "colTeacher": "المعلم",
+    "colStudents": "الطلاب",
+    "colWho": "المعلم والطلاب",
+    "colType": "النوع",
+    "colStatus": "الحالة"
   }
 }

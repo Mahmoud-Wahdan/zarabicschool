@@ -3,11 +3,14 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import EmptyState from "../../_components/ui/empty-state";
 import PageHeader from "../../_components/ui/page-header";
-import { ActionRow, TodayCard, WeekSessionsSection } from "../../_components/dashboard/ops-sections";
+import { ActionRow, TodayCard } from "../../_components/dashboard/ops-sections";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
-import { getAdminActionCounts, getTeacherAlerts, getWeekSessions } from "../../../lib/dashboard/admin-overview";
+import { getAdminActionCounts, getTeacherAlerts } from "../../../lib/dashboard/admin-overview";
+import { calendarPeriod, getCalendarRangeSessions } from "../../../lib/dashboard/calendar-range";
+import { parseMonthParam, parseView } from "../../../lib/calendar/month";
+import SessionsCalendar from "../../_components/calendar/sessions-calendar";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -23,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
  * money (CONTEXT §4), with teacher alerts in place of the money card. Applications are
  * Admin-only pages, so they are not listed here.
  */
-export default async function SupervisorDashboard() {
+export default async function SupervisorDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string }> }) {
   const user = await requireRole("SUPERVISOR");
   const locale = await getLocale();
   const t = await getTranslations("supervisorDash");
@@ -31,12 +34,16 @@ export default async function SupervisorDashboard() {
 
   const now = new Date();
   const viewerZone = user.timezone || "Africa/Cairo";
+  const params = await searchParams;
+  const view = parseView(params.view);
+  const month = parseMonthParam(params.month, now, viewerZone);
+  const period = calendarPeriod(view, { week: params.week, month }, now, viewerZone);
   const [actions, flagCounts, alerts, today, week] = await Promise.all([
     getAdminActionCounts(user.academyId),
     getTeacherFlagCounts(user.academyId),
     getTeacherAlerts(user.academyId),
     getTodaySessions(user.academyId, now, viewerZone),
-    getWeekSessions(user.academyId, now, viewerZone),
+    getCalendarRangeSessions({ academyId: user.academyId }, period.range),
   ]);
   const actionTotal = actions.reports + actions.sessionRequests + actions.complaints;
 
@@ -88,7 +95,23 @@ export default async function SupervisorDashboard() {
         </section>
       </div>
 
-      <WeekSessionsSection sessions={week} locale={locale} timeZone={viewerZone} exportName="zarabicschool-week-sessions" />
+      <SessionsCalendar
+        title={tAdmin("weekTitle")}
+        subtitle={tAdmin("calendarSubtitle")}
+        view={view}
+        weekStart={period.weekStart}
+        month={month}
+        monthDays={period.grid?.days ?? null}
+        sessions={week}
+        now={now}
+        timeZone={viewerZone}
+        locale={locale}
+        basePath="/supervisor"
+        show="both"
+        scheduleHref="/admin/sessions"
+        scheduleLabel={tAdmin("dispatchViewAll")}
+        exportName="zarabicschool-sessions"
+      />
     </DashboardShell>
   );
 }

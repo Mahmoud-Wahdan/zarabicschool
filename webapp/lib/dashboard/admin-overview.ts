@@ -50,26 +50,6 @@ export async function getMonthMoney(academyId: string, now: Date, timeZone: stri
   };
 }
 
-/** Today (viewer's day) through the next 6 days, every status, ordered by start. */
-export async function getWeekSessions(academyId: string, now: Date, timeZone: string) {
-  const start = zonedDayRangeUtc(zonedYmd(now, timeZone), timeZone).start;
-  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
-  return prisma.session.findMany({
-    where: { academyId, scheduledStart: { gte: start, lt: end } },
-    orderBy: { scheduledStart: "asc" },
-    select: {
-      id: true,
-      scheduledStart: true,
-      scheduledEnd: true,
-      status: true,
-      sessionType: true,
-      subject: { select: { nameAr: true, nameEn: true } },
-      teacher: { select: { user: { select: { displayName: true } } } },
-      students: { select: { student: { select: { user: { select: { displayName: true } } } } } },
-    },
-  });
-}
-
 /**
  * Supervisor home (owner, 2026-10-31): teachers with late session reports or missing
  * monthly reports, most flags first. Names and counts only (no money).

@@ -3,11 +3,14 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import Icon from "../../_components/ui/icon";
 import PageHeader from "../../_components/ui/page-header";
-import { ActionRow, TodayCard, WeekSessionsSection } from "../../_components/dashboard/ops-sections";
+import { ActionRow, TodayCard } from "../../_components/dashboard/ops-sections";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
 import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
-import { getAdminActionCounts, getMonthMoney, getWeekSessions } from "../../../lib/dashboard/admin-overview";
+import { getAdminActionCounts, getMonthMoney } from "../../../lib/dashboard/admin-overview";
+import { calendarPeriod, getCalendarRangeSessions } from "../../../lib/dashboard/calendar-range";
+import { parseMonthParam, parseView } from "../../../lib/calendar/month";
+import SessionsCalendar from "../../_components/calendar/sessions-calendar";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
 import { getEgpRevenue, parsePeriod } from "../../../lib/finance/revenue";
 import { formatMoney } from "../../../lib/payments/format";
@@ -19,7 +22,7 @@ export async function generateMetadata() {
   return { title: `${t("title")} | Zarabicschool` };
 }
 
-export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string }> }) {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string; view?: string; week?: string; month?: string }> }) {
   const user = await requireRole("ADMIN");
   const locale = await getLocale();
   const t = await getTranslations("adminDash");
@@ -27,7 +30,11 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const now = new Date();
   // "Today" = the viewer's local calendar day (Cairo time-input fix, 2026-10-27).
   const viewerZone = user.timezone || "Africa/Cairo";
-  const revenuePeriod = parsePeriod((await searchParams).revenue);
+  const params = await searchParams;
+  const revenuePeriod = parsePeriod(params.revenue);
+  const view = parseView(params.view);
+  const month = parseMonthParam(params.month, now, viewerZone);
+  const period = calendarPeriod(view, { week: params.week, month }, now, viewerZone);
   const [revenue, actions, money, flagCounts, today, week] = await Promise.all([
     getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
     getAdminActionCounts(user.academyId),
@@ -35,7 +42,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
     getTeacherFlagCounts(user.academyId),
     getTodaySessions(user.academyId, now, viewerZone),
-    getWeekSessions(user.academyId, now, viewerZone),
+    getCalendarRangeSessions({ academyId: user.academyId }, period.range),
   ]);
   const monthName = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: viewerZone, month: "long", year: "numeric" }).format(now);
   const actionTotal = actions.reports + actions.applications + actions.sessionRequests + actions.complaints;
@@ -105,7 +112,23 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </section>
       </div>
 
-      <WeekSessionsSection sessions={week} locale={locale} timeZone={viewerZone} exportName="zarabicschool-week-sessions" />
+      <SessionsCalendar
+        title={t("weekTitle")}
+        subtitle={t("calendarSubtitle")}
+        view={view}
+        weekStart={period.weekStart}
+        month={month}
+        monthDays={period.grid?.days ?? null}
+        sessions={week}
+        now={now}
+        timeZone={viewerZone}
+        locale={locale}
+        basePath="/admin"
+        show="both"
+        scheduleHref="/admin/sessions"
+        scheduleLabel={t("dispatchViewAll")}
+        exportName="zarabicschool-sessions"
+      />
 
       <RevenueChart buckets={revenue} period={revenuePeriod} locale={locale} />
     </DashboardShell>

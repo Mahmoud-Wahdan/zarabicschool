@@ -1,9 +1,7 @@
 import "server-only";
 
 import { prisma } from "../prisma";
-import { zonedDayRangeUtc, zonedYmd } from "../schedules/recurrence";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const sessionSelect = {
   id: true,
@@ -23,15 +21,6 @@ const sessionSelect = {
 export async function getStudentNextSession(studentId: string, now: Date) {
   return prisma.session.findFirst({
     where: { status: "SCHEDULED", scheduledEnd: { gt: now }, students: { some: { studentId } } },
-    orderBy: { scheduledStart: "asc" },
-    select: sessionSelect,
-  });
-}
-
-export async function getStudentWeekSessions(studentId: string, now: Date, timeZone: string) {
-  const start = zonedDayRangeUtc(zonedYmd(now, timeZone), timeZone).start;
-  return prisma.session.findMany({
-    where: { students: { some: { studentId } }, scheduledStart: { gte: start, lt: new Date(start.getTime() + 7 * DAY_MS) } },
     orderBy: { scheduledStart: "asc" },
     select: sessionSelect,
   });

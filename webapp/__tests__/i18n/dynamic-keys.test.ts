@@ -83,7 +83,6 @@ const REGISTRY: Record<string, () => string[]> = {
   "adminApplications.detail.*": () => callArgs("app/[locale]/admin/applications/[id]/page.tsx", "label"),
   "adminApplications.status.*": () => prismaEnum("ApplicationStatus"),
   "adminApplications.type.*": () => prismaEnum("ApplicationType"),
-  "adminDash.status.*": SESSION_STATUS,
   "management.enrollments.errors.*": () => literals("app/[locale]/admin/enrollments/enrollments-panel.tsx", "KNOWN_ERRORS"),
   "assignmentsAdmin.errors.*": () => literals("app/[locale]/admin/assignments/student-assignments-panel.tsx", "KNOWN_ERRORS"),
   "sessions.statuses.*": SESSION_STATUS,

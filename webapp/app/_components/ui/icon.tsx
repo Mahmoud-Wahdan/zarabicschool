@@ -1,13 +1,13 @@
 import {
   ArrowLeftRight, ArrowRight, BookOpenText, Calculator, Scale, Award, BadgeCheck, Banknote, Bell, BellRing, BookOpen, Calendar, CalendarCheck, CalendarCog,
-  CalendarDays, CalendarRange, CalendarX, Check, ChevronDown, ChevronUp, Circle, CircleAlert, CircleCheck, CircleCheckBig,
+  CalendarDays, CalendarRange, CalendarX, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CircleAlert, CircleCheck, CircleCheckBig,
   CirclePlay, CirclePlus, CircleUser, CircleX, ClipboardCheck, ClipboardList, Clock, Coins, CreditCard, ExternalLink, Eye,
   EyeOff, FileText, Flag, FolderOpen, GraduationCap, Hand, Headset, History, Hourglass, House, IdCard, Inbox, Info, KeyRound,
   Landmark, Languages, LayoutDashboard, LayoutGrid, LifeBuoy, ChartLine, ListChecks, LoaderCircle, Lock, LockKeyhole, Mail,
   Megaphone, Menu, MessageCircle, MessageCircleQuestion, MessageSquareText, MessageSquareWarning, MessagesSquare, Mic,
   MousePointerClick, Network, NotebookPen, PenLine, Pencil, Play, Presentation, Receipt, ReceiptText, RefreshCw, ScrollText,
   Search, ShieldCheck, SlidersHorizontal, Sparkles, Speech, Star, TriangleAlert, Tv, User, UserCheck, UserCog, UserPlus, Users,
-  UserX, Video, VideoOff, Volume2, Wallet, X, ScreenShare, type LucideIcon,
+  UserX, Rows3, Video, VideoOff, Volume2, Wallet, X, ScreenShare, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -31,6 +31,8 @@ const ICONS = {
   balance: Scale,
   calculate: Calculator,
   calendar_month: CalendarDays,
+  chevron_left: ChevronLeft,
+  chevron_right: ChevronRight,
   campaign: Megaphone,
   cancel: CircleX,
   card_membership: CreditCard,
@@ -111,6 +113,7 @@ const ICONS = {
   star: Star,
   start: Play,
   support_agent: Headset,
+  table_rows: Rows3,
   task_alt: CircleCheckBig,
   toll: Coins,
   translate: Languages,

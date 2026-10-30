@@ -494,10 +494,11 @@
     "noPayments": "No payments yet this month.",
     "unpaidInvoices": "Unpaid invoices",
     "pastDueRenewals": "Renewals past due",
-    "weekTitle": "This week's sessions",
+    "weekTitle": "Sessions calendar",
     "weekSubtitle": "Today and the next 6 days, in your time zone.",
     "colDay": "Day",
-    "weekEmpty": "No sessions this week."
+    "weekEmpty": "No sessions this week.",
+    "calendarSubtitle": "Switch between week, month and table."
   },
   "supervisorDash": {
     "eyebrow": "Academic monitoring room",
@@ -1170,14 +1171,15 @@
       "reportRejected": "Needs a fix",
       "reportsDone": "All your reports are in.",
       "reportsMore": "{count} more on your sessions page",
-      "weekTitle": "Your week",
+      "weekTitle": "My calendar",
       "weekSubtitle": "Today and the next 6 days, in your time zone.",
       "colDay": "Day",
       "colTime": "Time",
       "colSubject": "Subject",
       "colStudents": "Students",
       "colType": "Type",
-      "colStatus": "Status"
+      "colStatus": "Status",
+      "calendarSubtitle": "Switch between week, month and table."
     },
     "student": {
       "title": "Student dashboard",
@@ -1203,13 +1205,14 @@
       "homeworkLabel": "Homework",
       "notesLabel": "Teacher's notes",
       "allReports": "All your session reports",
-      "weekTitle": "Your week",
+      "weekTitle": "My calendar",
       "weekSubtitle": "Today and the next 6 days, in your time zone.",
       "colDay": "Day",
       "colTime": "Time",
       "colSubject": "Subject",
       "colTeacher": "Teacher",
-      "colStatus": "Status"
+      "colStatus": "Status",
+      "calendarSubtitle": "Switch between week, month and table."
     },
     "guardian": {
       "title": "Guardian dashboard",
@@ -2699,5 +2702,31 @@
     "export": "Export to Excel",
     "noMatch": "Nothing matches this filter.",
     "sortBy": "Sort by {column}"
+  },
+  "sessionsCalendar": {
+    "week": "Week",
+    "month": "Month",
+    "table": "Table",
+    "views": "Calendar views",
+    "periodNav": "Change period",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "todayMark": "(today)",
+    "weekOf": "Week of {date}",
+    "zone": "Times in {zone}",
+    "free": "Free",
+    "more": "+{count} more",
+    "openDay": "{date}: {count, plural, =0 {no sessions} one {# session} other {# sessions}}. Open the week",
+    "legend": "Status colours",
+    "empty": "No sessions in this period.",
+    "colDay": "Day",
+    "colTime": "Time",
+    "colSubject": "Subject",
+    "colTeacher": "Teacher",
+    "colStudents": "Students",
+    "colWho": "Teacher and students",
+    "colType": "Type",
+    "colStatus": "Status"
   }
 }

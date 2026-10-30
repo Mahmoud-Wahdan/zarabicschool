@@ -3,15 +3,15 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
-import Icon from "../../_components/ui/icon";
-import DataTable, { type DataRow } from "../../_components/ui/data-table";
-import { type BadgeTone } from "../../_components/ui/status-badge";
 import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole, studentFinanceBlocked } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
 import { joinWindowState } from "../../../lib/config/session-join";
 import { getJoinWindowMinutes } from "../../../lib/sessions/join-window";
-import { getStudentLatestHomework, getStudentNextSession, getStudentWeekSessions } from "../../../lib/dashboard/student-overview";
+import { getStudentLatestHomework, getStudentNextSession } from "../../../lib/dashboard/student-overview";
+import { calendarPeriod, getCalendarRangeSessions } from "../../../lib/dashboard/calendar-range";
+import { parseMonthParam, parseView } from "../../../lib/calendar/month";
+import SessionsCalendar from "../../_components/calendar/sessions-calendar";
 import { Link } from "../../../i18n/navigation";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -21,24 +21,25 @@ export async function generateMetadata() {
   return { title: `${t("student.title")} | Zarabicschool` };
 }
 
-const STATUS_TONE: Record<string, BadgeTone> = { SCHEDULED: "info", COMPLETED: "success", MISSED: "danger", CANCELLED: "neutral" };
-
-export default async function StudentDashboard() {
+export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string }> }) {
   const user = await requireRole("STUDENT");
   const zone = user.timezone || "Africa/Cairo";
   const now = new Date();
+  const params = await searchParams;
+  const view = parseView(params.view);
+  const month = parseMonthParam(params.month, now, zone);
+  const period = calendarPeriod(view, { week: params.week, month }, now, zone);
   // Finance wall (CONTEXT §12): a student WITH a guardian sees no finance nav at all.
-  const [financeHidden, t, tSessions, locale, student, joinWindowMinutes] = await Promise.all([
+  const [financeHidden, t, locale, student, joinWindowMinutes] = await Promise.all([
     studentFinanceBlocked(user.id),
     getTranslations("dashboard"),
-    getTranslations("sessions"),
     getLocale(),
     prisma.student.findUnique({ where: { userId: user.id }, select: { id: true } }),
     getJoinWindowMinutes(user.academyId),
   ]);
   const [nextSession, week, homework] = await Promise.all([
     student ? getStudentNextSession(student.id, now) : null,
-    student ? getStudentWeekSessions(student.id, now, zone) : [],
+    student ? getCalendarRangeSessions({ studentId: student.id }, period.range) : [],
     student ? getStudentLatestHomework(student.id) : null,
   ]);
 
@@ -48,18 +49,6 @@ export default async function StudentDashboard() {
   const shortDay = new Intl.DateTimeFormat(dateLocale, { timeZone: zone, weekday: "short", day: "numeric", month: "short" });
   const subjectName = (subject: { nameAr: string; nameEn: string }) => (locale === "ar" ? subject.nameAr : subject.nameEn);
   const nextState = nextSession ? joinWindowState(nextSession.scheduledStart, nextSession.scheduledEnd, now, joinWindowMinutes) : null;
-
-  const weekRows: DataRow[] = week.map((session) => ({
-    id: session.id,
-    filter: session.status,
-    cells: {
-      day: { text: shortDay.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
-      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
-      subject: { text: subjectName(session.subject) },
-      teacher: { text: session.teacher.user.displayName },
-      status: { text: tSessions(`statuses.${session.status}`), tone: STATUS_TONE[session.status] ?? "neutral" },
-    },
-  }));
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
@@ -113,33 +102,22 @@ export default async function StudentDashboard() {
         </section>
       </div>
 
-      <section className="z-card flex flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="student-week">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
-          <div>
-            <h2 id="student-week" className="text-headline-sm font-bold text-primary">{t("student.weekTitle")}</h2>
-            <p className="text-body-sm text-on-surface-variant">{t("student.weekSubtitle")}</p>
-          </div>
-          <Link href="/student/sessions" className="btn btn-soft">
-            <Icon name="calendar_month" size={18} />
-            <span>{t("student.actions.schedule")}</span>
-          </Link>
-        </div>
-        <DataTable
-          caption={t("student.weekTitle")}
-          columns={[
-            { key: "day", label: t("student.colDay") },
-            { key: "time", label: t("student.colTime") },
-            { key: "subject", label: t("student.colSubject") },
-            { key: "teacher", label: t("student.colTeacher") },
-            { key: "status", label: t("student.colStatus") },
-          ]}
-          rows={weekRows}
-          quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: tSessions(`statuses.${status}`) }))}
-          emptyTitle={tSessions("empty")}
-          emptyIcon="event_available"
-          initialSort={{ key: "day", direction: "asc" }}
-        />
-      </section>
+      <SessionsCalendar
+        title={t("student.weekTitle")}
+        subtitle={t("student.calendarSubtitle")}
+        view={view}
+        weekStart={period.weekStart}
+        month={month}
+        monthDays={period.grid?.days ?? null}
+        sessions={week}
+        now={now}
+        timeZone={zone}
+        locale={locale}
+        basePath="/student"
+        show="teacher"
+        scheduleHref="/student/sessions"
+        scheduleLabel={t("student.actions.schedule")}
+      />
     </DashboardShell>
   );
 }

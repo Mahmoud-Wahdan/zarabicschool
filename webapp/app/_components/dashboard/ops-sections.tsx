@@ -1,15 +1,13 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "../../../i18n/navigation";
-import DataTable, { type DataRow } from "../ui/data-table";
 import Icon, { type IconName } from "../ui/icon";
 import { type BadgeTone } from "../ui/status-badge";
 
 /**
  * Shared parts of the operations dashboards (Admin and Supervisor, owner 2026-10-31):
- * today's sessions, "needs you" rows and the week's sessions table. No money here.
+ * today's sessions and "needs you" rows. No money here.
  */
-const SESSION_STATUS_TONE: Record<string, BadgeTone> = { SCHEDULED: "info", COMPLETED: "success", MISSED: "danger", CANCELLED: "neutral" };
 
 type OpsSession = {
   id: string;
@@ -70,55 +68,3 @@ export async function TodayCard({ sessions, now }: { sessions: OpsSession[]; now
   );
 }
 
-export async function WeekSessionsSection({ sessions, locale, timeZone, exportName }: { sessions: OpsSession[]; locale: string; timeZone: string; exportName: string }) {
-  const t = await getTranslations("adminDash");
-  const dateLocale = locale === "ar" ? "ar-EG" : "en-GB";
-  const dayFormat = new Intl.DateTimeFormat(dateLocale, { timeZone, weekday: "short", day: "numeric", month: "short" });
-  const timeFormat = new Intl.DateTimeFormat(dateLocale, { timeZone, hour: "numeric", minute: "2-digit" });
-  const separator = locale === "ar" ? "، " : ", ";
-  const rows: DataRow[] = sessions.map((session) => ({
-    id: session.id,
-    filter: session.status,
-    cells: {
-      day: { text: dayFormat.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
-      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
-      subject: { text: locale === "en" ? session.subject.nameEn : session.subject.nameAr },
-      teacher: { text: session.teacher.user.displayName },
-      students: { text: session.students.map((item) => item.student.user.displayName).join(separator) || "—" },
-      type: { text: session.sessionType === "PRIVATE" ? t("private") : t("group") },
-      status: { text: t(`status.${session.status}`), tone: SESSION_STATUS_TONE[session.status] ?? "neutral" },
-    },
-  }));
-  return (
-    <section className="z-card flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="dash-week">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
-        <div>
-          <h2 id="dash-week" className="text-headline-sm font-bold text-primary">{t("weekTitle")}</h2>
-          <p className="text-body-sm text-on-surface-variant">{t("weekSubtitle")}</p>
-        </div>
-        <Link href="/admin/sessions" className="btn btn-soft">
-          <Icon name="calendar_month" size={18} />
-          <span>{t("dispatchViewAll")}</span>
-        </Link>
-      </div>
-      <DataTable
-        caption={t("weekTitle")}
-        columns={[
-          { key: "day", label: t("colDay") },
-          { key: "time", label: t("colTime") },
-          { key: "subject", label: t("colSubject") },
-          { key: "teacher", label: t("colTeacher") },
-          { key: "students", label: t("colStudents"), sortable: false },
-          { key: "type", label: t("colType") },
-          { key: "status", label: t("colStatus") },
-        ]}
-        rows={rows}
-        quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: t(`status.${status}`) }))}
-        exportName={exportName}
-        emptyTitle={t("weekEmpty")}
-        emptyIcon="video_camera_front"
-        initialSort={{ key: "day", direction: "asc" }}
-      />
-    </section>
-  );
-}

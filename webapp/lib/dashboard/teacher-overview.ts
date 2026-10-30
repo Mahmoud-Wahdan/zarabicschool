@@ -1,7 +1,6 @@
 import "server-only";
 
 import { prisma } from "../prisma";
-import { zonedDayRangeUtc, zonedYmd } from "../schedules/recurrence";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How far back a missing report is still listed on the home page (the sessions page lists all). */
@@ -24,15 +23,6 @@ const sessionSelect = {
 export async function getTeacherNextSession(teacherId: string, now: Date) {
   return prisma.session.findFirst({
     where: { teacherId, status: "SCHEDULED", scheduledEnd: { gt: now } },
-    orderBy: { scheduledStart: "asc" },
-    select: sessionSelect,
-  });
-}
-
-export async function getTeacherWeekSessions(teacherId: string, now: Date, timeZone: string) {
-  const start = zonedDayRangeUtc(zonedYmd(now, timeZone), timeZone).start;
-  return prisma.session.findMany({
-    where: { teacherId, scheduledStart: { gte: start, lt: new Date(start.getTime() + 7 * DAY_MS) } },
     orderBy: { scheduledStart: "asc" },
     select: sessionSelect,
   });
