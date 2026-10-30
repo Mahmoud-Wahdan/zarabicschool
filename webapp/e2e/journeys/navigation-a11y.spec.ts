@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
-import { ROLE_HOME } from "../support/run";
+import { clientIp, ROLE_HOME } from "../support/run";
 import { expect, expectHealthyPage, messages, test, visit, type Locale } from "../support/test";
 
 /**
@@ -26,7 +26,13 @@ for (const who of PEOPLE) {
   for (const locale of ["ar", "en"] as Locale[]) {
     test(`${who} (${locale}): every menu item opens a healthy, accessible page`, async ({ open }) => {
       test.setTimeout(240_000);
-      const page = await open(who, { locale });
+      // Its own client address per walk: one person clicking ~30 pages stays inside the
+      // app's 120 requests/min, two walks in a row from one address would not.
+      const page = await open(who, { locale, ip: clientIp(`journey-${who}-${locale}`) });
+      let limited = false;
+      page.on("response", (response) => {
+        if (response.status() === 429) limited = true;
+      });
       await visit(page, `/${locale}${ROLE_HOME[who]}`);
       const nav = page.getByRole("navigation", { name: messages[locale].appShell.primaryNav });
       const links = nav.getByRole("link");
@@ -44,6 +50,12 @@ for (const who of PEOPLE) {
         await nav.getByRole("link", { name: item.name, exact: false }).first().click();
         await page.waitForURL((url) => url.pathname === item.href, { timeout: 30_000 });
         await page.waitForLoadState("load");
+        if (limited) {
+          // Rate-limited all the same: wait the window out and load the page again.
+          limited = false;
+          await page.waitForTimeout(61_000);
+          await visit(page, item.href);
+        }
         await expectHealthyPage(page, locale, label);
         await expect.soft(nav.locator(`a[href="${item.href}"]`), `${label}: current page`).toHaveAttribute("aria-current", "page");
         expect.soft(await a11yViolations(page), `${label}: accessibility`).toEqual([]);
