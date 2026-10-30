@@ -318,7 +318,13 @@
       "PENDING": "قيد الانتظار",
       "APPROVED": "معتمد",
       "REJECTED": "مرفوض"
-    }
+    },
+    "listTitle": "الطلبات",
+    "colRequester": "مقدّم الطلب",
+    "colRole": "الصفة",
+    "colSession": "الحصة",
+    "colTime": "موعد الحصة",
+    "colStatus": "الحالة"
   },
   "billingAdmin": {
     "title": "خطط الأسعار وأسعار الصرف",
@@ -2062,7 +2068,12 @@
       "teacherApproved": "تم اعتماد {name} وأُرسلت بيانات الدخول.",
       "pendingApproval": "في انتظار الاعتماد",
       "approveTeacher": "اعتماد",
-      "waitingForAdmin": "في انتظار المدير"
+      "waitingForAdmin": "في انتظار المدير",
+      "newSubject": "إضافة مادة",
+      "subjectList": "المواد",
+      "subjectCreated": "تمت إضافة المادة.",
+      "slugTaken": "هذا المعرّف مستخدم لمادة أخرى.",
+      "noSubjects": "لا توجد مواد بعد."
     }
   },
   "paymentReturn": {
@@ -2170,7 +2181,9 @@
     "refundRequestRejectReason": "السبب الذي سيصل إلى ولي الأمر",
     "refundRequestRejectConfirm": "رفض الطلب",
     "refundRequestRejectFailed": "تعذر رفض الطلب. حاول مرة أخرى.",
-    "refundHeldSessions": "هذه الحصص القادمة تحجز رصيد الباقة. أزل الطالب منها أولًا:"
+    "refundHeldSessions": "هذه الحصص القادمة تحجز رصيد الباقة. أزل الطالب منها أولًا:",
+    "listTitle": "الفواتير",
+    "colCreated": "تاريخ الإصدار"
   },
   "payroll": {
     "teacherTitle": "راتبي",
@@ -2259,7 +2272,8 @@
     "done": "تم حفظ القرار.",
     "doneNote": "يُصرف الوقت الإضافي المعتمد كتعديل بنفس سعر الدقيقة — ولا يغيّر أبدًا رصيد الحصة المُسوّى.",
     "attended": "حاضر",
-    "absent": "غائب"
+    "absent": "غائب",
+    "failed": "تعذّر حفظ القرار. حدّث الصفحة وحاول مرة أخرى."
   },
   "studentReports": {
     "title": "تقارير الحصص",
@@ -2571,7 +2585,16 @@
       "saved": "تم الحفظ: {days} أيام.",
       "invalid": "أدخل رقمًا صحيحًا من {min} إلى {max}.",
       "error": "تعذّر الحفظ. حاول مرة أخرى."
-    }
+    },
+    "colStudent": "الطالب",
+    "colPayer": "الدافع",
+    "colPlan": "الخطة",
+    "colPrice": "السعر الشهري",
+    "colStatus": "الحالة",
+    "colPeriodEnd": "نهاية الفترة",
+    "colGrace": "نهاية المهلة",
+    "colActions": "الإجراءات",
+    "manage": "إدارة"
   },
   "account": {
     "title": "الحساب",

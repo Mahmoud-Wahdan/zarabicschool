@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "../../../i18n/navigation";
@@ -43,6 +43,9 @@ export default function DataTable({
   emptyIcon = "inbox",
   initialSort,
   caption,
+  actions,
+  expanded,
+  select,
 }: {
   columns: DataColumn[];
   rows: DataRow[];
@@ -54,6 +57,12 @@ export default function DataTable({
   initialSort?: { key: string; direction: "asc" | "desc" };
   /** Accessible name of the table. */
   caption: string;
+  /** Per-row controls (client pages only): rendered in a last column / under each card. */
+  actions?: { label: string; render: (rowId: string) => ReactNode };
+  /** An open inline form under a row (e.g. a refund), or null. */
+  expanded?: (rowId: string) => ReactNode | null;
+  /** Master–detail: the first column becomes a button that selects its row. */
+  select?: { selectedId: string | null; onSelect: (rowId: string) => void };
 }) {
   const t = useTranslations("dataTable");
   const [filter, setFilter] = useState("all");
@@ -105,6 +114,17 @@ export default function DataTable({
       cell.text
     );
 
+  const firstCell = (row: DataRow) => {
+    const cell = row.cells[titleColumn.key];
+    if (!select || !cell) return cell ? renderCell(cell) : "—";
+    const selected = select.selectedId === row.id;
+    return (
+      <button type="button" aria-pressed={selected} onClick={() => select.onSelect(row.id)} className="text-start font-semibold text-primary underline-offset-2 hover:underline">
+        {cell.text}
+      </button>
+    );
+  };
+
   return (
     <div className="flex min-w-0 flex-col">
       {hasToolbar ? (
@@ -143,8 +163,8 @@ export default function DataTable({
         <>
         <ul className="divide-y divide-outline-variant border-t border-outline-variant md:hidden" aria-label={caption}>
           {visible.map((row) => (
-            <li key={row.id} className="flex flex-col gap-2 px-4 py-3">
-              <p className="text-body-md font-semibold text-on-surface">{row.cells[titleColumn.key] ? renderCell(row.cells[titleColumn.key]) : "—"}</p>
+            <li key={row.id} className={`flex flex-col gap-2 px-4 py-3 ${select?.selectedId === row.id ? "bg-secondary-fixed/20" : ""}`}>
+              <p className="text-body-md font-semibold text-on-surface">{firstCell(row)}</p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-body-sm">
                 {detailColumns.map((column) => (
                   <div key={column.key} className="contents">
@@ -153,6 +173,8 @@ export default function DataTable({
                   </div>
                 ))}
               </dl>
+              {actions ? <div className="flex flex-wrap gap-2 pt-1">{actions.render(row.id)}</div> : null}
+              {expanded?.(row.id) ?? null}
             </li>
           ))}
         </ul>
@@ -176,23 +198,35 @@ export default function DataTable({
                     </th>
                   );
                 })}
+                {actions ? <th scope="col"><span className="sr-only">{actions.label}</span></th> : null}
               </tr>
             </thead>
             <tbody>
-              {visible.map((row) => (
-                <tr key={row.id}>
+              {visible.map((row) => {
+                const open = expanded?.(row.id) ?? null;
+                return (
+                <Fragment key={row.id}>
+                <tr className={select?.selectedId === row.id ? "bg-secondary-fixed/20" : undefined}>
                   {columns.map((column) => {
                     const cell = row.cells[column.key];
                     if (!cell) return <td key={column.key}>—</td>;
-                    const content = renderCell(cell);
+                    const content = select && column.key === titleColumn.key ? firstCell(row) : renderCell(cell);
                     return (
                       <td key={column.key} className={`${cell.strong ? "font-semibold text-on-surface" : ""} ${cell.numeric ? "whitespace-nowrap tabular-nums" : ""}`}>
                         {content}
                       </td>
                     );
                   })}
+                  {actions ? <td className="w-px whitespace-nowrap"><div className="flex justify-end gap-2">{actions.render(row.id)}</div></td> : null}
                 </tr>
-              ))}
+                {open ? (
+                  <tr>
+                    <td colSpan={columns.length + (actions ? 1 : 0)}>{open}</td>
+                  </tr>
+                ) : null}
+                </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

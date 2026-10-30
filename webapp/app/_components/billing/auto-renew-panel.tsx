@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import DataTable, { type DataRow } from "../ui/data-table";
 import StatusBadge, { type BadgeTone } from "../ui/status-badge";
 import ChargeDateRail from "./charge-date-rail";
 import { upcomingChargeDates } from "../../../lib/billing/renewal-dates";
@@ -112,6 +113,64 @@ export function RenewalRow({ subscription, timeZone, showPayer = false }: { subs
   );
 }
 
+/** Admin view (owner, 2026-10-31: long lists are tables): one row per renewal; "Manage" opens its cancel controls. */
+function AdminRenewalsTable({ subscriptions, timeZone }: { subscriptions: PanelSubscription[]; timeZone: string }) {
+  const t = useTranslations("renewal");
+  const date = useDateFormat(timeZone);
+  const [open, setOpen] = useState<string | null>(null);
+  const rows = subscriptions.map((row): DataRow => ({
+    id: row.id,
+    filter: row.status,
+    cells: {
+      student: { text: row.studentName, strong: true },
+      payer: { text: row.payerName },
+      plan: { text: row.planName },
+      price: { text: row.priceLabel, numeric: true },
+      status: { text: !row.autoRenew && row.status !== "CANCELED" && row.status !== "INCOMPLETE" ? t("cancelScheduled", { date: date.format(new Date(row.currentPeriodEnd)) }) : t(`status.${row.status}`), tone: !row.autoRenew && row.status !== "INCOMPLETE" ? "neutral" : TONE[row.status] },
+      periodEnd: { text: date.format(new Date(row.currentPeriodEnd)), sort: row.currentPeriodEnd, numeric: true },
+      grace: { text: row.status === "PAST_DUE" && row.graceEndsAt ? date.format(new Date(row.graceEndsAt)) : "—", sort: row.graceEndsAt ?? "", numeric: true },
+    },
+  }));
+  return (
+    <div className="z-card overflow-hidden rounded-xl pt-4 sm:pt-6">
+      <DataTable
+        caption={t("title")}
+        columns={[
+          { key: "student", label: t("colStudent") },
+          { key: "payer", label: t("colPayer") },
+          { key: "plan", label: t("colPlan") },
+          { key: "price", label: t("colPrice") },
+          { key: "status", label: t("colStatus") },
+          { key: "periodEnd", label: t("colPeriodEnd") },
+          { key: "grace", label: t("colGrace") },
+        ]}
+        rows={rows}
+        quickFilters={(["ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] as const).map((status) => ({ key: status, label: t(`status.${status}`) }))}
+        exportName="zarabicschool-renewals"
+        emptyTitle={t("adminEmpty")}
+        emptyIcon="autorenew"
+        initialSort={{ key: "periodEnd", direction: "asc" }}
+        actions={{
+          label: t("colActions"),
+          render: (id) => {
+            const row = subscriptions.find((entry) => entry.id === id);
+            if (!row || !row.autoRenew || (row.status !== "ACTIVE" && row.status !== "PAST_DUE")) return null;
+            return (
+              <button type="button" aria-expanded={open === id} onClick={() => setOpen(open === id ? null : id)} className="btn btn-outline">
+                {t("manage")}
+              </button>
+            );
+          },
+        }}
+        expanded={(id) => {
+          const row = subscriptions.find((entry) => entry.id === id);
+          return row && open === id ? <RenewalRow subscription={row} timeZone={timeZone} showPayer /> : null;
+        }}
+      />
+    </div>
+  );
+}
+
 export default function AutoRenewPanel({ students, plans, subscriptions, timeZone, now, mode = "payer" }: Props) {
   const t = useTranslations("renewal");
   const locale = useLocale();
@@ -152,10 +211,8 @@ export default function AutoRenewPanel({ students, plans, subscriptions, timeZon
   return (
     <section aria-labelledby="auto-renew-title" className="space-y-4">
       <h2 id="auto-renew-title" className={mode === "admin" ? "sr-only" : "text-headline-sm font-bold text-primary"}>{t("title")}</h2>
-      {subscriptions.map((row) => <RenewalRow key={row.id} subscription={row} timeZone={timeZone} showPayer={mode === "admin"} />)}
-      {mode === "admin" ? (
-        subscriptions.length === 0 ? <p className="text-body-sm text-on-surface-variant">{t("adminEmpty")}</p> : null
-      ) : plans.length === 0 ? (
+      {mode === "admin" ? <AdminRenewalsTable subscriptions={subscriptions} timeZone={timeZone} /> : subscriptions.map((row) => <RenewalRow key={row.id} subscription={row} timeZone={timeZone} />)}
+      {mode === "admin" ? null : plans.length === 0 ? (
         <p className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-body-sm text-on-surface-variant">{t("noPlans")}</p>
       ) : eligible.length === 0 ? null : (
         <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[var(--dashboard-shadow)] sm:p-6">

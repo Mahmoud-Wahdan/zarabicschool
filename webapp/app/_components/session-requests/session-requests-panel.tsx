@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { formatDateTime } from "../../../lib/schedules/display";
 import { utcToWallClockInput, wallClockInputToUtc } from "../../../lib/schedules/recurrence";
 import Icon from "../ui/icon";
+import DataTable, { type DataRow } from "../ui/data-table";
 import StatusBadge from "../ui/status-badge";
 
 export type QueueSessionRequest = {
@@ -151,47 +152,44 @@ export default function SessionRequestsPanel({
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="flex flex-col gap-2 lg:col-span-5">
-          {items.map((request) => (
-            <button
-              key={request.id}
-              type="button"
-              onClick={() => selectRequest(request)}
-              className={`rounded-xl p-4 text-start shadow-sm transition-all ${
-                request.id === selectedId
-                  ? "bg-gradient-to-r from-secondary/5 via-surface-container-lowest to-surface-container-lowest shadow-md"
-                  : "bg-surface-container-lowest hover:shadow-md"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-title-md font-bold text-primary">{request.requesterName}</p>
-                  <p className="truncate text-label-sm text-on-surface-variant">
-                    {t(`roles.${request.requesterRole}`)} · {request.subjectName} · {request.teacherName}
-                  </p>
-                </div>
-                <StatusBadge tone={request.status === "PENDING" ? "pending" : request.status === "APPROVED" ? "success" : "danger"}>
-                  {t(`statuses.${request.status}`)}
-                </StatusBadge>
-              </div>
-              <p className="mt-2 line-clamp-2 text-body-sm text-on-surface">{request.reason}</p>
-              <p className="mt-1 text-label-sm text-on-surface-variant">{dateTime(request.scheduledStart)}</p>
-            </button>
-          ))}
-          {items.length === 0 ? (
-            <div className="z-card flex flex-col items-center gap-2 rounded-xl px-6 py-10 text-center">
-              <span className="rounded-xl bg-surface-container-low p-3 text-on-surface-variant">
-                <Icon name="task_alt" size={28} />
-              </span>
-              <p className="text-title-md text-on-surface">{t("emptyTitle")}</p>
-              <p className="max-w-md text-body-sm text-on-surface-variant">{t("emptyText")}</p>
-            </div>
-          ) : null}
+        <div className="min-w-0 overflow-hidden rounded-lg border border-outline-variant pt-3 lg:col-span-7">
+          <DataTable
+            caption={t("listTitle")}
+            columns={[
+              { key: "requester", label: t("colRequester") },
+              { key: "role", label: t("colRole") },
+              { key: "session", label: t("colSession") },
+              { key: "time", label: t("colTime") },
+              { key: "status", label: t("colStatus") },
+            ]}
+            rows={items.map((request): DataRow => ({
+              id: request.id,
+              filter: request.status,
+              cells: {
+                requester: { text: request.requesterName },
+                role: { text: t(`roles.${request.requesterRole}`) },
+                session: { text: `${request.subjectName} · ${request.teacherName}` },
+                time: { text: dateTime(request.scheduledStart), sort: request.scheduledStart, numeric: true },
+                status: { text: t(`statuses.${request.status}`), tone: request.status === "PENDING" ? "pending" : request.status === "APPROVED" ? "success" : "danger" },
+              },
+            }))}
+            quickFilters={(["PENDING", "APPROVED", "REJECTED"] as const).map((status) => ({ key: status, label: t(`statuses.${status}`) }))}
+            emptyTitle={t("emptyTitle")}
+            emptyIcon="task_alt"
+            initialSort={{ key: "time", direction: "asc" }}
+            select={{
+              selectedId,
+              onSelect: (id) => {
+                const request = items.find((row) => row.id === id);
+                if (request) selectRequest(request);
+              },
+            }}
+          />
         </div>
 
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-5 lg:sticky lg:top-20">
           {selected ? (
-            <div className="z-card-raised flex flex-col gap-4 rounded-xl p-5">
+            <div className="flex flex-col gap-4 rounded-lg border border-outline-variant bg-surface-container-lowest p-5">
               <div className="flex flex-wrap items-start justify-between gap-2 border-b border-outline-variant pb-3">
                 <div>
                   <p className="text-title-md font-bold text-primary">{selected.requesterName}</p>
@@ -285,7 +283,7 @@ export default function SessionRequestsPanel({
               ) : null}
             </div>
           ) : (
-            <div className="z-card flex flex-col items-center gap-2 rounded-xl px-6 py-16 text-center">
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-outline-variant px-6 py-16 text-center">
               <span className="rounded-xl bg-surface-container-low p-3 text-on-surface-variant">
                 <Icon name="waving_hand" size={32} />
               </span>

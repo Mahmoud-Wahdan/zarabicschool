@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
 import OvertimeQueuePanel from "../../../_components/payroll/overtime-queue-panel";
+import PageHeader from "../../../_components/ui/page-header";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
@@ -32,9 +33,8 @@ export default async function AdminOvertimePage() {
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
-      <div className="mt-4">
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <div>
         <OvertimeQueuePanel
           initialRows={reports.map((report) => ({
             reportId: report.id,
@@ -42,7 +42,7 @@ export default async function AdminOvertimePage() {
             studentName: report.student.user.displayName,
             sessionLabel: `${locale === "ar" ? report.session.subject.nameAr : report.session.subject.nameEn} · ${formatSessionDateTime(report.session.scheduledStart, user.timezone, locale)}`,
             minutes: report.extraTimeMinutes,
-            outcome: report.attendanceOutcome === "ATTENDED" ? (locale === "ar" ? "حضر" : "Attended") : locale === "ar" ? "غائب" : "Absent",
+            outcome: report.attendanceOutcome === "ATTENDED" ? t("attended") : t("absent"),
           }))}
         />
       </div>

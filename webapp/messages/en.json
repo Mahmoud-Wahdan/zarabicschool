@@ -318,7 +318,13 @@
       "PENDING": "Pending",
       "APPROVED": "Approved",
       "REJECTED": "Rejected"
-    }
+    },
+    "listTitle": "Requests",
+    "colRequester": "Requester",
+    "colRole": "Role",
+    "colSession": "Session",
+    "colTime": "Session time",
+    "colStatus": "Status"
   },
   "billingAdmin": {
     "title": "Plans & Exchange Rates",
@@ -2062,7 +2068,12 @@
       "teacherApproved": "{name} is approved. Their sign-in details were sent.",
       "pendingApproval": "Waiting for approval",
       "approveTeacher": "Approve",
-      "waitingForAdmin": "Waiting for the Admin"
+      "waitingForAdmin": "Waiting for the Admin",
+      "newSubject": "Add a subject",
+      "subjectList": "Subjects",
+      "subjectCreated": "Subject added.",
+      "slugTaken": "This slug is already used by another subject.",
+      "noSubjects": "No subjects yet."
     }
   },
   "paymentReturn": {
@@ -2170,7 +2181,9 @@
     "refundRequestRejectReason": "Reason for the payer",
     "refundRequestRejectConfirm": "Reject request",
     "refundRequestRejectFailed": "The request could not be rejected. Try again.",
-    "refundHeldSessions": "These upcoming sessions hold this package's credit. Remove the student from them first:"
+    "refundHeldSessions": "These upcoming sessions hold this package's credit. Remove the student from them first:",
+    "listTitle": "Invoices",
+    "colCreated": "Created"
   },
   "payroll": {
     "teacherTitle": "My payroll",
@@ -2259,7 +2272,8 @@
     "done": "Decision saved.",
     "doneNote": "Approved overtime is paid as an adjustment at the same per-minute rate — it never changes the settled session credit.",
     "attended": "Attended",
-    "absent": "Absent"
+    "absent": "Absent",
+    "failed": "Could not save the decision. Refresh and try again."
   },
   "studentReports": {
     "title": "Session reports",
@@ -2571,7 +2585,16 @@
       "saved": "Saved: {days} days.",
       "invalid": "Enter a whole number from {min} to {max}.",
       "error": "Could not save. Try again."
-    }
+    },
+    "colStudent": "Student",
+    "colPayer": "Payer",
+    "colPlan": "Plan",
+    "colPrice": "Monthly price",
+    "colStatus": "Status",
+    "colPeriodEnd": "Period ends",
+    "colGrace": "Grace ends",
+    "colActions": "Actions",
+    "manage": "Manage"
   },
   "account": {
     "title": "Account",

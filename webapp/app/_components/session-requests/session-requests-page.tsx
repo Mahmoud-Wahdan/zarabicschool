@@ -11,7 +11,6 @@ export default async function SessionRequestsPage({ role }: { role: "ADMIN" | "S
   const user = await requireRoles([role]);
   const locale = await getLocale();
   const t = await getTranslations("sessionRequests");
-  const tShell = await getTranslations("appShell");
 
   const ready = await isSessionRequestsReady();
   let requests: QueueSessionRequest[] = [];
@@ -89,7 +88,6 @@ export default async function SessionRequestsPage({ role }: { role: "ADMIN" | "S
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} navBadges={{ requests: pendingCount }}>
       <PageHeader
-        eyebrow={role === "ADMIN" ? tShell("scope.ADMIN") : tShell("scope.SUPERVISOR")}
         title={t("title")}
         subtitle={t("subtitle")}
       />

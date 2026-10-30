@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import DataTable, { type DataRow } from "../ui/data-table";
+import { type BadgeTone } from "../ui/status-badge";
 import RefundForm from "./refund-form";
 
 type InvoiceRow = {
@@ -21,12 +23,15 @@ type InvoiceRow = {
 
 type StudentOption = { id: string; displayName: string };
 
+const STATUS_TONE: Record<InvoiceRow["status"], BadgeTone> = { PENDING: "pending", PAID: "success", FAILED: "danger", CANCELLED: "neutral" };
+
 export default function AdminInvoicesPanel({ initialInvoices, students, timeZone }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const [invoices, setInvoices] = useState(initialInvoices);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refundFor, setRefundFor] = useState<string | null>(null);
   const [create, setCreate] = useState({ studentId: "", packageType: "MONTHLY_PLAN", sessionsPurchased: 8, amountMinor: "", currency: "EGP", provider: "PAYMOB" });
 
   // S-13 (a) / D6: WhatsApp the payer a link to the platform invoices page.
@@ -51,6 +56,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
   const providerLabel = (provider: string) => (provider === "PAYMOB" ? t("providerPaymob") : t("providerUsd"));
+  const dateFormat = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" });
 
   async function createInvoice(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,38 +141,67 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
         </form>
       </section>
 
-      {invoices.map((invoice) => {
-        return (
-          <section key={invoice.id} className="z-card rounded-xl p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="font-semibold text-primary">
-                  {invoice.studentName} · {money(invoice.amountMinor, invoice.currency)} · {packageLabel(invoice.packageType)} · {invoice.sessionsPurchased}
-                </p>
-                <p className="mt-1 text-label-sm text-on-surface-variant">
-                  {providerLabel(invoice.provider)} ·{" "}
-                  {new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(invoice.createdAt))}
-                </p>
-              </div>
-              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${invoice.status === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                {t(`status.${invoice.status}`)}
-              </span>
-            </div>
-            {invoice.status === "PENDING" ? (
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button type="button" disabled={busy} onClick={() => void sendLink(invoice.id)} className="btn btn-outline disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                  {t("sendLink")}
-                </button>
-                <span className="text-label-sm text-on-surface-variant">{t("sendLinkHint")}</span>
-              </div>
-            ) : invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
-              <RefundForm timeZone={timeZone} invoiceId={invoice.id} amountMinor={invoice.amountMinor} currency={invoice.currency} sessionsPurchased={invoice.sessionsPurchased} />
-            ) : null}
-          </section>
-        );
-      })}
-      {invoices.length === 0 ? <p className="text-body-sm text-on-surface-variant">{t("empty")}</p> : null}
-      {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
+      <section className="z-card overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="invoice-list">
+        <h2 id="invoice-list" className="px-4 pb-3 text-headline-sm font-bold text-primary sm:px-6">{t("listTitle")}</h2>
+        <DataTable
+          caption={t("listTitle")}
+          columns={[
+            { key: "student", label: t("colStudent") },
+            { key: "amount", label: t("colAmount") },
+            { key: "package", label: t("colPackage") },
+            { key: "sessions", label: t("colSessions") },
+            { key: "provider", label: t("colProvider") },
+            { key: "created", label: t("colCreated") },
+            { key: "status", label: t("colStatus") },
+          ]}
+          rows={invoices.map((invoice): DataRow => ({
+            id: invoice.id,
+            filter: invoice.status,
+            cells: {
+              student: { text: invoice.studentName, strong: true },
+              amount: { text: money(invoice.amountMinor, invoice.currency), sort: Number(invoice.amountMinor), numeric: true },
+              package: { text: packageLabel(invoice.packageType) },
+              sessions: { text: String(invoice.sessionsPurchased), sort: invoice.sessionsPurchased, numeric: true },
+              provider: { text: providerLabel(invoice.provider) },
+              created: { text: dateFormat.format(new Date(invoice.createdAt)), sort: invoice.createdAt, numeric: true },
+              status: { text: t(`status.${invoice.status}`), tone: STATUS_TONE[invoice.status] },
+            },
+          }))}
+          quickFilters={(["PENDING", "PAID", "FAILED", "CANCELLED"] as const).map((status) => ({ key: status, label: t(`status.${status}`) }))}
+          exportName="zarabicschool-invoices"
+          emptyTitle={t("empty")}
+          emptyIcon="receipt_long"
+          initialSort={{ key: "created", direction: "desc" }}
+          actions={{
+            label: t("colActions"),
+            render: (id) => {
+              const invoice = invoices.find((row) => row.id === id);
+              if (!invoice) return null;
+              if (invoice.status === "PENDING") {
+                return (
+                  <button type="button" disabled={busy} onClick={() => void sendLink(invoice.id)} className="btn btn-outline disabled:opacity-50" title={t("sendLinkHint")}>
+                    {t("sendLink")}
+                  </button>
+                );
+              }
+              if (invoice.status === "PAID" && invoice.provider === "PAYMOB") {
+                return (
+                  <button type="button" aria-expanded={refundFor === invoice.id} onClick={() => setRefundFor(refundFor === invoice.id ? null : invoice.id)} className="btn btn-outline">
+                    {t("refund")}
+                  </button>
+                );
+              }
+              return null;
+            },
+          }}
+          expanded={(id) => {
+            const invoice = invoices.find((row) => row.id === id);
+            if (!invoice || refundFor !== id) return null;
+            return <RefundForm defaultOpen onClose={() => setRefundFor(null)} timeZone={timeZone} invoiceId={invoice.id} amountMinor={invoice.amountMinor} currency={invoice.currency} sessionsPurchased={invoice.sessionsPurchased} />;
+          }}
+        />
+      </section>
+      {message ? <p role="status" className="rounded-lg bg-surface-container-low px-3 py-2 text-body-sm text-on-surface">{message}</p> : null}
     </div>
   );
 }

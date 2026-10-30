@@ -9,10 +9,10 @@ import { useLocale, useTranslations } from "next-intl";
  * re-checks every limit. One Idempotency-Key per attempt, kept until the attempt is
  * answered, so a retried click can never refund twice.
  */
-export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased, timeZone, refundRequestId, onDone }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number; timeZone: string; refundRequestId?: string; onDone?: () => void }) {
+export default function RefundForm({ invoiceId, amountMinor, currency, sessionsPurchased, timeZone, refundRequestId, onDone, defaultOpen = false, onClose }: { invoiceId: string; amountMinor: string; currency: string; sessionsPurchased: number; timeZone: string; refundRequestId?: string; onDone?: () => void; /** Opened from a table row: no own toggle button; cancel calls onClose. */ defaultOpen?: boolean; onClose?: () => void }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [sessions, setSessions] = useState("1");
   const [reason, setReason] = useState("");
   const [key, setKey] = useState<string | null>(null);
@@ -66,6 +66,9 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
     }
   }
 
+  if (!open && defaultOpen) {
+    return message ? <p role="status" className="mt-2 text-body-sm text-on-surface-variant">{message}</p> : null;
+  }
   if (!open) {
     return (
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -90,7 +93,7 @@ export default function RefundForm({ invoiceId, amountMinor, currency, sessionsP
       <p className="text-sm">{preview !== null ? t("refundPreview", { amount: money(preview), sessions: count }) : t("refundHint")}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={!valid || busy} aria-busy={busy} onClick={() => void submit()} className="btn btn-primary disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{t("refundConfirm")}</button>
-        <button type="button" disabled={busy} onClick={() => { setOpen(false); setMessage(""); }} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundCancel")}</button>
+        <button type="button" disabled={busy} onClick={() => { setOpen(false); setMessage(""); onClose?.(); }} className="rounded-xl px-4 py-2 text-sm text-primary underline-offset-4 hover:underline">{t("refundCancel")}</button>
       </div>
       {message ? <p role="status" className="text-body-sm text-on-surface-variant">{message}</p> : null}
       {held.length ? (

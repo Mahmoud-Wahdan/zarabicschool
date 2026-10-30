@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
+import PageHeader from "../../../_components/ui/page-header";
 import { requireRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import SubjectsPanel from "./subjects-panel";
@@ -21,8 +22,7 @@ export default async function SubjectsPage() {
   });
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
-      <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
-      <p className="mt-2 text-sm opacity-70">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <SubjectsPanel initialSubjects={subjects} />
     </DashboardShell>
   );
