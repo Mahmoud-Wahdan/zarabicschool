@@ -154,9 +154,9 @@ export function StackedColumns({
           return segment;
         });
         return (
-          <g key={bucket.label} tabIndex={0} className="outline-none focus-visible:opacity-80">
+          <g key={bucket.label} tabIndex={0} aria-label={bucket.tooltip} className="outline-none focus-visible:[&>rect:first-of-type]:stroke-primary">
             <title>{bucket.tooltip}</title>
-            <rect x={PAD.left + band * index} y={PAD.top} width={band} height={plotHeight} fill="transparent" />
+            <rect x={PAD.left + band * index} y={PAD.top} width={band} height={plotHeight} fill="transparent" strokeWidth={2} />
             {segments}
             {index === peak && totals[index] > 0 ? (
               <text x={x + barWidth / 2} y={top - 6} textAnchor="middle" className="fill-on-surface text-[13px] font-semibold">{format(totals[index])}</text>
@@ -208,9 +208,9 @@ export function LineSeries({
       <Grid max={max} format={format} />
       {segments.map((d) => <path key={d} d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />)}
       {xy.map((point) => (
-        <g key={point.label} tabIndex={0} className="outline-none">
+        <g key={point.label} tabIndex={0} aria-label={point.tooltip} className="outline-none focus-visible:[&>rect]:stroke-primary">
           <title>{point.tooltip}</title>
-          <rect x={point.x - step / 2} y={PAD.top} width={Math.max(step, 16)} height={plotHeight} fill="transparent" />
+          <rect x={point.x - step / 2} y={PAD.top} width={Math.max(step, 16)} height={plotHeight} fill="transparent" strokeWidth={2} />
           {point.y !== null ? <circle cx={point.x} cy={point.y} r={4} fill={color} stroke={SURFACE} strokeWidth={2} /> : null}
           {xy.indexOf(point) % every === (xy.length - 1) % every ? (
             <text x={point.x} y={H - 8} textAnchor="middle" className="fill-on-surface-variant text-[13px]">{point.label}</text>
