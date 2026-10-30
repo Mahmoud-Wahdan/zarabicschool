@@ -5,7 +5,7 @@
  * cleanly on SIGINT/SIGTERM after the current tick. `--once` runs one tick (smoke test).
  */
 import { runWorkerLoop } from "../lib/worker/standalone";
-import { prisma } from "../lib/prisma";
+import { disconnectPrisma } from "../lib/prisma";
 
 const controller = new AbortController();
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => controller.abort());
@@ -18,4 +18,5 @@ runWorkerLoop({ once, signal: controller.signal })
     console.error("[worker] stopped on an error.", cause instanceof Error ? cause.message : cause);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  // Ends the client AND its pg pool; idle pooled connections would keep the process alive.
+  .finally(() => disconnectPrisma());
