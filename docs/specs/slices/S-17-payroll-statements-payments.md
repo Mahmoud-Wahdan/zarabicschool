@@ -95,6 +95,7 @@
 ## SQL S-12 (proposed) — one migration file `20261030120000_payroll_statement_month_payments`
 
 ```sql
+BEGIN;
 -- Which month a manual payroll row concerns (R6), and how a payment was made (R3).
 ALTER TABLE "payroll_ledger" ADD COLUMN "statement_month" CHAR(7);
 ALTER TABLE "payroll_ledger" ADD COLUMN "payment_method" VARCHAR(16);
@@ -115,7 +116,25 @@ ALTER TABLE "payroll_ledger" ADD CONSTRAINT "payroll_ledger_payment_method_requi
   CHECK ("entry_type" <> 'DISBURSEMENT' OR "payment_method" IS NOT NULL) NOT VALID;
 
 CREATE INDEX "payroll_ledger_teacher_month_idx" ON "payroll_ledger"("teacher_id", "statement_month");
+COMMIT;
 ```
+
+- **Atomic:** wrapped in `BEGIN; … COMMIT;` because `prisma migrate deploy` does not make a file atomic on its own
+  (tested 2026-10-30; see `review-2026-10-29-fixes.md`, "Owner questions on B1 / B4", answer 1). Applied with
+  `DIRECT_URL`. `schema.prisma` gets `statementMonth String? @map("statement_month") @db.Char(7)`,
+  `paymentMethod String? @map("payment_method") @db.VarChar(16)` and
+  `paymentReference String? @map("payment_reference") @db.VarChar(100)` in the same commit.
+- **Who may call what:**
+
+| Route | ADMIN | SUPERVISOR | TEACHER | GUARDIAN / STUDENT |
+|---|---|---|---|---|
+| `POST /api/payroll/payments` (money out) | yes | 403 | 403 | 403 |
+| `POST /api/payroll/adjustments` and reversal | yes | 403 | 403 | 403 |
+| `GET /api/payroll/statements` | any teacher of the academy | 403 | own only (else 404) | 403 |
+| `POST /api/payroll/disbursements` (old) | 410 `USE_PAYMENTS` | 403 | 403 | 403 |
+
+  Every money write is Admin-only, same-origin, and needs an `Idempotency-Key`. No amount appears in any
+  Supervisor payload or in any WhatsApp text.
 
 - **Not in this SQL (D94):** no `ADVANCE` enum value, no `teacher_advance_requests` table, no `advance_request_id` column.
 - **Code that must change together with the migration:** the existing adjustment and reversal routes must send

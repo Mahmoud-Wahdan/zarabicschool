@@ -41,8 +41,9 @@ bookable (booking and expiry do not subtract pending refunds).
 5. **Admin list:** a "Pending refunds" card on `/admin/invoices`, Admin only. It shows invoice, sessions,
    amount, age, last check and Paymob refund id, plus a link to the invoice.
 
-**SQL S-10 (proposed):**
+**SQL S-10 (proposed; revised 2026-10-30: explicit transaction):**
 ```sql
+BEGIN;
 -- Link each hold / reversal to the refund that caused it (append-only rows keep this forever).
 ALTER TABLE "subscription_ledger" ADD COLUMN "invoice_refund_id" UUID;
 ALTER TABLE "subscription_ledger" ADD CONSTRAINT "subscription_ledger_invoice_refund_fkey"
@@ -62,7 +63,7 @@ ALTER TABLE "subscription_ledger" ADD CONSTRAINT "subscription_ledger_refund_lin
 ALTER TABLE "invoice_refunds" ADD COLUMN "next_check_at" TIMESTAMPTZ(6);
 ALTER TABLE "invoice_refunds" ADD COLUMN "check_count" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_check_count_check" CHECK ("check_count" >= 0);
-CREATE INDEX "invoice_refunds_pending_next_check_idx" ON "invoice_refunds"("next_check_at") WHERE "status" = 'PENDING';
+CREATE INDEX "invoice_refunds_pending_next_check_idx" ON "invoice_refunds"("next_check_at" ASC NULLS FIRST) WHERE "status" = 'PENDING';
 -- D93: the Admin records the outcome of an "unknown" refund (seen in the Paymob dashboard).
 ALTER TABLE "invoice_refunds" ADD COLUMN "resolved_by" UUID;
 ALTER TABLE "invoice_refunds" ADD COLUMN "resolution_note" TEXT;
@@ -72,6 +73,7 @@ ALTER TABLE "invoice_refunds" ADD CONSTRAINT "invoice_refunds_manual_resolution_
   ("resolved_by" IS NULL AND "resolution_note" IS NULL)
   OR ("resolved_by" IS NOT NULL AND "status" <> 'PENDING' AND char_length(btrim("resolution_note")) BETWEEN 5 AND 500)
 );
+COMMIT;
 ```
 
 **Why the money is safe (reasoning):**
@@ -114,6 +116,80 @@ yet, so it will be verified in the Layer 2 run.
 - Booking cannot use held sessions (`reserveCredit` returns false at exactly the held count).
 - The same idempotency key twice gives one row, one hold, and a 200 replay.
 - Worker: back-off, isolation (one failing row does not stop the next), PENDING to SUCCEEDED with no second ledger row.
+
+## Owner questions on B1 / B4 (2026-10-30) — answers. Still NOT approved; nothing applied.
+
+**1. Is each migration atomic, and applied via DIRECT_URL?**
+- **DIRECT_URL: yes.** `webapp/prisma.config.ts` gives Prisma Migrate `datasource.url = DIRECT_URL` (the direct
+  connection, not the pooler). The app itself uses `DATABASE_URL`.
+- **Atomic: NOT by default.** Tested on 2026-10-30 against a throwaway local database (dropped afterwards):
+  - A plain `migration.sql` whose 2nd statement fails: `prisma migrate deploy` stops with P3018, but the 1st
+    statement (`CREATE TABLE`) **stayed**. The migration row is marked unfinished. That is a partial state.
+  - The same file wrapped in `BEGIN; … COMMIT;`: the failure left **nothing** behind (the table did not exist).
+  - The wrapped file without the error applied fully and was recorded as finished.
+- **So every new migration file (S-10, S-11, S-12) starts with `BEGIN;` and ends with `COMMIT;`.** None of them
+  uses `ALTER TYPE … ADD VALUE` (which cannot share a transaction with statements that use the new value), and
+  none uses `CREATE INDEX CONCURRENTLY` (not allowed in a transaction). The tables are small, so the plain index
+  builds take a short lock.
+- If one still fails: nothing was written; fix the file, run `npx prisma migrate resolve --rolled-back <name>`,
+  then deploy again.
+
+**2. schema.prisma** — changed in the SAME commit as each migration, never before. A model field without its
+column makes Prisma select a column that does not exist, so every query on that table would fail. The exact text:
+```prisma
+// SubscriptionLedger (S-10)
+invoiceRefundId String?        @map("invoice_refund_id") @db.Uuid
+invoiceRefund   InvoiceRefund? @relation(fields: [invoiceRefundId], references: [id], onDelete: Restrict)
+// InvoiceRefund (S-10)
+nextCheckAt    DateTime?           @map("next_check_at") @db.Timestamptz(6)
+checkCount     Int                 @default(0) @map("check_count")
+resolvedBy     String?             @map("resolved_by") @db.Uuid
+resolutionNote String?             @map("resolution_note")
+resolver       User?               @relation("InvoiceRefundResolver", fields: [resolvedBy], references: [id], onDelete: Restrict)
+ledgerEntries  SubscriptionLedger[]
+// + on User: refundsResolved InvoiceRefund[] @relation("InvoiceRefundResolver")
+// Subscription (S-11)
+expiryNextCheckAt DateTime? @map("expiry_next_check_at") @db.Timestamptz(6)
+// BillingSubscription (S-11)
+nextCheckAt DateTime? @map("next_check_at") @db.Timestamptz(6)
+```
+Partial unique indexes, partial indexes with `NULLS FIRST` and CHECKs cannot be written in schema.prisma; they
+live in the SQL only (as with the existing ones), and `db:verify` will list the new unique indexes.
+
+**3. B1: a pre-existing PENDING refund, and the balance is already below n.** Recommended: **flag the Admin, never
+drive the balance negative.**
+- When the worker first sees a PENDING refund without a hold, it locks the package (`FOR UPDATE`, the same order as
+  the request) and computes the free balance exactly as the request does today:
+  `SUM(sessions_delta) − RESERVED reservations − other PENDING refunds`.
+- If free ≥ n: it writes the hold (`REFUND −n`, linked) in that transaction.
+- If free < n (sessions were used or booked since, or the package expired): **no hold, no ledger row.** The
+  refund stays PENDING, is flagged once to the Admin (`REFUND_HOLD_SHORT`, dedup on the refund id; ids only, no
+  amounts in WhatsApp) and appears in the Admin "unknown / pending refunds" list marked "sessions already used".
+  The Admin decides from the Paymob dashboard, with a written reason. Money is never moved by the worker.
+- Pre-flight before applying (read-only): the count of PENDING refunds, and how many would be short. Today 0 in
+  the test data.
+
+**4. B4 details.**
+- **NULLS FIRST:** yes, explicit in both partial indexes (above) and in the queries (Prisma
+  `orderBy: { expiryNextCheckAt: { sort: "asc", nulls: "first" } }`). Postgres sorts ASC with NULLS LAST by
+  default, so without it the never-checked rows would come last and the index would not match the ORDER BY.
+- **INCOMPLETE exists:** `ALTER TYPE "BillingSubscriptionStatus" ADD VALUE IF NOT EXISTS 'INCOMPLETE'` in migration
+  `20261028090000_billing_subscription_incomplete` (applied), and `schema.prisma` line 1118. Because it was added
+  in an earlier, already-committed migration, S-11 may use it inside its transaction.
+- **One worker or SKIP LOCKED — recommended: one worker, enforced by the database.**
+  - The runbook runs ONE worker (`WORKER_MODE=separate` + one `npm run worker`).
+  - Add a guard with no SQL migration: each tick first takes `pg_try_advisory_lock(<fixed worker key>)` on its
+    own connection. If another worker holds it, the tick is skipped and logged once. So a second worker started
+    by mistake does nothing.
+  - Not `FOR UPDATE SKIP LOCKED`: claiming rows that way keeps a transaction open during the Paymob call
+    (seconds). It is the right tool for many workers, which the MVP does not need.
+  - The money is already safe even with two workers (conditional updates, unique indexes, serializable expiry);
+    the lock prevents duplicate Paymob calls and duplicate notices.
+
+**5. B1 Paymob retrieve call.** Agreed: the retrieve-transaction call stays **disabled** (code path behind a flag
+that is off, with a test that no HTTP call is made) until the test-mode run after "go". Until then the worker
+only schedules and flags; the Admin "unknown refunds" list is the MVP fallback, where the Admin records the result
+seen in the Paymob dashboard (reason required, audited).
 
 ## B2 — Reschedule checks the teacher's time and refuses after a report
 
@@ -161,14 +237,18 @@ the guardian unchanged; a foreign-academy guardian gives 404. No SQL.
   with the student, session time and teacher, and links to the session page (report or manual resolution).
   Read only.
 
-**SQL S-11 (proposed):**
+**SQL S-11 (proposed; revised 2026-10-30: explicit transaction, NULLS FIRST in the indexes):**
 ```sql
+BEGIN;
 ALTER TABLE "subscriptions" ADD COLUMN "expiry_next_check_at" TIMESTAMPTZ(6);
-CREATE INDEX "subscriptions_expiry_due_idx" ON "subscriptions"("expiry_next_check_at", "period_ends_at")
+CREATE INDEX "subscriptions_expiry_due_idx"
+  ON "subscriptions"("expiry_next_check_at" ASC NULLS FIRST, "period_ends_at" ASC)
   WHERE "status" = 'ACTIVE' AND "package_type" IN ('MONTHLY_PLAN', 'ANNUAL_PLAN');
 ALTER TABLE "billing_subscriptions" ADD COLUMN "next_check_at" TIMESTAMPTZ(6);
-CREATE INDEX "billing_subscriptions_next_check_idx" ON "billing_subscriptions"("next_check_at")
+CREATE INDEX "billing_subscriptions_next_check_idx"
+  ON "billing_subscriptions"("next_check_at" ASC NULLS FIRST)
   WHERE "status" IN ('INCOMPLETE', 'ACTIVE', 'PAST_DUE');
+COMMIT;
 ```
 No ledger table changes. Existing rows start with NULL, so they are checked on the first tick.
 
