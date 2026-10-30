@@ -38,7 +38,7 @@
 | `DATABASE_URL`, `DIRECT_URL` | the staging database |
 | `NEXTAUTH_URL`, `APP_PUBLIC_URL`, `ALLOWED_ORIGINS` | `https://<static-domain>` (the same origin, no trailing slash) |
 | `NEXTAUTH_SECRET` | a NEW random value for staging only (e.g. `openssl rand -base64 48`) |
-| `TRUSTED_PROXY_HOPS` | `1` (ngrok is the one proxy) |
+| `TRUSTED_PROXY_HOPS` | `1` (ngrok is the one proxy; it appends each visitor's address to `X-Forwarded-For`, so the login lockout counts each tester separately; test LT-07) |
 | `WORKER_MODE` | `separate` |
 | `SEED_ADMIN_USERNAME`, `SEED_ADMIN_NAME` | your choice |
 | `SEED_ADMIN_PASSWORD`, `SEED_DEMO_PASSWORD` | NEW staging-only passwords (≥ 12 characters) |
@@ -113,6 +113,11 @@ ngrok http 3000 --url=https://<static-domain>          # ngrok v3 (older version
 - [ ] Sign in as `demo_teacher` (forced change too), `demo_guardian` and a demo student: each sees only their dashboard.
 - [ ] `https://<static-domain>/api/sessions` (signed in) contains no `zoom.us`.
 - [ ] Terminal 2 shows `[worker] started.` and no errors.
+
+**Login lockout and rate limits (D90):** 3 wrong passwords block that username from that address for 15 minutes.
+The counters live in the web app's memory: **restarting the web app clears every counter and block.** That is
+accepted for staging only. If a tester is locked out, wait 15 minutes (or restart the app). Run ONE web app
+instance: a second one would keep its own counters.
 
 ## 5. Post-deploy and stop
 

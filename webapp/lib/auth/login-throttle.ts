@@ -8,7 +8,11 @@ import { normalizeUsername } from "../validation/auth";
  * - address: 20 failures in 10 min (spraying many usernames) → blocked 10 min;
  * - username from every address: 50 failures in 1 h (a distributed attack) → blocked 15 min.
  * Only failed attempts count; a success clears its (username, address) counter.
- * In memory (single app instance), like the other rate limits.
+ * In memory (single app instance), like the other rate limits: a restart of the web
+ * app clears every counter and block. Acceptable for staging only (owner, 2026-10-30);
+ * production needs a shared store (Known risks, PROGRESS.md).
+ * The address is the trusted-proxy entry of X-Forwarded-For (getClientIp), so behind
+ * ngrok each tester has their own bucket and a forged left entry changes nothing.
  */
 const MINUTE = 60 * 1000;
 const PAIR = { limit: 3, windowMs: 15 * MINUTE, blockMs: 15 * MINUTE };

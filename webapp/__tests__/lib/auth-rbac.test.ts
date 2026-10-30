@@ -148,6 +148,45 @@ describe("Phase 1 authentication and RBAC gates", () => {
     expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(4);
   });
 
+  it("LT-07 (D90 behind ngrok): the lockout keys on the client address the trusted proxy appended, not the shared proxy or a forged entry", async () => {
+    // ngrok (one trusted hop) connects from the same address for everyone and APPENDS
+    // the real client to X-Forwarded-For; anything to its left is client-controlled.
+    const previousHops = process.env.TRUSTED_PROXY_HOPS;
+    process.env.TRUSTED_PROXY_HOPS = "1";
+    try {
+      prismaMock.user.findFirst.mockResolvedValue(null);
+      const provider = authOptions.providers[0].options as {
+        authorize: (credentials: unknown, request: { headers: Headers }) => Promise<unknown>;
+      };
+      const credentials = { username: "ngrok_user", password: "Valid1234" };
+      const viaNgrok = (chain: string) => ({ headers: new Headers({ "x-forwarded-for": chain, "x-real-ip": "127.0.0.1" }) });
+
+      // The attacker rotates a forged left entry on every try: still one bucket, blocked after 3.
+      for (const forged of ["10.0.0.1", "10.0.0.2", "10.0.0.3"]) {
+        expect(await provider.authorize(credentials, viaNgrok(`${forged}, 203.0.113.50`))).toBeNull();
+      }
+      expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(3);
+      expect(await provider.authorize(credentials, viaNgrok("10.0.0.9, 203.0.113.50"))).toBeNull();
+      expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(3);
+
+      // Another tester behind the same tunnel (same proxy, same x-real-ip) is not locked out.
+      await provider.authorize(credentials, viaNgrok("198.51.100.7"));
+      expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(4);
+
+      // With two trusted hops (e.g. a CDN in front of the proxy) the second entry from the right is the client.
+      process.env.TRUSTED_PROXY_HOPS = "2";
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await provider.authorize(credentials, viaNgrok(`192.0.2.${attempt + 1}, 198.51.100.99, 203.0.113.250`));
+      }
+      expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(7);
+      await provider.authorize(credentials, viaNgrok("192.0.2.200, 198.51.100.99, 203.0.113.251"));
+      expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(7);
+    } finally {
+      if (previousHops === undefined) delete process.env.TRUSTED_PROXY_HOPS;
+      else process.env.TRUSTED_PROXY_HOPS = previousHops;
+    }
+  });
+
   it("rejects inactive database sessions even when the JWT session exists", async () => {
     getServerSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     prismaMock.user.findUnique.mockResolvedValue(null);

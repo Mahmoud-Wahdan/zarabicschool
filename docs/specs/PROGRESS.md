@@ -39,6 +39,15 @@
   - "go" for the Paymob test-mode run;
   - confirm Dodo (CONTEXT §20.3) vs Paymob USD (D74).
 
+### 2026-10-30 (owner corrections)
+- **D96 (D80/D89 corrected):** booking now works DURING the renewal grace and is refused only from the stored
+  `grace_ends_at` on, while still PAST_DUE. The grace length is the Admin setting `billing.renewal_grace_days`
+  (1–14, default 3; ADMIN-only route). No SQL: `grace_ends_at` already existed. Tests GR-01..06, RN-05b, GS-01..04.
+- **D90 behind ngrok:** test LT-07 proves the lockout keys on the trusted-proxy entry of `X-Forwarded-For`
+  (a forged left entry changes nothing; two testers behind one tunnel are separate). Counter reset on restart
+  documented (runbook, Known risks).
+- **Waiting for the owner's OK (SQL, nothing applied):** S-10 (B1), S-11 (B4), S-12 (Part D).
+
 ### Known risks / Post-MVP (2026-10-30)
 - **OpenWA ban risk:** OpenWA is unofficial WhatsApp automation. The number can be banned at any time, so WhatsApp
   is never the only channel: every notice also exists in-app (CONTEXT §8). Use a dedicated number, keep the send
@@ -54,7 +63,8 @@
 - **Hosting OPEN:** production hosting is undecided. Staging is a temporary ngrok tunnel on the owner's PC (D95),
   not a production plan.
 - **Also open for launch:**
-  - in-memory rate limits (one app instance only);
+  - in-memory rate limits and login lockout (D90): one app instance only, and **a restart clears every counter
+    and block** (accepted for staging only; production needs a shared store such as Redis or a DB table);
   - no monitoring or alerting;
   - no backup/restore drill;
   - secrets rotation (D21);
