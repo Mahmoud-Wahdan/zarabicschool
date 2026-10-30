@@ -14,8 +14,9 @@ const executablePath = process.env.E2E_CHROMIUM_PATH || undefined;
 
 // For the server Playwright starts (inherited from this process; .env never overrides
 // a variable that is already set) and for the specs: Paymob only through the local test
-// double, never the real API; the run's own origin allowed; OpenWA as configured, or a
-// closed port with E2E_WHATSAPP=off (as scripts/perf/serve.sh does; the WhatsApp spec skips).
+// double, never the real API; the run's own origin allowed; OpenWA as configured (started
+// below with the run), or a closed port with E2E_WHATSAPP=off (scripts/perf/serve.sh; the
+// WhatsApp spec then FAILS with that reason — owner 2026-10-31: no skipped tests).
 process.env.PAYMOB_API_URL = "http://127.0.0.1:4010";
 process.env.PAYMOB_API_KEY ||= "e2e-double";
 process.env.PAYMOB_INTEGRATION_ID_EGP ||= "1";
@@ -59,6 +60,18 @@ export default defineConfig({
       url: "http://127.0.0.1:4010/health",
       reuseExistingServer: true,
     },
+    // The real OpenWA gateway (zarabicschool/OpenWA, its own .env): the WhatsApp spec
+    // talks to it. A linked phone is not needed; fixture numbers are fictional.
+    ...(process.env.E2E_WHATSAPP === "off"
+      ? []
+      : [
+          {
+            command: "sh -c \"cd ../OpenWA && node dist/main\"",
+            url: `${(process.env.OPENWA_URL || "http://127.0.0.1:2785").replace(/\/$/, "")}/api/health`,
+            reuseExistingServer: true,
+            timeout: 120_000,
+          },
+        ]),
     ...(process.env.E2E_BASE_URL
       ? []
       : [

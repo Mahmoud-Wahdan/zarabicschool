@@ -52,3 +52,51 @@ describe("OpenWA adapter — refusal paths never touch the network", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * G-WA-1 (open finding, fixed 2026-10-31): OpenWA answers HTTP 400 "Session '…' is not
+ * active. Start the session first." while its WhatsApp session is down. That is not a
+ * bad recipient: the message must be retried later, not failed for good. A 400 for a
+ * real bad request (an unregistered number) stays permanent. fetch is a local stub.
+ */
+describe("OpenWA adapter — which HTTP answers are retried", () => {
+  const saved = { ...process.env };
+  let fetchSpy: jest.SpyInstance;
+  const answer = (status: number, body: unknown) => {
+    fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
+  };
+
+  beforeEach(() => {
+    process.env.OPENWA_URL = "http://openwa.invalid";
+    process.env.OPENWA_API_KEY = "test-key";
+    process.env.OPENWA_SESSION_ID = "test-session";
+    process.env.OPENWA_SEND_ALLOWLIST = TEST_PHONE;
+  });
+
+  afterEach(() => {
+    fetchSpy?.mockRestore();
+    process.env = { ...saved };
+  });
+
+  it("G-WA-1: 400 'session is not active' is transient (retried)", async () => {
+    answer(400, { statusCode: 400, message: "Session 'test-session' is not active. Start the session first.", error: "Bad Request" });
+    const result = await new OpenWAProvider().sendText({ userId: "u1", phone: TEST_PHONE }, "hello");
+    expect(result).toEqual({ ok: false, transient: true, error: "OpenWA session is not active (HTTP 400)." });
+  });
+
+  it("a 400 for anything else stays permanent", async () => {
+    answer(400, { statusCode: 400, message: "The number is not on WhatsApp.", error: "Bad Request" });
+    const result = await new OpenWAProvider().sendText({ userId: "u1", phone: TEST_PHONE }, "hello");
+    expect(result).toEqual({ ok: false, transient: false, error: "OpenWA returned HTTP 400." });
+  });
+
+  it("409, 429 and 5xx stay transient; 201 is a send with its message id", async () => {
+    for (const status of [409, 429, 503]) {
+      answer(status, { message: "busy" });
+      expect((await new OpenWAProvider().sendText({ userId: "u1", phone: TEST_PHONE }, "hello")).transient).toBe(true);
+      fetchSpy.mockRestore();
+    }
+    answer(201, { messageId: "m-1" });
+    expect(await new OpenWAProvider().sendText({ userId: "u1", phone: TEST_PHONE }, "hello")).toEqual({ ok: true, providerMessageId: "m-1" });
+  });
+});

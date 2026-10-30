@@ -27,6 +27,12 @@ function recipientAllowed(digits: string): boolean {
   return allowlist.includes(digits);
 }
 
+async function sessionNotActive(response: Response): Promise<boolean> {
+  const body = (await response.json().catch(() => null)) as { message?: unknown } | null;
+  const text = Array.isArray(body?.message) ? body.message.join(" ") : typeof body?.message === "string" ? body.message : "";
+  return /session\b.*\bnot active/i.test(text);
+}
+
 export class OpenWAProvider implements MessagingProvider {
   private async send(
     recipient: MessagingRecipient,
@@ -61,7 +67,12 @@ export class OpenWAProvider implements MessagingProvider {
       });
       if (!response.ok) {
         // 409 engine not ready, 429 pacing, 5xx/503 lookup → may succeed later.
-        // 400 unregistered recipient, 401/403 key, 404 session → permanent.
+        // 400 "Session … is not active" (G-WA-1): the WhatsApp session is down, not a bad
+        // recipient → retried. Any other 400 (unregistered recipient), 401/403 key,
+        // 404 session → permanent. Only OpenWA's own error text is read, never logged.
+        if (response.status === 400 && (await sessionNotActive(response))) {
+          return { ok: false, transient: true, error: "OpenWA session is not active (HTTP 400)." };
+        }
         const transient = response.status === 409 || response.status === 429 || response.status >= 500;
         return { ok: false, transient, error: `OpenWA returned HTTP ${response.status}.` };
       }

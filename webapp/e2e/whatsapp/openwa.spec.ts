@@ -5,10 +5,11 @@ import { run } from "../support/run";
 import { expect, messages, test, visit } from "../support/test";
 
 /**
- * WhatsApp through the REAL OpenWA gateway (zarabicschool/OpenWA, started separately —
- * e2e/README.md). No stub: when OpenWA is not reachable these tests skip with that reason.
- * Whether its WhatsApp session is linked to a phone does not change what is asserted: the
- * fixture users carry fictional +1-202-555-01xx numbers, so nothing reaches a person.
+ * WhatsApp through the REAL OpenWA gateway (zarabicschool/OpenWA, started by
+ * playwright.config.ts with the run). No stub and no skip (owner, 2026-10-31): when
+ * OpenWA is not reachable these tests FAIL with that reason. A linked phone is not
+ * needed: the fixture users carry fictional +1-202-555-01xx numbers, so nothing
+ * reaches a person, and the session-down case is produced by stopping the session.
  */
 const OPENWA_URL = (process.env.OPENWA_URL ?? "").replace(/\/$/, "");
 const OPENWA_KEY = process.env.OPENWA_API_KEY ?? "";
@@ -21,8 +22,21 @@ async function openwa(path: string, init: RequestInit = {}) {
 
 test.beforeAll(async () => {
   const live = OPENWA_URL ? await openwa("/health").then((response) => response.ok).catch(() => false) : false;
-  test.skip(!live, `OpenWA is not reachable at ${OPENWA_URL || "(OPENWA_URL unset)"}`);
+  expect(live, `OpenWA must be reachable at ${OPENWA_URL || "(OPENWA_URL unset)"} (started by playwright.config.ts; E2E_WHATSAPP=off cannot run this spec)`).toBe(true);
 });
+
+/** The app's delivery webhook in OpenWA, registered for this run when it is missing. */
+async function statusWebhook() {
+  const target = `${new URL(process.env.E2E_BASE_URL ?? "http://localhost:3000").origin}/api/whatsapp/status`;
+  const hooks = (await (await openwa(`/sessions/${OPENWA_SESSION}/webhooks`)).json()) as { id: string; url: string; active: boolean }[];
+  const existing = hooks.find((entry) => entry.url === target && entry.active);
+  if (existing) return existing;
+  const secret = process.env.OPENWA_WEBHOOK_SECRET ?? "";
+  expect(secret.length, "OPENWA_WEBHOOK_SECRET must be set in .env (16+ characters)").toBeGreaterThanOrEqual(16);
+  const created = await openwa(`/sessions/${OPENWA_SESSION}/webhooks`, { method: "POST", body: JSON.stringify({ url: target, events: ["*"], secret }) });
+  expect(created.status, await created.clone().text()).toBeLessThan(300);
+  return (await created.json()) as { id: string; url: string; active: boolean };
+}
 
 test("the Admin's health check reaches OpenWA (liveness and readiness)", async ({ open }) => {
   const page = await open("admin");
@@ -33,10 +47,8 @@ test("the Admin's health check reaches OpenWA (liveness and readiness)", async (
 });
 
 test("OpenWA's own signed test delivery is accepted by the app's webhook", async () => {
-  const hooks = (await (await openwa(`/sessions/${OPENWA_SESSION}/webhooks`)).json()) as { id: string; url: string; active: boolean }[];
-  const hook = hooks.find((entry) => entry.url.endsWith("/api/whatsapp/status") && entry.active);
-  test.skip(!hook, "no OpenWA webhook registered for /api/whatsapp/status (e2e/README.md)");
-  const result = await (await openwa(`/sessions/${OPENWA_SESSION}/webhooks/${hook!.id}/test`, { method: "POST" })).json();
+  const hook = await statusWebhook();
+  const result = await (await openwa(`/sessions/${OPENWA_SESSION}/webhooks/${hook.id}/test`, { method: "POST" })).json();
   expect(result).toMatchObject({ success: true, statusCode: 200 });
 });
 
@@ -68,14 +80,27 @@ test("an Admin message is queued, then the worker hands it to OpenWA and records
   if (outcome.status !== "SENT") expect(outcome.last_error ?? "").toMatch(/OpenWA/);
 });
 
-test("G-WA-1 (new, open): a send while the WhatsApp session is down is retried, not failed for good", async () => {
+test("G-WA-1 (fixed 2026-10-31): a send while the WhatsApp session is down is retried, not failed for good", async ({ api }) => {
+  test.setTimeout(240_000);
+  // Produce the down case: stop the session if it happens to be running.
   const status = await (await openwa(`/sessions/${OPENWA_SESSION}`)).json();
-  test.skip(status?.status === "ready", "the OpenWA session is linked and ready, so the down case cannot be observed");
-  test.fail(true, "Open finding G-WA-1: with the OpenWA session not started OpenWA answers HTTP 400 ('Session … is not active'), which lib/messaging/openwa-provider.ts treats as permanent, so the job is FAILED after one attempt and the message is lost.");
-  const failed = await query<{ attempts: number }>(
-    "SELECT attempts FROM notification_jobs WHERE academy_id = $1 AND status = 'FAILED' AND last_error = 'OpenWA returned HTTP 400.'",
-    [run().fixtures.academyId],
-  );
-  expect(failed.length).toBeGreaterThan(0);
-  for (const job of failed) expect(job.attempts).toBeGreaterThan(1);
+  if (status?.status === "ready") await openwa(`/sessions/${OPENWA_SESSION}/stop`, { method: "POST" });
+  const r = run();
+  const admin = await api("admin");
+  const body = `E2E session down ${randomUUID().slice(0, 8)}`;
+  const sent = await admin.post("/api/admin/messages", { data: { recipientUserId: r.fixtures.guardianUserId, body } });
+  expect(sent.status(), await sent.text()).toBeLessThan(300);
+  const [message] = await query<{ id: string }>("SELECT id FROM admin_messages WHERE academy_id = $1 AND body = $2", [r.fixtures.academyId, body]);
+  const job = () =>
+    query<{ status: string; attempts: number; last_error: string | null; scheduled_for: Date }>(
+      "SELECT status::text, attempts, last_error, scheduled_for FROM notification_jobs WHERE dedup_key = $1",
+      [`ADMIN_MESSAGE:${message.id}`],
+    );
+  // The worker polls every 60 s.
+  await expect.poll(async () => (await job())[0]?.attempts ?? 0, { timeout: 200_000, intervals: [5_000] }).toBeGreaterThan(0);
+  const [outcome] = await job();
+  // Kept for a later attempt, never FAILED for good.
+  expect(outcome.status).toBe("PENDING");
+  expect(outcome.last_error).toBe("OpenWA session is not active (HTTP 400).");
+  expect(new Date(outcome.scheduled_for).getTime()).toBeGreaterThan(Date.now());
 });

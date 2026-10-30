@@ -203,7 +203,8 @@ test.describe("A03 Software Supply Chain Failures", () => {
         return null;
       }
     })();
-    test.skip(!report?.metadata, "npm registry not reachable from this machine");
+    // No skip (owner, 2026-10-31): an unreachable registry is a failure with its reason.
+    expect(report?.metadata, "npm audit needs the npm registry; it was not reachable from this machine").toBeTruthy();
     const counts = report.metadata.vulnerabilities as Record<string, number>;
     test.info().annotations.push({ type: "npm audit (prod)", description: JSON.stringify(counts) });
     expect(counts.high + counts.critical).toBe(0);
@@ -473,7 +474,7 @@ test.describe("A08 Software or Data Integrity Failures", () => {
     const none = await anon.post("/api/whatsapp/status", { headers: json, data: body });
     expect(none.status()).toBe(401);
     const secret = process.env.OPENWA_WEBHOOK_SECRET;
-    test.skip(!secret, "OPENWA_WEBHOOK_SECRET is not set in .env");
+    expect(secret, "OPENWA_WEBHOOK_SECRET must be set in .env").toBeTruthy();
     const signature = createHmac("sha256", secret!).update(body).digest("hex");
     const good = await anon.post("/api/whatsapp/status", { headers: { ...json, "x-openwa-signature": `sha256=${signature}` }, data: body });
     expect(good.status()).toBe(200);
@@ -483,7 +484,7 @@ test.describe("A08 Software or Data Integrity Failures", () => {
 test.describe("A09 Security Logging and Alerting Failures", () => {
   test("the server log holds no password, secret or phone number from this run", async () => {
     const file = "e2e/.run/server.log";
-    test.skip(!existsSync(file), "server log not captured (app started outside Playwright without tee)");
+    expect(existsSync(file), "server log not captured (start the app through Playwright, which tees it to e2e/.run/server.log)").toBe(true);
     const log = readFileSync(file, "utf8");
     const forbidden = [
       r().password, "Definitely-Wrong-1", "Secret-In-Url-1", "Wrong-Pass-0x",
