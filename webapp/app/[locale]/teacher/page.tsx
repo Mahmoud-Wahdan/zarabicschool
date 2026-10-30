@@ -3,7 +3,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import DashboardShell from "../../_components/dashboard-shell";
 import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
-import RosterReportAction from "../../_components/reports/roster-report-action";
+import DataTable, { type DataRow } from "../../_components/ui/data-table";
+import Icon from "../../_components/ui/icon";
+import { type BadgeTone } from "../../_components/ui/status-badge";
 import SessionJoinLink from "../../_components/session-join-link";
 import { requireRole } from "../../../lib/dal";
 import { prisma } from "../../../lib/prisma";
@@ -11,8 +13,7 @@ import { joinWindowState } from "../../../lib/config/session-join";
 import { getJoinWindowMinutes } from "../../../lib/sessions/join-window";
 import { currentMonthKey, formatMonthLabel, previousMonthKey } from "../../../lib/reports/month-key";
 import { eligibleMonthlyStudents } from "../../../lib/reports/monthly";
-import { getTeacherRosterReportStatuses, rosterKey } from "../../../lib/reports/roster-status";
-import { wallClockInputToUtc } from "../../../lib/schedules/recurrence";
+import { getTeacherNextSession, getTeacherReportsToWrite, getTeacherWeekSessions } from "../../../lib/dashboard/teacher-overview";
 import { Link } from "../../../i18n/navigation";
 
 import AnnouncementsWidget from "../../_components/announcements/announcements-widget";
@@ -23,56 +24,23 @@ export async function generateMetadata() {
 
 export default async function TeacherDashboard() {
   const user = await requireRole("TEACHER");
-  const [t, tSessions, tShell] = await Promise.all([
-    getTranslations("dashboard"),
-    getTranslations("sessions"),
-    getTranslations("appShell"),
-  ]);
+  const [t, tSessions] = await Promise.all([getTranslations("dashboard"), getTranslations("sessions")]);
   const now = new Date();
 
-  // "Today" = the teacher's local calendar day (DST-safe, same wall-clock helper as
-  // the sessions page — Phase 3/4 convention).
-  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: user.timezone }).format(now);
-  const nextYmd = new Date(new Date(`${ymd}T00:00:00Z`).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const dayStart = wallClockInputToUtc(`${ymd}T00:00`, user.timezone);
-  const dayEnd = wallClockInputToUtc(`${nextYmd}T00:00`, user.timezone);
-
-  // L2c: independent reads start together (remote DB: each sequential wait is a round trip).
+  const zone = user.timezone || "Africa/Cairo";
   const [joinWindowMinutes, teacher, currentLocale] = await Promise.all([
     getJoinWindowMinutes(user.academyId),
-    prisma.teacher.findUnique({
-      where: { userId: user.id },
-      select: {
-        id: true,
-        subjects: { select: { subject: { select: { nameAr: true, nameEn: true } } } },
-        sessions: {
-          where: { scheduledStart: { gte: dayStart, lt: dayEnd } },
-          orderBy: { scheduledStart: "asc" },
-          select: {
-            id: true,
-            scheduledStart: true,
-            scheduledEnd: true,
-            sessionType: true,
-            status: true,
-            subject: { select: { nameAr: true, nameEn: true } },
-            students: { select: { studentId: true, student: { select: { user: { select: { displayName: true } } } } } },
-          },
-        },
-      },
-    }),
+    prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } }),
     getLocale(),
   ]);
   // In-app monthly-report reminder (owner decision 7, 2026-10-26): missing reports for
   // the PREVIOUS month in the teacher's calendar — the same month and eligibility rule
   // as the WhatsApp reminders and the Admin flag. Shown all month until submitted.
   const lastMonthKey = previousMonthKey(currentMonthKey(user.timezone || "Africa/Cairo", now));
-  // Both only need the teacher: together.
-  const [reportStatuses, monthly] = await Promise.all([
-    getTeacherRosterReportStatuses(
-      user.id,
-      user.academyId,
-      teacher?.sessions.map((session) => session.id) ?? [],
-    ),
+  const [nextSession, week, reportsToWrite, monthly] = await Promise.all([
+    teacher ? getTeacherNextSession(teacher.id, now) : null,
+    teacher ? getTeacherWeekSessions(teacher.id, now, zone) : [],
+    teacher ? getTeacherReportsToWrite(teacher.id, now) : [],
     teacher
       ? Promise.all([
           eligibleMonthlyStudents(teacher.id, lastMonthKey),
@@ -86,120 +54,126 @@ export default async function TeacherDashboard() {
     const submittedIds = new Set(submitted.map((row) => row.studentId));
     monthlyMissing = eligible.filter((student) => !submittedIds.has(student.studentId)).length;
   }
-  const formatTime = (value: Date) => new Intl.DateTimeFormat(currentLocale === "ar" ? "ar-EG" : "en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: user.timezone,
-  }).format(value);
+  const dateLocale = currentLocale === "ar" ? "ar-EG" : "en-GB";
+  const timeFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: zone, hour: "numeric", minute: "2-digit" });
+  const dayFormat = new Intl.DateTimeFormat(dateLocale, { timeZone: zone, weekday: "long", day: "numeric", month: "long" });
+  const shortDay = new Intl.DateTimeFormat(dateLocale, { timeZone: zone, weekday: "short", day: "numeric", month: "short" });
+  const subjectName = (subject: { nameAr: string; nameEn: string }) => (currentLocale === "ar" ? subject.nameAr : subject.nameEn);
+  const separator = currentLocale === "ar" ? "، " : ", ";
+  const nextState = nextSession ? joinWindowState(nextSession.scheduledStart, nextSession.scheduledEnd, now, joinWindowMinutes) : null;
+  const statusTone: Record<string, BadgeTone> = { SCHEDULED: "info", COMPLETED: "success", MISSED: "danger", CANCELLED: "neutral" };
+
+  const weekRows: DataRow[] = week.map((session) => ({
+    id: session.id,
+    filter: session.status,
+    cells: {
+      day: { text: shortDay.format(session.scheduledStart), sort: session.scheduledStart.toISOString(), strong: true, numeric: true },
+      time: { text: `${timeFormat.format(session.scheduledStart)} – ${timeFormat.format(session.scheduledEnd)}`, sort: session.scheduledStart.toISOString(), numeric: true },
+      subject: { text: subjectName(session.subject) },
+      students: { text: session.students.map((row) => row.student.user.displayName).join(separator) || "—" },
+      type: { text: tSessions(`types.${session.sessionType}`) },
+      status: { text: tSessions(`statuses.${session.status}`), tone: statusTone[session.status] ?? "neutral" },
+    },
+  }));
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
-      <AnnouncementsWidget academyId={user.academyId} timeZone={user.timezone || "Africa/Cairo"} />
+      <AnnouncementsWidget academyId={user.academyId} timeZone={zone} />
       <PageHeader title={t("teacher.title")} subtitle={t("teacher.welcome", { name: user.displayName })} />
 
-      <section className="mt-6 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-primary">{t("teacher.sections.today")}</h2>
-          <Link href="/teacher/sessions" className="text-xs text-secondary underline-offset-2 hover:underline">
-            {t("teacher.actions.schedule")}
-          </Link>
-        </div>
-        <div className="mt-4 space-y-3">
-          {teacher?.sessions.map((session) => {
-            // Report buttons per roster student (shared RosterReportAction — the button
-            // is disabled until the scheduled end; never for cancelled/missed sessions).
-            // The Zoom button follows the academy join window (D4/D28) — never a
-            // hardcoded minute figure in UI text. The teacher always gets the join
-            // link; the host link is for Admin/Supervisor only (D45).
-            const state = session.status === "SCHEDULED" ? joinWindowState(session.scheduledStart, session.scheduledEnd, now, joinWindowMinutes) : null;
-            return (
-              <div key={session.id} className="rounded-lg bg-surface p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong>{currentLocale === "ar" ? session.subject.nameAr : session.subject.nameEn}</strong>
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span>{formatTime(session.scheduledStart)}</span>
-                    {state ? (
-                      <SessionJoinLink windowMinutes={joinWindowMinutes}
-                        sessionId={session.id}
-                        state={state}
-                        label={tSessions("openZoom")}
-                        compact
-                      />
-                    ) : null}
-                  </span>
-                </div>
-                <p className="mt-1 text-on-surface-variant">
-                  {session.students.length} {t("teacher.metrics.students")} · {tSessions(`types.${session.sessionType}`)}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6 lg:col-span-3" aria-labelledby="teacher-next">
+          <h2 id="teacher-next" className="text-title-md font-semibold text-on-surface-variant">{t("teacher.nextTitle")}</h2>
+          {nextSession && nextState ? (
+            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-headline-md font-bold text-primary">{subjectName(nextSession.subject)}</p>
+                <p className="mt-1 text-body-md text-on-surface tabular-nums">
+                  {dayFormat.format(nextSession.scheduledStart)} · {timeFormat.format(nextSession.scheduledStart)} – {timeFormat.format(nextSession.scheduledEnd)}
                 </p>
-                {session.status !== "CANCELLED" && session.status !== "MISSED" ? (
-                  <ul className="mt-3 space-y-2">
-                    {session.students.map((student) => (
-                      <li key={student.studentId} className="flex flex-wrap items-center justify-between gap-2">
-                        <span>{student.student.user.displayName}</span>
-                        <RosterReportAction
-                          sessionId={session.id}
-                          studentId={student.studentId}
-                          sessionStatus={session.status}
-                          scheduledEnd={session.scheduledEnd}
-                          now={now}
-                          timezone={user.timezone}
-                          locale={currentLocale}
-                          report={reportStatuses.get(rosterKey(session.id, student.studentId)) ?? null}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <p className="mt-1 text-body-sm text-on-surface-variant">
+                  {tSessions(`types.${nextSession.sessionType}`)} · {nextSession.students.map((row) => row.student.user.displayName).join(separator) || "—"}
+                </p>
               </div>
-            );
-          })}
-          {teacher && teacher.sessions.length === 0 ? (
-            <EmptyState icon="event_available" title={tSessions("empty")} />
+              <div className="shrink-0">
+                <SessionJoinLink windowMinutes={joinWindowMinutes} sessionId={nextSession.id} state={nextState} label={t("teacher.joinSession")} />
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon="event_available" title={t("teacher.noNext")} />
+          )}
+        </section>
+
+        <section className="z-card flex flex-col rounded-xl p-4 sm:p-6 lg:col-span-2" aria-labelledby="teacher-reports">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="teacher-reports" className="text-title-md font-semibold text-on-surface-variant">{t("teacher.reportsTitle")}</h2>
+            <span className={`badge ${reportsToWrite.length ? "badge--pending" : "badge--neutral"} tabular-nums`}>{reportsToWrite.length}</span>
+          </div>
+          {reportsToWrite.length ? (
+            <ul className="mt-2 -mx-2 flex flex-col">
+              {reportsToWrite.slice(0, 6).map((item) => (
+                <li key={`${item.sessionId}:${item.studentId}`}>
+                  <Link
+                    href={`/teacher/sessions/${item.sessionId}/report?studentId=${item.studentId}`}
+                    className="flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-container-low"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-body-md text-on-surface">{item.studentName} · {subjectName(item.subject)}</span>
+                      <span className="block text-label-sm text-on-surface-variant tabular-nums">{shortDay.format(item.scheduledStart)} · {timeFormat.format(item.scheduledStart)}</span>
+                    </span>
+                    <span className={`badge ${item.state === "rejected" ? "badge--danger" : "badge--pending"} shrink-0`}>
+                      {item.state === "rejected" ? t("teacher.reportRejected") : t("teacher.reportMissing")}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState icon="task_alt" title={t("teacher.reportsDone")} />
+          )}
+          {reportsToWrite.length > 6 ? (
+            <Link href="/teacher/sessions" className="mt-2 text-label-md text-secondary underline-offset-2 hover:underline">{t("teacher.reportsMore", { count: reportsToWrite.length - 6 })}</Link>
           ) : null}
-        </div>
-      </section>
+          {monthlyMissing > 0 ? (
+            <Link
+              href={`/teacher/monthly-reports?month=${lastMonthKey}`}
+              className="mt-auto flex items-center gap-2 rounded-lg bg-error-container/60 px-3 py-2 text-body-sm font-semibold text-on-error-container"
+            >
+              <Icon name="flag" size={18} />
+              {t("teacher.monthlyMissing", { count: monthlyMissing, month: formatMonthLabel(lastMonthKey, currentLocale === "en" ? "en" : "ar") })}
+            </Link>
+          ) : null}
+        </section>
+      </div>
 
-      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-primary">{t("teacher.sections.monthly")}</h2>
-          <Link href="/teacher/monthly-reports" className="btn btn-primary px-3 py-2 text-xs">
-            {t("teacher.actions.monthlyReports")}
+      <section className="z-card flex flex-col gap-1 overflow-hidden rounded-xl pt-4 sm:pt-6" aria-labelledby="teacher-week">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 sm:px-6">
+          <div>
+            <h2 id="teacher-week" className="text-headline-sm font-bold text-primary">{t("teacher.weekTitle")}</h2>
+            <p className="text-body-sm text-on-surface-variant">{t("teacher.weekSubtitle")}</p>
+          </div>
+          <Link href="/teacher/sessions" className="btn btn-soft">
+            <Icon name="calendar_month" size={18} />
+            <span>{t("teacher.actions.schedule")}</span>
           </Link>
         </div>
-        <p className="mt-2 text-sm text-on-surface-variant">{t("teacher.monthlyHint")}</p>
-        {monthlyMissing > 0 ? (
-          <Link
-            href={`/teacher/monthly-reports?month=${lastMonthKey}`}
-            className="mt-3 block rounded-lg border border-outline-variant bg-error-container px-3 py-2 text-sm font-semibold text-on-error-container"
-          >
-            {t("teacher.monthlyMissing", {
-              count: monthlyMissing,
-              month: formatMonthLabel(lastMonthKey, currentLocale === "en" ? "en" : "ar"),
-            })}
-          </Link>
-        ) : null}
-      </section>
-
-      <Link href="/teacher/sessions" className="cta-secondary mt-5 rounded-xl px-4 py-2 text-sm">{t("teacher.actions.schedule")}</Link>
-      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-        <h2 className="font-semibold text-primary">{t("teacher.sections.reports")}</h2>
-        <p className="mt-2 text-sm text-on-surface-variant">
-          {teacher?.subjects.length ?? 0} {t("teacher.metrics.subjects")}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {teacher?.subjects.map(({ subject }) => (
-            <span key={subject.nameEn} className="rounded-full bg-surface px-3 py-1 text-sm">
-              {currentLocale === "ar" ? subject.nameAr : subject.nameEn}
-            </span>
-          ))}
-        </div>
-      </section>
-      <section className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-        <h2 className="font-semibold text-primary">{t("teacher.sections.salary")}</h2>
-        <p className="mt-2 text-sm text-on-surface-variant">{t("teacher.metrics.salaryUnavailable")}</p>
-        <Link href="/teacher/payroll" className="btn btn-primary mt-3 inline-block rounded-lg px-3 py-2 text-xs">
-          {tShell("nav.payroll")}
-        </Link>
+        <DataTable
+          caption={t("teacher.weekTitle")}
+          columns={[
+            { key: "day", label: t("teacher.colDay") },
+            { key: "time", label: t("teacher.colTime") },
+            { key: "subject", label: t("teacher.colSubject") },
+            { key: "students", label: t("teacher.colStudents"), sortable: false },
+            { key: "type", label: t("teacher.colType") },
+            { key: "status", label: t("teacher.colStatus") },
+          ]}
+          rows={weekRows}
+          quickFilters={["SCHEDULED", "COMPLETED", "MISSED", "CANCELLED"].map((status) => ({ key: status, label: tSessions(`statuses.${status}`) }))}
+          exportName="my-week-sessions"
+          emptyTitle={tSessions("empty")}
+          emptyIcon="event_available"
+          initialSort={{ key: "day", direction: "asc" }}
+        />
       </section>
     </DashboardShell>
   );

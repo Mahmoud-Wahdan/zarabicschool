@@ -1157,7 +1157,23 @@
         "report": "التقرير",
         "monthlyReports": "فتح التقارير الشهرية",
         "schedule": "عرض الجدول الكامل"
-      }
+      },
+      "nextTitle": "حصتك القادمة",
+      "joinSession": "ادخلي الحصة",
+      "noNext": "لا توجد حصة قادمة محجوزة.",
+      "reportsTitle": "تقارير مطلوبة",
+      "reportMissing": "لم يُكتب",
+      "reportRejected": "يحتاج تعديل",
+      "reportsDone": "كل تقاريرك مُرسَلة.",
+      "reportsMore": "و{count} أخرى في صفحة حصصك",
+      "weekTitle": "أسبوعك",
+      "weekSubtitle": "اليوم والأيام الستة التالية، بتوقيتك.",
+      "colDay": "اليوم",
+      "colTime": "الوقت",
+      "colSubject": "المادة",
+      "colStudents": "الطلاب",
+      "colType": "النوع",
+      "colStatus": "الحالة"
     },
     "student": {
       "title": "لوحة الطالب",

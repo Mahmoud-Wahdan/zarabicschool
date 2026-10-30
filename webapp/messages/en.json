@@ -1157,7 +1157,23 @@
         "report": "Report",
         "monthlyReports": "Open monthly reports",
         "schedule": "View full schedule"
-      }
+      },
+      "nextTitle": "Your next session",
+      "joinSession": "Join session",
+      "noNext": "No upcoming session booked.",
+      "reportsTitle": "Reports to write",
+      "reportMissing": "To write",
+      "reportRejected": "Needs a fix",
+      "reportsDone": "All your reports are in.",
+      "reportsMore": "{count} more on your sessions page",
+      "weekTitle": "Your week",
+      "weekSubtitle": "Today and the next 6 days, in your time zone.",
+      "colDay": "Day",
+      "colTime": "Time",
+      "colSubject": "Subject",
+      "colStudents": "Students",
+      "colType": "Type",
+      "colStatus": "Status"
     },
     "student": {
       "title": "Student dashboard",
