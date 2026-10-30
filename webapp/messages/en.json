@@ -1805,13 +1805,14 @@
       "subject": "Subject",
       "student": "Student",
       "submit": "Create assignment",
-      "subjectHint": "Only the subjects this teacher already teaches are listed; student scheduling requires this assignment to be ACTIVE."
+      "subjectHint": "Only the subjects this teacher teaches appear. Scheduling needs an active assignment."
     },
     "needsTeacher": {
       "title": "Students needing a teacher",
       "empty": "Every enrolled student already has an active teacher for each of their subjects.",
-      "assign": "Assign a teacher",
-      "hint": "Students appear here after their application is approved with a subject but without a teacher. Assigning one does not reopen the application."
+      "assign": "Assign",
+      "hint": "Students appear here after their application is approved with a subject but without a teacher. Assigning one does not reopen the application.",
+      "count": "{count} waiting"
     },
     "list": {
       "title": "Student–teacher assignments",
@@ -1826,10 +1827,16 @@
       "changeTeacher": "Change teacher",
       "newTeacher": "New teacher",
       "confirmChange": "Apply change",
-      "changeHint": "Changing the teacher ends the current assignment and creates the new one in one transaction; the old one is kept as history."
-    },
-    "prompts": {
-      "endReason": "Optional reason for ending this assignment:"
+      "changeHint": "Changing the teacher ends the current assignment and creates the new one in one transaction; the old one is kept as history.",
+      "status": "Status",
+      "actions": "Actions",
+      "since": "Since {date}",
+      "endedOn": "Ended {date}",
+      "endReason": "Reason (optional)",
+      "endReasonPlaceholder": "e.g. the student changed schedule",
+      "confirmEnd": "End assignment",
+      "cancel": "Cancel",
+      "endHint": "Ending keeps the assignment in the history; booked sessions are not touched."
     },
     "messages": {
       "created": "Assignment created.",
@@ -1840,6 +1847,32 @@
       "loading": "Loading…",
       "loadError": "Unable to load assignments. Please refresh.",
       "submitError": "Unable to save. Please try again."
+    },
+    "teacherSubjects": {
+      "title": "Teachers and their subjects",
+      "hint": "A teacher can only be assigned students in the subjects listed here.",
+      "teacher": "Teacher",
+      "subject": "Subject",
+      "chooseTeacher": "Choose teacher",
+      "chooseSubject": "Choose subject",
+      "chooseTeacherFirst": "Choose a teacher first",
+      "submit": "Add subject",
+      "saved": "Subject added to the teacher.",
+      "duplicate": "This teacher already teaches this subject.",
+      "saveError": "Could not save. Try again.",
+      "loadError": "Could not load teachers and subjects. Refresh the page.",
+      "none": "No subjects yet",
+      "noTeachers": "No teachers yet.",
+      "subjectsOf": "Subjects of {name}",
+      "keepNote": "A teacher–subject link stays while any student assignment (active or ended) uses it, so the history is kept."
+    },
+    "errors": {
+      "DUPLICATE_ASSIGNMENT": "This student already has an active assignment with this teacher in this subject.",
+      "TEACHER_SUBJECT_NOT_ASSIGNED": "This teacher does not teach this subject. Add the subject to the teacher first.",
+      "ASSIGNMENT_PARTICIPANTS_INVALID": "The student or teacher was not found or is inactive.",
+      "CONFLICT": "This change conflicts with an existing assignment.",
+      "NOT_FOUND": "This assignment no longer exists. Refresh the page.",
+      "VALIDATION_ERROR": "Some fields are missing or invalid."
     }
   },
   "management": {
