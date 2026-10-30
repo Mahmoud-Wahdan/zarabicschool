@@ -54,19 +54,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ...(parsed.data.announcementsOptOut === undefined ? {} : { announcementsOptOut: parsed.data.announcementsOptOut }),
     ...(parsed.data.timezone === undefined ? {} : { timezone: parsed.data.timezone, timezoneSource: "ADMIN" }),
   };
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id }, data, select: { id: true } });
-    if (target.role === "STUDENT" && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined))) {
-      await tx.student.update({
-        where: { userId: id },
-        data: {
-          ...(parsed.data.guardianId !== undefined ? { guardianId: parsed.data.guardianId } : {}),
-          ...(session1Ready && parsed.data.reportLanguage !== undefined ? { reportLanguage: parsed.data.reportLanguage } : {}),
-        },
-        select: { id: true },
-      });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // D10 (review 2026-10-29, B3): a minor always keeps a guardian; switching to
+      // another guardian of the academy is fine, removing it is not. Checked on the
+      // stored row inside the transaction.
+      if (target.role === "STUDENT" && parsed.data.guardianId === null) {
+        const student = await tx.student.findUniqueOrThrow({ where: { userId: id }, select: { isAdult: true } });
+        if (!student.isAdult) throw new GuardianRequired();
+      }
+      await tx.user.update({ where: { id }, data, select: { id: true } });
+      if (target.role === "STUDENT" && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined))) {
+        await tx.student.update({
+          where: { userId: id },
+          data: {
+            ...(parsed.data.guardianId !== undefined ? { guardianId: parsed.data.guardianId } : {}),
+            ...(session1Ready && parsed.data.reportLanguage !== undefined ? { reportLanguage: parsed.data.reportLanguage } : {}),
+          },
+          select: { id: true },
+        });
+      }
+      if (target.role === "GUARDIAN" && parsed.data.relationship !== undefined) await tx.guardian.update({ where: { userId: id }, data: { relationship: parsed.data.relationship } });
+    });
+  } catch (cause) {
+    if (cause instanceof GuardianRequired) {
+      return NextResponse.json({ error: { code: "GUARDIAN_REQUIRED", message: "A minor student needs a guardian. Choose another guardian instead of removing it." } }, { status: 409 });
     }
-    if (target.role === "GUARDIAN" && parsed.data.relationship !== undefined) await tx.guardian.update({ where: { userId: id }, data: { relationship: parsed.data.relationship } });
-  });
+    throw cause;
+  }
   return NextResponse.json({ data: { id, ...data } });
+}
+
+class GuardianRequired extends Error {
+  constructor() {
+    super("A minor student needs a guardian.");
+    this.name = "GuardianRequired";
+  }
 }
