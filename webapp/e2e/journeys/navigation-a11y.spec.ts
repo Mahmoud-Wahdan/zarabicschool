@@ -39,15 +39,13 @@ for (const who of PEOPLE) {
       await expect(links.first(), "menu").toBeVisible();
       const count = await links.count();
       expect(count, "menu items").toBeGreaterThan(3);
-      const items: { name: string; href: string }[] = [];
-      for (let index = 0; index < count; index++) {
-        const link = links.nth(index);
-        items.push({ name: (await link.innerText()).trim(), href: (await link.getAttribute("href")) ?? "" });
-      }
+      const items: { href: string }[] = [];
+      for (let index = 0; index < count; index++) items.push({ href: (await links.nth(index).getAttribute("href")) ?? "" });
 
       for (const item of items) {
         const label = `${who}/${locale} → ${item.href}`;
-        await nav.getByRole("link", { name: item.name, exact: false }).first().click();
+        // By address: a link's name carries its live badge count, which changes during the walk.
+        await nav.locator(`a[href="${item.href}"]`).first().click();
         await page.waitForURL((url) => url.pathname === item.href, { timeout: 30_000 });
         await page.waitForLoadState("load");
         if (limited) {
