@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import createMiddleware from "next-intl/middleware";
 
@@ -30,6 +30,59 @@ function localizedUrl(path: string, locale: string, base: URL) {
   return new URL(`/${locale}${path === "/" ? "" : path}`, base);
 }
 
+/**
+ * Content-Security-Policy for pages (G-A02-1, 2026-10-29), the Next.js nonce pattern
+ * (node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md): a fresh
+ * nonce per request, which Next.js puts on its own scripts, so no inline or injected
+ * script runs without it. Styles keep 'unsafe-inline' (React style attributes; a nonce
+ * there would switch it off). CSP_REPORT_ONLY=1 sends it as Report-Only instead.
+ */
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
+
+function cspHeaderName() {
+  return process.env.CSP_REPORT_ONLY === "1" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
+}
+
+/** Router prefetches fetch RSC data the browser never renders as a document. */
+function isPrefetch(req: NextRequest) {
+  return req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
+}
+
+/** Locale routing with the CSP on the request (Next.js reads the nonce there) and on the response. */
+function routeWithCsp(req: NextRequest) {
+  // next-intl answers a path that is not valid percent-encoding with a bare
+  // NextResponse.next() that drops our request headers, so the page would render
+  // without the nonce under a policy that requires it. Refuse such paths here.
+  try {
+    decodeURI(req.nextUrl.pathname);
+  } catch {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+  if (isPrefetch(req)) return handleI18nRouting(req);
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const policy = contentSecurityPolicy(nonce);
+  const header = cspHeaderName();
+  const headers = new Headers(req.headers);
+  headers.set(header, policy);
+  const response = handleI18nRouting(new NextRequest(req, { headers }));
+  response.headers.set(header, policy);
+  return response;
+}
+
 function rolesForRoute(rest: string): string[] | undefined {
   if (rest === "/admin/applications" || rest.startsWith("/admin/applications/")) {
     return ["ADMIN"];
@@ -42,6 +95,8 @@ function rolesForRoute(rest: string): string[] | undefined {
     || rest === "/admin/assignments" || rest.startsWith("/admin/assignments/")
     || rest === "/admin/enrollments" || rest.startsWith("/admin/enrollments/")
     || rest === "/admin/sessions" || rest.startsWith("/admin/sessions/")
+    // S-16 (D91): the teacher schedule board is operational (no money fields).
+    || rest === "/admin/schedule" || rest.startsWith("/admin/schedule/")
     // Phase 7 (owner, 2026-10-26): complaints, evaluation summaries and
     // announcements are handled by Admin AND Supervisor (pages re-check the role).
     || rest === "/admin/complaints" || rest.startsWith("/admin/complaints/")
@@ -91,7 +146,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  return handleI18nRouting(req);
+  return routeWithCsp(req);
 }
 
 export const config = {

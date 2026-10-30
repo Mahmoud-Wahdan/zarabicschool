@@ -87,7 +87,7 @@ Status values: ready / in progress / waits for <X> / done (commit hash).
 3. Set `APP_PUBLIC_URL` in `.env` (the single allowed line).
 4. Say "go" for Layer 2 (D24).
 5. Send the Assignments problem list (OQ-14).
-6. Later: OpenWA live test (last), secrets rotation at deployment (D21).
+6. ~~OpenWA live test~~ done by the owner 2026-10-29 (D79); later: secrets rotation at deployment (D21).
 
 ## Change log
 - 2026-10-27: created from the master prompt (Part 1). Replaces the "Plan (draft)" sections of `phase-09-refinements.md` (kept there as history).

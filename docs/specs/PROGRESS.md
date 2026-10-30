@@ -2,7 +2,7 @@
 
 > **Protocol:** Always read this file first in any new session. After completing any meaningful chunk of work, update the status table and the current phase's spec file. Never regenerate this file from scratch — extend it.
 >
-> Last updated: 2026-10-27
+> Last updated: 2026-10-29
 
 ## Phase Status
 
@@ -12,11 +12,42 @@
 | 2 | Educational Management | Complete | 2026-10-06 | CRUD, relationships, enrollment UI, migration, and development seed verified; Supervisor application access removed; database-backed tests deferred |
 | 3 | Schedules & Sessions | Complete | 2026-10-11 | Closed by the owner after the manual test. Batches 1-4 verified: scheduling-assignments schema/migration (owner-applied), detailed error codes with offending ids, shared Zoom format validation, smart session forms, assignments hub, approval-time teachers, worker, demo seed (4× idempotent), clear-demo verified, E2E spec staged; final checks green (validate/typecheck/lint 10 suites / 111 tests/build) |
 | 4 | Live Learning (Zoom links) | Complete | 2026-10-14 | Closed by the owner on 2026-10-14. Implementation + tests complete (12 suites / 149 tests green; gap review in review-before-phase-04.md). Reminder: migration `20261012000000_phase4_link_audit` must be applied if not yet (it activates link-change audit writes + their test assertions) |
-| 5 | Session Reports & Attendance | In Progress | 2026-10-26 | Step 1 + Batches A–C + Session 1 (reports, monthly reports, report languages, submit-time delivery, rejection counter, finance wall, dashboards) implemented; Session 2 reconciled the reports test suite; Session 3 adds session evaluations (student+guardian, teacher-never-sees). Session 5 (a): monthly-report wrap-up — missing-report teacher card + `MONTHLY_REPORT_MISSING` Admin flag, 7-day window and 1st/3rd/4th timing CONFIRMED, money penalty OPEN. Awaiting owner browser review + authorized test loop |
-| 6 | Financial Management | In Progress | 2026-10-25 | Phase 6 core verified 2026-10-18 (16 suites / 192 tests). Phase 6b Session 2 pass (2026-10-20, implemented-not-verified): webhook atomic event claiming, checkout concurrency, server-side exchange-rate snapshots, monthly EXPIRY worker, billing APIs + Admin billing UI. Session 3 (2026-10-24): append-only payment audit + Admin report page, manual-payment UI hidden (APIs dormant-but-reachable), WhatsApp channel slice (OpenWA design first). Owner steps: apply migrations 20261018190000 + 20261020000000, Paymob test-mode keys, USD gateway decision. Session 5 (b, 2026-10-26): slices A0–A5 (Paymob webhook matching/audit, settlement locks, overtime atomicity, annual plan disabled, payroll idempotency), B1–B5 (profiles IDOR, same-origin guard on all mutations, forced password change, strict finance wall), C (pool/perf), D (schema docs); migrations 120000–160000 owner-applied. Open: reversal/refund family, E/F/6b, USD |
-| 7 | Admin & Reports | In Progress | 2026-10-26 | Session 5 (c): announcements (WhatsApp via throttled jobs + in-app widget/history; teachers/students/guardians only; Admin-only "no announcements" flag; max 2 per rolling 24 h), complaints (Admin/Supervisor-only; unnamed "another participant" option), link click timeline, evaluation summaries, post-session prompt card; teacher late-start rules (T+5 / T+10). Migrations 170000–190000 owner-applied. Static checks + build green; tests deferred (backlog AN/CP/CT/EV/LS/JL/SH). Open: self-service opt-out, punctuality metric (Phase 9) |
-| 8 | Testing & Launch | In Progress — **runs BEFORE Phase 9** (owner, 2026-10-26); session 1: 41 suites / 465 tests green | 2026-10-26 | Playwright installed (owner-approved exception), e2e/ specs + config + CI workflow staged; owner completed the E2E test round; full suite 10 suites / 111 tests green. Session 5 (d): OWASP Top 10:2025 review (`security-review.md`), baseline security headers, deploy checklist (`deploy-checklist.md`), next 16.4.3 / prisma 7.10.1 / zod 4.6.7 (critical/high advisories resolved; `fast-uri` moderate deferred to the final phase) |
-| 9 | Refinements & UI/UX Polish | Not Started — after Phase 8; "Plan (draft)" written 2026-10-26, waiting for owner answers | 2026-10-26 | Documented only (phase-09-refinements.md): admin home cards/charts, teachers/students/guardians pages, notifications, teacher performance, calendar views, deductions & bonuses, assignments fixes. Starts after Phases 5–8 |
+| 5 | Session Reports & Attendance | Built and tested — open items only | 2026-10-30 | Reports (per student, submit-time visibility, strict freeze, approval-gated settlement), attachments (Cloudinary), outage requests, monthly reports, report languages, manual attendance resolution (S-01). Tests: reports, visibility, report-attachments, session-requests, late-report-chain, monthly-reports, attendance suites; E2E report lifecycle (2026-10-29). Open: owner browser review; reservation-without-report list for the Admin (D84, worker fix B4) |
+| 6 | Financial Management | Built and tested — open items listed | 2026-10-30 | Paymob checkout + signed webhook (order-id match, audit, anomaly flags), settlement seam, payroll ledger (credits, categorized adjustments, reversal, disbursements), invoices, plans, exchange rates, credit expiry, automatic renewal (behind FEATURE_AUTO_RENEWAL), payment link (rolling 24 h, D81), Admin partial refunds + payer refund requests. Tests: payments-webhook, money-guards, payroll-money, refunds, refund-requests, renewal, credit-expiry suites + E2E finance/billing. Open: refund PENDING completion + held sessions (B1, design shown), payroll statements/payments/advances (Part D, D86/D87), USD through Paymob (D74, not built), annual plans (disabled), real Paymob test-mode run (Layer 2, owner) |
+| 7 | Admin & Reports | Built and tested | 2026-10-30 | Announcements (WhatsApp throttle + in-app), complaints (staff-only), click timeline, evaluation summaries, post-session prompt, late-start rules. Tests AN/CP/CT/EV/LS suites + E2E family/complaints. Open: self-service announcement opt-out (owner) |
+| 8 | Testing & Launch | Test suites done; launch steps open | 2026-10-30 | 2026-10-29: Jest 92 suites / 771 tests green; Playwright whole-site E2E 104 tests (crawl every page × role, access control, OWASP Top 10, Session 1/2 plans); WhatsApp live test done by the owner (D79). Open: monitoring/alerting, production hosting + deploy, backup/restore drill, mobile-viewport and RTL visual review, Paymob Layer 2 (owner), `fast-uri` moderate advisory |
+| 9 | Refinements & UI/UX Polish | In progress — most slices done | 2026-10-30 | Done: S-00…S-15 (return page, attendance resolution, teacher approval, time zones, join window, WhatsApp icon, inbox, roster changes, daily schedule, Supervisor finance view, calendar, performance + Admin home, deductions/bonuses, payment link + refunds, Stitch UI, payer refund request), G1 bug fixes, L latency, automatic renewal. Open: review fixes B1–B4 (designs waiting for the owner, 2026-10-29), Admin/Supervisor teacher schedule board (Part C), payroll statements and advances (Part D), OQ-14 assignments list, OQ-R3–R5 (Paymob), D47 week start (PROPOSAL) |
+
+## 2026-10-30 — branch fix/review-2026-10-29 (local, not pushed)
+
+- **Done (test-first, one commit each):**
+  - `.claude/` untracked;
+  - owner decisions D79–D87 recorded, with D73 confirmed and OQ-R2 / OQ-S13-1 closed;
+  - payment link limited to one per rolling 24 h (D81);
+  - the session list never returns a Zoom link (B5);
+  - the rate-limit store drops expired buckets;
+  - real IANA time zones required on session create, update and series;
+  - CSP and client-IP follow-ups;
+  - docs refreshed (schema §31, business-model, encoding, phase 5–9 status).
+- **Waiting for the owner (design + SQL, nothing built):**
+  - `review-2026-10-29-fixes.md`: B1 refund hold (SQL S-10), B2 reschedule, B3 guardian, B4 worker loops
+    (SQL S-11), D80 grace booking, login lockout;
+  - `slices/S-16-teacher-schedule-board.md` (Part C);
+  - `slices/S-17-payroll-statements-advances.md` (Part D, SQL S-12).
+- **Verified 2026-10-30:**
+  - `tsc` exit 0, `npm run lint` exit 0, `npm run build` exit 0;
+  - Jest: 93 suites / 781 tests, 0 failed (8 shards, each exit 0);
+  - Playwright: 104 tests, 100 passed and 4 skipped (the OpenWA specs; this run had OpenWA off), exit 0;
+  - 0 test academies and 0 `demo_test_*` users left.
+
+## 2026-10-29 — branches merged, whole-site E2E, OWASP dynamic pass
+
+- **All branches merged** into the working branch and `main` (feature/whatsapp: only its new files — Impeccable skill + `answer_on_phase-09-open-questions.md`, its tip carried unresolved conflict markers; whatsapp-clean, stitch-ui and the phase-1/2/3 branches recorded as merged, their content was already here).
+- **Jest: 92 suites / 771 tests green** (768 in the first run + 3 added today) on a local PostgreSQL 16 (all 44 migrations + demo seed), Node 24 (Prisma 7's ESM client needs Node ≥ 24.9 under Jest; 8 shards with a 6 GB heap — one in-band run ran out of memory). One real bug found and fixed: weekly series across the Cairo DST fall-back (991281b).
+- **Playwright whole-site E2E** (`webapp/e2e/`, README there): every page × role × ar/en, Session 1 §5.1–5.3 and Session 2 §3 journeys, bookings, family flows, OWASP Top 10 dynamic checks, the real OpenWA gateway. Results: phase-08 log 2026-10-29; findings: security-review.md "Dynamic E2E pass". Fixed: public subjects across academies (20e4e6c).
+- **OpenWA** now runs from `zarabicschool/OpenWA` in the cloud session (upstream v0.26.0); WhatsApp itself is blocked by the session's network policy, so no phone was linked. New finding G-WA-1 (a send while the session is down is failed for good).
+- **Dev tunnel:** `dev-tunnel.md` switched from ngrok to Cloudflare Tunnel (not measured yet — Cloudflare is blocked in the cloud session).
+- **Security fixes (same day):** G-A02-1 — nonce-based CSP on every page (`proxy.ts`), HSTS (production, short `HSTS_MAX_AGE`), Permissions-Policy; G-A07-5 — rate limits use the proxy-added `X-Forwarded-For` entry (`TRUSTED_PROXY_HOPS`, default 1). Owner: set `TRUSTED_PROXY_HOPS` and raise `HSTS_MAX_AGE` on the real host (deploy-checklist §1/§8).
 
 ## Where to resume (2026-10-27, master execution prompt)
 
@@ -76,7 +107,7 @@
 - **Owner decisions (2026-10-26, Phase 8 session):** (1) Phase 9 item 9.13 roster changes after scheduling CONFIRMED (add/remove on GROUP sessions, removal releases the reservation, PRIVATE = cancel; removal blocked once a report is SUBMITTED/APPROVED; subscription cancel/reduce lists affected reservations first) — documented only. (2) INT-EXP-08 option (a) CONFIRMED: late settlement against a still-ACTIVE package outside its period deducts into the negative + `BALANCE_NEGATIVE`; only "no ACTIVE package at all" = `SETTLED_WITHOUT_SUBSCRIPTION`; teacher always paid — code fixed in `settlement-seam.ts`.
 - **Phase 8 session 1 (2026-10-26):** stale tests fixed without weakening any rule; leftover test data cleaned (owner GO; seed unchanged); console WhatsApp provider + `APP_PUBLIC_URL`; Layer 1 full-cycle test; phase audit (every checklist marked done/partial/obsolete/missing); risk-ranked coverage matrix and OWASP tests. **Full suite 41 suites / 465 tests, all passing (dev stopped).** Real defects fixed: credentials-in-URL, 500s on malformed ids, payroll overflow 500, cross-academy subject list, origin error code, evaluations 201, complaint siblings, INT-EXP-08. Not covered: UI/RTL journeys, timezone display, real Paymob/OpenWA, operations — see phase-08 "Phase 8 session 1 result".
 - **Code-review slices (2026-10-27, uncommitted):** #1 late-start dedup per teacher, #4 announcement cap counts accepted only, #5 dashboard flag counts split, #6 monthly scan batched — all test-first and green; #3 (announcement scheduling) and #8 (origin checks) wait for the owner's OK on the plan; #7/#9/#10 recorded as tech debt TD-07/09/10.
-- **Next:** owner answers Phase 9 questions (Q1–Q16) and the open Phase 8 items (X-Powered-By, Paymob test-mode run, E2E accounts); Layer 2 real payment only when the owner says; WhatsApp live test stays last.
+- **Next:** owner answers Phase 9 questions (Q1–Q16) and the open Phase 8 items (X-Powered-By, Paymob test-mode run, E2E accounts); Layer 2 real payment only when the owner says; WhatsApp live test stays last (done by the owner 2026-10-29, D79).
 
 ### Pending for the next CONTEXT revision (10th)
 

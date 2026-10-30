@@ -8,18 +8,7 @@ import { prisma } from "../prisma";
  */
 export type TimeZoneSource = "DEFAULT" | "DEVICE" | "USER" | "ADMIN";
 
-const IANA_NAME = /^[A-Za-z][A-Za-z_]*(\/[A-Za-z0-9_+-]+){1,2}$/;
-
-export function isValidTimeZone(name: string): boolean {
-  if (typeof name !== "string" || name.length === 0 || name.length > 80) return false;
-  if (name !== "UTC" && !IANA_NAME.test(name)) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: name });
-    return true;
-  } catch {
-    return false;
-  }
-}
+export { isValidTimeZone } from "../validation/time-zone";
 
 export async function applyTimeZone(userId: string, timezone: string, source: Exclude<TimeZoneSource, "DEFAULT">) {
   const current = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timezone: true, timezoneSource: true } });

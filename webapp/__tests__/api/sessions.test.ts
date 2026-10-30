@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 
 import { reserveCredit } from "../../lib/credits/reservation";
 import { addWeeksInTimeZone } from "../../lib/schedules/recurrence";
+import { seriesWeekWindow } from "../../lib/schedules/series";
 import { prisma } from "../../lib/prisma";
 import { POST as createSessionRoute, GET as listSessionsRoute } from "../../app/api/sessions/route";
 import { PATCH as updateSessionRoute } from "../../app/api/sessions/[id]/route";
@@ -17,6 +18,7 @@ import { POST as replacementRoute } from "../../app/api/sessions/[id]/replacemen
 import { POST as recurrencesRoute } from "../../app/api/sessions/recurrences/route";
 import { POST as changeRequestRoute } from "../../app/api/sessions/[id]/change-request/route";
 import { GET as joinRoute } from "../../app/api/sessions/[id]/join/route";
+import * as sessionLinkRoute from "../../app/api/sessions/[id]/link/route";
 import { PATCH as reviewChangeRequestRoute } from "../../app/api/session-change-requests/[id]/route";
 import { POST as enrollRoute, DELETE as unenrollRoute } from "../../app/api/admin/enrollments/route";
 import {
@@ -350,26 +352,39 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
       },
     });
 
+    // B5 (2026-10-29): the session list never carries a Zoom link for ANY role —
+    // joining goes only through the join route (click log + window), and staff
+    // read the current links for editing from GET /api/sessions/:id/link.
+    for (const actor of [fx.adminUserId, fx.supervisorUserId, fx.teacherUserId, fx.studentUserIds.student1, fx.guardianUserId]) {
+      asActor(actor);
+      const list = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
+      const text = await list.text();
+      expect(text).not.toContain("zoom.us");
+      const item = JSON.parse(text).data.find((row: { id: string }) => row.id === sessionId);
+      expect(item).toBeDefined();
+      expect(item).not.toHaveProperty("zoomJoinUrl");
+      expect(item).not.toHaveProperty("zoomHostUrl");
+    }
     asActor(fx.adminUserId);
-    const adminList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const adminPayload = await adminList.json();
-    const adminItem = adminPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(adminItem.zoomHostUrl).toBe(HOST_URL);
-    expect(adminItem.zoomJoinUrl).toBe(JOIN_URL);
-
+    const adminItem = (await (await listSessionsRoute(new Request("http://localhost:3000/api/sessions"))).json()).data.find((row: { id: string }) => row.id === sessionId);
+    expect(adminItem.hasHostLink).toBe(true);
     asActor(fx.studentUserIds.student1);
-    const studentList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const studentPayload = await studentList.json();
-    const studentItem = studentPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(studentItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(studentItem.zoomHostUrl).toBeUndefined();
+    const studentItem = (await (await listSessionsRoute(new Request("http://localhost:3000/api/sessions"))).json()).data.find((row: { id: string }) => row.id === sessionId);
+    expect(studentItem).not.toHaveProperty("hasHostLink");
 
-    asActor(fx.guardianUserId);
-    const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
-    const guardianPayload = await guardianList.json();
-    const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(guardianItem.zoomHostUrl).toBeUndefined();
+    // The link editor's source: Admin and Supervisor only, academy-scoped, never cached.
+    const readLinks = () => sessionLinkRoute.GET(new Request(`http://localhost:3000/api/sessions/${sessionId}/link`), routeParams(sessionId));
+    for (const actor of [fx.adminUserId, fx.supervisorUserId]) {
+      asActor(actor);
+      const response = await readLinks();
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      expect((await response.json()).data).toEqual({ zoomJoinUrl: JOIN_URL, zoomHostUrl: HOST_URL });
+    }
+    for (const actor of [fx.teacherUserId, fx.studentUserIds.student1, fx.guardianUserId]) {
+      asActor(actor);
+      expect((await readLinks()).status).toBe(403);
+    }
 
     asActor(fx.studentUserIds.student1);
     const studentJoin = await joinRoute(new Request(`http://localhost:3000/api/sessions/${sessionId}/join`), routeParams(sessionId));
@@ -545,8 +560,74 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     const guardianList = await listSessionsRoute(new Request("http://localhost:3000/api/sessions"));
     const guardianPayload = await guardianList.json();
     const guardianItem = guardianPayload.data.find((item: { id: string }) => item.id === sessionId);
-    expect(guardianItem.zoomJoinUrl).toBe(JOIN_URL);
-    expect(guardianItem.zoomHostUrl).toBeUndefined();
+    expect(guardianItem.status).toBe("CANCELLED");
+    expect(guardianItem).not.toHaveProperty("zoomJoinUrl");
+  });
+
+  it("TZV-01: session create, series create and update refuse a time zone that is not a real IANA name", async () => {
+    asActor(fx.adminUserId);
+    for (const timezone of ["Mars/Olympus", "Cairo", "Africa/Cairo; DROP", "+02:00"]) {
+      const single = await createSessionRoute(apiRequest("/api/sessions", "POST", sessionPayload({ timezone }, { day: 23, hour: 5 })));
+      expect(single.status).toBe(400);
+      const series = await recurrencesRoute(apiRequest("/api/sessions/recurrences", "POST", sessionPayload({ timezone, weekCount: 2 }, { day: 23, hour: 7 })));
+      expect(series.status).toBe(400);
+    }
+    expect(await prisma.session.count({ where: { academyId: fx.academyId, timezone: "Mars/Olympus" } })).toBe(0);
+    await grantCredit(fx.studentProfileIds.student2, 1);
+    const { body } = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student2] }, { day: 23, hour: 9 });
+    const sessionId = body.data.id as string;
+    const update = await updateSessionRoute(apiRequest(`/api/sessions/${sessionId}`, "PATCH", { timezone: "Mars/Olympus" }), routeParams(sessionId));
+    expect(update.status).toBe(400);
+    expect((await prisma.session.findUniqueOrThrow({ where: { id: sessionId } })).timezone).toBe("Africa/Cairo");
+  });
+
+  describe("B2 / D88 — reschedule", () => {
+    const reschedule = (sessionId: string, start: Date, minutes = 60) =>
+      updateSessionRoute(
+        apiRequest(`/api/sessions/${sessionId}`, "PATCH", { scheduledStart: start.toISOString(), scheduledEnd: new Date(start.getTime() + minutes * 60_000).toISOString() }),
+        routeParams(sessionId),
+      );
+
+    it("RS-01: moving onto another session of the same teacher is refused; nothing changes", async () => {
+      await grantCredit(fx.studentProfileIds.student7, 2);
+      const first = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] }, { day: 24, hour: 6 });
+      const second = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student7] }, { day: 24, hour: 9 });
+      const firstStart = new Date(first.body.data.scheduledStart);
+      asActor(fx.adminUserId);
+      const response = await reschedule(second.body.data.id, new Date(firstStart.getTime() + 30 * 60_000));
+      expect(response.status).toBe(409);
+      expect((await response.json()).error.code).toBe("TEACHER_TIME_CONFLICT");
+      const stored = await prisma.session.findUniqueOrThrow({ where: { id: second.body.data.id } });
+      expect(stored.scheduledStart.toISOString()).toBe(second.body.data.scheduledStart);
+    });
+
+    it("RS-02: a free slot works, and so does shifting a session inside its own old time", async () => {
+      await grantCredit(fx.studentProfileIds.student8, 1);
+      const created = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student8] }, { day: 24, hour: 12 });
+      const start = new Date(created.body.data.scheduledStart);
+      asActor(fx.adminUserId);
+      expect((await reschedule(created.body.data.id, new Date(start.getTime() + 30 * 60_000))).status).toBe(200);
+      expect((await reschedule(created.body.data.id, new Date(start.getTime() + 3 * 3_600_000))).status).toBe(200);
+    });
+
+    it("RS-03: a time change after a SUBMITTED, APPROVED or REJECTED report is refused (409 SESSION_HAS_REPORTS)", async () => {
+      for (const status of ["SUBMITTED", "APPROVED", "REJECTED"] as const) {
+        await grantCredit(fx.studentProfileIds.student6, 1);
+        const hour = status === "SUBMITTED" ? 6 : status === "APPROVED" ? 8 : 10;
+        const created = await createSession(fx.adminUserId, { studentIds: [fx.studentProfileIds.student6] }, { day: 25, hour });
+        expect(created.body.error).toBeUndefined();
+        const sessionId = created.body.data.id as string;
+        await prisma.report.create({
+          data: { academyId: fx.academyId, sessionId, studentId: fx.studentProfileIds.student6, teacherId: fx.teacherProfileId, reportType: "SESSION_COMPLETION_REPORT", status, attendanceOutcome: "ATTENDED", classRemark: "demo_test", summary: "demo_test", homework: "demo_test" },
+        });
+        asActor(fx.adminUserId);
+        const response = await reschedule(sessionId, new Date(Date.parse(created.body.data.scheduledStart) + 26 * 3_600_000));
+        expect(response.status).toBe(409);
+        expect((await response.json()).error.code).toBe("SESSION_HAS_REPORTS");
+        // A link-only edit is still allowed.
+        expect((await updateSessionRoute(apiRequest(`/api/sessions/${sessionId}`, "PATCH", { zoomJoinUrl: JOIN_URL }), routeParams(sessionId))).status).toBe(200);
+      }
+    });
   });
 
   it("regression R27: change requests never mutate the session and require a scheduled target", async () => {
@@ -569,6 +650,18 @@ describe("Phase 3 — session scheduling (database-backed)", () => {
     expect(addWeeksInTimeZone(beforeSpring, 1, "America/New_York").toISOString()).toBe("2026-03-13T16:00:00.000Z");
     const beforeAutumn = new Date("2026-10-30T16:00:00.000Z");
     expect(addWeeksInTimeZone(beforeAutumn, 1, "America/New_York").toISOString()).toBe("2026-11-06T17:00:00.000Z");
+  });
+
+  it("regression: a week keeps the anchor's length when the anchor ends in the DST fall-back hour", () => {
+    // Africa/Cairo 2026-10-29: 20:00Z is 23:00 EEST and 21:00Z is 23:00 EET (same wall clock).
+    const week = seriesWeekWindow(
+      new Date("2026-10-29T20:00:00.000Z"),
+      new Date("2026-10-29T21:00:00.000Z"),
+      1,
+      "Africa/Cairo",
+    );
+    expect(week.start.toISOString()).toBe("2026-11-05T21:00:00.000Z");
+    expect(week.end.getTime() - week.start.getTime()).toBe(60 * 60 * 1000);
   });
 
   it("regression: recurrences reject duplicated students and private series need exactly one", async () => {

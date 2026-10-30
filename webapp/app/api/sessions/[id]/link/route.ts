@@ -21,6 +21,20 @@ function zoomUrlErrorResponse(value: string) {
   );
 }
 
+/**
+ * GET — the session's current Zoom links for the Admin/Supervisor link editor (D26).
+ * Academy-scoped, never cached; the session list itself carries no link (B5).
+ */
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
+  if (error) return error;
+  const { id } = await params;
+  if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
+  const session = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { zoomJoinUrl: true, zoomHostUrl: true } });
+  if (!session) return errorResponse(404, "NOT_FOUND", "Session not found.");
+  return NextResponse.json({ data: session }, { headers: { "Cache-Control": "private, no-store" } });
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
   if (crossOrigin) return crossOrigin;

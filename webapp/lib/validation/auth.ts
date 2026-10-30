@@ -33,7 +33,3 @@ export const changePasswordSchema = z
 export function normalizeUsername(username: string) {
   return username.trim().toLowerCase();
 }
-
-export function rateLimitKeys(username: string, ip: string) {
-  return [`login:user:${normalizeUsername(username)}`, `login:ip:${ip}`];
-}

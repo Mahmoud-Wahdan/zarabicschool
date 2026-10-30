@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
+import { SchedulingValidationError, assertTeacherFree } from "../../../../lib/scheduling/checks";
 import { writeLinkAudit } from "../../../../lib/scheduling/link-audit";
 import { sessionUpdateSchema } from "../../../../lib/validation/management";
 import { validateZoomUrl, zoomUrlReasonMessages } from "../../../../lib/validation/zoom-url";
@@ -39,7 +40,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const hostError = zoomUrlErrorResponse(data.zoomHostUrl);
     if (hostError) return hostError;
   }
-  const existing = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, status: true, scheduledStart: true, scheduledEnd: true, zoomJoinUrl: true, zoomHostUrl: true } });
+  const existing = await prisma.session.findFirst({ where: { id, academyId: user.academyId }, select: { id: true, teacherId: true, status: true, scheduledStart: true, scheduledEnd: true, zoomJoinUrl: true, zoomHostUrl: true } });
   if (!existing) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Session not found." } }, { status: 404 });
   if (existing.status === "COMPLETED" || existing.status === "MISSED") {
     return NextResponse.json({ error: { code: "CONFLICT", message: "Completed or missed sessions are immutable." } }, { status: 409 });
@@ -54,6 +55,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const end = data.scheduledEnd ? new Date(data.scheduledEnd) : existing.scheduledEnd;
   if (end <= start) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Session end must be after its start." } }, { status: 400 });
   const isCancellationTransition = data.status === "CANCELLED" && existing.status !== "CANCELLED";
+  const isTimeChange = !isCancellationTransition
+    && (start.getTime() !== existing.scheduledStart.getTime() || end.getTime() !== existing.scheduledEnd.getTime());
   // Phase 4: link changes through the general update get the same audit entry as the
   // dedicated link endpoint — computed before the transaction so it can be written atomically.
   const nextHostUrl = data.zoomHostUrl === "" ? null : data.zoomHostUrl ?? existing.zoomHostUrl;
@@ -75,6 +78,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (settled > 0) {
         throw new SessionStateConflict("SESSION_HAS_SETTLED_REPORTS", "This session has an approved report, so it cannot be cancelled. Use the Admin reversal instead.");
       }
+    }
+    if (isTimeChange) {
+      // B2 / D88: lock the row (the approval path's FOR SHARE waits for it), refuse a
+      // time change once a report exists in any reviewed state, then check the
+      // teacher's other sessions — all in this transaction.
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${id}::uuid FOR UPDATE`;
+      const reported = await tx.report.count({ where: { sessionId: id, status: { in: ["SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"] } } });
+      if (reported > 0) {
+        throw new SessionStateConflict("SESSION_HAS_REPORTS", "This session already has a teacher report, so its time cannot change.");
+      }
+      await assertTeacherFree(tx, user.academyId, existing.teacherId, start, end, { excludeSessionId: id });
     }
     const next = await tx.session.update({
       where: { id },
@@ -128,6 +142,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return next;
     });
   } catch (cause) {
+    if (cause instanceof SchedulingValidationError) {
+      return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: 409 });
+    }
     if (cause instanceof SessionStateConflict) {
       return NextResponse.json({ error: { code: cause.code, message: cause.message } }, { status: 409 });
     }

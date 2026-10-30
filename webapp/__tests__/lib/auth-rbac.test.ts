@@ -13,7 +13,7 @@ jest.mock("next-auth/jwt", () => ({
 
 jest.mock("next-intl/middleware", () => ({
   __esModule: true,
-  default: () => (request: unknown) => ({ type: "i18n", request }),
+  default: () => (request: unknown) => ({ type: "i18n", request, headers: new Headers() }),
 }));
 
 jest.mock("next-intl/server", () => ({
@@ -135,12 +135,17 @@ describe("Phase 1 authentication and RBAC gates", () => {
     expect(await provider.authorize(credentials, authRequest)).toBeNull();
     expect(compareMock).not.toHaveBeenCalled();
 
+    // D90: 3 failed attempts (the inactive one counts) block this username from this
+    // address for 15 minutes — the 4th attempt never reaches the database.
     prismaMock.user.findFirst.mockResolvedValue(null);
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       expect(await provider.authorize(credentials, authRequest)).toBeNull();
     }
     expect(await provider.authorize(credentials, authRequest)).toBeNull();
-    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(5);
+    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(3);
+    // Another address is not locked out by those failures.
+    await provider.authorize(credentials, { headers: new Headers({ "x-forwarded-for": "198.51.100.44" }) });
+    expect(prismaMock.user.findFirst).toHaveBeenCalledTimes(4);
   });
 
   it("rejects inactive database sessions even when the JWT session exists", async () => {
@@ -213,5 +218,48 @@ describe("Phase 1 authentication and RBAC gates", () => {
     }
     getTokenMock.mockResolvedValue(null);
     expect((await proxy(request("/ar/admin/complaints"))).headers.get("location")).toBe("http://localhost:3000/ar/login");
+  });
+
+  it("sends a nonce CSP on pages and hands the same policy and nonce to the renderer (G-A02-1)", async () => {
+    getTokenMock.mockResolvedValue(null);
+    type Routed = { request: NextRequest; headers: Headers };
+    const first = (await proxy(request("/ar"))) as unknown as Routed;
+    const policy = first.headers.get("content-security-policy") ?? "";
+    const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"]) {
+      expect(policy).toContain(directive);
+    }
+    expect(policy).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+    // Next.js reads the nonce from the request's CSP header when it renders the page.
+    expect(first.request.headers.get("content-security-policy")).toBe(policy);
+    // Nothing in the app reads an x-nonce header; Next.js takes the nonce from the CSP (review 2026-10-29).
+    expect(first.request.headers.get("x-nonce")).toBeNull();
+    const second = (await proxy(request("/ar"))) as unknown as Routed;
+    expect(second.headers.get("content-security-policy")).not.toBe(policy);
+
+    process.env.CSP_REPORT_ONLY = "1";
+    try {
+      const reportOnly = (await proxy(request("/ar"))) as unknown as Routed;
+      expect(reportOnly.headers.get("content-security-policy")).toBeNull();
+      expect(reportOnly.headers.get("content-security-policy-report-only")).toContain("'nonce-");
+    } finally {
+      delete process.env.CSP_REPORT_ONLY;
+    }
+  });
+
+  it("answers 400 for a path that is not valid percent-encoding, instead of a page whose scripts the CSP would block", async () => {
+    getTokenMock.mockResolvedValue(null);
+    const response = await proxy(request("/en/%E0%A4%A"));
+    expect(response.status).toBe(400);
+    expect((response as unknown as { type?: string }).type).not.toBe("i18n");
+  });
+
+  it("skips the per-request CSP work for router prefetches (the browser never renders them as a document)", async () => {
+    getTokenMock.mockResolvedValue(null);
+    const prefetch = new NextRequest("http://localhost:3000/ar", { headers: { "next-router-prefetch": "1" } });
+    const routed = (await proxy(prefetch)) as unknown as { type?: string; headers: Headers };
+    expect(routed.type).toBe("i18n");
+    expect(routed.headers.get("content-security-policy")).toBeNull();
   });
 });

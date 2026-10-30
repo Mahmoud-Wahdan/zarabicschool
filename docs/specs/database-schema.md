@@ -761,6 +761,32 @@ See the phase-06 log "Session 5: dev DB wipe + schema hardening" (H1–H7, H9): 
 ### 30.3 users.announcements_opt_out (migration 20261026180000)
 BOOLEAN NOT NULL DEFAULT false. Set by an ADMIN only. TRUE = no announcement WhatsApp (the in-app copy stays). Self-service opt-out is OPEN.
 
+## 31. Tables as built, Phases 3–9 (2026-10-30, from `schema.prisma`)
+
+Before this section, the file left out these tables or knew them only under earlier draft names. Columns are the Prisma field names; the source of truth is `webapp/prisma/schema.prisma` plus the raw-SQL migrations (CHECKs, partial uniques, triggers). Every foreign key is `ON DELETE RESTRICT`.
+
+| Table | Purpose | Key columns | Invariants |
+|---|---|---|---|
+| `applications` | Public application forms (student / guardian / teacher) | applicationType, details JSON, contactPhone, status, reviewed/approved by + at, approvedUserId, rejectionReason | index (academy, status, created) |
+| `academy_settings` | Admin-editable settings (class remarks, join window, pay-per-session min/max, WhatsApp number, …) | key, value JSON | UNIQUE (academy, key) |
+| `recurrence_series` | Weekly series; the worker generates weeks ahead | recurrenceRule JSON, timezone (IANA), startDate, totalWeeks, generatedThroughWeek, status | weekly wall clock across DST (R9) |
+| `session_reservations` | One credit held per (session, student) | subscriptionId, status RESERVED/CONSUMED/RELEASED | UNIQUE (session, student); balance − RESERVED = free credit |
+| `session_requests` | Outage / absence requests (Phase 5 Batch C) | reason, status, reviewedBy/At, replacementSessionId | partial unique: one PENDING per (session, requester) |
+| `session_change_requests` | Teacher "request a change" (Phase 3) | reason, proposedChange, status | teacher never mutates the session |
+| `monthly_reports` | Teacher's monthly report per student | monthKey, achievement, bands, rescheduledSessions, language | UNIQUE (teacher, student, monthKey); 7-day edit window (code) |
+| `teacher_rates` | Effective-dated hourly rate | hourlyRateMinor INT, currency, effectiveFrom | UNIQUE (teacher, effectiveFrom); one currency per teacher |
+| `payment_proofs` | Manual proof uploads (UI hidden, API dormant) | filePath (private storage), mimeType, sizeBytes, status, review fields | review-state CHECK |
+| `billing_plans` | Admin plans | packageType, sessionsPerMonth, basePriceMinor, currency, isActive, providerPlanId | providerPlanId unique when set (S-7) |
+| `exchange_rates` | Rate snapshot source for invoices | from/to currency, rate DECIMAL, effectiveFrom | only numeric money-adjacent column |
+| `billing_subscriptions` | Automatic monthly renewal (S-RENEW) | payerUserId, planId, status INCOMPLETE/ACTIVE/PAST_DUE/CANCELED, providerSubscriptionId, lockedPriceMinor, currentPeriodStart/End, billingAnchorDay, graceEndsAt, autoRenew, consentTimestamp | one live (not CANCELED) per student (S-7b) |
+| `webhook_events` | Signed provider events (claim + observability) | provider, providerEventId, eventType, payload (allowlist only), status | UNIQUE (provider, providerEventId) |
+| `attendance_resolutions` | Manual attendance (D2/D36) | outcome, reason, resolvedBy + role, subscriptionLedgerId | UNIQUE (session, student); append-only; ABSENT ⇒ no ledger id; a deduction without a report must be referenced here (deferred trigger, S-1c) |
+| `notification_reads` | Per-user read state of inbox items (S-4) | userId, itemKey (ids only), readAt | PK (user, itemKey) |
+| `invoice_refunds` | Admin partial refunds (S-13c) | sessionsRefunded, amountMinor BIGINT, currency, reason, status PENDING/SUCCEEDED/FAILED, providerRefundId, idempotencyKey | UNIQUE idempotencyKey; positive amounts; cumulative ≤ paid (code) |
+| `refund_requests` | Payer asks for a refund (S-15) | requestedBy, status PENDING/APPROVED/REJECTED, decision fields, invoiceRefundId | one PENDING per invoice; decision CHECK |
+
+Users are identified by **`username`** (unique, login), not by email (`users.email` is optional contact data). Subjects carry `name_ar` / `name_en`. Earlier sections that still say `email` login or a single `name` describe the first draft.
+
 ## Change Summary Labels
 
 - **S1:** Removed Zoom event ingress and event processing fields.

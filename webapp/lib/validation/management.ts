@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidTimeZone } from "./time-zone";
+
 const passwordSchema = z.string().min(12, "Password must be at least 12 characters").max(128);
 
 export const privilegedUserCreateSchema = z.object({
@@ -121,6 +123,7 @@ export const enrollmentSchema = z.object({
 });
 
 const isoDateTime = z.string().datetime({ offset: true });
+const sessionTimeZone = z.string().trim().min(1).max(80).refine(isValidTimeZone, "A valid IANA time zone is required.");
 
 const zoomUrlField = z.string().trim().min(1).max(2000);
 const optionalZoomUrlField = z.string().trim().max(2000).optional().or(z.literal(""));
@@ -132,8 +135,8 @@ export const sessionCreateSchema = z.object({
   scheduledStart: isoDateTime,
   scheduledEnd: isoDateTime,
   // No "UTC" default (time-zone audit, 2026-10-27): the route falls back to the
-  // creator's stored zone.
-  timezone: z.string().trim().min(1).max(80).optional(),
+  // creator's stored zone. Only a real IANA name is accepted (review 2026-10-29).
+  timezone: sessionTimeZone.optional(),
   zoomJoinUrl: zoomUrlField,
   zoomHostUrl: optionalZoomUrlField,
   studentIds: z.array(z.guid()).min(1).max(100),
@@ -147,7 +150,7 @@ export const recurringSessionSchema = sessionCreateSchema.extend({
 export const sessionUpdateSchema = z.object({
   scheduledStart: isoDateTime.optional(),
   scheduledEnd: isoDateTime.optional(),
-  timezone: z.string().trim().min(1).max(80).optional(),
+  timezone: sessionTimeZone.optional(),
   zoomJoinUrl: zoomUrlField.optional(),
   zoomHostUrl: optionalZoomUrlField,
   status: z.enum(["SCHEDULED", "CANCELLED"]).optional(),

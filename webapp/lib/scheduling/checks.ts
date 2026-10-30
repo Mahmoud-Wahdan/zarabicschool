@@ -1,5 +1,7 @@
 import type { Prisma } from "../../generated/prisma/client";
 
+import { studentsInRenewalGrace } from "../credits/renewal-grace";
+
 export class SchedulingValidationError extends Error {
   code: string;
   studentIds?: string[];
@@ -90,6 +92,15 @@ export async function resolveParticipants(
     );
   }
 
+  const inGrace = await studentsInRenewalGrace(tx, options.academyId, uniqueStudentIds);
+  if (inGrace.length > 0) {
+    throw new SchedulingValidationError(
+      "RENEWAL_PAST_DUE",
+      "The automatic renewal of one or more students is past due; new sessions can be booked again once the payment succeeds.",
+      inGrace,
+    );
+  }
+
   return { studentIds: uniqueStudentIds, overrodeAssignment: unassignedIds.length > 0 };
 }
 
@@ -104,12 +115,15 @@ export async function assertTeacherFree(
   teacherId: string,
   scheduledStart: Date,
   scheduledEnd: Date,
+  options: { excludeSessionId?: string } = {},
 ): Promise<void> {
   const conflicts = await tx.session.findMany({
     where: {
       academyId,
       teacherId,
       status: "SCHEDULED",
+      // A reschedule never conflicts with the session's own old time (B2).
+      ...(options.excludeSessionId ? { id: { not: options.excludeSessionId } } : {}),
       scheduledStart: { lt: scheduledEnd },
       scheduledEnd: { gt: scheduledStart },
     },

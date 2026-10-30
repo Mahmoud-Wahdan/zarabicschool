@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { Link } from "../../../../i18n/navigation";
 import Icon from "../../../_components/ui/icon";
 import { formatSessionDateTime } from "../../../../lib/schedules/display";
-import { wallClockInputToUtc } from "../../../../lib/schedules/recurrence";
+import { wallClockInputToUtc, zonedYmd } from "../../../../lib/schedules/recurrence";
+import TeacherDayStrip from "../../../_components/schedule-board/teacher-day-strip";
 import { rangeFromInputs, rangeToInputs } from "../../../../lib/schedules/form-times";
 import { validateZoomUrl, type ZoomUrlInvalidReason } from "../../../../lib/validation/zoom-url";
 import {
@@ -14,7 +15,7 @@ import {
   useTeacherOptions,
 } from "./use-smart-session-form";
 
-type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; zoomJoinUrl: string; zoomHostUrl: string | null; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[]; reportCount?: number };
+type Session = { id: string; scheduledStart: string; scheduledEnd: string; status: string; sessionType: string; timezone: string; hasHostLink?: boolean; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } }; students: { student: { user: { displayName: string } } }[]; reportCount?: number };
 type Series = { id: string; status: string; timezone: string; totalWeeks: number; generatedThroughWeek: number; sessionType: string; subject: { nameEn: string; nameAr: string }; teacher: { user: { displayName: string } } };
 type ChangeRequest = { id: string; reason: string; proposedChange: string; createdAt: string; teacher: { user: { displayName: string } }; session: { id: string; scheduledStart: string; subject: { nameEn: string; nameAr: string } } };
 
@@ -160,6 +161,21 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
     setBusy(false);
   }
 
+  // B5: the list carries no Zoom link; the editor reads the current ones on demand.
+  async function openLinkEdit(sessionId: string) {
+    if (linkEdit?.id === sessionId) {
+      setLinkEdit(null);
+      return;
+    }
+    const response = await fetch(`/api/sessions/${sessionId}/link`, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(payload.error?.message ?? t("errors.submit"));
+      return;
+    }
+    setLinkEdit({ id: sessionId, joinUrl: payload.data?.zoomJoinUrl ?? "", hostUrl: payload.data?.zoomHostUrl ?? "" });
+  }
+
   async function saveSessionLinks(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!linkEdit) return;
@@ -176,7 +192,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
       const hasOverlapWarning = (payload.data?.warnings ?? []).length > 0;
       setMessage(hasOverlapWarning ? t("overlap.savedWithWarning") : t("messages.linkUpdated"));
       setSessions((current) => current.map((session) => session.id === linkEdit.id
-        ? { ...session, zoomJoinUrl: linkEdit.joinUrl.trim(), zoomHostUrl: linkEdit.hostUrl.trim() || null }
+        ? { ...session, hasHostLink: linkEdit.hostUrl.trim() !== "" }
         : session));
       setLinkEdit(null);
     }
@@ -309,6 +325,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <SmartFormFields
           form={seriesForm}
           teachers={teachers}
+          viewerTimezone={viewerTimezone}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
           locale={locale}
@@ -331,6 +348,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
         <SmartFormFields
           form={single}
           teachers={teachers}
+          viewerTimezone={viewerTimezone}
           teachersState={teachersState}
           busyTitle={(day) => t("busy.title", { day })}
           locale={locale}
@@ -374,7 +392,7 @@ export default function SessionManagementPanel({ viewerTimezone, locale, session
                     <button type="button" onClick={() => setReschedule(reschedule?.id === session.id ? null : { id: session.id, ...rangeToInputs(session.scheduledStart, session.scheduledEnd, viewerTimezone) })} className="btn btn-outline">{t("actions.reschedule")}</button>
                     <button
                       type="button"
-                      onClick={() => setLinkEdit(linkEdit?.id === session.id ? null : { id: session.id, joinUrl: session.zoomJoinUrl, hostUrl: session.zoomHostUrl ?? "" })}
+                      onClick={() => void openLinkEdit(session.id)}
                       className="btn btn-outline"
                     >
                       {t("actions.editLink")}
@@ -435,8 +453,10 @@ function SmartFormFields({
   teachersState,
   busyTitle,
   locale,
+  viewerTimezone,
 }: {
   form: ReturnType<typeof useSmartSessionForm>;
+  viewerTimezone: string;
   teachers: { id: string; displayName: string }[];
   teachersState: "loading" | "ready" | "error";
   busyTitle: (day: string) => string;
@@ -543,6 +563,18 @@ function SmartFormFields({
             <p role="alert" className="mt-2 rounded-lg bg-error-container p-2 text-body-sm text-on-error-container">{t("busy.conflict")}</p>
           ) : null}
           <p className="mt-2 text-label-sm text-on-surface-variant">{t("busy.note")}</p>
+          {/* S-16 (D91): the chosen teacher's day as a timeline, the new session outlined. */}
+          {form.teacherId ? (
+            <div className="mt-3 border-t border-outline-variant pt-3">
+              <TeacherDayStrip
+                teacherId={form.teacherId}
+                date={form.selectedRange ? zonedYmd(form.selectedRange.start, viewerTimezone) : form.scheduledStart.slice(0, 10)}
+                draft={form.selectedRange}
+                timeZone={viewerTimezone}
+                locale={locale}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

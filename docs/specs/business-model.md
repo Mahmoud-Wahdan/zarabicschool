@@ -3,6 +3,11 @@
 > Sourced from `docs/CONTEXT.md` and owner-confirmed technical decisions (2026-10-06). Nothing here is invented. Every item is labeled: **Confirmed**, **Open**, or **Proposal**.
 >
 > Last updated: 2026-10-06
+>
+> **Superseded in parts (note added 2026-10-30):** `docs/CONTEXT.md` wins wherever this file differs. Known differences:
+> SMS fallback is post-MVP and may never be built (CONTEXT §5/§17; the row below that says "SMS confirmed" is stale);
+> file storage is private Cloudinary, not Supabase Storage (2026-10-25); manual payment proofs are hidden in the UI (Session 3);
+> the 4–6 week target timeline is history (stage dates are OPEN, CONTEXT §14); online payment is Paymob (EGP, USD via Paymob, D74).
 
 ---
 
@@ -170,7 +175,7 @@ Teacher submits attended report
 *Source: CONTEXT.md §12 + Confirmed Decisions 2026-09-28. Status: **Confirmed**.*
 
 1. Student/guardian submits payment proof (receipt image or transaction reference).
-2. **Storage:** Proof images uploaded to a private **Supabase Storage** bucket. Database stores `file_path` (never file content). Accessed via temporary signed URLs.
+2. **Storage:** Proof images uploaded to private storage (**Cloudinary** "authenticated" assets since 2026-10-25; Supabase Storage originally). Database stores `file_path` (never file content). Accessed via temporary signed URLs.
 3. Invoice marked `PENDING`.
 4. Admin reviews against bank/wallet account.
 5. Admin confirms $\rightarrow$ Invoice marked `PAID` $\rightarrow$ `SubscriptionLedger` credited with `INITIAL_PURCHASE`.
@@ -198,8 +203,8 @@ Teacher submits attended report
 | Topic | Decision | Status |
 |-------|----------|--------|
 | **Hosting & Worker Model** | Hosting is decided at deployment; OpenWA and timed notifications need a continuously running process. | **Open** |
-| **Credential Delivery Fallback** | **SMS** is the confirmed fallback channel if WhatsApp (OpenWA) is down, disconnected, or blocked. | **Confirmed** (owner 2026-09-28) |
-| **Project Target Timeline** | **1 month to maximum 1.5 months (4–6 weeks)** total delivery target. | **Confirmed** (owner 2026-09-28) |
+| **Credential Delivery Fallback** | ~~SMS is the confirmed fallback channel~~ — SUPERSEDED: SMS is post-MVP and may never be built; the Admin one-time credentials panel is the fallback (CONTEXT §5). | **Superseded** |
+| **Project Target Timeline** | ~~1 month to maximum 1.5 months (4–6 weeks)~~ — history; stage boundaries are OPEN (CONTEXT §14). | **Superseded** |
 | **Zoom Plan & Cost** | Confirm the academy's normal Zoom plan and cost for externally created meetings; no platform API capability is required. | **Open Action Item** |
 | **Postgres Database Host** | Supabase (transaction-mode pooler for `DATABASE_URL`, direct connection for `DIRECT_URL` migrations). | **Confirmed** |
 

@@ -219,3 +219,62 @@ All automated tests run against per-run test academies (`demo_test_*` users) on 
 ### 2026-10-27 — Full-suite checkpoint (after S-00, S-04, M-2, S-05; dev stopped)
 - **53 suites / 516 tests — 516 passed, 0 failed, 0 skipped, 1193 s** (`npm test -- --ci`, real dev DB, per-run test academies; tsc 0, lint 0 at each commit).
 - Seed check (read-only snapshot, count + md5 per seed-academy table, 37 tables): **identical before and after** — 195 seed rows; subscription ledger 9 rows / sum 36 (the 8 / 28 of 2026-10-26 + the owner's real test payment +8); payroll ledger 4 rows / 47250. Left behind: 0 test academies, 0 `demo_test_*` users, 0 test webhook events.
+
+### 2026-10-29 — Full suites in a cloud session: Jest green, whole-site Playwright E2E, OWASP dynamic pass
+
+Owner request (2026-10-29): merge every branch into `main`, build an E2E test of the whole site,
+run OpenWA, switch the dev tunnel, test all cases incl. the Session 1/2 test plans and the
+OWASP Top 10. Environment: cloud container, local PostgreSQL 16 (all 44 migrations applied
+cleanly to an empty database + demo seed), production build (`next start`), the real OpenWA
+gateway from `zarabicschool/OpenWA` (upstream v0.26.0; WhatsApp unreachable from the container,
+so no phone linked), Paymob through a local test double (no keys, Paymob unreachable).
+
+- **Jest: 92 suites / 768 tests — all green** after one fix (771 after the security fixes below; first report said 749 — a counting error). Needs Node ≥ 24.9 (Prisma 7's ESM
+  query compiler under Jest; Node 22 fails every DB suite). One in-band run hit the 2 GB heap
+  limit; 8 sequential shards with `--max-old-space-size=6144` passed.
+  - **Real bug (fixed, 991281b):** a weekly series whose anchor ends in the repeated hour of the
+    DST fall-back (Africa/Cairo, 2026-10-29) generated 0-minute weeks and was skipped by the
+    worker forever. `seriesWeekWindow` keeps the anchor's real length; a fixed-date regression
+    test pins it (the existing worker test only caught it because it ran on that day).
+- **Playwright E2E: 104 tests — all as expected, 6.0 min** (`webapp/e2e/`, README there):
+  6 real sign-ins; 17 crawl tests = every page of every role + public pages in ar and en;
+  14 access-control (pages × roles, every API handler anonymous, every mutation with a
+  foreign/missing Origin, role matrix from each handler's guard); 32 OWASP Top 10 checks;
+  Session 1 §5.1/§5.2/§5.3/§4.4 and Session 2 §3 journeys (report lifecycle 7, finance 6,
+  billing 5); bookings 5; family flows 3; public apply 3; WhatsApp with the real OpenWA 3.
+  Three tests pinned open gaps with `test.fail()`: G-A02-1 (CSP/HSTS), G-A07-5 (X-Forwarded-For),
+  G-WA-1 (OpenWA 400 when its session is down) — the first two were fixed the same day (below). After the run: 0 test academies left,
+  0 marker applications in the seed academy.
+  - **Real bug (fixed, 20e4e6c):** the public apply page and the landing subject list showed
+    every academy's subjects; the form then refused them ("Unknown subjects").
+  - Findings G-A07-5, G-WA-1, G-A01-5, G-A02-6 and the copied-token note: security-review.md
+    "Dynamic E2E pass". `npm audit` (production deps): 1 moderate (`fast-uri`, known), 0 high/critical.
+- The old `e2e/phase3.e2e.spec.ts` was removed: it signed in as users the Session 5 seed rewrite
+  deleted; its scenarios live on in `e2e/sessions/session-lifecycle.spec.ts` on the per-run academy.
+- **Not covered (honestly):** a real WhatsApp delivery (no linked phone; WhatsApp blocked here);
+  the real Paymob sandbox (Layer 2 stays the owner's run); a tunnel (Cloudflare/ngrok blocked
+  here — `dev-tunnel.md` switched to Cloudflare Tunnel, not measured yet); mobile viewports and
+  visual review; load/performance; backups and monitoring.
+
+### 2026-10-29 (later) — G-A02-1 and G-A07-5 fixed (owner request)
+
+- **G-A07-5:** `getClientIp` uses the `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` places from the
+  right (default 1 — the address the reverse proxy added); forged entries on the left never pick
+  a rate-limit bucket. Jest `request.test.ts` (2 tests); E2E "G-A07-5" now an ordinary test
+  (forged left part, constant proxy entry → 429 after 120).
+- **G-A02-1:** nonce-based CSP per request in `proxy.ts` (`script-src 'self' 'nonce-…'
+  'strict-dynamic'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri`/`form-action 'self'`;
+  `CSP_REPORT_ONLY=1` = rollback), `Permissions-Policy` and production-only HSTS (`HSTS_MAX_AGE`,
+  default 300) in `next.config.ts`. The E2E crawl now fails on any CSP violation and passed on
+  every page of every role; injected `<img onerror>` is blocked when enforced and runs with
+  report-only (so the probe is real). Jest `auth-rbac.test.ts` checks the policy, the per-request
+  nonce and the report-only switch.
+- **Test made date-proof:** `scheduling-worker.test.ts` "never creates a duplicate week…" now uses
+  its own teacher. Run in the hour before the Cairo fall-back, its anchor and the resume-test
+  anchor read the same local time, and weekly generation (wall clock, R9) correctly made them
+  conflict. App behaviour unchanged.
+- **Results:** Jest 92 suites / 771 tests green; Playwright 104 tests, all as expected (6.1 min;
+  one `test.fail()` left: G-WA-1).
+
+### 2026-10-29 (owner) — WhatsApp live test done
+- The owner tested OpenWA with a real number on 2026-10-29 and it works (D79). This closes the "real WhatsApp delivery / OpenWA end-to-end" gaps listed above as not covered. The automated suites still never call OpenWA; `OPENWA_SEND_ALLOWLIST` still guards non-production sends.

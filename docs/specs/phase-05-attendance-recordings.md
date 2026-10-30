@@ -226,9 +226,9 @@ Full audit on `feature/phase-5` (14 migrations all APPLIED to the dev DB; the ou
 - Commits: d322b54 (regression repair), c6e4cc6 (submit/review hardening + tests), 7bbaf92 (worker chain + tests), 3ee5a70 (queue evidence).
 - **Owner step added:** apply migration `20261014183952_phase5_restore_assignment_composite_fk` (`npx prisma migrate deploy`, DIRECT_URL).
 
-### 2026-10-20 — Session 2 test reconciliation (reports delivery contract)
+### 2026-10-20 â€” Session 2 test reconciliation (reports delivery contract)
 
-- `__tests__/api/reports.test.ts` carried three obsolete assertions from the pre-Session-1 "family notified on APPROVAL" contract (REPORT_APPROVED jobs). Updated to the confirmed submit-time contract (owner, 2026-10-18): the guardian AND the student get one deduped `REPORT_SUBMITTED` job per report on SUBMIT; approval enqueues nothing to the family (kept as explicit negative assertions); the failed-notice test now proves a FAILED submit notice never rolls the submission back. The stale `MESSAGING_PROVIDER="fake"` setup line was removed (the fake provider no longer exists). Tests were NOT run — they execute only with the owner's `Run the tests` instruction (requires the Session 1 migration applied).
+- `__tests__/api/reports.test.ts` carried three obsolete assertions from the pre-Session-1 "family notified on APPROVAL" contract (REPORT_APPROVED jobs). Updated to the confirmed submit-time contract (owner, 2026-10-18): the guardian AND the student get one deduped `REPORT_SUBMITTED` job per report on SUBMIT; approval enqueues nothing to the family (kept as explicit negative assertions); the failed-notice test now proves a FAILED submit notice never rolls the submission back. The stale `MESSAGING_PROVIDER="fake"` setup line was removed (the fake provider no longer exists). Tests were NOT run â€” they execute only with the owner's `Run the tests` instruction (requires the Session 1 migration applied).
 
 ### 2026-10-26 â€” Monthly reports wrap-up (Session 5, part a)
 
