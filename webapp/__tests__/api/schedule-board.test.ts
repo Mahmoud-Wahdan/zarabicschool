@@ -34,7 +34,7 @@ let fx: SessionFixtures;
 const CAIRO = "Africa/Cairo";
 const MIN = 60_000;
 
-async function session(input: { teacherId?: string; start: string; minutes: number; students?: string[]; type?: "PRIVATE" | "GROUP"; status?: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "MISSED"; academyId?: string; subjectId?: string }) {
+async function session(input: { teacherId?: string; start: string; minutes: number; students?: string[]; type?: "PRIVATE" | "GROUP"; status?: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "MISSED"; academyId?: string; subjectId?: string; createdById?: string }) {
   const start = new Date(input.start);
   return prisma.session.create({
     data: {
@@ -48,7 +48,7 @@ async function session(input: { teacherId?: string; start: string; minutes: numb
       timezone: CAIRO,
       zoomJoinUrl: "https://zoom.us/j/909090909090",
       zoomHostUrl: "https://zoom.us/s/909090909091",
-      createdById: fx.adminUserId,
+      createdById: input.createdById ?? fx.adminUserId,
       status: input.status ?? "SCHEDULED",
       students: { create: (input.students ?? [fx.studentProfileIds.student1]).map((studentId) => ({ studentId })) },
     },
@@ -71,7 +71,7 @@ beforeAll(async () => {
   await session({ start: "2026-09-15T12:00:00Z", minutes: 60, status: "CANCELLED" }); // 15:00, never counts
   await session({ teacherId: fx.teacher2ProfileId, start: "2026-09-15T10:00:00Z", minutes: 60, type: "GROUP", students: [fx.studentProfileIds.student9, fx.studentProfileIds.student1] });
   // Another academy's session on the same day must never appear.
-  await session({ academyId: fx.foreignAcademyId, teacherId: fx.foreignTeacherProfileId, subjectId: fx.foreignSubjectId, students: [fx.foreignStudentProfileId], start: "2026-09-15T07:00:00Z", minutes: 60 });
+  await session({ academyId: fx.foreignAcademyId, teacherId: fx.foreignTeacherProfileId, subjectId: fx.foreignSubjectId, students: [fx.foreignStudentProfileId], createdById: fx.foreignAdminUserId, start: "2026-09-15T07:00:00Z", minutes: 60 });
 });
 
 afterAll(async () => {
