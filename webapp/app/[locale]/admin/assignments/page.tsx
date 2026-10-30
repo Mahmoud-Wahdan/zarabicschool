@@ -18,7 +18,7 @@ export default async function AssignmentsPage() {
     <DashboardShell role={user.role} userName={user.displayName}>
       <PageHeader title={t("assignments.title")} subtitle={t("assignments.intro")} />
       <div className="mt-4 flex flex-col gap-6">
-        <StudentAssignmentsPanel />
+        <StudentAssignmentsPanel timeZone={user.timezone || "Africa/Cairo"} />
         <AssignmentsPanel />
       </div>
     </DashboardShell>

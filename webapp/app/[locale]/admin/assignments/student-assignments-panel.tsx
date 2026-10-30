@@ -35,7 +35,7 @@ type OpenAction = { id: string; kind: "end"; reason: string } | { id: string; ki
 
 const KNOWN_ERRORS = ["DUPLICATE_ASSIGNMENT", "TEACHER_SUBJECT_NOT_ASSIGNED", "ASSIGNMENT_PARTICIPANTS_INVALID", "CONFLICT", "NOT_FOUND", "VALIDATION_ERROR"] as const;
 
-export default function StudentAssignmentsPanel() {
+export default function StudentAssignmentsPanel({ timeZone }: { timeZone: string }) {
   const t = useTranslations("assignmentsAdmin");
   const locale = useLocale();
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
@@ -52,7 +52,7 @@ export default function StudentAssignmentsPanel() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const subjectName = useCallback((subject: SubjectName) => (locale === "ar" ? subject.nameAr : subject.nameEn), [locale]);
-  const dateFormat = useMemo(() => new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric" }), [locale]);
+  const dateFormat = useMemo(() => new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone, day: "numeric", month: "short", year: "numeric" }), [locale, timeZone]);
 
   const loadFormSubjects = useCallback(async (teacherId: string) => {
     setFormSubjects([]);
