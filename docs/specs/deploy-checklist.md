@@ -8,7 +8,7 @@ Started 2026-10-26 (Session 5). Extend it; never regenerate it. The launch gaps 
 - [ ] `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations only) point at the PRODUCTION database.
 - [ ] `NEXTAUTH_URL` = the public site URL; `NEXTAUTH_SECRET` = a new random value (never the dev one). It is ALSO the base of the join links in WhatsApp messages (`lib/config/platform-url.ts`): a wrong value sends people to a wrong host; an empty one sends no link.
 - [ ] **`ALLOWED_ORIGINS`** — see §2. Without it every change request fails.
-- [ ] **`TRUSTED_PROXY_HOPS`** = the number of reverse proxies in front of the app that add to `X-Forwarded-For` (nginx/Caddy/Cloudflare = 1, a CDN in front of nginx = 2; default 1). The app port must be reachable ONLY through those proxies, or a client can forge its rate-limit address (G-A07-5).
+- [ ] **`TRUSTED_PROXY_HOPS`** = the number of reverse proxies in front of the app that add to `X-Forwarded-For` (nginx/Caddy/Cloudflare = 1, a CDN in front of nginx = 2; default 1). The app port must be reachable ONLY through those proxies, or a client can forge its rate-limit address (G-A07-5). A value outside 1–5 is logged once at start (name only) and treated as 1.
 - [ ] `MESSAGING_PROVIDER` **unset** (or `openwa`): `console`/`fake` make the production start FAIL on purpose (owner, 2026-10-27).
 - [ ] `OPENWA_SEND_ALLOWLIST` **unset** (in non-production it restricts who receives WhatsApp; production must not carry it).
 - [ ] `OPENWA_*`, `OPENWA_WEBHOOK_SECRET`, `PAYMOB_*`, `CLOUDINARY_*` set with production values.

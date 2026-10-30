@@ -57,13 +57,26 @@ function cspHeaderName() {
   return process.env.CSP_REPORT_ONLY === "1" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
 }
 
+/** Router prefetches fetch RSC data the browser never renders as a document. */
+function isPrefetch(req: NextRequest) {
+  return req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
+}
+
 /** Locale routing with the CSP on the request (Next.js reads the nonce there) and on the response. */
 function routeWithCsp(req: NextRequest) {
+  // next-intl answers a path that is not valid percent-encoding with a bare
+  // NextResponse.next() that drops our request headers, so the page would render
+  // without the nonce under a policy that requires it. Refuse such paths here.
+  try {
+    decodeURI(req.nextUrl.pathname);
+  } catch {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+  if (isPrefetch(req)) return handleI18nRouting(req);
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const policy = contentSecurityPolicy(nonce);
   const header = cspHeaderName();
   const headers = new Headers(req.headers);
-  headers.set("x-nonce", nonce);
   headers.set(header, policy);
   const response = handleI18nRouting(new NextRequest(req, { headers }));
   response.headers.set(header, policy);

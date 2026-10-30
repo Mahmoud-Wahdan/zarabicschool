@@ -12,28 +12,42 @@ function getHeader(headers: IncomingHeaders, name: string): string | undefined {
   return undefined;
 }
 
+let warnedAboutHops = false;
+
 /**
  * How many reverse proxies in front of the app add the address they saw to
  * X-Forwarded-For (TRUSTED_PROXY_HOPS, 1-5, default 1: one proxy such as nginx, Caddy,
  * Cloudflare or a tunnel). Next.js itself only fills the header when it is missing.
+ * A value outside that range is reported once (name only) and treated as 1.
  */
 function trustedProxyHops(): number {
-  const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? "1");
-  return Number.isInteger(hops) && hops >= 1 && hops <= 5 ? hops : 1;
+  const raw = process.env.TRUSTED_PROXY_HOPS ?? "1";
+  const hops = Number(raw);
+  if (Number.isInteger(hops) && hops >= 1 && hops <= 5) return hops;
+  if (!warnedAboutHops) {
+    warnedAboutHops = true;
+    // The name only — never the value or any address.
+    console.warn("[request] TRUSTED_PROXY_HOPS must be a whole number from 1 to 5; using 1.");
+  }
+  return 1;
 }
 
 /**
  * The client address for rate limits: the entry the trusted proxies added, counted from
  * the RIGHT of X-Forwarded-For. Entries to its left come from the client and can be
- * forged, so they never pick the bucket (G-A07-5; the first entry used to).
+ * forged, so they never pick the bucket (G-A07-5; the first entry used to). With fewer
+ * entries than proxies the rightmost one is used (the address the nearest proxy saw).
+ * The app must be reachable only through its proxy: a client that reaches the port
+ * directly writes the whole header (deploy checklist §1).
  */
 export function getClientIp(headers: IncomingHeaders) {
   const chain = (getHeader(headers, "x-forwarded-for") ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-  // Fewer entries than proxies: the request did not pass all of them; the leftmost is all there is.
-  return chain[Math.max(chain.length - trustedProxyHops(), 0)]
+  const hops = trustedProxyHops();
+  const index = chain.length >= hops ? chain.length - hops : chain.length - 1;
+  return chain[index]
     || getHeader(headers, "x-real-ip")
     || "unknown";
 }

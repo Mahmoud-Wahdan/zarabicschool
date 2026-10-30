@@ -21,11 +21,25 @@ describe("request helpers", () => {
     process.env.TRUSTED_PROXY_HOPS = "2";
     // forged, client (added by the CDN), CDN edge (added by nginx)
     expect(getClientIp(new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.10, 10.0.0.2" }))).toBe("203.0.113.10");
-    // Fewer entries than proxies: the leftmost.
     expect(getClientIp(new Headers({ "x-forwarded-for": "203.0.113.10" }))).toBe("203.0.113.10");
-    // An invalid setting falls back to one proxy.
-    process.env.TRUSTED_PROXY_HOPS = "lots";
+    // Fewer entries than proxies: the RIGHTMOST — the address the nearest proxy saw —
+    // never a client-written entry on the left (review 2026-10-29).
+    process.env.TRUSTED_PROXY_HOPS = "3";
     expect(getClientIp(new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.10" }))).toBe("203.0.113.10");
+  });
+
+  it("warns once when TRUSTED_PROXY_HOPS is not a whole number from 1 to 5, and uses one proxy", () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      process.env.TRUSTED_PROXY_HOPS = "lots";
+      expect(getClientIp(new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.10" }))).toBe("203.0.113.10");
+      getClientIp(new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.10" }));
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain("TRUSTED_PROXY_HOPS");
+      expect(String(warn.mock.calls[0][0])).not.toContain("lots");
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("falls back to x-real-ip and then unknown", () => {

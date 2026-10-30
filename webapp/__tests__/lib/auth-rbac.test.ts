@@ -228,7 +228,8 @@ describe("Phase 1 authentication and RBAC gates", () => {
     expect(policy).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
     // Next.js reads the nonce from the request's CSP header when it renders the page.
     expect(first.request.headers.get("content-security-policy")).toBe(policy);
-    expect(first.request.headers.get("x-nonce")).toBe(nonce);
+    // Nothing in the app reads an x-nonce header; Next.js takes the nonce from the CSP (review 2026-10-29).
+    expect(first.request.headers.get("x-nonce")).toBeNull();
     const second = (await proxy(request("/ar"))) as unknown as Routed;
     expect(second.headers.get("content-security-policy")).not.toBe(policy);
 
@@ -240,5 +241,20 @@ describe("Phase 1 authentication and RBAC gates", () => {
     } finally {
       delete process.env.CSP_REPORT_ONLY;
     }
+  });
+
+  it("answers 400 for a path that is not valid percent-encoding, instead of a page whose scripts the CSP would block", async () => {
+    getTokenMock.mockResolvedValue(null);
+    const response = await proxy(request("/en/%E0%A4%A"));
+    expect(response.status).toBe(400);
+    expect((response as unknown as { type?: string }).type).not.toBe("i18n");
+  });
+
+  it("skips the per-request CSP work for router prefetches (the browser never renders them as a document)", async () => {
+    getTokenMock.mockResolvedValue(null);
+    const prefetch = new NextRequest("http://localhost:3000/ar", { headers: { "next-router-prefetch": "1" } });
+    const routed = (await proxy(prefetch)) as unknown as { type?: string; headers: Headers };
+    expect(routed.type).toBe("i18n");
+    expect(routed.headers.get("content-security-policy")).toBeNull();
   });
 });

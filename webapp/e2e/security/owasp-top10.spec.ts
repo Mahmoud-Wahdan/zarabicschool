@@ -123,13 +123,17 @@ test.describe("A02 Security Misconfiguration", () => {
       expect(policy).toContain(directive);
     }
     expect(policy).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
-    expect(policy).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+    // `next dev` needs 'unsafe-eval' and sends no HSTS (production builds only); the
+    // run's server mode decides what is expected (E2E_SERVER=dev, playwright.config.ts).
+    const productionBuild = process.env.E2E_SERVER !== "dev";
+    expect(policy).not.toMatch(productionBuild ? /script-src[^;]*'unsafe-(inline|eval)'/ : /script-src[^;]*'unsafe-inline'/);
     // A fresh nonce on every request.
     const again = (await anon.get("/en")).headers()["content-security-policy"];
     expect(again).not.toBe(policy);
     for (const path of ["/en", "/api/subjects"]) {
       const headers = (await anon.get(path)).headers();
-      expect.soft(headers["strict-transport-security"], path).toMatch(/^max-age=\d+/);
+      if (productionBuild) expect.soft(headers["strict-transport-security"], path).toMatch(/^max-age=\d+/);
+      else expect.soft(headers["strict-transport-security"], path).toBeUndefined();
       expect.soft(headers["permissions-policy"], path).toContain("camera=()");
     }
     // Next.js put the nonce on every script it rendered.
@@ -409,8 +413,13 @@ test.describe("A07 Identification and Authentication Failures", () => {
   test("G-A07-5 (fixed): a forged X-Forwarded-For cannot reset the per-client limits", async ({ playwright }) => {
     // Behind the (one, default) reverse proxy a client's own header arrives as
     // "<whatever it sent>, <address the proxy saw>". Only the proxy's entry picks the bucket.
+    // The run has no proxy in front, so the test plays the proxy's part and appends the
+    // "real" entry itself. A client that reaches the app port directly writes the whole
+    // header; that cannot be told apart, which is why the app must only be reachable
+    // through its proxy (deploy-checklist.md §1).
     const client = await playwright.request.newContext({ baseURL: BASE_URL });
-    const real = clientIp(`forger-${Date.now()}`);
+    // 100.64.0.0/10 is never produced by clientIp(), so no other test shares this bucket.
+    const real = `100.64.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
     const statuses: number[] = [];
     for (let index = 0; index < 130; index++) {
       statuses.push((await client.get("/api/subjects", { headers: { "x-forwarded-for": `192.0.2.${index % 250}, ${real}` } })).status());
