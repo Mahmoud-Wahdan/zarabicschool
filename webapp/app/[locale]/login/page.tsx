@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import LocaleSwitcher from "../../_components/locale-switcher";
 import LogoPlaceholder from "../../_components/logo-placeholder";
+import ThemeSwitch from "../../_components/theme-switch";
 import { safeCallbackPath } from "../../../lib/auth/callback-url";
 import { getAuthSession } from "../../../lib/dal";
 import LoginForm from "./login-form";
@@ -35,7 +36,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-secondary" aria-hidden="true" />
           <span className="text-label-sm tracking-wide text-secondary">{t("status")}</span>
         </div>
-        <LocaleSwitcher className="rounded-full border border-outline-variant px-3 py-1 text-label-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface" />
+        <div className="flex items-center gap-2">
+          <ThemeSwitch className="rounded-full border border-outline-variant px-3 py-1 text-label-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface" />
+          <LocaleSwitcher className="rounded-full border border-outline-variant px-3 py-1 text-label-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface" />
+        </div>
       </div>
 
       <div className="w-full max-w-lg overflow-hidden rounded-xl bg-surface-container-lowest shadow-md transition-all duration-200">

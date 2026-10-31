@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import "../globals.css";
-
 import { routing } from "../../i18n/routing";
 import { getAuthSession, getSessionUserId } from "../../lib/dal";
 import { countUnread } from "../../lib/notifications/inbox";

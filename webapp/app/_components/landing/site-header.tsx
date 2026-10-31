@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link } from "../../../i18n/navigation";
+import ThemeSwitch from "../theme-switch";
 import Icon from "../ui/icon";
 
 export default function SiteHeader({ logo }: { logo: ReactNode }) {
@@ -84,49 +85,53 @@ export default function SiteHeader({ logo }: { logo: ReactNode }) {
             <a
               key={item.key}
               href={item.href}
-              className="rounded-lg px-3 py-2 text-body-md text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+              className="whitespace-nowrap rounded-lg px-2 py-2 text-body-md xl:px-3 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
               {t(item.key)}
             </a>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center rounded-lg bg-surface-container-lowest px-4 py-2 text-label-md font-bold text-primary shadow-[0_1px_3px_rgba(27,54,93,0.06)] transition-all hover:bg-surface-container-low"
-          >
-            {tCommon("login")}
-          </Link>
-          <a
-            href="#admissions-form"
-            className="inline-flex items-center justify-center rounded-lg bg-secondary px-5 py-2.5 text-label-md font-bold text-on-secondary shadow-[0_2px_8px_rgba(0,107,95,0.22)] transition-all hover:bg-on-secondary-container active:scale-95"
-          >
-            {tCommon("applyNow")}
-          </a>
-          <Link
-            href="/login"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary"
-          >
-            <Icon name={"person"} size={18} className="text-on-primary" />
-            <span className="sr-only">{tCommon("login")}</span>
-          </Link>
-        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeSwitch className="inline-flex h-11 w-11 items-center justify-center" />
 
-        <button
-          type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low lg:hidden"
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className="sr-only">{open ? tNav("closeMenu") : tNav("openMenu")}</span>
-          <span aria-hidden className="flex flex-col gap-1.5">
-            <span className={`block h-0.5 w-5 bg-current transition ${open ? "translate-y-2 rotate-45" : ""}`} />
-            <span className={`block h-0.5 w-5 bg-current transition ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-0.5 w-5 bg-current transition ${open ? "-translate-y-2 -rotate-45" : ""}`} />
-          </span>
-        </button>
+          <div className="hidden items-center gap-2 lg:flex">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-surface-container-lowest px-4 py-2 text-label-md font-bold text-primary shadow-[0_1px_3px_rgba(27,54,93,0.06)] transition-all hover:bg-surface-container-low"
+            >
+              {tCommon("login")}
+            </Link>
+            <a
+              href="#admissions-form"
+              className="inline-flex items-center justify-center rounded-lg bg-secondary px-5 py-2.5 text-label-md font-bold text-on-secondary shadow-[0_2px_8px_rgba(0,107,95,0.22)] transition-all hover:bg-on-secondary-container active:scale-95"
+            >
+              {tCommon("applyNow")}
+            </a>
+            <Link
+              href="/login"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary"
+            >
+              <Icon name={"person"} size={18} className="text-on-primary" />
+              <span className="sr-only">{tCommon("login")}</span>
+            </Link>
+          </div>
+
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low lg:hidden"
+            aria-expanded={open}
+            aria-controls={menuId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <span className="sr-only">{open ? tNav("closeMenu") : tNav("openMenu")}</span>
+            <span aria-hidden className="flex flex-col gap-1.5">
+              <span className={`block h-0.5 w-5 bg-current transition ${open ? "translate-y-2 rotate-45" : ""}`} />
+              <span className={`block h-0.5 w-5 bg-current transition ${open ? "opacity-0" : ""}`} />
+              <span className={`block h-0.5 w-5 bg-current transition ${open ? "-translate-y-2 -rotate-45" : ""}`} />
+            </span>
+          </button>
+        </div>
       </div>
 
       {open ? (
