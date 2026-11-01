@@ -27,7 +27,7 @@ export const siteConfig: SiteConfig = {
     variations: {
       horizontal: null,
       vertical: null,
-      mark: null,
+      mark:"/images/logo.png",
       navy: null,
       reversed: null,
     },
