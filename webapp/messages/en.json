@@ -2019,7 +2019,7 @@
       "displayName": "Display name",
       "temporaryPassword": "Temporary password",
       "password": "Password (12+ chars)",
-      "phone" : "number phone",
+      "phoneWhatsapp " : "number phone",
       "relationshipFather": "Father",
       "relationshipMother": "Mother",
       "noGuardian": "No guardian / adult",
