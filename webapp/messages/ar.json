@@ -2019,6 +2019,7 @@
       "displayName": "الاسم الظاهر",
       "temporaryPassword": "كلمة مرور مؤقتة",
       "password": "كلمة المرور (12+ حرفًا)",
+      "phone" : "هاتف الواتساب",
       "relationshipFather": "أب",
       "relationshipMother": "أم",
       "noGuardian": "بدون ولي أمر / بالغ",
