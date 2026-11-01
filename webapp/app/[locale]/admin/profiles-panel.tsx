@@ -25,8 +25,7 @@ export default function ProfilesPanel({ type, title, canSetAnnouncements = false
   const t = useTranslations("management.form");
   const showFinance = type === "student";
   const [rows, setRows] = useState<Row[]>([]);
-  const [form, setForm] = useState({ username: "", displayName: "", password: "", relationship: "FATHER", guardianId: "", isAdult: false, rate: "", currency: "EGP", effectiveFrom: new Date().toISOString().slice(0, 10) });
-  // S-02: per-row rate typed by the Admin when approving a pending teacher.
+const [form, setForm] = useState({ username: "", displayName: "", password: "", phone: "", relationship: "FATHER", guardianId: "", isAdult: false, rate: "", currency: "EGP", effectiveFrom: new Date().toISOString().slice(0, 10) });  // S-02: per-row rate typed by the Admin when approving a pending teacher.
   const [approveRates, setApproveRates] = useState<Record<string, string>>({});
   const isAdmin = viewerRole === "ADMIN";
   // D9: the Admin's rate is typed in major units (e.g. 150.00) and sent in minor units.
@@ -58,7 +57,7 @@ export default function ProfilesPanel({ type, title, canSetAnnouncements = false
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const account = { username: form.username, displayName: form.displayName, password: form.password };
+    const account = { username: form.username, displayName: form.displayName, password: form.password,phone:form.phone };
     const body = type === "guardian"
       ? { ...account, relationship: form.relationship }
       : type === "student"
@@ -67,7 +66,7 @@ export default function ProfilesPanel({ type, title, canSetAnnouncements = false
     const response = await fetch(`/api/admin/profiles?type=${type}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const payload = await response.json();
     if (!response.ok) { setMessage(payload.error?.message ?? t("createFailed")); return; }
-    setForm({ ...form, username: "", displayName: "", password: "", guardianId: "", isAdult: false, rate: "" });
+    setForm({ ...form, username: "", displayName: "", password: "", phone: "", guardianId: "", isAdult: false, rate: "" });    
     setMessage(type === "teacher" && !isAdmin ? t("teacherSentForApproval") : t("profileCreated"));
     const refreshed = await fetch(`/api/admin/profiles?type=${type}`);
     const refreshedPayload = await refreshed.json();
@@ -104,6 +103,18 @@ export default function ProfilesPanel({ type, title, canSetAnnouncements = false
         <input required placeholder={t("username")} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="z-input" />
         <input required placeholder={t("displayName")} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="z-input" />
         <input required minLength={12} type="password" placeholder={t("temporaryPassword")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="z-input" />
+       <input
+  required
+type="tel"
+  inputMode="tel"
+  dir="ltr"
+  autoComplete="off"
+  placeholder={t("phoneWhatsapp")}
+  aria-label={t("phoneWhatsapp")}
+  value={form.phone}
+  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+  className="z-input"
+/>
         {type === "guardian" ? <select aria-label={t("relationship")} value={form.relationship} onChange={(e) => setForm({ ...form, relationship: e.target.value })} className="z-input"><option value="FATHER">{t("relationshipFather")}</option><option value="MOTHER">{t("relationshipMother")}</option></select> : type === "student" ? <select aria-label={t("guardian")} value={form.guardianId} onChange={(e) => setForm({ ...form, guardianId: e.target.value })} className="z-input"><option value="">{t("noGuardian")}</option>{guardians.map((guardian) => <option key={guardian.id} value={guardian.id}>{guardian.displayName}</option>)}</select> : null}
         {type === "student" ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isAdult} onChange={(e) => setForm({ ...form, isAdult: e.target.checked })} className="h-4 w-4 accent-secondary" />{t("isAdult")}</label> : null}
         {type === "teacher" && isAdmin ? <><input required type="number" min="0.01" step="0.01" inputMode="decimal" placeholder={t("hourlyRate")} aria-label={t("hourlyRate")} value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} className="z-input" /><select aria-label={t("rateCurrency")} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="z-input"><option value="EGP">EGP</option><option value="USD">USD</option></select><label className="grid gap-1 text-label-sm text-on-surface-variant">{t("rateFrom")}<input required type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="z-input text-sm" /></label></> : null}
