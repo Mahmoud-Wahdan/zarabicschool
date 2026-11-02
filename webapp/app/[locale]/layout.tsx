@@ -5,6 +5,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import { routing } from "../../i18n/routing";
 import { getAuthSession, getSessionUserId } from "../../lib/dal";
@@ -85,6 +86,7 @@ export default async function RootLayout({ children, params }: Props) {
             {children}
           </BadgeProvider>
         </NextIntlClientProvider>
+        <Analytics />
       </body>
     </html>
   );
