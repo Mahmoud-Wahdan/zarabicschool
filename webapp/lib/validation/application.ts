@@ -100,6 +100,16 @@ function buildTeacherFields(allowedSubjects?: string[]) {
       .max(50, "Experience cannot exceed 50 years"),
     qualifications: z.string().trim().min(2, "Qualifications must be at least 2 characters").max(1000),
     available_times: z.string().trim().max(1000, "Available times cannot exceed 1000 characters").optional(),
+    // Owner task (2026-11-02): REQUIRED intro video as a Google Drive link.
+    // Format-only check (lib/validation/drive-video.ts); the server never opens it.
+    intro_video_url: z
+      .string()
+      .trim()
+      .min(1, driveLinkReasonMessages.DRIVE_LINK_REQUIRED)
+      .max(DRIVE_LINK_MAX_LENGTH, driveLinkReasonMessages.DRIVE_LINK_TOO_LONG)
+      .refine((value) => validateDriveLink(value).ok, {
+        message: "The intro video link must be a Google Drive link (https://drive.google.com or https://docs.google.com).",
+      }),
   };
 }
 

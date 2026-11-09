@@ -103,6 +103,7 @@ describe("Slice C1 — Application Validation & Submission", () => {
         years_experience: 5,
         qualifications: "Ijazah in Hafs from Asim and 5 years online teaching",
         available_times: "Weekday mornings",
+        intro_video_url: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view",
       };
 
       const parsed = applicationSchema.safeParse(payload);
