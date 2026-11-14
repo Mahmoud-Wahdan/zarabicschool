@@ -1,11 +1,13 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { ExternalLink } from "lucide-react";
 import DashboardShell from "../../../../_components/dashboard-shell";
 import { requireRoles } from "../../../../../lib/dal";
 import { prisma } from "../../../../../lib/prisma";
 import { Link } from "../../../../../i18n/navigation";
 import ReviewActions from "./review-actions";
+import ApplicationAudioPlayer from "./audio-player";
 
 type Details = Record<string, unknown>;
 
@@ -42,6 +44,9 @@ export default async function AdminApplicationDetailPage({
       reviewedAt: true,
       approvedAt: true,
       rejectionReason: true,
+      introVideoUrl: true,
+      recitationAudioPath: true,
+      recitationAudioFormat: true,
     },
   });
 
@@ -168,6 +173,45 @@ export default async function AdminApplicationDetailPage({
           )}
         </section>
       </div>
+
+      {type === "TEACHER" && (
+        <section className="mt-4 z-card rounded-xl p-5">
+          <h2 className="font-semibold text-primary">{label("teacherMediaSection")}</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold text-on-surface-variant">{label("introVideo")}</dt>
+              <dd className="mt-2">
+                {application.introVideoUrl || text(details.intro_video_url) ? (
+                  <a
+                    href={(application.introVideoUrl || text(details.intro_video_url))!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <ExternalLink className="h-4 w-4 shrink-0 text-secondary" />
+                    <span className="break-all">{label("openVideoLink")}</span>
+                  </a>
+                ) : (
+                  <span className="text-sm text-on-surface-variant">—</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="mb-2 text-xs font-semibold text-on-surface-variant">{label("recitationAudio")}</dt>
+              <dd>
+                {application.recitationAudioPath ? (
+                  <ApplicationAudioPlayer
+                    applicationId={application.id}
+                    format={application.recitationAudioFormat}
+                  />
+                ) : (
+                  <span className="text-sm text-on-surface-variant">{label("noAudio")}</span>
+                )}
+              </dd>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mt-4 z-card rounded-xl p-5">
         <h2 className="font-semibold text-primary">{label("reviewSection")}</h2>

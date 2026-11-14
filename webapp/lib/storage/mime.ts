@@ -62,10 +62,19 @@ const AUDIO_TYPES: AllowedType[] = [
 
 /**
  * `profile` "report" = images + PDF + audio (report attachments);
- * "proof" = images + PDF (payment proofs; the default).
+ * "proof" = images + PDF (payment proofs; the default);
+ * "audio" = MP3, M4A, OGG, WAV (Quran recitation audio).
  */
-export function detectAllowedMime(bytes: Buffer, profile: "report" | "proof" = "proof"): { mime: string; ext: string } | null {
-  const candidates = profile === "report" ? [...ALLOWED_TYPES, ...AUDIO_TYPES] : ALLOWED_TYPES;
+export function detectAllowedMime(
+  bytes: Buffer,
+  profile: "report" | "proof" | "audio" = "proof",
+): { mime: string; ext: string } | null {
+  const candidates =
+    profile === "report"
+      ? [...ALLOWED_TYPES, ...AUDIO_TYPES]
+      : profile === "audio"
+        ? AUDIO_TYPES
+        : ALLOWED_TYPES;
   const match = candidates.find((type) => type.matches(bytes));
   return match ? { mime: match.mime, ext: match.ext } : null;
 }

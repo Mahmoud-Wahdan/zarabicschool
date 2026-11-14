@@ -500,6 +500,12 @@ model Application {
   approvedUserId  String?             @map("approved_user_id") @db.Uuid
   rejectionReason String?             @map("rejection_reason")
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  introVideoUrl   String?             @map("intro_video_url") @db.VarChar(500)
+  recitationAudioPath String?         @map("recitation_audio_path") @db.VarChar(255)
+  recitationAudioStorageProvider String? @map("recitation_audio_storage_provider") @db.VarChar(20)
+  recitationAudioResourceType String? @map("recitation_audio_resource_type") @db.VarChar(20)
+  recitationAudioFormat String?       @map("recitation_audio_format") @db.VarChar(20)
+  recitationAudioSizeBytes BigInt?    @map("recitation_audio_size_bytes")
   academy         Academy             @relation(fields: [academyId], references: [id], onDelete: Restrict)
   reviewedBy      User?               @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
   approvedBy      User?               @relation("ApplicationApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)

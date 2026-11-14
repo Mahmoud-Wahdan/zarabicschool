@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Plus, Trash2, Video, Music, Upload, X } from "lucide-react";
 import { Link } from "../../../i18n/navigation";
 
 export type SubjectOption = {
@@ -58,6 +58,9 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
   const [yearsExperience, setYearsExperience] = useState("");
   const [qualifications, setQualifications] = useState("");
   const [availableTimes, setAvailableTimes] = useState("");
+  const [introVideoUrl, setIntroVideoUrl] = useState("");
+  const [recitationAudioFile, setRecitationAudioFile] = useState<File | null>(null);
+  const [audioInputKey, setAudioInputKey] = useState(0);
 
   // State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,15 +166,27 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
         years_experience: parseInt(yearsExperience, 10) || 0,
         qualifications: qualifications.trim(),
         available_times: availableTimes.trim() || undefined,
+        intro_video_url: introVideoUrl.trim(),
       };
     }
 
     try {
-      const res = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res: Response;
+      if (type === "teacher" && recitationAudioFile) {
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        formData.append("recitation_audio", recitationAudioFile);
+        res = await fetch("/api/applications", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        res = await fetch("/api/applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
 
       const data = await res.json();
 
@@ -182,9 +197,15 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
         if (data.error?.fieldErrors) {
           setFieldErrors(data.error.fieldErrors);
         }
-        setGeneralError(t("validationError"));
+        setGeneralError(data.error?.message || t("validationError"));
       } else if (res.status === 409) {
-        setGeneralError(t("duplicateError"));
+        if (data.error?.code === "APPLICATION_MEDIA_MIGRATION_PENDING") {
+          setGeneralError(data.error.message || t("generalError"));
+        } else {
+          setGeneralError(t("duplicateError"));
+        }
+      } else if (res.status === 413) {
+        setGeneralError(data.error?.message || t("validationError"));
       } else if (res.status === 429) {
         setGeneralError(t("rateLimitError"));
       } else {
@@ -224,6 +245,10 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
               setTeacherSubjects([]);
               setYearsExperience("");
               setQualifications("");
+              setAvailableTimes("");
+              setIntroVideoUrl("");
+              setRecitationAudioFile(null);
+              setAudioInputKey((k) => k + 1);
             }}
             className="cta-secondary"
           >
@@ -768,6 +793,87 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                 onChange={(e) => setAvailableTimes(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-secondary"
               />
+            </div>
+
+            <div>
+              <label htmlFor={`${formId}-video`} className="block text-sm font-semibold text-primary">
+                {t("introVideoUrl")} <span className="text-error">*</span>
+              </label>
+              <p className="mt-0.5 text-xs text-on-surface/70 leading-relaxed">
+                {t("introVideoHelp")}
+              </p>
+              <input
+                id={`${formId}-video`}
+                type="url"
+                required
+                disabled={isSubmitting}
+                placeholder={t("introVideoPlaceholder")}
+                value={introVideoUrl}
+                onChange={(e) => setIntroVideoUrl(e.target.value)}
+                className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                  fieldErrors.intro_video_url ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
+                }`}
+              />
+              {fieldErrors.intro_video_url ? (
+                <p className="mt-1 text-xs text-error">{fieldErrors.intro_video_url[0]}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor={`${formId}-audio`} className="block text-sm font-semibold text-primary">
+                {t("recitationAudio")}
+              </label>
+              <p className="mt-0.5 text-xs text-on-surface/70 leading-relaxed">
+                {t("recitationAudioHelp")}
+              </p>
+
+              {recitationAudioFile ? (
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-secondary/30 bg-secondary/5 p-3.5 text-sm">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Music className="h-5 w-5 shrink-0 text-secondary" />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-primary">
+                        {recitationAudioFile.name}
+                      </p>
+                      <p className="text-xs text-on-surface/60">
+                        {(recitationAudioFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setRecitationAudioFile(null);
+                      setAudioInputKey((k) => k + 1);
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-error transition hover:bg-error/10 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>{t("removeAudioFile")}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <input
+                    key={audioInputKey}
+                    id={`${formId}-audio`}
+                    type="file"
+                    accept=".mp3,.m4a,.ogg,.wav,audio/*"
+                    disabled={isSubmitting}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setRecitationAudioFile(file);
+                      }
+                    }}
+                    className="block w-full text-sm text-on-surface file:mr-4 file:rounded-xl file:border-0 file:bg-secondary/10 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-secondary hover:file:bg-secondary/20 file:cursor-pointer cursor-pointer border border-outline-variant rounded-xl bg-surface-container-lowest"
+                  />
+                </div>
+              )}
+              {fieldErrors.recitation_audio ? (
+                <p className="mt-1 text-xs text-error">{fieldErrors.recitation_audio[0]}</p>
+              ) : null}
             </div>
           </>
         ) : null}

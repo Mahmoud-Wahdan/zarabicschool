@@ -44,6 +44,7 @@ function contentSecurityPolicy(nonce: string) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
+    "media-src 'self' https://res.cloudinary.com https://api.cloudinary.com blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
     "object-src 'none'",

@@ -37,13 +37,16 @@ describe("validateDriveLink — format only, never fetched", () => {
   });
 
   it("accepts exactly DRIVE_LINK_MAX_LENGTH characters", () => {
-    const link = `https://drive.google.com/file/d/${"a".repeat(DRIVE_LINK_MAX_LENGTH - 32)}/view`;
+/    // prefix "https://drive.google.com/file/d/" = 32 chars, suffix "/view" = 5 chars → 37 fixed
+    const filler = DRIVE_LINK_MAX_LENGTH - 37;
+    const link = `https://drive.google.com/file/d/${"a".repeat(filler)}/view`;
     expect(link.length).toBe(DRIVE_LINK_MAX_LENGTH);
     expect(validateDriveLink(link)).toEqual({ ok: true });
   });
 
   it("rejects a link over DRIVE_LINK_MAX_LENGTH characters", () => {
-    const link = `https://drive.google.com/file/d/${"a".repeat(DRIVE_LINK_MAX_LENGTH - 31)}/view`;
+    const filler = DRIVE_LINK_MAX_LENGTH - 36;
+    const link = `https://drive.google.com/file/d/${"a".repeat(filler)}/view`;
     expect(link.length).toBe(DRIVE_LINK_MAX_LENGTH + 1);
     const result = validateDriveLink(link);
     expect(result).toEqual({ ok: false, reason: "DRIVE_LINK_TOO_LONG" });
