@@ -10,7 +10,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-import { cleanupSessionFixtures, closePrisma, createSessionFixtures } from "../../__tests__/helpers/session-fixtures";
+import { cleanupSessionFixtures, closePrisma, createSessionFixtures } from "../../tests/helpers/session-fixtures";
 import { prisma } from "../../lib/prisma";
 
 const file = process.env.PERF_FIXTURE ?? "perf-fixture.json";
