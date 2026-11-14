@@ -1,5 +1,5 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
+.opencode
 # dependencies
 /node_modules
 /.pnp
@@ -9,7 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-.claude
+.clauded 
 .agents
 # testing
 /coverage
