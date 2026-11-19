@@ -22,6 +22,9 @@ function hstsHeader() {
 }
 
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: "security",
+  },
   turbopack: {
     root: __dirname,
   },
