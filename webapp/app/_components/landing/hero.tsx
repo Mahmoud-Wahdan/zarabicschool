@@ -1,10 +1,14 @@
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 
+import { siteConfig } from "../../../lib/site-config";
 import Icon from "../ui/icon";
+import styles from "./hero.module.css";
 
-export default async function Hero() {
+export default async function Hero({ whatsappHref }: { whatsappHref: string | null }) {
   const t = await getTranslations("landing.hero");
   const tRibbon = await getTranslations("landing.ribbon");
+  const tFooter = await getTranslations("landing.footer");
 
   const ribbonItems = [
     { icon: "group", tone: "text-primary", title: tRibbon("item1Title"), text: tRibbon("item1Text") },
@@ -14,63 +18,57 @@ export default async function Hero() {
   ] as const;
 
   return (
-    <section className="section-anchor relative w-full overflow-hidden bg-surface py-12 lg:py-20" id="top">
-      <div className="pointer-events-none absolute inset-0 opacity-40" aria-hidden="true">
-        <div className="absolute -top-24 end-1/4 h-96 w-96 rounded-full bg-secondary-fixed-dim/20 blur-3xl" />
-        <div className="absolute start-10 top-1/2 h-80 w-80 rounded-full bg-primary-fixed/30 blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 lg:px-8">
-        <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
-          <div className="flex flex-col items-start gap-6 lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full bg-surface-container-high px-3 py-1.5 text-label-md text-primary shadow-sm">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-secondary" aria-hidden="true" />
-              <span>{t("badge")}</span>
-            </div>
-            <h1 className="text-display-hero font-bold leading-tight tracking-tight text-primary">
-              {t("title")}
+    <>
+      <section className={styles.hero} aria-labelledby="hero-heading">
+        <div className={styles.inner}>
+          <div className={styles.copy}>
+            <p className={styles.status}>{t("badge")}</p>
+            <h1 id="hero-heading" className={styles.title}>
+              {t("headlineFirst")}{" "}
+              <span>{t("headlineSecond")}</span>
             </h1>
-            <p className="max-w-2xl text-body-lg leading-relaxed text-on-surface-variant">
-              {t("subtitle")}
-            </p>
-            <div className="flex w-full flex-wrap items-center gap-4 pt-2 sm:w-auto">
-              <a
-                href="#admissions-form"
-                className="inline-flex items-center justify-center gap-2 rounded bg-secondary px-6 py-3.5 text-label-md font-bold text-on-secondary shadow-md transition-all hover:bg-on-secondary-container active:scale-95"
-              >
-                <Icon name="assignment_turned_in" size={20} />
-                <span>{t("ctaPrimary")}</span>
+            <p className={styles.subtitle}>{t("subtitle")}</p>
+            <div className={styles.actions}>
+              <a href="#admissions-form" className={styles.primary}>
+                <Icon name="assignment_turned_in" size={19} />{t("ctaPrimary")}
               </a>
-              <a
-                href="#curriculum-section"
-                className="inline-flex items-center justify-center gap-2 rounded bg-surface-container-lowest px-6 py-3.5 text-label-md font-bold text-primary shadow-sm transition-all hover:bg-surface-container-low"
-              >
-                <Icon name="menu_book" size={20} />
-                <span>{t("ctaSecondary")}</span>
+              {whatsappHref && (
+                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className={styles.secondary}>
+                  <Icon name="chat" size={19} />{tFooter("whatsappCta")}
+                </a>
+              )}
+              <a href="#curriculum-section" className={whatsappHref ? styles.curriculum : styles.secondary}>
+                <Icon name="menu_book" size={19} />{t("ctaSecondary")}
               </a>
             </div>
-            <div className="flex flex-wrap items-center gap-6 pt-4 text-body-sm text-on-surface-variant">
-              <span className="flex items-center gap-2">
-                <Icon name="verified" size={18} className="text-secondary" />
-                <span>{t("meta1")}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <Icon name="schedule" size={18} className="text-secondary" />
-                <span>{t("meta2")}</span>
-              </span>
+            <div className={styles.meta}>
+              <span><Icon name="verified" size={17} />{t("meta1")}</span>
+              <span><Icon name="schedule" size={17} />{t("meta2")}</span>
             </div>
           </div>
-
-          <div className="w-full lg:col-span-5">
-            <div className="space-y-5 overflow-hidden rounded-xl bg-surface-container-lowest p-6 shadow-[var(--elev-3)]">
-              <div className="-mx-6 -mt-6 flex items-center justify-between bg-surface-container-low p-4 px-6 pb-4">
+          <div className={styles.brand}>
+            <Image src={siteConfig.logo.variations.reversed} alt={siteConfig.brandName} width={491} height={484} sizes="(max-width: 760px) 100px, (max-width: 1200px) 25vw, 340px" loading="eager" className={styles.lockup} />
+          </div>
+        </div>
+      </section>
+      <section aria-label={t("lessonHeading")} className={styles.preview}>
+        <details className={styles.disclosure}>
+          <summary className={styles.lessonSummary}>
+            <Icon name="videocam" size={20} />
+            <span>{t("lessonHeading")}</span>
+            <Icon name="expand_more" size={20} className={styles.chevron} />
+          </summary>
+          <div className={styles.previewInner}>
+          <div className={styles.lesson}>
+            <div className="space-y-4 overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-container-lowest p-6">
+              <div className="-mx-6 -mt-6 flex flex-wrap items-center justify-between gap-2 bg-surface-container-low px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
-                    أم
+                  <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+                    {t("card.initials")}
                     <span className="absolute bottom-0 end-0 h-3 w-3 rounded-full bg-secondary ring-2 ring-surface-container-lowest" aria-hidden="true" />
                   </span>
                   <span className="flex flex-col">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex flex-wrap items-center gap-1.5">
                       <span className="text-title-md font-bold text-primary">{t("card.teacherName")}</span>
                       <span className="rounded bg-tertiary-fixed px-1.5 py-0.5 text-[10px] font-semibold text-on-tertiary-fixed">
                         {t("card.teacherBadge")}
@@ -80,17 +78,17 @@ export default async function Hero() {
                   </span>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded bg-secondary-container/40 px-2.5 py-1 text-label-sm font-semibold text-on-secondary-container">
-                  <span className="h-2 w-2 animate-ping rounded-full bg-secondary" aria-hidden="true" />
+                  <span className="h-2 w-2 rounded-full bg-secondary" aria-hidden="true" />
                   <span>{t("card.liveTag")}</span>
                 </span>
               </div>
 
               <div className="space-y-3 rounded-lg bg-surface-container-low p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-x-3">
                   <span className="text-label-sm text-on-surface-variant">{t("card.boardLabel")}</span>
-                  <span className="text-label-sm font-bold text-secondary">سورة مريم — الآيات (١-٧)</span>
+                  <span className="text-label-sm font-bold text-secondary">{t("card.passage")}</span>
                 </div>
-                <div className="rounded bg-surface-container-lowest p-4 text-center font-serif text-lg leading-loose text-primary shadow-sm">
+                <div lang="ar" dir="rtl" className="rounded bg-surface-container-lowest p-4 text-center font-serif text-lg leading-loose text-primary shadow-sm">
                   {t("card.boardText")}
                 </div>
                 <div className="flex items-center justify-between pt-1">
@@ -99,11 +97,11 @@ export default async function Hero() {
                     <span>{t("card.capture")}</span>
                   </span>
                   <div className="flex h-4 items-end gap-1" aria-hidden="true">
-                    <span className="h-2 w-1 animate-pulse rounded-full bg-secondary" />
-                    <span className="h-4 w-1 animate-pulse rounded-full bg-secondary [animation-delay:75ms]" />
-                    <span className="h-3 w-1 animate-pulse rounded-full bg-secondary [animation-delay:150ms]" />
-                    <span className="h-1 w-1 animate-pulse rounded-full bg-secondary" />
-                    <span className="h-4 w-1 animate-pulse rounded-full bg-secondary [animation-delay:100ms]" />
+                    <span className="h-2 w-1 rounded-full bg-secondary" />
+                    <span className="h-4 w-1 rounded-full bg-secondary" />
+                    <span className="h-3 w-1 rounded-full bg-secondary" />
+                    <span className="h-1 w-1 rounded-full bg-secondary" />
+                    <span className="h-4 w-1 rounded-full bg-secondary" />
                     <span className="h-2 w-1 rounded-full bg-secondary" />
                   </div>
                 </div>
@@ -132,24 +130,21 @@ export default async function Hero() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-14 rounded-xl bg-surface-container-lowest p-6 shadow-[var(--elev-1)]">
-          <div className="grid grid-cols-1 gap-6 text-start sm:grid-cols-2 lg:grid-cols-4">
+          <div className={styles.ribbon}>
+            <h2 className={styles.ribbonHeading}>{t("title")}</h2>
             {ribbonItems.map((item) => (
-              <div key={item.icon} className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container">
-                  <Icon name={item.icon} size={22} className={item.tone} />
-                </span>
+              <div key={item.icon} className={styles.ribbonItem}>
+                <Icon name={item.icon} size={26} className={item.tone} />
                 <div>
-                  <h3 className="text-title-md font-bold text-primary">{item.title}</h3>
-                  <p className="text-body-sm text-on-surface-variant">{item.text}</p>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-    </section>
+          </div>
+        </details>
+      </section>
+    </>
   );
 }

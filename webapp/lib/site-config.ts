@@ -6,16 +6,15 @@ type SiteConfig = {
     variations: {
       horizontal: string | null;
       vertical: string | null;
-      mark: string | null;
+      mark: string;
       navy: string | null;
-      reversed: string | null;
+      reversed: string;
     };
   };
   contact: { whatsapp: string | null; email: string | null; address: string | null };
 };
 
-// Logo files stay null until the owner provides the exports from the brand PDF.
-// Do not recreate the mark in code. Tagline comes from CONTEXT.md §3.
+// Cropped from the official transparent reversed lockup in the academy's Figma file.
 export const siteConfig: SiteConfig = {
   brandName: "Zarabicschool",
   tagline: {
@@ -27,9 +26,9 @@ export const siteConfig: SiteConfig = {
     variations: {
       horizontal: null,
       vertical: null,
-      mark:"/images/logo.png",
+      mark: "/Brand/academy-mark.png",
       navy: null,
-      reversed: null,
+      reversed: "/Brand/academy-lockup-white.png",
     },
   },
   contact: {

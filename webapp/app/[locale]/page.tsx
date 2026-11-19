@@ -1,58 +1,42 @@
-import { getTranslations } from "next-intl/server";
-
-import ApplyRoles from "../_components/landing/apply-roles";
-import FaqAccordion from "../_components/landing/faq-accordion";
-import GuardianPreview from "../_components/landing/guardian-preview";
-import Hero from "../_components/landing/hero";
-import HowToStart from "../_components/landing/how-to-start";
-import PricingPlans from "../_components/landing/pricing-plans";
-import SiteFooter from "../_components/landing/site-footer";
-import SiteHeader from "../_components/landing/site-header";
-import SubjectsSection from "../_components/landing/subjects-section";
-import TeacherBand from "../_components/landing/teacher-band";
-import WhyUs from "../_components/landing/why-us";
-import LogoPlaceholder from "../_components/logo-placeholder";
-import Icon from "../_components/ui/icon";
+import Image from "next/image";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Link } from "../../i18n/navigation";
 import { getPublicWhatsAppLink } from "../../lib/messaging/contact-number";
+import Icon, { type IconName } from "../_components/ui/icon";
+import ThemeSwitch from "../_components/theme-switch";
+import "./minimal-landing.css";
+
+type Card = { title: string; body: string; badge?: string };
+const icons: IconName[] = ["menu_book", "mic", "auto_stories", "group", "description", "schedule", "verified_user"];
+
+function Brand({ hero = false, footer = false }: { hero?: boolean; footer?: boolean }) {
+  return <span className={hero ? "ml-art" : "ml-brand"} aria-label="Zarabicschool">
+    {(["light", "dark"] as const).map(theme => <Image key={theme} className={theme} src={`/Brand/minimal-${theme}-${hero ? "hero" : footer ? "footer" : "header"}.png`} width={hero ? 480 : 204} height={hero ? 450 : 76} alt="Zarabicschool" unoptimized />)}
+  </span>;
+}
 
 export default async function Home() {
-  const t = await getTranslations("common");
-  const tFooter = await getTranslations("landing.footer");
-  // Site WhatsApp contact (AcademySettings `site.whatsapp_number`, Admin-editable).
-  const whatsappHref = await getPublicWhatsAppLink();
-
-  return (
-    <div id="top" className="min-h-screen">
-      <a href="#main" className="skip-link">
-        {t("skipToContent")}
-      </a>
-      <SiteHeader logo={<LogoPlaceholder size={32} inverted />} />
-      <main id="main" className="w-full bg-surface pt-20">
-        <div className="flex w-full flex-col">
-          <Hero />
-          <SubjectsSection />
-          <HowToStart />
-          <WhyUs />
-          <GuardianPreview />
-          <TeacherBand />
-          <PricingPlans />
-          <FaqAccordion />
-          <ApplyRoles />
-        </div>
-      </main>
-      <SiteFooter whatsappHref={whatsappHref} />
-      {whatsappHref ? (
-        <a
-          href={whatsappHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={tFooter("whatsappCta")}
-          className="fixed bottom-4 end-4 z-40 inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-3 text-label-md font-semibold text-on-secondary shadow-lg hover:opacity-90"
-        >
-          <Icon name="chat" size={20} />
-          <span className="hidden sm:inline">{tFooter("whatsappCta")}</span>
-        </a>
-      ) : null}
-    </div>
-  );
+  const [t, common, locale, whatsapp] = await Promise.all([getTranslations("minimalLanding"), getTranslations("common"), getLocale(), getPublicWhatsAppLink()]);
+  const cards = t.raw("cards") as Card[];
+  const links = [["home", "#top"], ["navPrograms", "#curriculum-section"], ["navPlans", "#pricing-plans"], ["navReviews", "#reviews"], ["contact", "#contact"]] as const;
+  const nav = links.map(([key, href]) => <a key={key} href={href}>{t(key)}</a>);
+  const apply = <Link className="ml-button" href="/apply">{t("apply")}</Link>;
+  const sections = [
+    {id:"curriculum-section", title:"programs", sub:"programSub", start:0,end:3},
+    {id:"how-to-start", title:"steps", sub:"stepSub", start:3,end:7},
+    {id:"about-academy", title:"benefits", sub:"benefitSub", start:7,end:11},
+    {id:"pricing-plans", title:"plans", sub:"planSub", start:11,end:13},
+  ] as const;
+  return <div className="minimal-landing" id="top">
+    <a href="#main" className="skip-link">{common("skipToContent")}</a>
+    <header><div className="ml-wrap ml-bar"><a href="#top"><Brand /></a><nav>{nav}</nav><div className="ml-controls"><ThemeSwitch /><Link href="/" locale={locale === "ar" ? "en" : "ar"}>{locale === "ar" ? "EN" : "ع"}</Link><Link className="ml-login" href="/login">{t("login")}</Link>{apply}</div>
+    <details className="ml-menu"><summary aria-label={t("quick")}><Icon name="menu" /></summary><div>{nav}<Link href="/login">{t("login")}</Link>{apply}</div></details></div></header>
+    <main id="main"><section className="ml-hero"><div className="ml-wrap"><div><small>{t("badge")}</small><h1>{t("headline")}<em>{t("accent")}</em></h1><p>{t("intro")}</p><div className="ml-actions">{apply}{whatsapp && <a className="ml-outline" href={whatsapp}>{t("whatsapp")}</a>}</div><ul>{t("facts").split(" · ").map(f=><li key={f}>{f}</li>)}</ul></div><Brand hero /></div></section>
+    {sections.map(s=><section className={`ml-section ml-${s.title}`} id={s.id} key={s.id}><div className="ml-wrap"><h2>{t(s.title)}</h2><p className="ml-sub">{t(s.sub)}</p><div className="ml-grid">{cards.slice(s.start,s.end).map((c,i)=><article key={c.title}>
+    {s.title==="steps" ? <b className="ml-icon">{i+1}</b> : s.title==="plans" ? <small>{c.badge}</small> : <b className="ml-icon"><Icon name={icons[s.title==="programs"?i:i+3]} size={24}/></b>}
+    <h3>{c.title}</h3><p>{c.body}</p>{s.title==="plans" && <><p className="ml-price"><strong>—</strong> {t("price")}</p><Link className="ml-outline" href="/apply">{t("details")}</Link></>}</article>)}</div></div></section>)}
+    <section id="reviews" className="ml-section ml-reviews"><div className="ml-wrap"><h2>{t("reviews")}</h2><div className="ml-grid">{[0,1,2].map(i=><article key={i}><b aria-hidden="true">”</b><p>{t("placeholder")}</p><div className="ml-person"><i/><div>{t(i===2?"student":"parent")}<p>{t(i===2?"studentRole":"parentRole")}</p></div></div></article>)}</div></div></section>
+    <section id="admissions-form" className="ml-banner"><h2>{t("banner")}</h2><p>{t("bannerSub")}</p>{apply}</section></main>
+    <footer id="contact"><div className="ml-wrap"><div className="ml-footer"><div><Brand footer/><p>{t("headline")}… {t("accent")}</p></div><div><h3>{t("quick")}</h3>{nav.slice(0,4)}</div><div><h3>{t("contact")}</h3>{whatsapp && <a href={whatsapp}>{t("whatsapp")}</a>}<Link href="/login">{t("login")}</Link></div></div><p className="ml-rights">© {new Date().getFullYear()} Zarabicschool · {t("rights")}</p></div></footer>
+  </div>;
 }
