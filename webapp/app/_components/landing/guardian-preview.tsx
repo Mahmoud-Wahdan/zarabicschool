@@ -18,15 +18,11 @@ export default async function GuardianPreview() {
   ];
 
   return (
-    <section className="section-anchor w-full bg-surface py-16">
-      <div className="mx-auto max-w-[1600px] px-4 lg:px-8">
+    <section className="section-anchor w-full bg-surface py-14 md:py-20">
+      <div className="mx-auto max-w-7xl px-[clamp(1.25rem,4vw,2.5rem)]">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
           <div className="space-y-6 text-start lg:col-span-5">
-            <div className="inline-flex items-center gap-2 text-label-md font-bold text-secondary">
-              <Icon name="dashboard" size={18} />
-              <span>{t("eyebrow")}</span>
-            </div>
-            <h2 className="text-headline-lg font-bold text-primary">{t("title")}</h2>
+            <h2 className="text-balance text-headline-lg-mobile font-bold text-primary md:text-headline-lg">{t("title")}</h2>
             <p className="text-body-md leading-relaxed text-on-surface-variant">{t("subtitle")}</p>
             <div className="space-y-4 pt-2">
               {features.map((feature) => (
@@ -43,11 +39,11 @@ export default async function GuardianPreview() {
             </div>
           </div>
 
-          <div className="space-y-6 rounded-xl bg-surface-container-lowest p-6 shadow-[var(--elev-2)] lg:col-span-7">
-            <div className="flex items-center justify-between border-b border-surface-container pb-4">
-              <div className="flex items-center gap-2">
+          <div className="min-w-0 space-y-6 overflow-hidden rounded-2xl border border-outline-variant/70 bg-surface-container-lowest p-4 shadow-[var(--elev-2)] sm:p-7 lg:col-span-7">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant/55 pb-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-label-sm text-on-surface-variant">{t("mockChildLabel")}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-lg bg-primary px-3 py-1.5 text-label-md font-bold text-on-primary">
                     {t("mockChild1")}
                   </span>
@@ -62,9 +58,9 @@ export default async function GuardianPreview() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-3">
               {stats.map((stat) => (
-                <div key={stat.label} className="space-y-1 rounded-lg bg-surface-container-low p-4 text-start">
+                <div key={stat.label} className="min-w-0 space-y-1 text-start">
                   <span className="text-label-sm text-on-surface-variant">{stat.label}</span>
                   <div className="text-headline-md font-bold text-primary">{stat.value}</div>
                   <span className={`text-label-sm ${stat.footTone}`}>{stat.foot}</span>
@@ -72,13 +68,13 @@ export default async function GuardianPreview() {
               ))}
             </div>
 
-            <div className="space-y-3 rounded-lg bg-surface-container p-4 text-start">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+            <div className="space-y-3 rounded-xl bg-surface-container-low p-4 sm:p-5 text-start">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Icon name="assignment" size={20} className="text-secondary" />
                   <span className="text-title-md font-bold text-primary">{t("mockReportTitle")}</span>
                 </div>
-                <span className="font-mono text-label-sm text-outline">{t("mockReportDate")}</span>
+                <span className="text-label-sm tabular-nums text-on-surface-variant">{t("mockReportDate")}</span>
               </div>
               <div className="space-y-2 text-body-sm text-on-surface">
                 <p>{t("mockReportBody")}</p>

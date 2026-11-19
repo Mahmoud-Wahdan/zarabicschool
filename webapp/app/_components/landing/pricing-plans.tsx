@@ -40,7 +40,6 @@ export default async function PricingPlans() {
       bullets: bulletsFor(1),
       cta: t("plan1Cta"),
       featured: false,
-      boxClass: "bg-surface-container",
       ctaClass:
         "bg-surface-container-high text-primary hover:bg-surface-container-highest",
     },
@@ -53,8 +52,7 @@ export default async function PricingPlans() {
       bullets: bulletsFor(2),
       cta: t("plan2Cta"),
       featured: true,
-      boxClass: "bg-secondary-container/20",
-      ctaClass: "bg-secondary text-on-secondary hover:bg-on-secondary-container shadow-md",
+      ctaClass: "bg-secondary text-on-secondary hover:brightness-95",
     },
     {
       eyebrow: t("plan3Eyebrow"),
@@ -65,27 +63,25 @@ export default async function PricingPlans() {
       bullets: bulletsFor(3),
       cta: t("plan3Cta"),
       featured: false,
-      boxClass: "bg-surface-container",
       ctaClass:
         "bg-surface-container-high text-primary hover:bg-surface-container-highest",
     },
   ];
 
   return (
-    <section className="section-anchor w-full bg-surface-container-low py-16" id="pricing-plans">
-      <div className="mx-auto max-w-[1600px] space-y-12 px-4 lg:px-8">
+    <section className="section-anchor w-full bg-surface py-14 md:py-20" id="pricing-plans">
+      <div className="mx-auto max-w-7xl space-y-8 px-[clamp(1.25rem,4vw,2.5rem)]">
         <div className="max-w-3xl space-y-3 text-start">
-          <span className="text-label-md font-bold uppercase text-secondary">{t("eyebrow")}</span>
-          <h2 className="text-headline-lg font-bold text-primary">{t("title")}</h2>
+          <h2 className="text-balance text-headline-lg-mobile font-bold text-primary md:text-headline-lg">{t("title")}</h2>
           <p className="text-body-md text-on-surface-variant">{t("subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {plans.map((plan) => (
             <div
               key={plan.title}
-              className={`relative flex flex-col justify-between gap-6 rounded-xl bg-surface-container-lowest p-8 shadow-sm ${
-                plan.featured ? "border-2 border-secondary shadow-lg" : ""
+              className={`relative flex min-w-0 flex-col justify-between gap-6 rounded-xl border p-5 sm:p-7 ${
+                plan.featured ? "border-secondary bg-secondary-container/10" : "border-outline-variant/65 bg-surface-container-lowest"
               }`}
             >
               {plan.featured ? (
@@ -93,17 +89,17 @@ export default async function PricingPlans() {
                   {t("plan2Badge")}
                 </span>
               ) : null}
-              <div className="space-y-4">
-                <div className="space-y-1">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-1">
+                <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+                  <h3 className="text-headline-sm font-bold text-primary">{plan.title}</h3>
                   <span
                     className={`text-label-sm font-bold ${plan.featured ? "text-secondary" : "text-tertiary"}`}
                   >
                     {plan.eyebrow}
                   </span>
-                  <h3 className="text-headline-sm font-bold text-primary">{plan.title}</h3>
                   <p className="text-body-sm text-on-surface-variant">{plan.text}</p>
                 </div>
-                <div className={`space-y-1 rounded-lg p-4 ${plan.boxClass}`}>
+                <div className="space-y-1 border-y border-outline-variant/50 py-4 sm:self-start">
                   <div className="text-label-sm text-on-surface-variant">{t("paymentLabel")}</div>
                   <div className="text-title-md font-bold text-primary">{plan.payment}</div>
                   <span className="text-label-sm text-on-surface-variant">{plan.sessions}</span>
@@ -119,7 +115,7 @@ export default async function PricingPlans() {
               </div>
               <a
                 href="#admissions-form"
-                className={`inline-flex w-full items-center justify-center rounded py-3 text-label-md font-bold transition-colors ${plan.ctaClass}`}
+                className={`inline-flex w-full items-center justify-center rounded-lg px-3 py-3 text-center text-label-md font-bold transition-colors ${plan.ctaClass}`}
               >
                 {plan.cta}
               </a>
@@ -127,7 +123,7 @@ export default async function PricingPlans() {
           ))}
         </div>
 
-        <div className="flex items-start gap-3 rounded-lg bg-surface-container-lowest p-4 text-start">
+        <div className="flex items-start gap-3 max-w-4xl text-start">
           <Icon name="info" size={20} className="mt-0.5 shrink-0 text-primary" />
           <div className="text-body-sm leading-relaxed text-on-surface-variant">
             <strong>{t("noteLead")}</strong> {t("noteText")}

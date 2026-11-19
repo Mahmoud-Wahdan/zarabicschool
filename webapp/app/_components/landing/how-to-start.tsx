@@ -43,33 +43,30 @@ export default async function HowToStart() {
   ] as const;
 
   return (
-    <section className="section-anchor w-full bg-surface py-16" id="steps">
-      <div className="mx-auto max-w-[1600px] space-y-12 px-4 lg:px-8">
-        <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <span className="text-label-md font-bold uppercase tracking-wider text-secondary">
-            {t("eyebrow")}
-          </span>
-          <h2 className="text-headline-lg font-bold text-primary">{t("title")}</h2>
+    <section className="section-anchor w-full bg-surface py-14 md:py-20" id="steps">
+      <div className="mx-auto max-w-7xl space-y-8 px-[clamp(1.25rem,4vw,2.5rem)]">
+        <div className="max-w-3xl space-y-3">
+          <h2 className="text-balance text-headline-lg-mobile font-bold text-primary md:text-headline-lg">{t("title")}</h2>
           <p className="text-body-md text-on-surface-variant">{t("subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <ol className="grid gap-x-7 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step) => (
-            <div key={step.n} className="z-card space-y-4 rounded-xl p-6">
+            <li key={step.n} className="space-y-3 border-t border-outline-variant pt-5">
               <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${step.circle}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-base font-bold ${step.circle}`}
               >
                 {numeral.format(step.n)}
               </div>
               <h3 className="text-title-md font-bold text-primary">{step.title}</h3>
               <p className="text-body-sm text-on-surface-variant">{step.text}</p>
-              <div className="flex items-center gap-1 pt-2 text-label-sm font-semibold text-secondary">
-                <Icon name={step.footIcon} size={16} />
+              <div className="flex items-start gap-2 pt-2 text-label-sm font-semibold text-secondary">
+                <Icon name={step.footIcon} size={16} className="mt-0.5 shrink-0" />
                 <span>{step.foot}</span>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

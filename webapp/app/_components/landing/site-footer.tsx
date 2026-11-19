@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "../../../i18n/navigation";
+import LogoPlaceholder from "../logo-placeholder";
 import Icon from "../ui/icon";
 
 export default async function SiteFooter({ whatsappHref = null }: { whatsappHref?: string | null }) {
@@ -11,18 +12,18 @@ export default async function SiteFooter({ whatsappHref = null }: { whatsappHref
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-10 w-full bg-surface-container-lowest shadow-[0_-1px_12px_rgba(27,54,93,0.04)]">
-      <div className="mx-auto max-w-[1600px] px-4 pb-6 pt-10 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 pb-10 md:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-4 lg:col-span-2">
+    <footer className="w-full border-t border-outline-variant/50 bg-surface-container-lowest">
+      <div className="mx-auto max-w-7xl px-[clamp(1.25rem,4vw,2.5rem)] pb-7 pt-12">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 pb-10 lg:grid-cols-5">
+          <div className="col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-tertiary-fixed shadow-[0_2px_4px_rgba(0,32,70,0.14)]">
-                <Icon name="mosque" size={22} />
+              <span className="h-11 w-11 shrink-0" aria-hidden="true">
+                <LogoPlaceholder size={44} />
               </span>
-              <span className="flex flex-col">
-                <span className="text-headline-sm font-bold text-primary">{tBrand("name")}</span>
-                <span className="text-label-sm font-medium text-on-surface-variant">{t("subBrand")}</span>
-              </span>
+              <div className="space-y-1">
+                <div className="text-headline-sm font-bold text-primary">{tBrand("name")}</div>
+                <p className="text-label-sm font-medium text-on-surface-variant">{t("subBrand")}</p>
+              </div>
             </div>
             <p className="max-w-md text-body-md leading-relaxed text-on-surface-variant">{t("tagline")}</p>
             <div className="flex flex-wrap items-center gap-2 pt-2">
@@ -79,17 +80,17 @@ export default async function SiteFooter({ whatsappHref = null }: { whatsappHref
             </ul>
           </div>
 
-          <div className="space-y-3">
+          <div className="col-span-2 space-y-3 lg:col-span-1">
             <h3 className="text-title-md font-bold text-primary">{t("colSupport")}</h3>
             <div className="space-y-3">
-              <div className="rounded-lg bg-surface-container-low p-3">
+              <div className="border-t border-outline-variant/50 pt-3">
                 <div className="flex items-center gap-2 text-label-md font-bold text-primary">
                   <Icon name="videocam" size={18} className="text-secondary" />
                   {t("zoomTitle")}
                 </div>
                 <p className="mt-1 text-label-sm text-on-surface-variant">{t("zoomText")}</p>
               </div>
-              <div className="rounded-lg bg-surface-container-low p-3">
+              <div className="border-t border-outline-variant/50 pt-3">
                 <div className="flex items-center gap-2 text-label-md font-bold text-primary">
                   <Icon name="chat" size={18} className="text-secondary" />
                   {t("whatsappTitle")}

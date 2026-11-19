@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getTodaySessions } from "./today-sessions";
+import { zonedDayRangeUtc, zonedYmd } from "../schedules/recurrence";
 import { prisma } from "../prisma";
 import { daysRangeUtc, monthGrid, type CalendarView } from "../calendar/month";
 import { buildWeek, parseWeekParam } from "../calendar/week";
@@ -38,7 +40,18 @@ export async function getCalendarRangeSessions(scope: CalendarScope, range: { st
       sessionType: true,
       subject: { select: { nameAr: true, nameEn: true } },
       teacher: { select: { user: { select: { displayName: true } } } },
-      students: { select: { student: { select: { user: { select: { displayName: true } } } } } },
+      students: { ...("studentId" in scope && { where: { studentId: scope.studentId } }), select: { student: { select: { user: { select: { displayName: true } } } } } },
     },
   });
+}
+
+/** The visible calendar usually contains today. Reuse its rows for the daily summary. */
+export async function getOperationsCalendar(academyId: string, range: { start: Date; end: Date }, now: Date, zone: string) {
+  const day = zonedDayRangeUtc(zonedYmd(now, zone), zone);
+  const calendar = getCalendarRangeSessions({ academyId }, range);
+  const today = range.start <= day.start && day.end <= range.end
+    ? calendar.then(rows => rows.filter(row => row.scheduledStart >= day.start && row.scheduledStart < day.end))
+    : getTodaySessions(academyId, now, zone).then(result => result.sessions);
+  const [sessions, todaySessions] = await Promise.all([calendar, today]);
+  return { sessions, todaySessions };
 }

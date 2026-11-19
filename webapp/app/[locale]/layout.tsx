@@ -13,6 +13,7 @@ import { countUnread } from "../../lib/notifications/inbox";
 import { BadgeProvider } from "../_components/notifications/badge-provider";
 
 const cairo = Cairo({
+  preload: false,
   variable: "--font-cairo",
   subsets: ["arabic", "latin"],
 });
@@ -24,6 +25,7 @@ const tajawal = Tajawal({
 });
 
 const montserrat = Montserrat({
+  preload: false,
   variable: "--font-montserrat",
   subsets: ["latin"],
 });

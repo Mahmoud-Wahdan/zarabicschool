@@ -14,7 +14,7 @@ export default function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="z-card flex flex-col justify-between gap-4 rounded-xl p-4 sm:p-6 xl:flex-row xl:items-center">
+    <header className="flex flex-col justify-between gap-3 border-b border-outline-variant pb-4 xl:flex-row xl:items-end">
       <div className="flex flex-col gap-1">
         {eyebrow ? (
           <div className="flex flex-wrap items-center gap-1.5 text-label-sm uppercase tracking-wider text-secondary">
@@ -30,12 +30,12 @@ export default function PageHeader({
             ) : null}
           </div>
         ) : null}
-        <h1 className="text-headline-lg font-bold tracking-tight text-primary sm:text-headline-lg">{title}</h1>
+        <h1 className="text-headline-lg-mobile font-bold tracking-tight text-primary sm:text-headline-lg">{title}</h1>
         {subtitle ? <p className="text-body-sm text-on-surface-variant">{subtitle}</p> : null}
       </div>
       {actions ? (
         <div className="flex flex-wrap items-center gap-2 xl:pt-0">{actions}</div>
       ) : null}
-    </div>
+    </header>
   );
 }

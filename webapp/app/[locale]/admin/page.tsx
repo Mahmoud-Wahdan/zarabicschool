@@ -1,14 +1,14 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import ActivitySummary from "../../_components/dashboard/activity-summary";
 import DashboardShell from "../../_components/dashboard-shell";
 import Icon from "../../_components/ui/icon";
 import PageHeader from "../../_components/ui/page-header";
 import { ActionRow, TodayCard } from "../../_components/dashboard/ops-sections";
 import { Link } from "../../../i18n/navigation";
 import { requireRole } from "../../../lib/dal";
-import { getTodaySessions } from "../../../lib/dashboard/today-sessions";
 import { getAdminActionCounts, getMonthMoney } from "../../../lib/dashboard/admin-overview";
-import { calendarPeriod, getCalendarRangeSessions } from "../../../lib/dashboard/calendar-range";
+import { calendarPeriod, getOperationsCalendar } from "../../../lib/dashboard/calendar-range";
 import { parseMonthParam, parseView } from "../../../lib/calendar/month";
 import SessionsCalendar from "../../_components/calendar/sessions-calendar";
 import { getTeacherFlagCounts } from "../../../lib/reports/teacher-flag-counts";
@@ -22,7 +22,7 @@ export async function generateMetadata() {
   return { title: `${t("title")} | Zarabicschool` };
 }
 
-export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string; view?: string; week?: string; month?: string }> }) {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ revenue?: string; view?: string; week?: string; month?: string; activity?: string }> }) {
   const user = await requireRole("ADMIN");
   const locale = await getLocale();
   const t = await getTranslations("adminDash");
@@ -35,14 +35,13 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const view = parseView(params.view);
   const month = parseMonthParam(params.month, now, viewerZone);
   const period = calendarPeriod(view, { week: params.week, month }, now, viewerZone);
-  const [revenue, actions, money, flagCounts, today, week] = await Promise.all([
+  const [revenue, actions, money, flagCounts, calendar] = await Promise.all([
     getEgpRevenue(user.academyId, revenuePeriod, now, viewerZone),
     getAdminActionCounts(user.academyId),
     getMonthMoney(user.academyId, now, viewerZone),
     // Late SESSION-report flags; missing monthly reports counted separately (owner 2026-10-27).
     getTeacherFlagCounts(user.academyId),
-    getTodaySessions(user.academyId, now, viewerZone),
-    getCalendarRangeSessions({ academyId: user.academyId }, period.range),
+    getOperationsCalendar(user.academyId, period.range, now, viewerZone),
   ]);
   const monthName = new Intl.DateTimeFormat(locale === "ar" ? "ar-EG" : "en-GB", { timeZone: viewerZone, month: "long", year: "numeric" }).format(now);
   const actionTotal = actions.reports + actions.applications + actions.sessionRequests + actions.complaints;
@@ -54,7 +53,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       timezone={user.timezone}
       navBadges={{ applications: actions.applications, reports: actions.reports }}
     >
-      <AnnouncementsWidget academyId={user.academyId} timeZone={viewerZone} />
       <PageHeader
         title={t("title")}
         subtitle={t("subtitle")}
@@ -73,7 +71,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <TodayCard sessions={today.sessions} now={now} />
+        <TodayCard sessions={calendar.todaySessions} now={now} />
 
         <section className="z-card flex flex-col rounded-xl p-4 sm:p-6" aria-labelledby="dash-actions">
           <div className="flex items-baseline justify-between gap-2">
@@ -112,6 +110,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </section>
       </div>
 
+      <AnnouncementsWidget academyId={user.academyId} timeZone={viewerZone} />
+      <ActivitySummary user={user} now={now} query={params} />
+
       <SessionsCalendar
         title={t("weekTitle")}
         subtitle={t("calendarSubtitle")}
@@ -119,7 +120,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         weekStart={period.weekStart}
         month={month}
         monthDays={period.grid?.days ?? null}
-        sessions={week}
+        sessions={calendar.sessions}
         now={now}
         timeZone={viewerZone}
         locale={locale}
