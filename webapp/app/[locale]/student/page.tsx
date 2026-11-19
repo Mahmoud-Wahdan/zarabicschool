@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import ActivitySummary from "../../_components/dashboard/activity-summary";
 import DashboardShell from "../../_components/dashboard-shell";
 import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
@@ -21,7 +22,7 @@ export async function generateMetadata() {
   return { title: `${t("student.title")} | Zarabicschool` };
 }
 
-export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string }> }) {
+export default async function StudentDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string; activity?: string }> }) {
   const user = await requireRole("STUDENT");
   const zone = user.timezone || "Africa/Cairo";
   const now = new Date();
@@ -52,8 +53,6 @@ export default async function StudentDashboard({ searchParams }: { searchParams:
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone} hideNavKeys={financeHidden ? ["invoices"] : undefined}>
-      <AnnouncementsWidget academyId={user.academyId} timeZone={zone} />
-      <EvaluationPromptCard userId={user.id} academyId={user.academyId} role="STUDENT" />
       <PageHeader title={t("student.title")} subtitle={t("student.welcome", { name: user.displayName })} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -101,6 +100,10 @@ export default async function StudentDashboard({ searchParams }: { searchParams:
           )}
         </section>
       </div>
+
+      <AnnouncementsWidget academyId={user.academyId} timeZone={zone} />
+      <EvaluationPromptCard userId={user.id} academyId={user.academyId} role="STUDENT" />
+      <ActivitySummary user={user} now={now} query={params} childId={student?.id} />
 
       <SessionsCalendar
         title={t("student.weekTitle")}

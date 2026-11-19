@@ -14,11 +14,7 @@ export async function getTodaySessions(academyId: string, now: Date, timeZone: s
   const sessions = await prisma.session.findMany({
     where: { academyId, scheduledStart: { gte: start, lt: end } },
     orderBy: { scheduledStart: "asc" },
-    include: {
-      subject: { select: { nameAr: true, nameEn: true } },
-      teacher: { select: { user: { select: { displayName: true } } } },
-      students: { include: { student: { select: { user: { select: { displayName: true } } } } } },
-    },
+    select: { scheduledStart: true, scheduledEnd: true, status: true },
   });
   return {
     sessions,

@@ -268,3 +268,6 @@ Skills used: superpowers:requesting-code-review (one review pass on Phase 7 + la
 - **#5 Dashboard flag counts (option a):** the Admin/Supervisor red-mark tile counts LATE session-report flags only (matching the reports queue it links to); missing monthly reports are a separate line linking to the monthly-reports page (`lib/reports/teacher-flag-counts.ts`). Test FLG-01.
 - **#6 Monthly-flag scan cost:** same rule (days 4–7 of the teacher's local month, one flag per teacher and month), now batched: 3 queries per tick per previous-month key instead of 3 per teacher. Tests MR-02 (cost) + MR-01/INT-MON-05 (rule unchanged).
 - **#3 and #8:** plans shown to the owner; no code until approved.
+
+### Dashboard usability and analytics review (2026-11-19)
+Scope read-only analytics to the signed-in role and viewer timezone. Prioritize roster privacy, guardian child selection and accurate counts, accessible period comparisons, shared dashboard hierarchy and browser measurement. Preserve settlement and authorization. Detailed audit and verification live in webapp/docs/frontend-review.md.

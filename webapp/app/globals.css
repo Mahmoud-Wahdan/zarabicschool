@@ -779,3 +779,22 @@ html[lang="en"] {
     border-block-start: 1px solid color-mix(in srgb, var(--emerald) 45%, transparent);
   }
 }
+
+/* Shared, bilingual dashboard comparisons. */
+.activity-panel {
+  --panel-inset: clamp(1rem, 2vw, 1.5rem);
+  padding: var(--panel-inset);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-xl, .75rem);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  box-shadow: var(--elev-1);
+}
+.activity-table { width: 100%; margin-block: 1rem; border-collapse: collapse; }
+.activity-table :is(th, td) { padding-block: .55rem; padding-inline-end: .5rem; text-align: end; }
+.activity-table th:first-child { text-align: start; }
+.activity-table th { font-weight: 500; }
+.activity-table thead { font-size: .8125rem; color: var(--color-on-surface-variant); }
+.activity-table tbody tr { border-block-start: 1px solid var(--color-outline-variant); }
+.activity-table tbody { font-size: .875rem; font-variant-numeric: tabular-nums; }
+.activity-table td:nth-child(2) { color: var(--color-primary); font-weight: 700; }

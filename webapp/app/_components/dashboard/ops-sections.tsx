@@ -9,16 +9,7 @@ import { type BadgeTone } from "../ui/status-badge";
  * today's sessions and "needs you" rows. No money here.
  */
 
-type OpsSession = {
-  id: string;
-  scheduledStart: Date;
-  scheduledEnd: Date;
-  status: string;
-  sessionType: string;
-  subject: { nameAr: string; nameEn: string };
-  teacher: { user: { displayName: string } };
-  students: { student: { user: { displayName: string } } }[];
-};
+type OpsSession = { scheduledStart: Date; scheduledEnd: Date; status: string };
 
 /** One row of "needs you": a count that links to where it is handled. */
 export function ActionRow({ href, icon, label, count, tone }: { href: string; icon: IconName; label: string; count: number; tone: BadgeTone }) {

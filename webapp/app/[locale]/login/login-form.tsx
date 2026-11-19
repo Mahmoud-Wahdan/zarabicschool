@@ -2,10 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { loginSchema } from "../../../lib/validation/auth";
 import Icon from "../../_components/ui/icon";
 
 type FieldErrors = Record<string, string[]>;
@@ -30,44 +28,57 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
     setFieldErrors({});
 
     const formData = new FormData(event.currentTarget);
-    const parsed = loginSchema.safeParse({
-      username: formData.get("username"),
-      password: formData.get("password"),
-    });
-    if (!parsed.success) {
-      setFieldErrors(parsed.error.flatten().fieldErrors as FieldErrors);
-      return;
-    }
-
+    const form = event.currentTarget;
+    if (pending) return;
     setPending(true);
-    const result = await signIn("credentials", {
-      redirect: false,
-      username: parsed.data.username,
-      password: parsed.data.password,
-    });
+    try {
+      const { loginSchema } = await import("../../../lib/validation/auth");
+      const parsed = loginSchema.safeParse({
+        username: formData.get("username"),
+        password: formData.get("password"),
+      });
+      if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors as FieldErrors;
+        setFieldErrors(errors);
+        setPending(false);
+        const field = form.elements.namedItem(Object.keys(errors)[0]);
+        if (field instanceof HTMLInputElement) field.focus();
+        return;
+      }
 
-    if (!result || result.error) {
+      const { signIn } = await import("next-auth/react");
+      const result = await signIn("credentials", {
+        redirect: false,
+        username: parsed.data.username,
+        password: parsed.data.password,
+      });
+
+      if (!result || result.error) {
+        setPending(false);
+        setFormError(t("invalidCredentials"));
+        return;
+      }
+
+      const response = await fetch("/api/auth/session");
+      const session: SessionResponse = response.ok ? await response.json() : {};
+      const role = session.user?.role;
+      if (callbackPath && role && !session.user?.mustChangePassword) {
+        // Full navigation: the callback may be the join redirect (an API route), which
+        // the client router cannot render. The path was allowlisted on the server.
+        window.location.assign(callbackPath);
+        return;
+      }
+      const destination = session.user?.mustChangePassword
+        ? `/${locale}/change-password`
+        : role
+          ? `/${locale}/${role.toLowerCase()}`
+          : `/${locale}`;
+      router.replace(destination);
+      router.refresh();
+    } catch {
+      setFormError(t("connectionError"));
       setPending(false);
-      setFormError(t("invalidCredentials"));
-      return;
     }
-
-    const response = await fetch("/api/auth/session");
-    const session: SessionResponse = response.ok ? await response.json() : {};
-    const role = session.user?.role;
-    if (callbackPath && role && !session.user?.mustChangePassword) {
-      // Full navigation: the callback may be the join redirect (an API route), which
-      // the client router cannot render. The path was allowlisted on the server.
-      window.location.assign(callbackPath);
-      return;
-    }
-    const destination = session.user?.mustChangePassword
-      ? `/${locale}/change-password`
-      : role
-        ? `/${locale}/${role.toLowerCase()}`
-        : `/${locale}`;
-    router.replace(destination);
-    router.refresh();
   }
 
   // method="post": a submit before hydration falls back to a native form submit,
@@ -82,18 +93,17 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           <Icon name={"person"} size={20} className="pointer-events-none absolute end-3 text-on-surface-variant" />
           <input
             id="username"
+            required
+            aria-invalid={Boolean(fieldErrors.username)}
+            aria-describedby={fieldErrors.username ? "username-error" : undefined}
             name="username"
             type="text"
             autoComplete="username"
             dir="ltr"
-            className="z-input rounded-lg bg-surface-container-low py-2.5 pe-10 transition-all duration-200 placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-md"
+            className="z-input rounded-lg bg-surface-container-low py-2.5 px-10 transition-all duration-200 placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-md"
           />
         </div>
-        {fieldErrors.username?.map((error) => (
-          <p key={error} className="mt-1 text-body-sm text-error">
-            {error}
-          </p>
-        ))}
+        {fieldErrors.username && <p id="username-error" role="alert" className="mt-1 text-body-sm text-error">{t("usernameError")}</p>}
       </div>
 
       <div>
@@ -104,6 +114,9 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           <Icon name={"lock"} size={20} className="pointer-events-none absolute end-3 text-on-surface-variant" />
           <input
             id="password"
+            required
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={fieldErrors.password ? "password-error" : undefined}
             name="password"
             type={passwordVisible ? "text" : "password"}
             autoComplete="current-password"
@@ -113,17 +126,14 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           <button
             type="button"
             aria-label={t("togglePassword")}
+            aria-pressed={passwordVisible}
             onClick={() => setPasswordVisible((value) => !value)}
-            className="absolute start-3 flex items-center text-on-surface-variant transition-colors hover:text-primary"
+            className="absolute start-1 flex size-10 items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
           >
             <Icon name={passwordVisible ? "visibility_off" : "visibility"} size={20} />
           </button>
         </div>
-        {fieldErrors.password?.map((error) => (
-          <p key={error} className="mt-1 text-body-sm text-error">
-            {error}
-          </p>
-        ))}
+        {fieldErrors.password && <p id="password-error" role="alert" className="mt-1 text-body-sm text-error">{t("passwordError")}</p>}
       </div>
 
       {formError ? (
@@ -135,11 +145,6 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
           </div>
         </div>
       ) : null}
-
-      <div className="flex items-center gap-2.5 rounded-lg bg-surface-container-low p-3">
-        <Icon name={"verified_user"} size={18} className="shrink-0 text-primary" />
-        <span className="text-body-sm leading-tight text-on-surface-variant">{t("rolesHint")}</span>
-      </div>
 
       <button
         type="submit"

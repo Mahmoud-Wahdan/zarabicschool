@@ -207,12 +207,12 @@ export function LineSeries({
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="h-auto w-full" direction="ltr">
       <Grid max={max} format={format} />
       {segments.map((d) => <path key={d} d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />)}
-      {xy.map((point) => (
+      {xy.map((point, index) => (
         <g key={point.label} tabIndex={0} aria-label={point.tooltip} className="outline-none focus-visible:[&>rect]:stroke-primary">
           <title>{point.tooltip}</title>
           <rect x={point.x - step / 2} y={PAD.top} width={Math.max(step, 16)} height={plotHeight} fill="transparent" strokeWidth={2} />
           {point.y !== null ? <circle cx={point.x} cy={point.y} r={4} fill={color} stroke={SURFACE} strokeWidth={2} /> : null}
-          {xy.indexOf(point) % every === (xy.length - 1) % every ? (
+          {index % every === (xy.length - 1) % every ? (
             <text x={point.x} y={H - 8} textAnchor="middle" className="fill-on-surface-variant text-[13px]">{point.label}</text>
           ) : null}
         </g>

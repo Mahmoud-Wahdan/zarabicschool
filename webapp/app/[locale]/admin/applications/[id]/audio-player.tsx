@@ -14,35 +14,30 @@ export default function ApplicationAudioPlayer({
   format,
 }: AudioPlayerProps) {
   const t = useTranslations("adminApplications.detail");
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAudio = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/applications/${encodeURIComponent(applicationId)}/media`);
-      if (!res.ok) {
-        throw new Error(`Failed to load audio (${res.status})`);
-      }
-      const data = await res.json();
-      if (typeof data.url === "string") {
-        setAudioUrl(data.url);
-      } else {
-        throw new Error("Invalid response");
-      }
-    } catch {
-      setError(t("audioError"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const common = useTranslations("common");
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ applicationId: string; attempt: number; url: string | null } | null>(null);
+  const loading = result?.applicationId !== applicationId || result.attempt !== attempt;
+  const audioUrl = result?.url;
 
   useEffect(() => {
-    fetchAudio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applicationId]);
+    const controller = new AbortController();
+    async function load() {
+      let url: string | null = null;
+      try {
+        const res = await fetch(`/api/applications/${encodeURIComponent(applicationId)}/media`, { signal: controller.signal });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.url === "string") url = data.url;
+        }
+      } catch {
+        // The localized error state offers retry for network and decoding failures.
+      }
+      if (!controller.signal.aborted) setResult({ applicationId, attempt, url });
+    }
+    void load();
+    return () => controller.abort();
+  }, [applicationId, attempt]);
 
   if (loading) {
     return (
@@ -53,20 +48,20 @@ export default function ApplicationAudioPlayer({
     );
   }
 
-  if (error || !audioUrl) {
+  if (!audioUrl) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error">
         <div className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{error || t("audioError")}</span>
+          <span>{t("audioError")}</span>
         </div>
         <button
           type="button"
-          onClick={fetchAudio}
+          onClick={() => setAttempt(value => value + 1)}
           className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold text-error hover:bg-error/10"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          <span>{t("audioLoading") ? "Retry" : "إعادة المحاولة"}</span>
+          <span>{common("retry")}</span>
         </button>
       </div>
     );

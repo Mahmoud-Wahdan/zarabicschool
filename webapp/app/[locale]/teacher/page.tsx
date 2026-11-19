@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import ActivitySummary from "../../_components/dashboard/activity-summary";
 import DashboardShell from "../../_components/dashboard-shell";
 import PageHeader from "../../_components/ui/page-header";
 import EmptyState from "../../_components/ui/empty-state";
@@ -23,7 +24,7 @@ export async function generateMetadata() {
   return { title: `${t("teacher.title")} | Zarabicschool` };
 }
 
-export default async function TeacherDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string }> }) {
+export default async function TeacherDashboard({ searchParams }: { searchParams: Promise<{ view?: string; week?: string; month?: string; activity?: string }> }) {
   const user = await requireRole("TEACHER");
   const [t, tSessions] = await Promise.all([getTranslations("dashboard"), getTranslations("sessions")]);
   const now = new Date();
@@ -69,7 +70,6 @@ export default async function TeacherDashboard({ searchParams }: { searchParams:
 
   return (
     <DashboardShell role={user.role} userName={user.displayName} timezone={user.timezone}>
-      <AnnouncementsWidget academyId={user.academyId} timeZone={zone} />
       <PageHeader title={t("teacher.title")} subtitle={t("teacher.welcome", { name: user.displayName })} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -136,6 +136,9 @@ export default async function TeacherDashboard({ searchParams }: { searchParams:
           ) : null}
         </section>
       </div>
+
+      <AnnouncementsWidget academyId={user.academyId} timeZone={zone} />
+      <ActivitySummary user={user} now={now} query={params} />
 
       <SessionsCalendar
         title={t("teacher.weekTitle")}
