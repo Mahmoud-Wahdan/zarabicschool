@@ -60,7 +60,7 @@ const RETRY_DELAYS_MS = [2 * 60 * 1000, 10 * 60 * 1000];
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
 // Pause between two sends of one tick: OpenWA is unofficial and bursts raise
 // the ban risk (CONTEXT §8).
-const SEND_SPACING_MS = 1500;
+const SEND_SPACING_MS = 1_000;
 
 function isReportNudgeKind(kind: string) {
   return kind === "REPORT_REMINDER" || kind === "REPORT_REMINDER_FOLLOWUP";
