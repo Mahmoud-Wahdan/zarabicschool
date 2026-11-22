@@ -8,7 +8,7 @@ const createJestConfig = nextJest({
 /** @type {import('jest').Config} */
 const customJestConfig = {
   testEnvironment: "node",
-  testMatch: ["**/__tests__/**/*.test.[jt]s?(x)"],
+  testMatch: ["<rootDir>/tests/**/*.test.[jt]s?(x)"],
   // Playwright E2E specs live in e2e/ and run via `npx playwright test` only —
   // that directory can never match the testMatch above.
   // Database-backed suites share one Supabase database; parallel workers cause
@@ -19,8 +19,8 @@ const customJestConfig = {
   // Longer Prisma transaction limits for tests only (remote dev DB latency);
   // the app keeps Prisma's defaults.
   setupFilesAfterEnv: [
-    "<rootDir>/__tests__/helpers/fake-messaging.setup.ts",
-    "<rootDir>/__tests__/helpers/db-timeouts.setup.ts",
+    "<rootDir>/tests/helpers/fake-messaging.setup.ts",
+    "<rootDir>/tests/helpers/db-timeouts.setup.ts",
   ],
   moduleDirectories: ["node_modules", "<rootDir>/"],
   moduleNameMapper: {
