@@ -2229,7 +2229,16 @@
       "slugTaken": "هذا المعرّف مستخدم لمادة أخرى.",
       "noSubjects": "لا توجد مواد بعد.",
       "relationship": "صلة القرابة",
-      "guardian": "ولي الأمر"
+      "guardian": "ولي الأمر",
+      "teacherFlags": {
+        "title": "العلامات",
+        "count": "{count, plural, zero {لا توجد علامات مسجلة} one {علامة واحدة} two {علامتان} few {# علامات} many {# علامة} other {# علامة}}",
+        "none": "لا توجد علامات مسجلة",
+        "lateReport": "تقرير جلسة متأخر",
+        "monthlyReportMissing": "تقرير شهري ناقص",
+        "sessionContextUnavailable": "تفاصيل الجلسة غير متاحة",
+        "monthContextUnavailable": "الشهر غير متاح"
+      }
     }
   },
   "paymentReturn": {

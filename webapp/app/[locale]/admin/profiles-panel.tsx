@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 
 import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
 import WhatsAppPhoneLink from "../../_components/ui/whatsapp-phone-link";
+import TeacherFlagsCell, { type TeacherFlagForDisplay } from "./teacher-flags-cell";
 
 type ProfileType = "student" | "guardian" | "teacher";
 type PaymentStatus = "PAID" | "PENDING" | "FAILED" | "CANCELLED";
 /** S-09 / D29: amount-free per-student status (students list only). */
 type FinanceStatus = { remainingSessions: number; paymentStatus: PaymentStatus | null };
-type Row = { id: string; username: string; displayName: string; phone?: string | null; isActive: boolean; financeStatus?: FinanceStatus | null; announcementsOptOut?: boolean; studentProfile?: { guardianId: string | null } | null; guardianProfile?: { relationship: string } | null; teacherProfile?: { id: string; approvalStatus?: string } | null };
+type Row = { id: string; username: string; displayName: string; phone?: string | null; isActive: boolean; financeStatus?: FinanceStatus | null; announcementsOptOut?: boolean; studentProfile?: { guardianId: string | null } | null; guardianProfile?: { relationship: string } | null; teacherProfile?: { id: string; approvalStatus?: string; teacherFlags?: TeacherFlagForDisplay[] } | null };
 type GuardianOption = { id: string; displayName: string };
 
 function paymentTone(status: PaymentStatus | null): BadgeTone {
@@ -24,6 +25,7 @@ function paymentTone(status: PaymentStatus | null): BadgeTone {
 export default function ProfilesPanel({ type, title, canSetAnnouncements = false, viewerRole = "ADMIN" }: { type: ProfileType; title: string; canSetAnnouncements?: boolean; viewerRole?: "ADMIN" | "SUPERVISOR" }) {
   const t = useTranslations("management.form");
   const showFinance = type === "student";
+  const showTeacherFlags = type === "teacher";
   const [rows, setRows] = useState<Row[]>([]);
 const [form, setForm] = useState({ username: "", displayName: "", password: "", phone: "", relationship: "FATHER", guardianId: "", isAdult: false, rate: "", currency: "EGP", effectiveFrom: new Date().toISOString().slice(0, 10) });  // S-02: per-row rate typed by the Admin when approving a pending teacher.
   const [approveRates, setApproveRates] = useState<Record<string, string>>({});
@@ -80,7 +82,7 @@ const [form, setForm] = useState({ username: "", displayName: "", password: "", 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) { setMessage(payload.error?.message ?? t("updateFailed")); return; }
     setMessage(t("teacherApproved", { name: row.displayName }));
-    setRows((current) => current.map((item) => item.id === row.id ? { ...item, isActive: true, teacherProfile: { id: teacherId, approvalStatus: "APPROVED" } } : item));
+    setRows((current) => current.map((item) => item.id === row.id ? { ...item, isActive: true, teacherProfile: { ...item.teacherProfile, id: teacherId, approvalStatus: "APPROVED" } } : item));
   }
   async function toggle(row: Row) {
     const response = await fetch(`/api/admin/profiles/${row.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ isActive: !row.isActive }) });
@@ -122,7 +124,56 @@ type="tel"
         <button className="btn btn-primary">{t("create")}</button>
         {message ? <p role="status" className="text-body-sm text-on-surface-variant sm:col-span-2 lg:col-span-4">{message}</p> : null}
       </form>
-      <div className="z-card overflow-x-auto rounded-xl p-5"><h2 className="mb-4 font-semibold text-primary">{title}</h2><table className="w-full min-w-[640px] text-start text-sm"><thead className="border-b border-outline-variant text-label-sm text-on-surface-variant"><tr><th className="px-3 py-2 text-start">{t("name")}</th><th className="px-3 py-2 text-start">{t("usernameCol")}</th><th className="px-3 py-2 text-start">{t("phoneCol")}</th>{showFinance ? <><th className="px-3 py-2 text-start">{t("paymentCol")}</th><th className="px-3 py-2 text-start">{t("remainingCol")}</th></> : null}<th className="px-3 py-2 text-start">{t("status")}</th>{showAnnouncements ? <th className="px-3 py-2 text-start">{t("announcements")}</th> : null}<th className="px-3 py-2 text-start">{t("action")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-b border-outline-variant last:border-0"><td className="px-3 py-3">{row.displayName}</td><td className="px-3 py-3 text-on-surface-variant">{row.username}</td><td className="px-3 py-3"><WhatsAppPhoneLink phone={row.phone} label={t("whatsappChat", { name: row.displayName })} /></td>{showFinance ? <><td className="px-3 py-3"><StatusBadge tone={paymentTone(row.financeStatus?.paymentStatus ?? null)}>{t(`paymentStatus.${row.financeStatus?.paymentStatus ?? "NONE"}`)}</StatusBadge></td><td className="px-3 py-3 tabular-nums">{row.financeStatus?.remainingSessions ?? 0}</td></> : null}<td className="px-3 py-3">{row.teacherProfile?.approvalStatus === "PENDING" ? <StatusBadge tone="pending">{t("pendingApproval")}</StatusBadge> : row.isActive ? t("active") : t("inactive")}</td>{showAnnouncements ? <td className="px-3 py-3"><button onClick={() => toggleAnnouncements(row)} title={t("announcementsHint")} className="btn btn-outline">{row.announcementsOptOut ? t("announcementsOff") : t("announcementsOn")}</button></td> : null}<td className="px-3 py-3">{row.teacherProfile?.approvalStatus === "PENDING" ? (isAdmin ? <span className="flex flex-wrap items-center gap-2"><input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" /><button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button></span> : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span>) : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}</td></tr>)}</tbody></table></div>
+      <div className="z-card overflow-x-auto rounded-xl p-5">
+        <h2 className="mb-4 font-semibold text-primary">{title}</h2>
+        <table className="w-full min-w-[640px] text-start text-sm">
+          <thead className="border-b border-outline-variant text-label-sm text-on-surface-variant">
+            <tr>
+              <th className="px-3 py-2 text-start">{t("name")}</th>
+              <th className="px-3 py-2 text-start">{t("usernameCol")}</th>
+              <th className="px-3 py-2 text-start">{t("phoneCol")}</th>
+              {showFinance ? <>
+                <th className="px-3 py-2 text-start">{t("paymentCol")}</th>
+                <th className="px-3 py-2 text-start">{t("remainingCol")}</th>
+              </> : null}
+              <th className="px-3 py-2 text-start">{t("status")}</th>
+              {showTeacherFlags ? <th className="px-3 py-2 text-start">{t("teacherFlags.title")}</th> : null}
+              {showAnnouncements ? <th className="px-3 py-2 text-start">{t("announcements")}</th> : null}
+              <th className="px-3 py-2 text-start">{t("action")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-outline-variant last:border-0">
+                <td className="px-3 py-3">{row.displayName}</td>
+                <td className="px-3 py-3 text-on-surface-variant">{row.username}</td>
+                <td className="px-3 py-3"><WhatsAppPhoneLink phone={row.phone} label={t("whatsappChat", { name: row.displayName })} /></td>
+                {showFinance ? <>
+                  <td className="px-3 py-3"><StatusBadge tone={paymentTone(row.financeStatus?.paymentStatus ?? null)}>{t(`paymentStatus.${row.financeStatus?.paymentStatus ?? "NONE"}`)}</StatusBadge></td>
+                  <td className="px-3 py-3 tabular-nums">{row.financeStatus?.remainingSessions ?? 0}</td>
+                </> : null}
+                <td className="px-3 py-3">
+                  {row.teacherProfile?.approvalStatus === "PENDING"
+                    ? <StatusBadge tone="pending">{t("pendingApproval")}</StatusBadge>
+                    : row.isActive ? t("active") : t("inactive")}
+                </td>
+                {showTeacherFlags ? <td className="px-3 py-3"><TeacherFlagsCell flags={row.teacherProfile?.teacherFlags ?? []} /></td> : null}
+                {showAnnouncements ? <td className="px-3 py-3"><button onClick={() => toggleAnnouncements(row)} title={t("announcementsHint")} className="btn btn-outline">{row.announcementsOptOut ? t("announcementsOff") : t("announcementsOn")}</button></td> : null}
+                <td className="px-3 py-3">
+                  {row.teacherProfile?.approvalStatus === "PENDING"
+                    ? isAdmin
+                      ? <span className="flex flex-wrap items-center gap-2">
+                          <input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" />
+                          <button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button>
+                        </span>
+                      : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span>
+                    : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

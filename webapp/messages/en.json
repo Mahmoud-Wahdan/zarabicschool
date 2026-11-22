@@ -2169,7 +2169,7 @@
       "displayName": "Display name",
       "temporaryPassword": "Temporary password",
       "password": "Password (12+ chars)",
-      "phoneWhatsapp ": "number phone",
+      "phoneWhatsapp": "WhatsApp phone",
       "relationshipFather": "Father",
       "relationshipMother": "Mother",
       "noGuardian": "No guardian / adult",
@@ -2229,7 +2229,16 @@
       "slugTaken": "This slug is already used by another subject.",
       "noSubjects": "No subjects yet.",
       "relationship": "Relationship",
-      "guardian": "Guardian"
+      "guardian": "Guardian",
+      "teacherFlags": {
+        "title": "Flags",
+        "count": "{count, plural, one {# flag} other {# flags}}",
+        "none": "No recorded flags",
+        "lateReport": "Late session report",
+        "monthlyReportMissing": "Missing monthly report",
+        "sessionContextUnavailable": "Session details unavailable",
+        "monthContextUnavailable": "Month unavailable"
+      }
     }
   },
   "paymentReturn": {

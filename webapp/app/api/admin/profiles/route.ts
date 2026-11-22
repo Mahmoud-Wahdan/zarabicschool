@@ -44,7 +44,34 @@ export async function GET(request: Request) {
       ...(optOutReady ? { announcementsOptOut: true } : {}),
       guardianProfile: { select: { id: true, relationship: true, students: { select: { id: true } } } },
       studentProfile: { select: { id: true, guardianId: true, isAdult: true, enrollmentDate: true, reportLanguage: true } },
-      teacherProfile: { select: { id: true, approvalStatus: true, subjects: { select: { subjectId: true } } } },
+      teacherProfile: {
+        select: {
+          id: true,
+          approvalStatus: true,
+          subjects: { select: { subjectId: true } },
+          ...(type === "teacher"
+            ? {
+                teacherFlags: {
+                  where: { academyId: user.academyId },
+                  orderBy: { createdAt: "desc" as const },
+                  select: {
+                    id: true,
+                    flagType: true,
+                    createdAt: true,
+                    monthKey: true,
+                    session: {
+                      select: {
+                        scheduledEnd: true,
+                        timezone: true,
+                        subject: { select: { nameAr: true, nameEn: true } },
+                      },
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
+      },
     },
   });
   if (type !== "student") return NextResponse.json({ data: rows });
