@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { calculateAdultStatus, isValidBirthDate } from "../../../../../lib/validation/birth-date";
 import { useTranslations } from "next-intl";
 
 type Body = {
@@ -57,7 +58,7 @@ export default function ApproveForm({
   const [guardianPhone, setGuardianPhone] = useState("");
   const keys = useMemo(() => {
     if (applicationType === "GUARDIAN") return ["guardian", ...Array.from({ length: childCount }, (_, i) => `child-${i}`)];
-    if (applicationType === "STUDENT" && calculateAge(String(details.date_of_birth ?? "")) < 18) return ["guardian", "student"];
+    if (applicationType === "STUDENT" && isValidBirthDate(String(details.date_of_birth ?? "")) && !calculateAdultStatus(String(details.date_of_birth))) return ["guardian", "student"];
     return [applicationType === "TEACHER" ? "teacher" : "student"];
   }, [applicationType, childCount, details.date_of_birth]);
   const [usernames, setUsernames] = useState<Record<string, string>>({});
@@ -176,13 +177,4 @@ function accountLabel(t: (key: string, values?: Record<string, string>) => strin
   if (key === "student") return t("approveForm.accounts.student");
   if (key === "teacher") return t("approveForm.accounts.teacher");
   return t("approveForm.accounts.child", { index: String(index) });
-}
-
-function calculateAge(value: string) {
-  const birth = new Date(value);
-  if (!value || Number.isNaN(birth.getTime())) return 18;
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  if (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate())) age -= 1;
-  return age;
 }

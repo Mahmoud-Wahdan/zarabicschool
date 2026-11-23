@@ -6,6 +6,8 @@ import { prisma } from "../../../../lib/prisma";
 import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 import { normalizeUsername, usernameSchema } from "../../../../lib/validation/auth";
 
+import { calculateAdultStatus, isValidBirthDate } from "../../../../lib/validation/birth-date";
+
 const phone = z.string().trim().max(40).transform((value, ctx) => {
   if (!value) return null;
   const digits = toInternationalDigits(value);
@@ -15,6 +17,7 @@ const phone = z.string().trim().max(40).transform((value, ctx) => {
 });
 
 const profile = z.object({
+  dateOfBirth: z.string().refine(value => value === "" || isValidBirthDate(value)).transform(value => value ? new Date(value + "T00:00:00Z") : null),
   displayName: z.string().trim().min(1).max(120),
   username: usernameSchema.transform(normalizeUsername),
   email: z.union([z.literal(""), z.string().trim().email().max(254)]).transform(value => value || null),
@@ -33,7 +36,23 @@ export async function PATCH(request: Request) {
   }
   if (!Object.keys(parsed.data).length) return errorResponse(400, "EMPTY", "No profile changes.");
   try {
-    await prisma.user.update({ where: { id: user.id, academyId: user.academyId }, data: parsed.data, select: { id: true } });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id, academyId: user.academyId },
+        data: parsed.data,
+        select: { id: true },
+      });
+
+      if (user.role === "STUDENT" && parsed.data.dateOfBirth !== undefined) {
+        await tx.student.update({
+          where: { userId: user.id },
+          data: {
+            isAdult: calculateAdultStatus(parsed.data.dateOfBirth),
+          },
+          select: { id: true },
+        });
+      }
+    });
   } catch (cause) {
     if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2002") {
       return errorResponse(409, "USERNAME_TAKEN", "Username is already in use.");

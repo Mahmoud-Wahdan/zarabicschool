@@ -1,3 +1,4 @@
+import { calculateAdultStatus, isValidBirthDate } from "./birth-date";
 import { z } from "zod";
 import {
   DRIVE_LINK_MAX_LENGTH,
@@ -83,7 +84,7 @@ function buildStudentFields(allowedSubjects?: string[]) {
       .string()
       .trim()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD")
-      .refine((val) => !isNaN(Date.parse(val)), "Invalid date of birth"),
+      .refine(isValidBirthDate, "Invalid date of birth"),
     subjects: z.array(subjectSchema).min(1, "Select at least one subject"),
     level: z.enum(["beginner", "intermediate", "advanced"]),
     preferred_times: z.string().trim().max(1000, "Preferred times cannot exceed 1000 characters").optional(),
@@ -143,8 +144,7 @@ export function createApplicationSchema(allowedSubjects?: string[]) {
 
   return unionSchema.superRefine((val, ctx) => {
     if (val.type === "STUDENT" || val.type === "student") {
-      const age = calculateAge(val.date_of_birth);
-      if (age < 18) {
+      if (!calculateAdultStatus(val.date_of_birth)) {
         if (!val.guardian_name || val.guardian_name.trim().length < 2) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

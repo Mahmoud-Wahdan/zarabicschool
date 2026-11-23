@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+const longStudentName = "AminaStudentWithAnExceptionallyLongNameThatShouldWrapOnMobile";
+
 async function setTheme(page: Page, theme: "light" | "dark") {
   await page.locator("html").evaluate((root, value) => root.setAttribute("data-theme", value), theme);
   await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
@@ -42,7 +44,7 @@ for (const locale of ["en", "ar"] as const) {
         body: JSON.stringify({ data: [{
           id: "student-1",
           username: "student.one",
-          displayName: "Amina Student",
+          displayName: longStudentName,
           phone: "+201000000001",
           isActive: true,
           dateOfBirth: "2012-05-10",
@@ -61,7 +63,8 @@ for (const locale of ["en", "ar"] as const) {
     await setTheme(page, "light");
     await checkDesktopProfileLayout(page);
     const mobileDisclosure = page.getByLabel(locale === "ar" ? /\u062A\u0641\u0627\u0635\u064A\u0644 \u0639\u0644\u0627\u0642\u0627\u062A/ : /Relationship details/).nth(1);
-    await expect(page.getByText("Amina Student").first()).toBeVisible();
+    await expect(page.getByText(longStudentName).first()).toBeVisible();
+    await expect(page.getByText(longStudentName).first()).toHaveCSS("overflow-wrap", "break-word");
     const birthDate = new Date("2012-05-10T00:00:00Z");
     const today = new Date();
     const expectedAge = today.getUTCFullYear() - birthDate.getUTCFullYear() - (

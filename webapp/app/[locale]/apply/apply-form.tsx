@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, AlertCircle, Plus, Trash2, Video, Music, Upload, X } from "lucide-react";
 import { Link } from "../../../i18n/navigation";
+import { calculateAdultStatus, isValidBirthDate } from "../../../lib/validation/birth-date";
 
 export type SubjectOption = {
   id: string;
@@ -68,18 +69,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Compute student age
-  const isMinor = (() => {
-    if (type !== "student" || !dateOfBirth) return false;
-    const birth = new Date(`${dateOfBirth}T00:00:00Z`);
-    if (isNaN(birth.getTime())) return false;
-    const now = new Date();
-    let age = now.getUTCFullYear() - birth.getUTCFullYear();
-    const monthDiff = now.getUTCMonth() - birth.getUTCMonth();
-    const dayDiff = now.getUTCDate() - birth.getUTCDate();
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
-    return age < 18;
-  })();
+  const isMinor = type === "student" && isValidBirthDate(dateOfBirth) && !calculateAdultStatus(dateOfBirth);
 
   const handleAddChild = () => {
     if (children.length >= 10) return;

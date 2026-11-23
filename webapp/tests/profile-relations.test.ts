@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { mapProfileRelations } from "../lib/admin/profile-relations";
+import { calculateAdultStatus, resolveAdultStatus } from "../lib/validation/birth-date";
 
 test("student mapping returns guardian and only active assignments", () => {
   const result = mapProfileRelations("student", {
@@ -72,4 +73,18 @@ test("missing DOB returns null and uses stored Student isAdult", () => {
   });
   assert.equal(guardianChild.students[0].dateOfBirth, null);
   assert.equal(guardianChild.students[0].isAdult, true);
+});
+
+
+test("adult status uses UTC birthday boundaries for Date values", () => {
+  const dateOfBirth = new Date("2008-11-23T00:00:00.000Z");
+
+  assert.equal(calculateAdultStatus(dateOfBirth, new Date("2026-11-22T23:59:59.999Z")), false);
+  assert.equal(calculateAdultStatus(dateOfBirth, new Date("2026-11-23T00:00:00.000Z")), true);
+});
+
+test("DOB-derived status overrides the stored flag and missing DOB preserves it", () => {
+  assert.equal(resolveAdultStatus(new Date("2000-01-01T00:00:00.000Z"), false), true);
+  assert.equal(resolveAdultStatus(null, true), true);
+  assert.equal(resolveAdultStatus(null, false), false);
 });

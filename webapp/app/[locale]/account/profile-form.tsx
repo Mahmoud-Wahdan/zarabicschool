@@ -4,8 +4,9 @@ import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
-type Profile = { displayName: string; username: string; email: string; phone: string; preferredLanguage: string };
+type Profile = { dateOfBirth: string; displayName: string; username: string; email: string; phone: string; preferredLanguage: string };
 const inputs = [
+  { key: "dateOfBirth", type: "date", complete: "bday", max: 10 },
   { key: "displayName", type: "text", complete: "name", max: 120 },
   { key: "username", type: "text", complete: "username", max: 30 },
   { key: "email", type: "email", complete: "email", max: 254 },

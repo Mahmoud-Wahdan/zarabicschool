@@ -1,3 +1,5 @@
+import { resolveAdultStatus } from "../validation/birth-date";
+
 export type StudentRelationSummary = {
   id: string;
   displayName: string;
@@ -10,8 +12,6 @@ export type StudentRelationSummary = {
     teacherName: string;
   }[];
 };
-
-import { calculateAdultStatus } from "../validation/birth-date";
 
 export type ProfileRelationRow = {
   dateOfBirth: string | null;
@@ -79,7 +79,7 @@ export function mapProfileRelations(role: "student" | "guardian" | "teacher", ro
     const guardian = profile?.guardian;
     return {
       dateOfBirth: dateString(row.dateOfBirth),
-      isAdult: row.dateOfBirth ? calculateAdultStatus(dateString(row.dateOfBirth)) : (profile?.isAdult ?? false),
+      isAdult: resolveAdultStatus(row.dateOfBirth ?? null, profile?.isAdult),
       guardian: guardian ? {
         displayName: guardian.user?.displayName ?? "",
         phone: guardian.user?.phone ?? null,
@@ -96,9 +96,7 @@ export function mapProfileRelations(role: "student" | "guardian" | "teacher", ro
     const students = (row.guardianProfile?.students ?? []).map((student) => ({
       id: student.id,
       displayName: student.user.displayName,
-      isAdult: student.user.dateOfBirth
-        ? calculateAdultStatus(dateString(student.user.dateOfBirth))
-        : student.isAdult,
+      isAdult: resolveAdultStatus(student.user.dateOfBirth, student.isAdult),
       dateOfBirth: dateString(student.user.dateOfBirth),
       assignments: activeAssignments(student.assignments),
     }));
@@ -124,9 +122,7 @@ export function mapProfileRelations(role: "student" | "guardian" | "teacher", ro
     studentsBySubject[subjectId].push({
       id: assignment.student?.id ?? "",
       displayName: assignment.student?.user?.displayName ?? "",
-      isAdult: assignment.student?.user?.dateOfBirth
-        ? calculateAdultStatus(dateString(assignment.student.user.dateOfBirth))
-        : (assignment.student?.isAdult ?? false),
+      isAdult: resolveAdultStatus(assignment.student?.user?.dateOfBirth ?? null, assignment.student?.isAdult),
     });
   }
   return {

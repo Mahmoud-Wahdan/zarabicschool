@@ -74,9 +74,6 @@ export async function GET(request: Request) {
           isAdult: true,
           enrollmentDate: true,
           reportLanguage: true,
-          guardian: {
-            select: { relationship: true, user: { select: { displayName: true, phone: true } } },
-          },
           assignments: {
             where: { academyId: user.academyId, status: "ACTIVE" },
             select: {
@@ -130,8 +127,27 @@ export async function GET(request: Request) {
       },
     },
   });
+  const guardianIds = type === "student"
+    ? [...new Set(rows.flatMap((row) => row.studentProfile?.guardianId ? [row.studentProfile.guardianId] : []))]
+    : [];
+  const scopedGuardians = guardianIds.length
+    ? await prisma.guardian.findMany({
+        where: { academyId: user.academyId, id: { in: guardianIds }, user: { academyId: user.academyId } },
+        select: { id: true, relationship: true, user: { select: { displayName: true, phone: true } } },
+      })
+    : [];
+  const guardiansById = new Map(scopedGuardians.map((guardian) => [guardian.id, guardian]));
   const mappedRows = rows.map((row) => {
-    const relations = mapProfileRelations(type, row);
+    const rowForMapping = type === "student" && row.studentProfile
+      ? {
+          ...row,
+          studentProfile: {
+            ...row.studentProfile,
+            guardian: guardiansById.get(row.studentProfile.guardianId ?? "") ?? null,
+          },
+        }
+      : row;
+    const relations = mapProfileRelations(type, rowForMapping);
     if (type === "student") {
       return {
         ...row,

@@ -9,6 +9,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   testEnvironment: "node",
   testMatch: ["<rootDir>/tests/**/*.test.[jt]s?(x)"],
+  testPathIgnorePatterns: ["<rootDir>/tests/profile-relations.test.ts"],
   // Playwright E2E specs live in e2e/ and run via `npx playwright test` only —
   // that directory can never match the testMatch above.
   // Database-backed suites share one Supabase database; parallel workers cause

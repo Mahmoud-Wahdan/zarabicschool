@@ -7,6 +7,7 @@ import { isSession1ReportsReady } from "../../../../../lib/reports/session1-read
 import { profileUpdateSchema } from "../../../../../lib/validation/management";
 import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../../lib/request";
 import { isValidTimeZone } from "../../../../../lib/users/timezone";
+import { resolveAdultStatus } from "../../../../../lib/validation/birth-date";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -56,18 +57,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   };
   try {
     await prisma.$transaction(async (tx) => {
+      const updatesStudentProfile = target.role === "STUDENT"
+        && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined));
+      const studentInvariant = updatesStudentProfile
+        ? await tx.student.findUniqueOrThrow({
+            where: { userId: id },
+            select: { isAdult: true, user: { select: { dateOfBirth: true } } },
+          })
+        : null;
+      const isAdult = studentInvariant
+        ? resolveAdultStatus(studentInvariant.user.dateOfBirth, studentInvariant.isAdult)
+        : null;
       // D10 (review 2026-10-29, B3): a minor always keeps a guardian; switching to
-      // another guardian of the academy is fine, removing it is not. Checked on the
-      // stored row inside the transaction.
-      if (target.role === "STUDENT" && parsed.data.guardianId === null) {
-        const student = await tx.student.findUniqueOrThrow({ where: { userId: id }, select: { isAdult: true } });
-        if (!student.isAdult) throw new GuardianRequired();
-      }
+      // another guardian of the academy is fine, removing it is not. Recalculate
+      // from DOB and persist the invariant in this transaction.
+      if (parsed.data.guardianId === null && isAdult === false) throw new GuardianRequired();
       await tx.user.update({ where: { id }, data, select: { id: true } });
-      if (target.role === "STUDENT" && (parsed.data.guardianId !== undefined || (session1Ready && parsed.data.reportLanguage !== undefined))) {
+      if (studentInvariant && isAdult !== null) {
         await tx.student.update({
           where: { userId: id },
           data: {
+            isAdult,
             ...(parsed.data.guardianId !== undefined ? { guardianId: parsed.data.guardianId } : {}),
             ...(session1Ready && parsed.data.reportLanguage !== undefined ? { reportLanguage: parsed.data.reportLanguage } : {}),
           },
