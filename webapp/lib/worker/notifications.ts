@@ -339,6 +339,11 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
     // the payload), in the recipient's language — never a Paymob URL, never an amount.
     const path = (job.payload as { path?: unknown } | null)?.path;
     const link = path === "/guardian/invoices" || path === "/student/invoices" ? platformUrl(`/${language}${path}`) : null;
+    if ((job.payload as { copy?: boolean } | null)?.copy) {
+      return language === "en"
+        ? `The academy has issued an invoice for your classes. Your guardian handles payment.${link ? ` View your copy: ${link}` : ""}`
+        : `أصدرت الأكاديمية فاتورة لحصصك. يتولى ولي أمرك الدفع.${link ? ` للاطلاع على نسختك: ${link}` : ""}`;
+    }
     return language === "en"
       ? `You have an invoice waiting for payment at the academy.${link ? ` Pay it here: ${link}` : " Open the academy app to pay it."}`
       : `لديك فاتورة في انتظار الدفع في الأكاديمية.${link ? ` يمكنك الدفع من هنا: ${link}` : " افتح تطبيق الأكاديمية للدفع."}`;

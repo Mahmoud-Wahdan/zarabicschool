@@ -2766,6 +2766,21 @@
     "manage": "Manage"
   },
   "account": {
+    "profile": {
+      "title": "Personal details",
+      "displayName": "Name",
+      "username": "Sign-in username",
+      "email": "Email",
+      "phone": "WhatsApp number",
+      "language": "Notification language",
+      "save": "Save details",
+      "saved": "Your details have been saved.",
+      "unchanged": "No changes to save.",
+      "taken": "That username is already taken.",
+      "invalid": "Check the {field} field.",
+      "failed": "Could not save your details. Try again.",
+      "password": "Change password"
+    },
     "title": "Account",
     "subtitle": "Settings that follow you on every device.",
     "timeZone": "Time zone",
