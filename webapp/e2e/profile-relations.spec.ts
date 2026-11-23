@@ -125,3 +125,50 @@ for (const locale of ["en", "ar"] as const) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+for (const locale of ["en", "ar"] as const) {
+  test(`teacher profile subject relations are visible in ${locale}`, async ({ page }) => {
+    const request = page.context().request;
+    const csrf = await (await request.get("/api/auth/csrf")).json();
+    await request.post("/api/auth/callback/credentials", {
+      form: {
+        csrfToken: csrf.csrfToken,
+        username: process.env.SEED_ADMIN_USERNAME ?? "",
+        password: process.env.QA_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD ?? "",
+        json: "true",
+      },
+    });
+
+    await page.route("**/api/admin/profiles?type=teacher", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: [{
+          id: "teacher-1", username: "omar.teacher", displayName: "Omar Teacher", phone: "+201000000010", isActive: true,
+          teacherProfile: { id: "teacher-profile-1", approvalStatus: "APPROVED", subjects: [{ id: "subject-1", nameAr: "القرآن", nameEn: "Quran" }, { id: "subject-2", nameAr: "التجويد", nameEn: "Tajweed" }], studentsBySubject: { "subject-1": [{ id: "student-1", displayName: "Amina Student", isAdult: false }], "subject-2": [] } },
+        }, {
+          id: "teacher-2", username: "empty.teacher", displayName: "Empty Teacher", phone: "+201000000011", isActive: false,
+          teacherProfile: { id: "teacher-profile-2", approvalStatus: "APPROVED", subjects: [], studentsBySubject: {} },
+        }] }),
+      });
+    });
+
+    await page.goto(`/${locale}/admin/teachers`);
+    await expect(page.getByText(locale === "ar" ? "مادتان" : "2 subjects", { exact: true }).first()).toBeVisible();
+
+    const disclosure = page.getByLabel(locale === "ar" ? /تفاصيل علاقات Omar Teacher/ : /Relationship details for Omar Teacher/).first();
+    await disclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "القرآن" : "Quran").first()).toBeVisible();
+    await expect(page.getByText("Amina Student").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "التجويد" : "Tajweed").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "لا يوجد طلاب نشطون مسندون لهذه المادة." : "No active assigned students.").first()).toBeVisible();
+
+    const emptyDisclosure = page.getByLabel(locale === "ar" ? /تفاصيل علاقات Empty Teacher/ : /Relationship details for Empty Teacher/).first();
+    await emptyDisclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "لا توجد مواد بعد." : "No subjects yet.").first()).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
