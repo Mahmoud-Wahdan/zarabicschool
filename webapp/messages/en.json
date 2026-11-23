@@ -2212,6 +2212,20 @@
         "NONE": "No invoice"
       },
       "isAdult": "Adult who pays for themself",
+      "dateOfBirth": "Date of birth",
+      "noDateOfBirth": "Not recorded",
+      "age": "Age: {age}",
+      "adult": "Adult",
+      "minor": "Minor",
+      "noGuardian": "No guardian",
+      "relationship": "Relationship",
+      "subjects": "Subjects",
+      "teachers": "Teachers",
+      "details": "Details",
+      "detailsFor": "Relationship details for {name}",
+      "activeAssignments": "Active assignments",
+      "noAssignments": "No active assignments",
+      "notAssigned": "Not assigned",
       "hourlyRate": "Hourly rate",
       "hourlyRateFor": "Hourly rate for {name}",
       "rateCurrency": "Rate currency",
@@ -2767,6 +2781,7 @@
   },
   "account": {
     "profile": {
+      "dateOfBirth": "Date of birth",
       "title": "Personal details",
       "displayName": "Name",
       "username": "Sign-in username",

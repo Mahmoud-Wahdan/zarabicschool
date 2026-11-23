@@ -2212,6 +2212,20 @@
         "NONE": "لا توجد فاتورة"
       },
       "isAdult": "بالغ يدفع لنفسه",
+      "dateOfBirth": "تاريخ الميلاد",
+      "noDateOfBirth": "غير مسجل",
+      "age": "العمر: {age}",
+      "adult": "بالغ",
+      "minor": "قاصر",
+      "noGuardian": "بدون ولي أمر",
+      "relationship": "صلة القرابة",
+      "subjects": "المواد",
+      "teachers": "المعلمون",
+      "details": "التفاصيل",
+      "detailsFor": "تفاصيل علاقات {name}",
+      "activeAssignments": "التكليفات النشطة",
+      "noAssignments": "لا توجد تكليفات نشطة",
+      "notAssigned": "غير مسند",
       "hourlyRate": "أجر الساعة",
       "hourlyRateFor": "أجر الساعة لـ {name}",
       "rateCurrency": "عملة الأجر",
@@ -2767,6 +2781,7 @@
   },
   "account": {
     "profile": {
+      "dateOfBirth": "تاريخ الميلاد",
       "title": "البيانات الشخصية",
       "displayName": "الاسم",
       "username": "اسم المستخدم للدخول",
