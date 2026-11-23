@@ -143,7 +143,7 @@ type="tel"
       </form>
       <div className="z-card rounded-xl p-4 sm:p-5">
         <h2 className="mb-4 font-semibold text-primary">{title}</h2>
-        <div className="hidden overflow-x-auto md:block">
+        <div role="region" aria-label={title} tabIndex={0} className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[640px] text-start text-sm">
             <thead className="border-b border-outline-variant text-label-sm text-on-surface-variant">
               <tr>

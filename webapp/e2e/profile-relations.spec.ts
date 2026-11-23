@@ -1,4 +1,27 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function setTheme(page: Page, theme: "light" | "dark") {
+  await page.locator("html").evaluate((root, value) => root.setAttribute("data-theme", value), theme);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  await expect.poll(() => page.locator("html").evaluate((root) => getComputedStyle(root).getPropertyValue("--background").trim()))
+    .toBe(theme === "dark" ? "#0d1420" : "#f8f9ff");
+}
+
+async function checkDesktopProfileLayout(page: Page) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(page.locator("table")).toBeVisible();
+  const tableRegion = page.getByRole("region").filter({ has: page.locator("table") });
+  await expect(tableRegion).toHaveAttribute("tabindex", "0");
+  await expect(tableRegion).toHaveAttribute("aria-label", /\S+/);
+}
+
+async function checkMobileProfileLayout(page: Page, disclosure: Locator) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(page.locator("table")).toBeHidden();
+  await expect(disclosure).toBeVisible();
+}
 
 for (const locale of ["en", "ar"] as const) {
   test(`student profile relations are visible and keyboard expandable in ${locale}`, async ({ page }) => {
@@ -35,6 +58,9 @@ for (const locale of ["en", "ar"] as const) {
     });
 
     await page.goto(`/${locale}/admin/students`);
+    await setTheme(page, "light");
+    await checkDesktopProfileLayout(page);
+    const mobileDisclosure = page.getByLabel(locale === "ar" ? /\u062A\u0641\u0627\u0635\u064A\u0644 \u0639\u0644\u0627\u0642\u0627\u062A/ : /Relationship details/).nth(1);
     await expect(page.getByText("Amina Student").first()).toBeVisible();
     const birthDate = new Date("2012-05-10T00:00:00Z");
     const today = new Date();
@@ -53,8 +79,15 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByText(locale === "ar" ? "القرآن" : "Quran").first()).toBeVisible();
     await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await mobileDisclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
+    await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
+    await setTheme(page, "dark");
+    await checkDesktopProfileLayout(page);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
   });
 }
 
@@ -102,6 +135,9 @@ for (const locale of ["en", "ar"] as const) {
     });
 
     await page.goto(`/${locale}/admin/guardians`);
+    await setTheme(page, "light");
+    await checkDesktopProfileLayout(page);
+    const mobileDisclosure = page.getByLabel(locale === "ar" ? /\u062A\u0641\u0627\u0635\u064A\u0644 \u0639\u0644\u0627\u0642\u0627\u062A/ : /Relationship details for Layla Guardian/).nth(1);
     await expect(page.getByText("Layla Guardian").first()).toBeVisible();
     await expect(page.getByText(locale === "ar" ? "الأم" : "Mother").first()).toBeVisible();
     await expect(page.getByText(locale === "ar" ? "طفل مرتبط واحد" : "1 linked child", { exact: false }).first()).toBeVisible();
@@ -121,8 +157,15 @@ for (const locale of ["en", "ar"] as const) {
     await page.keyboard.press("Enter");
     await expect(page.getByText(locale === "ar" ? "لا يوجد أبناء مرتبطون." : "No linked children.").first()).toBeVisible();
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await mobileDisclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
+    await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
+    await setTheme(page, "dark");
+    await checkDesktopProfileLayout(page);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
   });
 }
 
@@ -153,6 +196,9 @@ for (const locale of ["en", "ar"] as const) {
     });
 
     await page.goto(`/${locale}/admin/teachers`);
+    await setTheme(page, "light");
+    await checkDesktopProfileLayout(page);
+    const mobileDisclosure = page.getByLabel(locale === "ar" ? /\u062A\u0641\u0627\u0635\u064A\u0644 \u0639\u0644\u0627\u0642\u0627\u062A Omar Teacher/ : /Relationship details for Omar Teacher/).nth(1);
     await expect(page.getByText(locale === "ar" ? "مادتان" : "2 subjects", { exact: true }).first()).toBeVisible();
 
     const disclosure = page.getByLabel(locale === "ar" ? /تفاصيل علاقات Omar Teacher/ : /Relationship details for Omar Teacher/).first();
@@ -168,7 +214,14 @@ for (const locale of ["en", "ar"] as const) {
     await page.keyboard.press("Enter");
     await expect(page.getByText(locale === "ar" ? "لا توجد مواد بعد." : "No subjects yet.").first()).toBeVisible();
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await mobileDisclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
+    await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
+    await setTheme(page, "dark");
+    await checkDesktopProfileLayout(page);
+    await checkMobileProfileLayout(page, mobileDisclosure);
+    await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();
   });
 }
