@@ -15,7 +15,7 @@
     "db:seed": "prisma db seed",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:clear:demo": "tsx prisma/clear-demo.ts",
-    "worker": "node --require ./scripts/server-only-shim.cjs --import tsx scripts/worker.ts",
+    "worker": "node --require dotenv/config --require ./scripts/server-only-shim.cjs --import tsx scripts/worker.ts",
     "db:verify": "tsx scripts/db-verify.ts"
   },
   "dependencies": {

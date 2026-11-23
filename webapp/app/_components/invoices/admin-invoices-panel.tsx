@@ -44,7 +44,7 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
       const response = await fetch(`/api/invoices/${invoiceId}/send-link`, { method: "POST" });
       const payload = await response.json().catch(() => ({}));
       const code = payload.error?.code;
-      setMessage(response.ok ? t("linkSent") : code === "LINK_ALREADY_SENT_TODAY" ? t("linkToday") : code === "LINK_LIMIT_REACHED" ? t("linkLimit") : code === "NO_PAYER" ? t("linkNoPayer") : t("linkFailed"));
+      setMessage(response.ok ? t("linkSent") : code === "LINK_ALREADY_QUEUED" ? t("linkQueued") : code === "LINK_COOLDOWN" ? t("linkCooldown") : code === "LINK_LIMIT_REACHED" ? t("linkLimit") : code === "NO_PAYER" ? t("linkNoPayer") : t("linkFailed"));
     } catch {
       setMessage(t("linkFailed"));
     } finally {

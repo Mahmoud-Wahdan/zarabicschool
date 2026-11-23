@@ -1,0 +1,66 @@
+diff --git a/webapp/app/api/admin/whatsapp/health/route.ts b/webapp/app/api/admin/whatsapp/health/route.ts
+index 92b662a..6eb4e2d 100644
+--- a/webapp/app/api/admin/whatsapp/health/route.ts
++++ b/webapp/app/api/admin/whatsapp/health/route.ts
+@@ -1,3 +1,4 @@
++import { getOpenWaBaseUrl } from "../../../../../lib/messaging/openwa-url";
+ import { NextResponse } from "next/server";
+ 
+ import { requireApiRole } from "../../../../../lib/dal";
+@@ -32,7 +33,7 @@ export async function GET() {
+   const { error } = await requireApiRole("ADMIN");
+   if (error) return error;
+ 
+-  const baseUrl = process.env.OPENWA_URL;
++  const baseUrl = getOpenWaBaseUrl();
+   const apiKey = process.env.OPENWA_API_KEY;
+   const configured = Boolean(baseUrl && apiKey && process.env.OPENWA_SESSION_ID);
+   if (!baseUrl || !apiKey) {
+diff --git a/webapp/lib/messaging/openwa-provider.ts b/webapp/lib/messaging/openwa-provider.ts
+index 6eb6e9d..72e5272 100644
+--- a/webapp/lib/messaging/openwa-provider.ts
++++ b/webapp/lib/messaging/openwa-provider.ts
+@@ -1,3 +1,4 @@
++import { getOpenWaBaseUrl } from "./openwa-url";
+ import "server-only";
+ 
+ import { toInternationalDigits, toWhatsAppChatId } from "./phone";
+@@ -45,7 +46,7 @@ export class OpenWAProvider implements MessagingProvider {
+     if (!recipientAllowed(chatId.slice(0, -"@c.us".length))) {
+       return { ok: false, error: "Recipient blocked by OPENWA_SEND_ALLOWLIST (non-production)." };
+     }
+-    const baseUrl = process.env.OPENWA_URL;
++    const baseUrl = getOpenWaBaseUrl();
+     const apiKey = process.env.OPENWA_API_KEY;
+     const sessionId = process.env.OPENWA_SESSION_ID;
+     if (!baseUrl || !apiKey || !sessionId) {
+diff --git a/webapp/lib/messaging/openwa-url.ts b/webapp/lib/messaging/openwa-url.ts
+new file mode 100644
+index 0000000..e718621
+--- /dev/null
++++ b/webapp/lib/messaging/openwa-url.ts
+@@ -0,0 +1,11 @@
++export function getOpenWaBaseUrl(raw = process.env.OPENWA_URL): string | undefined {
++  const value = raw?.trim();
++  if (!value) return undefined;
++  try {
++    const url = new URL(value.includes("://") ? value : "https://" + value);
++    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) return undefined;
++    return url.href.replace(/\/+$/, "");
++  } catch {
++    return undefined;
++  }
++}
+diff --git a/webapp/package.json b/webapp/package.json
+index 56bae4b..7ebd81c 100644
+--- a/webapp/package.json
++++ b/webapp/package.json
+@@ -15,7 +15,7 @@
+     "db:seed": "prisma db seed",
+     "db:seed:demo": "tsx prisma/seed-demo.ts",
+     "db:clear:demo": "tsx prisma/clear-demo.ts",
+-    "worker": "node --require ./scripts/server-only-shim.cjs --import tsx scripts/worker.ts",
++    "worker": "node --require dotenv/config --require ./scripts/server-only-shim.cjs --import tsx scripts/worker.ts",
+     "db:verify": "tsx scripts/db-verify.ts"
+   },
+   "dependencies": {
