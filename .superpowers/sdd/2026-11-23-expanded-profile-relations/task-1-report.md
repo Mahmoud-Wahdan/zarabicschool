@@ -30,3 +30,14 @@ npm run typecheck
 - When DOB is present, adult/minor status uses the existing UTC birth-date helper.
 - When DOB is absent, status uses the stored `Student.isAdult` value.
 - All added nested relation queries remain scoped to `academyId` where applicable.
+
+## Task 1 Review Finding Fix (2026-11-23)
+
+- Updated the student branch of `GET /api/admin/profiles` to set `studentProfile.isAdult` from `relations.isAdult`.
+- This keeps the DOB-calculated value when DOB exists and preserves the stored `Student.isAdult` fallback when DOB is null; no other response behavior was changed.
+- Added a route-level regression test covering both cases in `webapp/tests/admin-profiles-route.test.ts`.
+- TDD: the focused route test failed before the route change because the DOB-backed row returned the stored `false` value; it passed after the mapping was added.
+- Verification: focused route test and `npm run typecheck` passed.
+- Focused route test command: `npm test -- --runTestsByPath tests/admin-profiles-route.test.ts --runInBand '--setupFilesAfterEnv=<rootDir>/jest.setup.js'`.
+- Existing profile-relations test: `npx tsx --test tests/profile-relations.test.ts` passed 4/4; typecheck command: `npm run typecheck`.
+- The normal Jest setup references a missing ignored `tests/helpers/fake-messaging.setup.ts`; the focused route test was run with the available `jest.setup.js` instead. No setup/config files were changed.

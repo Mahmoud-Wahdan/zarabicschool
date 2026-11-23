@@ -138,6 +138,7 @@ export async function GET(request: Request) {
         dateOfBirth: relations.dateOfBirth,
         studentProfile: row.studentProfile ? {
           ...row.studentProfile,
+          isAdult: relations.isAdult,
           guardian: relations.guardian,
           activeAssignments: relations.activeAssignments,
         } : null,
