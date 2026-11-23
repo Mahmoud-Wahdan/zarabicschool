@@ -20,3 +20,10 @@ Completed.
 - Desktop uses a semantic table.
 - Mobile uses labeled stacked rows and details disclosures, with no horizontal-page-overflow composition.
 - Existing `z-*` surface/border/status tokens and light/dark theme variables remain in use.
+
+## Follow-up Evidence: Student Age and Status (2026-11-23)
+- Updated `webapp/e2e/profile-relations.spec.ts` to assert the computed age and minor status for the student fixture in both locales, using each locale's label/status text.
+- `npm run typecheck` from `webapp`: PASS.
+- `git diff --check`: PASS.
+- Focused Playwright run (`playwright test e2e/profile-relations.spec.ts` from `webapp`): BLOCKED before test discovery because `playwright.config.ts` references missing `e2e/support/global-setup.ts`.
+- `npm test -- --runInBand` from `webapp`: BLOCKED before test discovery because Jest config references missing `tests/helpers/fake-messaging.setup.ts`.

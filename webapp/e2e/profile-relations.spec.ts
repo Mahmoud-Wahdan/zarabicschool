@@ -36,6 +36,14 @@ for (const locale of ["en", "ar"] as const) {
 
     await page.goto(`/${locale}/admin/students`);
     await expect(page.getByText("Amina Student").first()).toBeVisible();
+    const birthDate = new Date("2012-05-10T00:00:00Z");
+    const today = new Date();
+    const expectedAge = today.getUTCFullYear() - birthDate.getUTCFullYear() - (
+      today.getUTCMonth() < birthDate.getUTCMonth() ||
+      (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate()) ? 1 : 0
+    );
+    await expect(page.getByText(`${locale === "ar" ? "\u0627\u0644\u0639\u0645\u0631" : "Age"}: ${expectedAge}`).first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "\u0642\u0627\u0635\u0631" : "Minor", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("2012").first()).toBeVisible();
     await expect(page.getByText("Layla Guardian").first()).toBeVisible();
 
