@@ -2243,6 +2243,10 @@
       "slugTaken": "هذا المعرّف مستخدم لمادة أخرى.",
       "noSubjects": "لا توجد مواد بعد.",
       "relationship": "صلة القرابة",
+      "linkedChildren": "الأطفال المرتبطون",
+      "linkedChildrenCount": "{count, plural, zero {لا يوجد أطفال مرتبطون} one {طفل مرتبط واحد} two {طفلان مرتبطان} few {# أطفال مرتبطون} many {# طفلاً مرتبطاً} other {# طفل مرتبط}}",
+      "noChildren": "لا يوجد أبناء مرتبطون.",
+      "notRecorded": "غير مسجل",
       "guardian": "ولي الأمر",
       "teacherFlags": {
         "title": "العلامات",

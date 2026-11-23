@@ -57,3 +57,71 @@ for (const locale of ["en", "ar"] as const) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+for (const locale of ["en", "ar"] as const) {
+  test(`guardian profile relations are visible in ${locale}`, async ({ page }) => {
+    const request = page.context().request;
+    const csrf = await (await request.get("/api/auth/csrf")).json();
+    await request.post("/api/auth/callback/credentials", {
+      form: {
+        csrfToken: csrf.csrfToken,
+        username: process.env.SEED_ADMIN_USERNAME ?? "",
+        password: process.env.QA_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD ?? "",
+        json: "true",
+      },
+    });
+
+    await page.route("**/api/admin/profiles?type=guardian", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: [{
+          id: "guardian-1",
+          username: "layla.guardian",
+          displayName: "Layla Guardian",
+          phone: "+201000000002",
+          isActive: true,
+          guardianProfile: {
+            relationship: "MOTHER",
+            students: [{
+              id: "student-1",
+              displayName: "Amina Student",
+              dateOfBirth: "2012-05-10",
+              isAdult: false,
+              assignments: [{ subjectId: "subject-1", subjectNameAr: "القرآن", subjectNameEn: "Quran", teacherName: "Omar Teacher" }],
+            }],
+          },
+        }, {
+          id: "guardian-2",
+          username: "no.children",
+          displayName: "Empty Guardian",
+          phone: "+201000000003",
+          isActive: false,
+          guardianProfile: { relationship: "FATHER", students: [] },
+        }] }),
+      });
+    });
+
+    await page.goto(`/${locale}/admin/guardians`);
+    await expect(page.getByText("Layla Guardian").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "الأم" : "Mother").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "طفل مرتبط واحد" : "1 linked child", { exact: false }).first()).toBeVisible();
+
+    const disclosure = page.getByLabel(locale === "ar" ? /تفاصيل علاقات/ : /Relationship details/).first();
+    await disclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Amina Student").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "قاصر" : "Minor", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("2012").first()).toBeVisible();
+    await expect(page.getByText(locale === "ar" ? "القرآن" : "Quran").first()).toBeVisible();
+    await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
+
+    await expect(page.getByText("Empty Guardian").first()).toBeVisible();
+    const emptyDisclosure = page.getByLabel(locale === "ar" ? /تفاصيل علاقات Empty Guardian/ : /Relationship details for Empty Guardian/).first();
+    await emptyDisclosure.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(locale === "ar" ? "لا يوجد أبناء مرتبطون." : "No linked children.").first()).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}

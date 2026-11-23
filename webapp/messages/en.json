@@ -2243,6 +2243,10 @@
       "slugTaken": "This slug is already used by another subject.",
       "noSubjects": "No subjects yet.",
       "relationship": "Relationship",
+      "linkedChildren": "Linked children",
+      "linkedChildrenCount": "{count, plural, one {1 linked child} other {# linked children}}",
+      "noChildren": "No linked children.",
+      "notRecorded": "Not recorded",
       "guardian": "Guardian",
       "teacherFlags": {
         "title": "Flags",
