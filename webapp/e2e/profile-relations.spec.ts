@@ -63,8 +63,7 @@ for (const locale of ["en", "ar"] as const) {
     await setTheme(page, "light");
     await checkDesktopProfileLayout(page);
     const mobileDisclosure = page.getByLabel(locale === "ar" ? /\u062A\u0641\u0627\u0635\u064A\u0644 \u0639\u0644\u0627\u0642\u0627\u062A/ : /Relationship details/).nth(1);
-    await expect(page.getByText(longStudentName).first()).toBeVisible();
-    await expect(page.getByText(longStudentName).first()).toHaveCSS("overflow-wrap", "break-word");
+    const mobileName = page.locator("ul[aria-label] li > div > span.break-words").filter({ hasText: longStudentName });
     const birthDate = new Date("2012-05-10T00:00:00Z");
     const today = new Date();
     const expectedAge = today.getUTCFullYear() - birthDate.getUTCFullYear() - (
@@ -83,6 +82,8 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByText(/Omar Teacher/).first()).toBeVisible();
 
     await checkMobileProfileLayout(page, mobileDisclosure);
+    await expect(mobileName).toBeVisible();
+    await expect(mobileName).toHaveCSS("overflow-wrap", "break-word");
     await mobileDisclosure.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByText(locale === "ar" ? "\u0627\u0644\u0642\u0631\u0622\u0646" : "Quran").first()).toBeVisible();

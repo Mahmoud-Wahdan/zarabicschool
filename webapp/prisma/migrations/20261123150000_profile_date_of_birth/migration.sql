@@ -13,3 +13,11 @@ WITH source AS (
 UPDATE users u SET date_of_birth = d.birth FROM dates d
 WHERE u.id = d.id AND u.academy_id = d.academy_id AND u.role = 'STUDENT'
   AND to_char(d.birth, 'YYYY-MM-DD') = d.dob AND d.birth <= CURRENT_DATE;
+
+UPDATE students s
+SET is_adult = EXTRACT(YEAR FROM age(CURRENT_DATE, u.date_of_birth)) >= 18
+FROM users u
+WHERE s.user_id = u.id
+  AND s.academy_id = u.academy_id
+  AND u.role = 'STUDENT'
+  AND u.date_of_birth IS NOT NULL;

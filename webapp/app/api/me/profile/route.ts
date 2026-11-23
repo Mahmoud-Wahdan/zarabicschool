@@ -6,7 +6,7 @@ import { prisma } from "../../../../lib/prisma";
 import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 import { normalizeUsername, usernameSchema } from "../../../../lib/validation/auth";
 
-import { calculateAdultStatus, isValidBirthDate } from "../../../../lib/validation/birth-date";
+import { isValidBirthDate, resolveAdultStatus } from "../../../../lib/validation/birth-date";
 
 const phone = z.string().trim().max(40).transform((value, ctx) => {
   if (!value) return null;
@@ -44,10 +44,14 @@ export async function PATCH(request: Request) {
       });
 
       if (user.role === "STUDENT" && parsed.data.dateOfBirth !== undefined) {
+        const student = await tx.student.findUniqueOrThrow({
+          where: { userId: user.id },
+          select: { isAdult: true },
+        });
         await tx.student.update({
           where: { userId: user.id },
           data: {
-            isAdult: calculateAdultStatus(parsed.data.dateOfBirth),
+            isAdult: resolveAdultStatus(parsed.data.dateOfBirth, student.isAdult),
           },
           select: { id: true },
         });
