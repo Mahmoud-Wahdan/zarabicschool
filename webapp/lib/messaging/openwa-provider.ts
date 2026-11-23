@@ -1,3 +1,4 @@
+import { getOpenWaBaseUrl } from "./openwa-url";
 import "server-only";
 
 import { toInternationalDigits, toWhatsAppChatId } from "./phone";
@@ -45,7 +46,7 @@ export class OpenWAProvider implements MessagingProvider {
     if (!recipientAllowed(chatId.slice(0, -"@c.us".length))) {
       return { ok: false, error: "Recipient blocked by OPENWA_SEND_ALLOWLIST (non-production)." };
     }
-    const baseUrl = process.env.OPENWA_URL;
+    const baseUrl = getOpenWaBaseUrl();
     const apiKey = process.env.OPENWA_API_KEY;
     const sessionId = process.env.OPENWA_SESSION_ID;
     if (!baseUrl || !apiKey || !sessionId) {
@@ -59,6 +60,17 @@ export class OpenWAProvider implements MessagingProvider {
     if (options?.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
     try {
+      const sessionUrl = url.substring(0, url.lastIndexOf("/messages/send-text"));
+      const session = await fetch(sessionUrl, {
+        headers: { "X-API-Key": apiKey }, cache: "no-store", signal: AbortSignal.timeout(5000),
+      });
+      if (!session.ok) {
+        return { ok: false, transient: session.status === 429 || session.status >= 500, error: `OpenWA session check returned HTTP ${session.status}.` };
+      }
+      const state = await session.json() as { status?: unknown; engineLoaded?: boolean };
+      if (state?.status !== "ready" || state.engineLoaded === false) {
+        return { ok: false, transient: true, error: "OpenWA session is not ready." };
+      }
       const response = await fetch(url, {
         method: "POST",
         headers,
@@ -77,7 +89,10 @@ export class OpenWAProvider implements MessagingProvider {
         return { ok: false, transient, error: `OpenWA returned HTTP ${response.status}.` };
       }
       const body = (await response.json().catch(() => null)) as { messageId?: unknown } | null;
-      const providerMessageId = typeof body?.messageId === "string" ? body.messageId.slice(0, 255) : undefined;
+      const providerMessageId = typeof body?.messageId === "string" ? body.messageId.trim() : undefined;
+      if (!providerMessageId || providerMessageId.length > 255) {
+        return { ok: false, error: "OpenWA acceptance unconfirmed (missing or invalid message ID)." };
+      }
       return { ok: true, providerMessageId };
     } catch (error) {
       // Network/timeout errors never carry the message or the key; keep only the class.

@@ -1,3 +1,4 @@
+import { getOpenWaBaseUrl } from "../../../../../lib/messaging/openwa-url";
 import { NextResponse } from "next/server";
 
 import { requireApiRole } from "../../../../../lib/dal";
@@ -32,7 +33,7 @@ export async function GET() {
   const { error } = await requireApiRole("ADMIN");
   if (error) return error;
 
-  const baseUrl = process.env.OPENWA_URL;
+  const baseUrl = getOpenWaBaseUrl();
   const apiKey = process.env.OPENWA_API_KEY;
   const configured = Boolean(baseUrl && apiKey && process.env.OPENWA_SESSION_ID);
   if (!baseUrl || !apiKey) {

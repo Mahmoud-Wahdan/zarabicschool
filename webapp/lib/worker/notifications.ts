@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 
 import type { NotificationJob, Prisma } from "../../generated/prisma/client";
 
@@ -13,6 +13,7 @@ import {
   TEACHER_LATE_REMINDER_MINUTES,
 } from "../config/lateness";
 import { platformUrl, sessionJoinPlatformUrl } from "../config/platform-url";
+import { writePaymentAudit } from "../payments/audit";
 import { formatMoney } from "../payments/format";
 import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-join";
 import { runSerializable } from "../credits/reservation";
@@ -461,6 +462,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
     // owner applies the Session 1 migration. The loop only needs these fields.
     select: {
       id: true,
+      academyId: true,
       sessionId: true,
       kind: true,
       attempts: true,
@@ -669,7 +671,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
     const attemptsSoFar = job.attempts + 1;
     const retryDelay = RETRY_DELAYS_MS[Math.min(attemptsSoFar - 1, RETRY_DELAYS_MS.length - 1)];
     const willRetry = !result.ok && result.transient === true && attemptsSoFar < MAX_SEND_ATTEMPTS;
-    await prisma.notificationJob.update({
+    const update = {
       where: { id: job.id },
       data: result.ok
         ? {
@@ -688,7 +690,21 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
             }
           : { status: "FAILED", lastError: result.error ?? "Messaging provider failed." },
       select: { id: true },
-    });
+    } satisfies Prisma.NotificationJobUpdateArgs;
+    const link = job.payload as { invoiceId?: string; requestedBy?: string } | null;
+    const invoiceId = link?.invoiceId;
+    if (job.kind === "INVOICE_PAYMENT_LINK" && result.ok && invoiceId) {
+      await prisma.$transaction(async tx => {
+        await tx.notificationJob.update(update);
+        await writePaymentAudit({
+          academyId: job.academyId, invoiceId, eventType: "LINK_SENT",
+          actorId: link?.requestedBy ?? null, actorRole: link?.requestedBy ? "ADMIN" : "SYSTEM",
+          metadata: { reason: "PAYMENT_LINK" },
+        }, tx);
+      });
+    } else {
+      await prisma.notificationJob.update(update);
+    }
     if (job.kind === "ANNOUNCEMENT") {
       if (result.ok) announcementTally.sent += 1;
       else if (!willRetry) announcementTally.failed += 1;
