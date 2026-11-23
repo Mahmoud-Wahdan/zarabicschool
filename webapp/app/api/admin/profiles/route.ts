@@ -13,6 +13,7 @@ import {
 } from "../../../../lib/validation/management";
 
 import { requireSameOrigin } from "../../../../lib/request";
+import { mapProfileRelations } from "../../../../lib/admin/profile-relations";
 const roleConfig = {
   guardian: { role: "GUARDIAN" as const, schema: guardianCreateSchema },
   student: { role: "STUDENT" as const, schema: studentCreateSchema },
@@ -42,13 +43,68 @@ export async function GET(request: Request) {
     select: {
       id: true, username: true, displayName: true, phone: true, email: true, isActive: true,
       ...(optOutReady ? { announcementsOptOut: true } : {}),
-      guardianProfile: { select: { id: true, relationship: true, students: { select: { id: true } } } },
-      studentProfile: { select: { id: true, guardianId: true, isAdult: true, enrollmentDate: true, reportLanguage: true } },
+      guardianProfile: {
+        select: {
+          id: true,
+          relationship: true,
+          students: {
+            where: { academyId: user.academyId },
+            select: {
+              id: true,
+              isAdult: true,
+              user: { select: { displayName: true, dateOfBirth: true } },
+              assignments: {
+                where: { academyId: user.academyId, status: "ACTIVE" },
+                select: {
+                  subjectId: true,
+                  status: true,
+                  subject: { select: { nameAr: true, nameEn: true } },
+                  teacher: { select: { user: { select: { displayName: true } } } },
+                },
+              },
+            },
+          },
+        },
+      },
+      dateOfBirth: true,
+      studentProfile: {
+        select: {
+          id: true,
+          guardianId: true,
+          isAdult: true,
+          enrollmentDate: true,
+          reportLanguage: true,
+          guardian: {
+            select: { relationship: true, user: { select: { displayName: true, phone: true } } },
+          },
+          assignments: {
+            where: { academyId: user.academyId, status: "ACTIVE" },
+            select: {
+              subjectId: true,
+              status: true,
+              subject: { select: { nameAr: true, nameEn: true } },
+              teacher: { select: { user: { select: { displayName: true } } } },
+            },
+          },
+        },
+      },
       teacherProfile: {
         select: {
           id: true,
           approvalStatus: true,
-          subjects: { select: { subjectId: true } },
+          subjects: {
+            where: { academyId: user.academyId },
+            select: { subjectId: true, subject: { select: { id: true, nameAr: true, nameEn: true } } },
+          },
+          assignments: {
+            where: { academyId: user.academyId, status: "ACTIVE" },
+            select: {
+              subjectId: true,
+              status: true,
+              subject: { select: { id: true, nameAr: true, nameEn: true } },
+              student: { select: { id: true, isAdult: true, user: { select: { displayName: true, dateOfBirth: true } } } },
+            },
+          },
           ...(type === "teacher"
             ? {
                 teacherFlags: {
@@ -74,13 +130,44 @@ export async function GET(request: Request) {
       },
     },
   });
-  if (type !== "student") return NextResponse.json({ data: rows });
+  const mappedRows = rows.map((row) => {
+    const relations = mapProfileRelations(type, row);
+    if (type === "student") {
+      return {
+        ...row,
+        dateOfBirth: relations.dateOfBirth,
+        studentProfile: row.studentProfile ? {
+          ...row.studentProfile,
+          guardian: relations.guardian,
+          activeAssignments: relations.activeAssignments,
+        } : null,
+      };
+    }
+    if (type === "guardian") {
+      return {
+        ...row,
+        guardianProfile: row.guardianProfile ? {
+          ...row.guardianProfile,
+          students: relations.students,
+        } : null,
+      };
+    }
+    return {
+      ...row,
+      teacherProfile: row.teacherProfile ? {
+        ...row.teacherProfile,
+        subjects: relations.subjects,
+        studentsBySubject: relations.studentsBySubject,
+      } : null,
+    };
+  });
+  if (type !== "student") return NextResponse.json({ data: mappedRows });
   // S-09 / D29: paid/unpaid + remaining sessions per student from the separate
   // amount-free read model (Admin and Supervisor; never a money field).
   const studentIds = rows.flatMap((row) => (row.studentProfile ? [row.studentProfile.id] : []));
   const finance = await getStudentFinanceStatus(user.academyId, studentIds);
   return NextResponse.json({
-    data: rows.map((row) => ({
+    data: mappedRows.map((row) => ({
       ...row,
       financeStatus: row.studentProfile ? finance.get(row.studentProfile.id) ?? null : null,
     })),
