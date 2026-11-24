@@ -8,6 +8,7 @@ import { profileUpdateSchema } from "../../../../../lib/validation/management";
 import { requireSameOrigin, isUuidParam, errorResponse } from "../../../../../lib/request";
 import { isValidTimeZone } from "../../../../../lib/users/timezone";
 import { resolveAdultStatus } from "../../../../../lib/validation/birth-date";
+import { recordAccountSecurityEvent } from "../../../../../lib/notifications/security-notices";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const crossOrigin = requireSameOrigin(request);
@@ -18,17 +19,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
   const parsed = profileUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid profile data.", fields: parsed.error.flatten().fieldErrors } }, { status: 400 });
-  const target = await prisma.user.findFirst({ where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } }, select: { id: true, role: true, teacherProfile: { select: { approvalStatus: true } } } });
+  const target = await prisma.user.findFirst({
+    where: { id, academyId: user.academyId, role: { in: ["GUARDIAN", "STUDENT", "TEACHER"] } },
+    select: { id: true, role: true, isActive: true, teacherProfile: { select: { approvalStatus: true } } },
+  });
   if (!target) return NextResponse.json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, { status: 404 });
   // S-02 / D38: only the Admin's approval activates a PENDING teacher.
   if (parsed.data.isActive === true && target.teacherProfile?.approvalStatus === "PENDING") {
     return NextResponse.json({ error: { code: "TEACHER_PENDING_APPROVAL", message: "Approve this teacher first; approval activates the account." } }, { status: 409 });
   }
-  // S-03 / D3: only the Admin edits another user's zone (marked ADMIN, D39).
+  // S-03 / D3: manager edits another user's zone (marked ADMIN, meaning academy-managed override, not actor identity).
   if (parsed.data.timezone !== undefined) {
-    if (user.role !== "ADMIN") {
-      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Only an Admin can change a time zone." } }, { status: 403 });
-    }
     if (!isValidTimeZone(parsed.data.timezone)) return errorResponse(400, "VALIDATION_ERROR", "A valid time zone is required.");
   }
   // The "no announcements" flag is set by an ADMIN only (owner, 2026-10-26).
@@ -47,6 +48,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // The report_language column arrives with the Session 1 migration (owner applies).
   // Before it lands the selector self-hides and this write is skipped (self-healing).
   const session1Ready = await isSession1ReportsReady();
+
+  const deactivating = parsed.data.isActive === false && target.isActive === true;
+  const activating = parsed.data.isActive === true && target.isActive === false;
+
   const data = {
     ...(parsed.data.displayName === undefined ? {} : { displayName: parsed.data.displayName }),
     ...(parsed.data.phone === undefined ? {} : { phone: parsed.data.phone || null }),
@@ -54,6 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ...(parsed.data.isActive === undefined ? {} : { isActive: parsed.data.isActive }),
     ...(parsed.data.announcementsOptOut === undefined ? {} : { announcementsOptOut: parsed.data.announcementsOptOut }),
     ...(parsed.data.timezone === undefined ? {} : { timezone: parsed.data.timezone, timezoneSource: "ADMIN" }),
+    ...(deactivating ? { sessionVersion: { increment: 1 } } : {}),
   };
   try {
     await prisma.$transaction(async (tx) => {
@@ -85,6 +91,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         });
       }
       if (target.role === "GUARDIAN" && parsed.data.relationship !== undefined) await tx.guardian.update({ where: { userId: id }, data: { relationship: parsed.data.relationship } });
+
+      if (deactivating) {
+        await recordAccountSecurityEvent(tx, {
+          academyId: user.academyId,
+          actorUserId: user.id,
+          targetUserId: id,
+          action: "ACCOUNT_DEACTIVATED",
+        });
+      } else if (activating) {
+        await recordAccountSecurityEvent(tx, {
+          academyId: user.academyId,
+          actorUserId: user.id,
+          targetUserId: id,
+          action: "ACCOUNT_ACTIVATED",
+        });
+      }
     });
   } catch (cause) {
     if (cause instanceof GuardianRequired) {

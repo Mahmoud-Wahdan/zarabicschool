@@ -1,17 +1,22 @@
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 
-import { requireApiRole } from "../../../../lib/dal";
+import { requireApiRole, requireApiRoles } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
 import { privilegedUserCreateSchema } from "../../../../lib/validation/management";
 import { requireSameOrigin } from "../../../../lib/request";
 
 export async function GET() {
-  const { user, error } = await requireApiRole("ADMIN");
+  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
 
+  const where = {
+    academyId: user.academyId,
+    ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
+  };
+
   const users = await prisma.user.findMany({
-    where: { academyId: user.academyId, role: { in: ["ADMIN", "SUPERVISOR"] } },
+    where,
     orderBy: [{ role: "asc" }, { displayName: "asc" }],
     select: {
       id: true,
@@ -21,6 +26,10 @@ export async function GET() {
       phone: true,
       role: true,
       isActive: true,
+      timezone: true,
+      dateOfBirth: true,
+      preferredLanguage: true,
+      announcementsOptOut: true,
       createdAt: true,
     },
   });

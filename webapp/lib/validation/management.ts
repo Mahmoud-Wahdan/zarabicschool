@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isValidTimeZone } from "./time-zone";
+import { isValidBirthDate } from "./birth-date";
 
 const passwordSchema = z.string().min(12, "Password must be at least 12 characters").max(128);
 
@@ -256,3 +257,20 @@ export const classRemarksUpdateSchema = z.object({
     .min(1)
     .max(16),
 });
+
+
+export const accountPasswordResetSchema = z.object({
+  password: z.string().min(12, "Password must be at least 12 characters").max(128),
+}).strict();
+
+export const accountUserUpdateSchema = z.object({
+  username: z.string().trim().min(3, "Username must be at least 3 characters").max(30, "Username must be at most 30 characters").regex(/^[a-zA-Z0-9._-]+$/, "Invalid username format").optional(),
+  displayName: z.string().trim().min(1, "Display name cannot be empty").max(100).optional(),
+  email: z.string().trim().email().max(254).optional().or(z.literal("")).nullable(),
+  phone: z.string().trim().max(40).optional().or(z.literal("")).nullable(),
+  dateOfBirth: z.string().refine(value => value === "" || isValidBirthDate(value), "Invalid birth date").nullable().optional(),
+  preferredLanguage: z.enum(["ar", "en"]).optional(),
+  timezone: z.string().trim().min(1).max(80).refine(isValidTimeZone, "A valid time zone is required.").optional(),
+  isActive: z.boolean().optional(),
+  announcementsOptOut: z.boolean().optional(),
+}).strict();

@@ -105,3 +105,84 @@ test("student profile update recalculates and stores DOB-derived adult status", 
     select: { id: true },
   });
 });
+
+
+test("supervisor can update time zone on a student profile", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  mockedRequireApiRoles.mockResolvedValue({ user: { id: "sup-1", academyId: "academy-1", role: "SUPERVISOR" }, error: null } as never);
+  mockedUserFindFirst.mockResolvedValue({ id, role: "STUDENT", teacherProfile: null } as never);
+  mockedSession1Ready.mockResolvedValue(false);
+
+  const tx = {
+    user: { update: jest.fn().mockResolvedValue({ id }) },
+    student: { update: jest.fn() },
+    userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
+    notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
+  };
+  mockedTransaction.mockImplementation(async (operation) => {
+    return operation(tx as never);
+  });
+
+  const response = await PATCH(
+    new Request(`http://localhost/api/admin/profiles/${id}`, {
+      method: "PATCH",
+      headers: { origin: "http://localhost", host: "localhost", "content-type": "application/json" },
+      body: JSON.stringify({ timezone: "Asia/Riyadh" }),
+    }),
+    { params: Promise.resolve({ id }) },
+  );
+
+  expect(response.status).toBe(200);
+  expect(tx.user.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id },
+      data: expect.objectContaining({ timezone: "Asia/Riyadh", timezoneSource: "ADMIN" }),
+    }),
+  );
+});
+
+test("deactivating a profile increments sessionVersion and writes ACCOUNT_DEACTIVATED event", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  mockedRequireApiRoles.mockResolvedValue({ user: { id: "admin-1", academyId: "academy-1", role: "ADMIN" }, error: null } as never);
+  mockedUserFindFirst.mockResolvedValue({ id, role: "STUDENT", isActive: true, teacherProfile: null } as never);
+  mockedSession1Ready.mockResolvedValue(false);
+
+  const tx = {
+    user: { update: jest.fn().mockResolvedValue({ id }) },
+    student: { update: jest.fn() },
+    userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
+    notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
+  };
+  mockedTransaction.mockImplementation(async (operation) => {
+    return operation(tx as never);
+  });
+
+  const response = await PATCH(
+    new Request(`http://localhost/api/admin/profiles/${id}`, {
+      method: "PATCH",
+      headers: { origin: "http://localhost", host: "localhost", "content-type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    }),
+    { params: Promise.resolve({ id }) },
+  );
+
+  expect(response.status).toBe(200);
+  expect(tx.user.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id },
+      data: expect.objectContaining({
+        isActive: false,
+        sessionVersion: { increment: 1 },
+      }),
+    }),
+  );
+  expect(tx.userSecurityEvent.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        action: "ACCOUNT_DEACTIVATED",
+        targetUserId: id,
+        actorUserId: "admin-1",
+      }),
+    }),
+  );
+});
