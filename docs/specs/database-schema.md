@@ -45,6 +45,7 @@ Unified authentication table. Role-specific details live in profile tables.
 | `is_active` | BOOLEAN | DEFAULT true | Admin can deactivate; checked on every authenticated request |
 | `must_change_password` | BOOLEAN | DEFAULT true | Forced password reset on first login |
 | `password_changed_at` | TIMESTAMPTZ | nullable | Timestamp when user last changed password |
+| `session_version` | INTEGER | NOT NULL, DEFAULT 0 | Monotonically incremented on password reset/change, session revocation, or deactivation; compared against the JWT claim in the DAL |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | | |
 
@@ -786,6 +787,21 @@ Before this section, the file left out these tables or knew them only under earl
 | `refund_requests` | Payer asks for a refund (S-15) | requestedBy, status PENDING/APPROVED/REJECTED, decision fields, invoiceRefundId | one PENDING per invoice; decision CHECK |
 
 Users are identified by **`username`** (unique, login), not by email (`users.email` is optional contact data). Subjects carry `name_ar` / `name_en`. Earlier sections that still say `email` login or a single `name` describe the first draft.
+
+## 32. UserSecurityEvents (`user_security_events`)
+
+Minimal audit log for account and session security actions (`UserSecurityAction`: `ACCOUNT_UPDATED`, `PASSWORD_RESET`, `PASSWORD_CHANGED`, `SESSIONS_REVOKED`, `ACCOUNT_DEACTIVATED`, `ACCOUNT_ACTIVATED`). Never records field values, passwords, OTPs, cookies, or JWT values.
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | UUID | PK | Client-generated UUID |
+| `academy_id` | UUID | FK → Academies, NOT NULL, ON DELETE RESTRICT | Tenant scope |
+| `actor_user_id` | UUID | FK → Users, NOT NULL, ON DELETE RESTRICT | User who performed the action |
+| `target_user_id` | UUID | FK → Users, NOT NULL, ON DELETE RESTRICT | Affected account |
+| `action` | ENUM (`UserSecurityAction`) | NOT NULL | `ACCOUNT_UPDATED`, `PASSWORD_RESET`, `PASSWORD_CHANGED`, `SESSIONS_REVOKED`, `ACCOUNT_DEACTIVATED`, `ACCOUNT_ACTIVATED` |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+Indexes: `(target_user_id)` and `(academy_id, created_at)`.
 
 ## Change Summary Labels
 

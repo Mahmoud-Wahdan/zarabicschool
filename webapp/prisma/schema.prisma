@@ -380,6 +380,7 @@ model Academy {
   complaints                Complaint[]                @relation("ComplaintAcademy")
   attendanceResolutions     AttendanceResolution[]     @relation("AttendanceResolutionAcademy")
   invoiceRefunds            InvoiceRefund[]            @relation("InvoiceRefundAcademy")
+  userSecurityEvents        UserSecurityEvent[]
 
   @@map("academies")
 }
@@ -409,6 +410,7 @@ model User {
   // B4 (2026-10-26): who/when last set this password administratively (audit only).
   passwordSetById               String?                    @map("password_set_by_id") @db.Uuid
   passwordSetAt                 DateTime?                  @map("password_set_at") @db.Timestamptz(6)
+  sessionVersion                Int                        @default(0) @map("session_version")
   passwordSetBy                 User?                      @relation("UserPasswordSetBy", fields: [passwordSetById], references: [id], onDelete: Restrict, map: "users_password_set_by_id_fkey")
   passwordsSetForUsers          User[]                     @relation("UserPasswordSetBy")
   createdAt                     DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -454,7 +456,9 @@ model User {
   complaintsFiled       Complaint[]            @relation("ComplaintFiledBy")
   complaintsConcerning  Complaint[]            @relation("ComplaintConcerned")
   complaintsHandled     Complaint[]            @relation("ComplaintHandledBy")
-  attendanceResolutions AttendanceResolution[] @relation("AttendanceResolutionResolvedBy")
+  attendanceResolutions  AttendanceResolution[] @relation("AttendanceResolutionResolvedBy")
+  securityEventsAsActor  UserSecurityEvent[]    @relation("SecurityEventActor")
+  securityEventsAsTarget UserSecurityEvent[]    @relation("SecurityEventTarget")
 
   @@unique([academyId, username])
   @@index([academyId])
@@ -1436,4 +1440,31 @@ model RefundRequest {
 
   @@index([academyId, status], map: "refund_requests_academy_status_idx")
   @@map("refund_requests")
+}
+
+enum UserSecurityAction {
+  ACCOUNT_UPDATED
+  PASSWORD_RESET
+  PASSWORD_CHANGED
+  SESSIONS_REVOKED
+  ACCOUNT_DEACTIVATED
+  ACCOUNT_ACTIVATED
+}
+
+/// Audit log for account and session security actions (actor/target/action/time only;
+/// never credentials, cookies, JWTs, or field values).
+model UserSecurityEvent {
+  id           String             @id @default(uuid()) @db.Uuid
+  academyId    String             @map("academy_id") @db.Uuid
+  actorUserId  String             @map("actor_user_id") @db.Uuid
+  targetUserId String             @map("target_user_id") @db.Uuid
+  action       UserSecurityAction
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  academy      Academy            @relation(fields: [academyId], references: [id], onDelete: Restrict)
+  actorUser    User               @relation("SecurityEventActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  targetUser   User               @relation("SecurityEventTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId])
+  @@index([academyId, createdAt])
+  @@map("user_security_events")
 }

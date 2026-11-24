@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { getLocale } from "next-intl/server";
 
 import { authOptions } from "./auth";
+import { isSessionVersionCurrent } from "./auth/session-version";
 import { prisma } from "./prisma";
 
 import { studentPaysForSelf } from "./guards/finance-access";
@@ -18,10 +19,12 @@ export type AuthUser = {
   role: "ADMIN" | "SUPERVISOR" | "TEACHER" | "STUDENT" | "GUARDIAN";
   timezone: string;
   mustChangePassword: boolean;
+  sessionVersion: number;
 };
 
-/** The signed-in user's id from the session cookie only (no database read). */
-export const getSessionUserId = cache(async (): Promise<string | null> => (await getServerSession(authOptions))?.user?.id ?? null);
+/** The validated signed-in user's id from `getAuthSession()`. */
+export const getSessionUserId = cache(async (): Promise<string | null> => (await getAuthSession())?.id ?? null);
+
 
 export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
   const session = await getServerSession(authOptions);
@@ -39,10 +42,12 @@ export const getAuthSession = cache(async (): Promise<AuthUser | null> => {
       isActive: true,
       timezone: true,
       mustChangePassword: true,
+      sessionVersion: true,
     },
   });
 
   if (!user || !user.isActive) return null;
+  if (!isSessionVersionCurrent(session.user.sessionVersion, user.sessionVersion)) return null;
   return user;
 });
 

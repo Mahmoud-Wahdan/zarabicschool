@@ -15,6 +15,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      sessionVersion: number;
       name?: string | null;
       email?: string | null;
       role: SessionRole;
@@ -24,6 +25,7 @@ declare module "next-auth" {
   }
 
   interface User {
+    sessionVersion: number;
     role: SessionRole;
     username: string;
     mustChangePassword: boolean;
@@ -32,6 +34,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    sessionVersion?: number;
     role?: SessionRole;
     username?: string;
     mustChangePassword?: boolean;
@@ -69,6 +72,7 @@ export const authOptions: NextAuthOptions = {
             role: true,
             isActive: true,
             mustChangePassword: true,
+            sessionVersion: true,
           },
         });
 
@@ -91,6 +95,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           username: user.username,
           mustChangePassword: user.mustChangePassword,
+          sessionVersion: user.sessionVersion,
         };
       },
     }),
@@ -101,6 +106,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.username = user.username;
         token.mustChangePassword = user.mustChangePassword;
+        token.sessionVersion = user.sessionVersion;
       }
       return token;
     },
@@ -109,6 +115,7 @@ export const authOptions: NextAuthOptions = {
       session.user.role = token.role ?? "STUDENT";
       session.user.username = token.username ?? "";
       session.user.mustChangePassword = token.mustChangePassword ?? false;
+      session.user.sessionVersion = token.sessionVersion ?? 0;
       return session;
     },
   },
