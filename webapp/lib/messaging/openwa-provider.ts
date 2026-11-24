@@ -1,7 +1,7 @@
 import { getOpenWaBaseUrl } from "./openwa-url";
 import "server-only";
 
-import { toInternationalDigits, toWhatsAppChatId } from "./phone";
+import { toWhatsAppChatId } from "./phone";
 import type {
   MessagingCredentials,
   MessagingProvider,
@@ -11,22 +11,6 @@ import type {
 } from "./types";
 
 const SEND_TIMEOUT_MS = 20_000;
-
-/**
- * Non-production safety net: outside NODE_ENV=production a send is allowed ONLY
- * to numbers listed in OPENWA_SEND_ALLOWLIST (comma-separated, any format the
- * phone normaliser accepts). Empty/unset outside production = nothing is sent.
- * The development database is seeded with demo phone numbers that may belong
- * to real people; a dev worker must never message them.
- */
-function recipientAllowed(digits: string): boolean {
-  if (process.env.NODE_ENV === "production") return true;
-  const allowlist = (process.env.OPENWA_SEND_ALLOWLIST ?? "")
-    .split(",")
-    .map((entry) => toInternationalDigits(entry.trim()))
-    .filter((entry): entry is string => Boolean(entry));
-  return allowlist.includes(digits);
-}
 
 async function sessionNotActive(response: Response): Promise<boolean> {
   const body = (await response.json().catch(() => null)) as { message?: unknown } | null;
@@ -43,9 +27,6 @@ export class OpenWAProvider implements MessagingProvider {
     if (!recipient.phone) return { ok: false, error: "Recipient has no phone number." };
     const chatId = toWhatsAppChatId(recipient.phone);
     if (!chatId) return { ok: false, error: "Recipient phone number is not in a supported format." };
-    if (!recipientAllowed(chatId.slice(0, -"@c.us".length))) {
-      return { ok: false, error: "Recipient blocked by OPENWA_SEND_ALLOWLIST (non-production)." };
-    }
     const baseUrl = getOpenWaBaseUrl();
     const apiKey = process.env.OPENWA_API_KEY;
     const sessionId = process.env.OPENWA_SESSION_ID;

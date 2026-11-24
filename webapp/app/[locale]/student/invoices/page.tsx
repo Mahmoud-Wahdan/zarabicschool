@@ -1,3 +1,4 @@
+import { isUuidParam } from "../../../../lib/request";
 import { getLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "../../../_components/dashboard-shell";
@@ -29,20 +30,28 @@ const INVOICE_STATUS_TONE: Record<string, BadgeTone> = {
 export default async function StudentInvoicesPage() {
   const user = await requireRole("STUDENT");
   const [t, locale] = await Promise.all([getTranslations("invoices"), getLocale()]);
-  try {
- await requireStudentFinanceAccess(user.id);
-} catch {
-  redirect(`/${locale}/student`);
-}
   const student = await prisma.student.findUnique({
     where: { userId: user.id },
     select: { id: true, guardianId: true, isAdult: true },
   });
-  if (!student || student.guardianId || !student.isAdult) {
+  if (!student || !student.isAdult) {
     redirect(`/${locale}/student`);
   }
+  const copyOnly = Boolean(student.guardianId);
+  if (!copyOnly) await requireStudentFinanceAccess(user.id);
+  const copies = copyOnly ? await prisma.notificationJob.findMany({
+    where: {
+      academyId: user.academyId, recipientUserId: user.id, kind: "INVOICE_PAYMENT_LINK",
+      payload: { path: ["copy"], equals: true },
+    },
+    select: { payload: true },
+  }) : [];
+  const sharedIds = copies.flatMap(({ payload }) => {
+    const id = (payload as { invoiceId?: unknown } | null)?.invoiceId;
+    return typeof id === "string" && isUuidParam(id) ? [id] : [];
+  });
   const invoices = await prisma.invoice.findMany({
-    where: { academyId: user.academyId, studentId: student.id },
+    where: { academyId: user.academyId, studentId: student.id, ...(copyOnly ? { id: { in: sharedIds } } : {}) },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
@@ -60,7 +69,7 @@ export default async function StudentInvoicesPage() {
     },
   });
   // A6: automatic renewal stays hidden (and unloaded) until it is verified with Paymob.
-  const autoRenewal = isAutoRenewalEnabled();
+  const autoRenewal = !copyOnly && isAutoRenewalEnabled();
   const [renewals, renewalPlans] = autoRenewal ? await Promise.all([loadRenewalRows(user, locale), loadRenewalPlans(user.academyId, locale)]) : [[], []];
   const packageLabel = (type: string) =>
     type === "MONTHLY_PLAN" ? t("packageMonthly") : type === "ANNUAL_PLAN" ? t("packageAnnual") : t("packagePayPerSession");
@@ -95,7 +104,7 @@ export default async function StudentInvoicesPage() {
                 </div>
                 <StatusBadge tone={INVOICE_STATUS_TONE[invoice.status] ?? "neutral"}>{t(`status.${invoice.status}`)}</StatusBadge>
               </div>
-              <div className="mt-4">
+              {!copyOnly && <div className="mt-4">
                 {invoice.status === "PENDING" ? (
                   <InvoicePaymentPanel invoiceId={invoice.id} provider={invoice.provider} />
                 ) : (
@@ -104,7 +113,7 @@ export default async function StudentInvoicesPage() {
                 {invoice.status === "PAID" && invoice.provider === "PAYMOB" ? (
                   <RefundRequestButton invoiceId={invoice.id} latest={invoice.refundRequests[0] ?? null} />
                 ) : null}
-              </div>
+              </div>}
             </article>
           ))
         )}

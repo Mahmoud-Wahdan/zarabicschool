@@ -398,6 +398,7 @@ model User {
   timezone                      String                     @default("Africa/Cairo")
   /// S-3 (D39): DEFAULT | DEVICE | USER | ADMIN; the device updates the zone only while DEFAULT/DEVICE. CHECK in raw SQL.
   timezoneSource                String                     @default("DEFAULT") @map("timezone_source") @db.VarChar(8)
+  dateOfBirth                   DateTime?                  @map("date_of_birth") @db.Date
   preferredLanguage             String                     @default("ar") @map("preferred_language")
   isActive                      Boolean                    @default(true) @map("is_active")
   // Phase 7 follow-up (owner, 2026-10-26): Admin-only "no announcements" flag —

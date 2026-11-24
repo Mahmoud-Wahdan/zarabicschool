@@ -6,7 +6,8 @@ import type { Prisma } from "../generated/prisma/client";
 import { generateTemporaryPassword, generateUsername } from "./credentials";
 import { prisma } from "./prisma";
 import { normalizeUsername, usernameSchema } from "./validation/auth";
-import { calculateAge, normalizeEgyptPhone } from "./validation/application";
+import { normalizeEgyptPhone } from "./validation/application";
+import { calculateAdultStatus, isAdultAge } from "./validation/birth-date";
 
 const bcryptRounds = 12;
 const maxUsernameAttempts = 5;
@@ -291,15 +292,15 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
     });
   }
 
-  let studentAge: number | null = null;
+  let studentIsAdult = false;
   if (appType === "STUDENT") {
     if (!precheckDetails.date_of_birth) {
       throw new ProvisioningError(400, "VALIDATION_ERROR", "The application has no date of birth.", {
         date_of_birth: ["Date of birth is missing."],
       });
     }
-    studentAge = calculateAge(precheckDetails.date_of_birth);
-    if (studentAge < 18 && !input.existingGuardianId && !input.createGuardian) {
+    studentIsAdult = calculateAdultStatus(precheckDetails.date_of_birth);
+    if (!studentIsAdult && !input.existingGuardianId && !input.createGuardian) {
       throw new ProvisioningError(
         400,
         "GUARDIAN_REQUIRED",
@@ -437,7 +438,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
           data: {
             userId: childUser.id,
             guardianId: guardianProfile.id,
-            isAdult: child.age >= 18,
+            isAdult: isAdultAge(child.age),
             academyId: input.academyId,
             enrollmentDate: new Date(),
           },
@@ -531,6 +532,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
         data: {
           academyId: input.academyId,
           username: studentUsername,
+          dateOfBirth: new Date(precheckDetails.date_of_birth! + "T00:00:00Z"),
           passwordHash: credentials.get("student")!.passwordHash,
           displayName: details.full_name ?? "",
           phone: app.contactPhone,
@@ -546,7 +548,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
         data: {
           userId: studentUser.id,
           guardianId: guardianProfileId,
-          isAdult: (studentAge as number) >= 18,
+          isAdult: studentIsAdult,
           academyId: input.academyId,
           enrollmentDate: new Date(),
         },

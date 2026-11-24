@@ -42,25 +42,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       academyId: user.academyId, kind: "INVOICE_PAYMENT_LINK",
       dedupKey: { startsWith: `INVOICE_PAYMENT_LINK:${invoice.id}:` },
     };
+    const recipients = [payer];
+    if (student.guardian && student.isAdult && student.user.isActive) {
+      recipients.push({ userId: student.userId, active: true, path: "/student/invoices" });
+    }
     const jobs = await tx.notificationJob.findMany({
-      where: scope, select: { status: true, sentAt: true, deliveryStatus: true, providerMessageId: true },
+      where: scope,
+      select: { recipientUserId: true, status: true, sentAt: true, deliveryStatus: true, providerMessageId: true },
     });
-    if (jobs.some(job => job.status === "PENDING" || job.status === "PROCESSING")) {
-      return { code: "LINK_ALREADY_QUEUED", message: "A payment link is already queued.", status: 409 };
+    let queued = 0;
+    let pending = false;
+    let coolingDown = false;
+    for (const recipient of recipients) {
+      const history = jobs.filter(job => job.recipientUserId === recipient.userId);
+      if (history.some(job => job.status === "PENDING" || job.status === "PROCESSING")) {
+        pending = true;
+        continue;
+      }
+      const sent = history.filter(job => job.status === "SENT" && job.providerMessageId && job.deliveryStatus !== "FAILED");
+      if (sent.length >= MAX_LINKS_PER_INVOICE) continue;
+      if (sent.some(job => job.sentAt && Date.now() - job.sentAt.getTime() < LINK_INTERVAL_MS)) {
+        coolingDown = true;
+        continue;
+      }
+      await tx.notificationJob.create({
+        data: {
+          academyId: user.academyId, recipientUserId: recipient.userId, kind: "INVOICE_PAYMENT_LINK",
+          dedupKey: `INVOICE_PAYMENT_LINK:${invoice.id}:${randomUUID()}`, scheduledFor: new Date(),
+          payload: { invoiceId: invoice.id, path: recipient.path, requestedBy: user.id, copy: recipient !== payer },
+        },
+      });
+      queued++;
+      remaining = Math.max(remaining, MAX_LINKS_PER_INVOICE - sent.length - 1);
     }
-    const sent = jobs.filter(job => job.status === "SENT" && job.providerMessageId && job.deliveryStatus !== "FAILED");
-    if (sent.length >= MAX_LINKS_PER_INVOICE) return { code: "LINK_LIMIT_REACHED", message: "This invoice was already sent 3 times.", status: 429 };
-    if (sent.some(job => job.sentAt && Date.now() - job.sentAt.getTime() < LINK_INTERVAL_MS)) {
-      return { code: "LINK_COOLDOWN", message: "Wait five minutes before sending another payment link.", status: 429 };
+    if (!queued) {
+      if (pending) return { code: "LINK_ALREADY_QUEUED", message: "A payment link is already queued.", status: 409 };
+      if (coolingDown) return { code: "LINK_COOLDOWN", message: "Wait five minutes before sending another payment link.", status: 429 };
+      return { code: "LINK_LIMIT_REACHED", message: "The invoice send limit has been reached.", status: 429 };
     }
-    await tx.notificationJob.create({
-      data: {
-        academyId: user.academyId, sessionId: null, recipientUserId: payer.userId, kind: "INVOICE_PAYMENT_LINK",
-        dedupKey: `INVOICE_PAYMENT_LINK:${invoice.id}:${randomUUID()}`, scheduledFor: new Date(),
-        payload: { invoiceId: invoice.id, path: payer.path, requestedBy: user.id },
-      },
-    });
-    remaining = MAX_LINKS_PER_INVOICE - sent.length - 1;
     return null;
   });
   if (refusal) return errorResponse(refusal.status, refusal.code, refusal.message);
