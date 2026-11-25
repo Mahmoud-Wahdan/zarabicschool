@@ -131,7 +131,15 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
 
   if (job.kind === "ACCOUNT_SECURITY_NOTICE") {
     const url = platformUrl(`/${language}/login`);
-    return url ? composeAccountSecurityNotice(language, url) : "";
+    const payload = (job.payload as { action?: string; changedFields?: string[] } | null) ?? null;
+    return url
+      ? composeAccountSecurityNotice(language, url, {
+          action: typeof payload?.action === "string" ? payload.action : undefined,
+          changedFields: Array.isArray(payload?.changedFields)
+            ? (payload.changedFields as import("../notifications/security-notices").AccountNoticeField[])
+            : undefined,
+        })
+      : "";
   }
 
   // Session 1 (owner, 2026-10-18 — CONTEXT §8/§9): the report notice is composed

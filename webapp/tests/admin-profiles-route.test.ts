@@ -219,7 +219,7 @@ test.each([true, false])("phone save only notifies the previous number when chan
       expect(sendText.mock.calls[0][0]).toEqual({ userId: id, phone: original });
       const job = tx.notificationJob.create.mock.calls[0][0].data;
       expect(job.status).toBe("PROCESSING");
-      expect(job.payload).toEqual({ action: "ACCOUNT_UPDATED", inAppOnly: true });
+      expect(job.payload).toEqual({ action: "ACCOUNT_UPDATED", inAppOnly: true, changedFields: ["phone"] });
       expect(JSON.stringify(job)).not.toContain(original);
     }
   } finally {

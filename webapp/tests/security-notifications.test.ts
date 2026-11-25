@@ -19,19 +19,23 @@ afterEach(() => {
   else process.env.APP_PUBLIC_URL = originalUrl;
 });
 
-test("messages only describe an account change and link to login", () => {
+test("messages describe the specific account action or changed fields and link to login", () => {
   expect(composeAccountSecurityNotice("en", url)).toBe(`Your account information has changed. ${url}`);
   expect(composeAccountSecurityNotice("ar", url)).toContain(url);
+  expect(composeAccountSecurityNotice("ar", url, { action: "PASSWORD_RESET" })).toContain("إعادة تعيين كلمة المرور");
+  expect(composeAccountSecurityNotice("en", url, { action: "PASSWORD_RESET" })).toContain("password was reset");
+  expect(composeAccountSecurityNotice("ar", url, { action: "ACCOUNT_UPDATED", changedFields: ["phone"] })).toContain("رقم الهاتف");
+  expect(composeAccountSecurityNotice("en", url, { action: "ACCOUNT_UPDATED", changedFields: ["username", "email"] })).toContain("username, email");
   expect(jobHref("ACCOUNT_SECURITY_NOTICE", "TEACHER", null)).toBe("/login");
 });
 
 test("direct failure stores a redacted status even when provider throws sensitive text", async () => {
   const sendText = jest.fn().mockRejectedValue(new Error("private phone +201111111111"));
   jest.mocked(getMessagingProvider).mockReturnValue({ sendText } as never);
-  expect(await sendPhoneChangeNotice({ notificationJobId: "job", userId: "user", oldPhone: "+201111111111", language: "en" }))
+  expect(await sendPhoneChangeNotice({ notificationJobId: "job", userId: "user", oldPhone: "+201111111111", language: "en", action: "ACCOUNT_UPDATED", changedFields: ["phone"] }))
     .toEqual({ status: "FAILED" });
   expect(sendText).toHaveBeenCalledWith({ userId: "user", phone: "+201111111111" },
-    composeAccountSecurityNotice("en", url), { idempotencyKey: "notification-job:job" });
+    composeAccountSecurityNotice("en", url, { action: "ACCOUNT_UPDATED", changedFields: ["phone"] }), { idempotencyKey: "notification-job:job" });
   const write = jest.mocked(prisma.notificationJob.update).mock.calls.at(-1);
   expect(write?.[0].data.status).toBe("FAILED");
   expect(JSON.stringify(write)).not.toContain("+201111111111");
@@ -70,6 +74,6 @@ test.each([{ inAppOnly: true }, null])("requeued direct or unrecognized jobs nev
 test("delivery logging failure returns a warning after the account change has committed", async () => {
   jest.mocked(getMessagingProvider).mockReturnValue({ sendText: jest.fn().mockResolvedValue({ ok: true }) } as never);
   jest.mocked(prisma.notificationJob.update).mockRejectedValueOnce(new Error("database unavailable"));
-  await expect(sendPhoneChangeNotice({ notificationJobId: "job", userId: "user", oldPhone: "+201111111111", language: "en" }))
+  await expect(sendPhoneChangeNotice({ notificationJobId: "job", userId: "user", oldPhone: "+201111111111", language: "en", action: "ACCOUNT_UPDATED", changedFields: ["phone"] }))
     .resolves.toEqual({ status: "FAILED" });
 });
