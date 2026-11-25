@@ -21,7 +21,7 @@
 | **Guardian** | Centralized view across linked children: schedules, attendance, financial status, teacher reports, and updates. Adult-student handling is OPEN. |
 | **Teacher** | Own schedule, assigned students, session join, past-session log, attendance view, financial/payroll info, writes per-student progress reports, writes mandatory post-session reports, receives student evaluations. |
 | **Admin** | Full control: applications, accounts, subjects/relationships, schedules and pasted Zoom links, reports, outage requests, finances, payroll adjustments, payouts, and announcements. |
-| **Supervisor** | Same operational controls as Admin, including report approval, but no money fields/actions and no Admin/Supervisor management. |
+| **Supervisor** | Same operational controls as Admin, including report approval, but no money fields/actions and no access to Admin accounts. Can manage existing Supervisor accounts. Only Admins create privileged accounts. |
 
 ### Relationship rules (Confirmed — owner 2026-09-29)
 
@@ -52,8 +52,10 @@ Landing page (public)
 
 - **Admin-Gated Provisioning for 3 Roles:** No public self-registration. Admin reviews applications submitted by Guardians, Students, or Teachers, validates them, and approves account creation.
 - **Forced Password Change (`must_change_password`):** On first login, the user is required to set a new password before accessing any platform feature.
-- **No Self-Service Password Reset in MVP:** If a user forgets their password, they contact Admin. Admin assigns a new temporary password and sets `must_change_password = true` again.
+- **No Self-Service Password Reset in MVP:** If a user forgets their password, an authorized manager in their academy assigns a temporary password of at least 12 characters and sets `must_change_password = true`. Only an Admin may reset another Admin’s password.
 - **Login Rate Limiting:** Rate limiting on login attempts is required from Phase 1. Local implementation in dev, migrating to Redis when worker infrastructure is introduced.
+- **Account changes.** Password changes, manager resets, deactivation and explicit revocation invalidate existing sign-ins. Reactivation requires a fresh sign-in. An account holder who changes their own password signs in again with the new password.
+- **Security notices.** The inbox and WhatsApp announce an account change with a login link. For a changed phone number, the alert goes to the previous number. A delivery failure leaves the update and inbox notice in place.
 - **Credential Delivery & Privacy:** WhatsApp (OpenWA) is the primary delivery channel. SMS fallback is deferred to post-MVP (may never be built). In `NotificationLog`, password values are **never stored** (record notification type, recipient, delivery status, and metadata only).
 
 ---

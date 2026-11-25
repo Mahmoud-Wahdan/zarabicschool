@@ -89,6 +89,7 @@ function rolesForRoute(rest: string): string[] | undefined {
     return ["ADMIN"];
   }
   if (
+    rest === "/admin/users" ||
     rest === "/admin/students" || rest.startsWith("/admin/students/") ||
     rest === "/admin/guardians" || rest.startsWith("/admin/guardians/") ||
     rest === "/admin/teachers" || rest.startsWith("/admin/teachers/") ||

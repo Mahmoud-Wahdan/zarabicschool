@@ -11,3 +11,13 @@ test("the login page can validate a forced-change session against the database",
   const response = await proxy(new NextRequest("http://localhost/en/login"));
   expect(response.status).toBe(200);
 });
+
+test.each([
+  ["SUPERVISOR", "/ar/admin/users", 200],
+  ["ADMIN", "/en/admin/users", 200],
+  ["TEACHER", "/en/admin/users", 307],
+  ["SUPERVISOR", "/ar/admin/applications", 307],
+])("%s requesting %s receives %i", async (role, path, status) => {
+  jest.mocked(getToken).mockResolvedValue({ role } as never);
+  expect((await proxy(new NextRequest("http://localhost" + path))).status).toBe(status);
+});

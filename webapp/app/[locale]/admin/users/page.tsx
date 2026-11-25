@@ -2,35 +2,23 @@ import { getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
 import PageHeader from "../../../_components/ui/page-header";
-import { requireRole } from "../../../../lib/dal";
-import { prisma } from "../../../../lib/prisma";
+import { requireRoles } from "../../../../lib/dal";
+import { listDirectoryUsers } from "../../../../lib/users/directory";
 import PrivilegedUsersPanel from "./privileged-users-panel";
 
-export default async function PrivilegedUsersPage() {
-  const user = await requireRole("ADMIN");
+export default async function UserSettingsPage() {
+  const user = await requireRoles(["ADMIN", "SUPERVISOR"]);
   const t = await getTranslations("privilegedUsers");
-  const rows = await prisma.user.findMany({
-    where: { academyId: user.academyId, role: { in: ["ADMIN", "SUPERVISOR"] } },
-    orderBy: [{ role: "asc" }, { displayName: "asc" }],
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      email: true,
-      phone: true,
-      role: true,
-      isActive: true,
-    },
-  });
-  const users = rows.map((row) => ({
-    ...row,
-    role: row.role as "ADMIN" | "SUPERVISOR",
+  const rows = await listDirectoryUsers(user);
+  const users = rows.map(({ dateOfBirth, ...account }) => ({
+    ...account,
+    dateOfBirth: dateOfBirth?.toISOString().slice(0, 10) ?? null,
   }));
 
   return (
     <DashboardShell role={user.role} userName={user.displayName}>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <PrivilegedUsersPanel initialUsers={users} currentUserId={user.id} />
+      <PrivilegedUsersPanel initialUsers={users} currentUserId={user.id} isAdmin={user.role === "ADMIN"} />
     </DashboardShell>
   );
 }

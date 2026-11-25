@@ -49,7 +49,7 @@ A live, mature competitor product exists: **madarakeg.com** ("مدارك"), a wo
 2. **Guardian** — centralized view across all linked children: schedules, attendance, financial status (remaining sessions), teacher-written progress reports, updates. Can also apply through the guardian application form.
 3. **Teacher** — own schedule, assigned students, a button beside each student's session that opens Zoom, a report form per session/student, and a dashboard with her sessions and her salary (Section 6, "Teacher experience").
 4. **Admin (SuperAdmin)** — full control, including all money: applications, all accounts, subjects/relationships, schedules and **Zoom links**, reports review, outage requests, replacement sessions, finances, payroll adjustments and payouts, announcements. Admin provisions all accounts. A student sees the **homework, notes and attachments** of the teacher's reports (an adult student without a guardian sees the whole report); see Section 9.
-5. **Supervisor (مشرف)** — role CONFIRMED (owner, 2026-10-06): **can do everything the Admin can, except money and managing Admins/Supervisors.** Concretely: applications (review/approve → account creation), accounts and profiles, subjects/relationships, schedules and Zoom links, approving/rejecting teacher reports, outage requests, replacement sessions, complaints, announcements, and audited scheduling overrides. NOT allowed: invoices/payments/gateway/plans/prices/exchange rate, payroll, adjustments, overtime approval, reversals, disbursements, refunds, creating/deactivating Admins or Supervisors, system settings. Note: approving a report is what releases the teacher's pay, but the system writes the ledger and the Supervisor never sees or edits amounts. Enforcement is **server-side** through one permission map. Schema: `UserRole` gains `SUPERVISOR`; PROPOSAL: rename `ADMIN` → `SUPER_ADMIN` while migrations are disposable.
+5. **Supervisor (مشرف)** — role CONFIRMED (owner, 2026-10-06): **can do everything the Admin can, except financial controls, privileged-account creation and management of Admin accounts.** Concretely: applications (review/approve → account creation), accounts and profiles, subjects/relationships, schedules and Zoom links, approving/rejecting teacher reports, outage requests, replacement sessions, complaints, announcements, and audited scheduling overrides. NOT allowed: invoices/payments/gateway/plans/prices/exchange rate, payroll, adjustments, overtime approval, reversals, disbursements, refunds, creating Admin or Supervisor accounts, editing or deactivating Admins, system settings. Note: approving a report is what releases the teacher's pay, but the system writes the ledger and the Supervisor never sees or edits amounts. Enforcement is **server-side** through one permission map. Schema: `UserRole` gains `SUPERVISOR`; PROPOSAL: rename `ADMIN` → `SUPER_ADMIN` while migrations are disposable.
 
 **Relationship rules (CONFIRMED):**
 - One guardian → many students. One student → exactly one guardian.
@@ -66,7 +66,8 @@ A live, mature competitor product exists: **madarakeg.com** ("مدارك"), a wo
 - No public self-registration. WhatsApp is notifications only, never authentication.
 - **Auth = NextAuth/Auth.js only** (credentials, bcrypt). No `JWT_SECRET`.
 - `must_change_password` enforced **server-side**, not only by redirect.
-- **No self-service password reset in MVP.** Admin sets a new temporary password and `must_change_password = true` again.
+- **No self-service password reset in MVP.** An Admin or authorized Supervisor can reset another account’s password from the shared directory. The next sign-in requires a password change.
+- **Shared user settings.** Admins can edit every role in their academy. Supervisors can edit non-Admin accounts, including other Supervisors. Role is read-only and announcement opt-out is Admin-only. Managers use their personal settings to change their own password. Password changes, resets, explicit revocation and deactivation invalidate earlier sessions. Reactivating an account requires a fresh sign-in.
 - **Login rate limiting** from Phase 1 (in-memory locally; a shared store later).
 - `NotificationLog` never stores password values.
 
@@ -350,7 +351,7 @@ The project must not become an excuse to skip fundamentals. When a task needs an
 | Monthly plan 8 sessions, no rollover; tiers; pay-per-session never expires; Admin price in one currency + Admin exchange rate | CONFIRMED |
 | Failed renewal = grace (default 3 days) then block new scheduling only | CONFIRMED |
 | Plans: **monthly AND annual** subscriptions (multiple tiers, e.g. 8 / 10 sessions) plus pay-per-session (any number up to the max, never expires). **Annual = the same monthly allotment (e.g. 8 per month, no rollover) paid once a year** | CONFIRMED (owner, 2026-10-07) |
-| Supervisor = Admin minus money and minus managing admins/supervisors; may approve reports and applications | CONFIRMED (Section 4) |
+| Supervisor = Admin minus money and minus privileged-account creation and managing Admin accounts; may approve reports and applications | CONFIRMED (Section 4) |
 | Money moves only after Admin/Supervisor approves the report | CONFIRMED (Section 7) |
 | Scheduling blocked at zero credits; audited Admin/Supervisor override | CONFIRMED |
 | Teacher payout monthly (Admin closes payroll) | CONFIRMED |
@@ -468,7 +469,7 @@ Four role dashboards exist as shells with empty cards; the only real admin scree
 
 ### 21.4 First-screen content per role (from Sections 4–9, 20)
 - **Admin:** pending applications, today's sessions, reports waiting approval, outage requests, failed/pending renewals and invoices, payroll balances per currency, teacher red marks, announcements.
-- **Supervisor:** same as Admin without any money widgets and without managing Admins/Supervisors.
+- **Supervisor:** same as Admin without any money widgets and with account management limited to existing non-Admin users in the same academy.
 - **Teacher:** today's classes (student, time, subject, duration, status, Zoom button, report icon only after the end), total/done/remaining sessions, attended %, approved earnings per currency (+ pending-approval amount, PROPOSAL), late-report warnings.
 - **Guardian:** one card per child (next session, remaining sessions, last approved report), subscription status + next renewal date + cancel action, invoices, announcements.
 - **Student:** upcoming sessions with the Zoom button, attendance history, homework and notes from reports, remaining sessions (adult student without guardian also sees invoices).

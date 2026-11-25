@@ -1,3 +1,4 @@
+import { listDirectoryUsers } from "../../../../lib/users/directory";
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 
@@ -10,29 +11,7 @@ export async function GET() {
   const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR"]);
   if (error) return error;
 
-  const where = {
-    academyId: user.academyId,
-    ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
-  };
-
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: [{ role: "asc" }, { displayName: "asc" }],
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      email: true,
-      phone: true,
-      role: true,
-      isActive: true,
-      timezone: true,
-      dateOfBirth: true,
-      preferredLanguage: true,
-      announcementsOptOut: true,
-      createdAt: true,
-    },
-  });
+  const users = await listDirectoryUsers(user);
   return NextResponse.json({ data: users });
 }
 

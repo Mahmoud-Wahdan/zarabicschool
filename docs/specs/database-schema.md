@@ -803,6 +803,10 @@ Minimal audit log for account and session security actions (`UserSecurityAction`
 
 Indexes: `(target_user_id)` and `(academy_id, created_at)`.
 
+The account mutation, event and `ACCOUNT_SECURITY_NOTICE` job commit together. Jobs carry identifiers and delivery flags. The old phone number for a phone-change alert exists only in memory during delivery. Security notices can reach deactivated users.
+
+Tokens issued before versioning have an effective version of zero. Reactivation preserves the incremented version. The database stores the version counter without storing session cookies or JWTs.
+
 ## Change Summary Labels
 
 - **S1:** Removed Zoom event ingress and event processing fields.

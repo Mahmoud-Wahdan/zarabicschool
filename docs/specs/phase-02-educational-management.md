@@ -41,8 +41,12 @@ Touches `Guardians`, `Students`, `Teachers`, `Subjects`, `TeacherSubjects`, `Enr
 |---|---:|---:|---:|---:|
 | Public | Yes | No | No | No |
 | Admin | Yes | Yes | Yes | Yes |
-| Supervisor | No | No | Yes (operational profiles) | Yes; no applications, money, or Admin/Supervisor management |
+| Supervisor | No | No | Yes (same-academy non-Admin accounts and operational profiles) | Yes; no applications or money |
 | Teacher/Student/Guardian | No | No | Own limited view | No |
+
+The shared user directory at `/admin/users` lets Admins edit any account in their academy and Supervisors edit non-Admin accounts, including other Supervisors. Role is read-only. Admins alone create privileged accounts and change announcement opt-out. Both managers can update a permitted target’s time zone.
+
+Managers can reset another user’s password, revoke sessions, or deactivate an account with confirmation. The editor protects the last active Admin, teacher approval and a minor’s guardian requirement. Academic relationships and financial records stay in their existing workflows.
 
 Server-side ownership checks prevent cross-student and cross-guardian access.
 

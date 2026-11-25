@@ -92,6 +92,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   ],
   SUPERVISOR: [
     { key: "dashboard", icon: "grid_view", href: "/supervisor" },
+    { key: "accounts", icon: "manage_accounts", href: "/admin/users" },
     { key: "students", icon: "school", href: "/admin/students" },
     { key: "teachers", icon: "co_present", href: "/admin/teachers" },
     { key: "guardians", icon: "family_restroom", href: "/admin/guardians" },

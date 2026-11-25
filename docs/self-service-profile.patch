@@ -1,0 +1,214 @@
+From fa470aa6aaa84025f12254f6cc1192407cc004d4 Mon Sep 17 00:00:00 2001
+From: mahmoud-wahdan <mahmoudsosawahdan@gmail.com>
+Date: Mon, 23 Nov 2026 14:37:20 +0200
+Subject: [PATCH] Allow all roles to edit their own account details
+
+---
+ webapp/app/[locale]/account/page.tsx         | 11 +++-
+ webapp/app/[locale]/account/profile-form.tsx | 58 ++++++++++++++++++++
+ webapp/app/api/me/profile/route.ts           | 44 +++++++++++++++
+ webapp/messages/ar.json                      | 15 +++++
+ webapp/messages/en.json                      | 15 +++++
+ 5 files changed, 142 insertions(+), 1 deletion(-)
+ create mode 100644 webapp/app/[locale]/account/profile-form.tsx
+ create mode 100644 webapp/app/api/me/profile/route.ts
+
+diff --git a/webapp/app/[locale]/account/page.tsx b/webapp/app/[locale]/account/page.tsx
+index fb23604..07b5d03 100644
+--- a/webapp/app/[locale]/account/page.tsx
++++ b/webapp/app/[locale]/account/page.tsx
+@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
+ import DashboardShell from "../../_components/dashboard-shell";
+ import { requireRoles } from "../../../lib/dal";
+ import { prisma } from "../../../lib/prisma";
++import ProfileForm from "./profile-form";
++import ChangePasswordForm from "../change-password/change-password-form";
+ import TimeZoneForm from "./time-zone-form";
+ 
+ export async function generateMetadata() {
+@@ -14,11 +16,18 @@ export async function generateMetadata() {
+ export default async function AccountPage() {
+   const user = await requireRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
+   const t = await getTranslations("account");
+-  const stored = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { timezone: true, timezoneSource: true } });
++  const stored = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { timezone: true, timezoneSource: true, email: true, phone: true, preferredLanguage: true } });
+   return (
+     <DashboardShell role={user.role} userName={user.displayName} timezone={stored.timezone}>
+       <h1 className="text-xl font-bold text-[var(--navy)]">{t("title")}</h1>
+       <p className="mt-2 max-w-prose text-sm opacity-70">{t("subtitle")}</p>
++      <section className="mt-6 rounded-xl border border-[var(--line)] bg-surface-container-lowest p-5 sm:p-6">
++        <ProfileForm initial={{ displayName: user.displayName, username: user.username, email: stored.email ?? "", phone: stored.phone ?? "", preferredLanguage: stored.preferredLanguage }} />
++      </section>
++      <details className="mt-6 rounded-xl border border-[var(--line)] bg-surface-container-lowest p-5 sm:p-6">
++        <summary className="cursor-pointer font-semibold">{t("profile.password")}</summary>
++        <div className="mt-4 max-w-xl"><ChangePasswordForm username={user.username} role={user.role} /></div>
++      </details>
+       <section className="mt-6 rounded-xl border border-[var(--line)] bg-surface-container-lowest p-5 sm:p-6">
+         <TimeZoneForm current={stored.timezone} source={stored.timezoneSource} />
+       </section>
+diff --git a/webapp/app/[locale]/account/profile-form.tsx b/webapp/app/[locale]/account/profile-form.tsx
+new file mode 100644
+index 0000000..254ce50
+--- /dev/null
++++ b/webapp/app/[locale]/account/profile-form.tsx
+@@ -0,0 +1,58 @@
++"use client";
++
++import { useState, type FormEvent } from "react";
++import { useTranslations } from "next-intl";
++import { useRouter } from "next/navigation";
++
++type Profile = { displayName: string; username: string; email: string; phone: string; preferredLanguage: string };
++const inputs = [
++  { key: "displayName", type: "text", complete: "name", max: 120 },
++  { key: "username", type: "text", complete: "username", max: 30 },
++  { key: "email", type: "email", complete: "email", max: 254 },
++  { key: "phone", type: "tel", complete: "tel", max: 40 },
++] as const;
++
++export default function ProfileForm({ initial }: { initial: Profile }) {
++  const t = useTranslations("account.profile");
++  const router = useRouter();
++  const [busy, setBusy] = useState(false);
++  const [message, setMessage] = useState("");
++  async function save(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    const values = new FormData(event.currentTarget);
++    const changes = Object.fromEntries(Object.entries(initial)
++      .map(([key, original]) => [key, String(values.get(key) ?? "").trim(), original])
++      .filter(([, value, original]) => value !== original)
++      .map(([key, value]) => [key, value]));
++    if (!Object.keys(changes).length) { setMessage(t("unchanged")); return; }
++    setBusy(true);
++    setMessage("");
++    try {
++      const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) });
++      if (res.ok) {
++        setMessage(t("saved"));
++        router.refresh();
++      } else {
++        const body = await res.json().catch(() => null);
++        const field = inputs.find(input => body?.error?.fields?.includes(input.key));
++        setMessage(res.status === 409 ? t("taken") : field ? t("invalid", { field: t(field.key) }) : t("failed"));
++      }
++    } catch { setMessage(t("failed")); }
++    finally { setBusy(false); }
++  }
++  return <form onSubmit={save} className="grid max-w-xl gap-4">
++    <h2 className="text-lg font-semibold">{t("title")}</h2>
++    {inputs.map(({ key, type, complete, max }) => <label key={key} className="grid gap-1 text-sm">
++      {t(key)}
++      <input className="z-input" type={type} dir={key === "displayName" ? "auto" : "ltr"} name={key} defaultValue={initial[key]}
++        autoComplete={complete} maxLength={max} required={key === "displayName" || key === "username"} />
++    </label>)}
++    <label className="grid gap-1 text-sm">{t("language")}
++      <select className="z-input" name="preferredLanguage" defaultValue={initial.preferredLanguage}>
++        <option value="ar">العربية</option><option value="en">English</option>
++      </select>
++    </label>
++    <button className="cta-primary justify-self-start rounded-xl px-4 py-2" disabled={busy}>{t("save")}</button>
++    <p role="status">{message}</p>
++  </form>;
++}
+diff --git a/webapp/app/api/me/profile/route.ts b/webapp/app/api/me/profile/route.ts
+new file mode 100644
+index 0000000..9ca7304
+--- /dev/null
++++ b/webapp/app/api/me/profile/route.ts
+@@ -0,0 +1,44 @@
++import { NextResponse } from "next/server";
++import { z } from "zod";
++import { requireApiRoles } from "../../../../lib/dal";
++import { toInternationalDigits } from "../../../../lib/messaging/phone";
++import { prisma } from "../../../../lib/prisma";
++import { errorResponse, requireSameOrigin } from "../../../../lib/request";
++import { normalizeUsername, usernameSchema } from "../../../../lib/validation/auth";
++
++const phone = z.string().trim().max(40).transform((value, ctx) => {
++  if (!value) return null;
++  const digits = toInternationalDigits(value);
++  if (digits) return `+${digits}`;
++  ctx.addIssue({ code: "custom", message: "Invalid WhatsApp number" });
++  return z.NEVER;
++});
++
++const profile = z.object({
++  displayName: z.string().trim().min(1).max(120),
++  username: usernameSchema.transform(normalizeUsername),
++  email: z.union([z.literal(""), z.string().trim().email().max(254)]).transform(value => value || null),
++  phone,
++  preferredLanguage: z.enum(["ar", "en"]),
++}).partial().strict();
++
++export async function PATCH(request: Request) {
++  const denied = requireSameOrigin(request);
++  if (denied) return denied;
++  const { user, error } = await requireApiRoles(["ADMIN", "SUPERVISOR", "TEACHER", "STUDENT", "GUARDIAN"]);
++  if (error) return error;
++  const parsed = profile.safeParse(await request.json().catch(() => null));
++  if (!parsed.success) {
++    return NextResponse.json({ error: { fields: parsed.error.issues.map(issue => issue.path[0]) } }, { status: 400 });
++  }
++  if (!Object.keys(parsed.data).length) return errorResponse(400, "EMPTY", "No profile changes.");
++  try {
++    await prisma.user.update({ where: { id: user.id, academyId: user.academyId }, data: parsed.data, select: { id: true } });
++  } catch (cause) {
++    if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2002") {
++      return errorResponse(409, "USERNAME_TAKEN", "Username is already in use.");
++    }
++    throw cause;
++  }
++  return NextResponse.json({ ok: true });
++}
+diff --git a/webapp/messages/ar.json b/webapp/messages/ar.json
+index 7472cf9..d3efb28 100644
+--- a/webapp/messages/ar.json
++++ b/webapp/messages/ar.json
+@@ -2766,6 +2766,21 @@
+     "manage": "إدارة"
+   },
+   "account": {
++    "profile": {
++      "title": "البيانات الشخصية",
++      "displayName": "الاسم",
++      "username": "اسم المستخدم للدخول",
++      "email": "البريد الإلكتروني",
++      "phone": "رقم واتساب",
++      "language": "لغة الإشعارات",
++      "save": "حفظ البيانات",
++      "saved": "تم حفظ بياناتك.",
++      "unchanged": "لا توجد تغييرات للحفظ.",
++      "taken": "اسم المستخدم مستخدم بالفعل.",
++      "invalid": "راجع حقل {field}.",
++      "failed": "تعذّر حفظ البيانات. حاول مرة أخرى.",
++      "password": "تغيير كلمة المرور"
++    },
+     "title": "الحساب",
+     "subtitle": "إعدادات تتبعك على كل جهاز.",
+     "timeZone": "المنطقة الزمنية",
+diff --git a/webapp/messages/en.json b/webapp/messages/en.json
+index d5c11eb..2f280dd 100644
+--- a/webapp/messages/en.json
++++ b/webapp/messages/en.json
+@@ -2766,6 +2766,21 @@
+     "manage": "Manage"
+   },
+   "account": {
++    "profile": {
++      "title": "Personal details",
++      "displayName": "Name",
++      "username": "Sign-in username",
++      "email": "Email",
++      "phone": "WhatsApp number",
++      "language": "Notification language",
++      "save": "Save details",
++      "saved": "Your details have been saved.",
++      "unchanged": "No changes to save.",
++      "taken": "That username is already taken.",
++      "invalid": "Check the {field} field.",
++      "failed": "Could not save your details. Try again.",
++      "password": "Change password"
++    },
+     "title": "Account",
+     "subtitle": "Settings that follow you on every device.",
+     "timeZone": "Time zone",

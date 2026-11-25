@@ -1,0 +1,119 @@
+--- a/webapp/app/[locale]/admin/profiles-panel.tsx
++++ b/webapp/app/[locale]/admin/profiles-panel.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
++import { useEffect, useRef, useState } from "react";
+ import { useLocale, useTranslations } from "next-intl";
+ 
+ import StatusBadge, { type BadgeTone } from "../../_components/ui/status-badge";
+@@ -16,7 +16,7 @@
+ type StudentProfile = { guardianId: string | null; dateOfBirth?: string | null; isAdult?: boolean; guardian?: { displayName: string; phone: string | null; relationship: string } | null; activeAssignments?: ActiveAssignment[] };
+ type TeacherSubject = { id: string; nameAr: string; nameEn: string };
+ type AssignedSubjectStudent = { id: string; displayName: string; isAdult: boolean };
+-type Row = { id: string; username: string; displayName: string; phone?: string | null; isActive: boolean; dateOfBirth?: string | null; financeStatus?: FinanceStatus | null; announcementsOptOut?: boolean; studentProfile?: StudentProfile | null; guardianProfile?: { relationship: string; students?: LinkedChild[] } | null; teacherProfile?: { id: string; approvalStatus?: string; teacherFlags?: TeacherFlagForDisplay[]; subjects?: TeacherSubject[]; studentsBySubject?: Record<string, AssignedSubjectStudent[]> } | null };
++type Row = { email?: string | null; id: string; username: string; displayName: string; phone?: string | null; isActive: boolean; dateOfBirth?: string | null; financeStatus?: FinanceStatus | null; announcementsOptOut?: boolean; studentProfile?: StudentProfile | null; guardianProfile?: { relationship: string; students?: LinkedChild[] } | null; teacherProfile?: { id: string; approvalStatus?: string; teacherFlags?: TeacherFlagForDisplay[]; subjects?: TeacherSubject[]; studentsBySubject?: Record<string, AssignedSubjectStudent[]> } | null };
+ type GuardianOption = { id: string; displayName: string };
+ 
+ function paymentTone(status: PaymentStatus | null): BadgeTone {
+@@ -45,6 +45,59 @@
+   const showTeacherFlags = type === "teacher";
+   const [rows, setRows] = useState<Row[]>([]);
+ const [form, setForm] = useState({ username: "", displayName: "", password: "", phone: "", relationship: "FATHER", guardianId: "", isAdult: false, rate: "", currency: "EGP", effectiveFrom: new Date().toISOString().slice(0, 10) });  // S-02: per-row rate typed by the Admin when approving a pending teacher.
++  const editor = useRef<HTMLDialogElement>(null);
++  const [selected, setSelected] = useState<Row | null>(null);
++  const [saving, setSaving] = useState(false);
++  const [editError, setEditError] = useState("");
++  const ar = locale === "ar";
++  const editLabel = ar ? "تعديل البيانات" : "Edit details";
++
++  function openEditor(row: Row) {
++    setSelected(row);
++    setEditError("");
++    editor.current?.showModal();
++  }
++
++  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    if (!selected || saving) return;
++    const values = new FormData(event.currentTarget);
++    const changes: Record<string, string> = {};
++    for (const field of ["displayName", "phone", "email"] as const) {
++      const value = String(values.get(field) ?? "").trim();
++      if (value !== (selected[field] ?? "")) changes[field] = value;
++    }
++    if (!Object.keys(changes).length) {
++      editor.current?.close();
++      return;
++    }
++    setSaving(true);
++    setEditError("");
++    try {
++      const response = await fetch(`/api/admin/profiles/${selected.id}`, {
++        method: "PATCH",
++        headers: { "content-type": "application/json" },
++        body: JSON.stringify(changes),
++      });
++      const result = await response.json();
++      if (!response.ok) {
++        setEditError(result.error?.message || t("loadFailed"));
++        return;
++      }
++      setRows(current => current.map(row => row.id === selected.id ? { ...row, ...result.data } : row));
++      setMessage(ar ? "تم حفظ التعديلات." : "Changes saved.");
++      editor.current?.close();
++    } catch {
++      setEditError(ar ? "تعذّر تأكيد الحفظ. حاول مرة أخرى." : "Could not confirm the save. Try again.");
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  function editButton(row: Row) {
++    return <button type="button" className="btn btn-outline" onClick={() => openEditor(row)}>{editLabel}</button>;
++  }
++
+   const [approveRates, setApproveRates] = useState<Record<string, string>>({});
+   const isAdmin = viewerRole === "ADMIN";
+   // D9: the Admin's rate is typed in major units (e.g. 150.00) and sent in minor units.
+@@ -118,6 +171,21 @@
+   const showAnnouncements = canSetAnnouncements && rows.some((row) => row.announcementsOptOut !== undefined);
+   return (
+     <div className="mt-6 space-y-6">
++      <dialog ref={editor} aria-labelledby="profile-editor-heading" onClose={() => setSelected(null)}
++        onCancel={event => { if (saving) event.preventDefault(); }}
++        className="m-auto w-full max-w-md rounded-xl p-6 backdrop:bg-black/40">
++        {selected && <form key={selected.id} onSubmit={saveProfile} className="grid gap-4">
++          <h2 id="profile-editor-heading" className="text-lg font-semibold">{editLabel} · {selected.displayName}</h2>
++          <label>{t("displayName")}<input name="displayName" required minLength={2} maxLength={100} defaultValue={selected.displayName} className="z-input" /></label>
++          <label>{ar ? "رقم الهاتف" : "Phone number"}<input name="phone" type="tel" dir="ltr" maxLength={40} defaultValue={selected.phone ?? ""} className="z-input" /></label>
++          <label>{ar ? "البريد الإلكتروني" : "Email"}<input name="email" type="email" dir="ltr" defaultValue={selected.email ?? ""} className="z-input" /></label>
++          {editError && <p role="alert">{editError}</p>}
++          <div className="flex gap-2">
++            <button type="submit" disabled={saving} className="btn btn-primary">{ar ? "حفظ" : "Save"}</button>
++            <button type="button" disabled={saving} className="btn btn-outline" onClick={() => editor.current?.close()}>{ar ? "إلغاء" : "Cancel"}</button>
++          </div>
++        </form>}
++      </dialog>
+       <form method="post" onSubmit={create} className="z-card rounded-xl grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+         <input required placeholder={t("username")} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="z-input" />
+         <input required placeholder={t("displayName")} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="z-input" />
+@@ -180,7 +248,7 @@
+                   <td className="px-3 py-3">{row.teacherProfile?.approvalStatus === "PENDING" ? <StatusBadge tone="pending">{t("pendingApproval")}</StatusBadge> : row.isActive ? t("active") : t("inactive")}</td>
+                   {showTeacherFlags ? <td className="px-3 py-3"><TeacherFlagsCell flags={row.teacherProfile?.teacherFlags ?? []} /></td> : null}
+                   {showAnnouncements ? <td className="px-3 py-3"><button onClick={() => toggleAnnouncements(row)} title={t("announcementsHint")} className="btn btn-outline">{row.announcementsOptOut ? t("announcementsOff") : t("announcementsOn")}</button></td> : null}
+-                  <td className="px-3 py-3">{row.teacherProfile?.approvalStatus === "PENDING" ? isAdmin ? <span className="flex flex-wrap items-center gap-2"><input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" /><button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button></span> : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span> : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}</td>
++                  <td className="px-3 py-3">{editButton(row)} {row.teacherProfile?.approvalStatus === "PENDING" ? isAdmin ? <span className="flex flex-wrap items-center gap-2"><input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" /><button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button></span> : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span> : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}</td>
+                 </tr>;
+               })}
+             </tbody>
+@@ -204,7 +272,7 @@
+               {type === "student" ? <div><span className="block text-label-sm text-on-surface-variant">{t("activeAssignments")}</span><details><summary aria-label={t("detailsFor", { name: row.displayName })} className="cursor-pointer rounded-sm py-1 font-semibold text-secondary underline decoration-secondary/50 underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">{assignments.length ? `${t("subjects")}: ${assignments.map((item) => locale === "ar" ? item.subjectNameAr : item.subjectNameEn).filter(Boolean).join("، ")}` : t("noAssignments")}</summary><div className="mt-2 border-t border-outline-variant pt-2">{assignments.length ? <ul className="space-y-2">{assignments.map((item) => <li key={item.subjectId}><div className="font-medium">{locale === "ar" ? item.subjectNameAr : item.subjectNameEn}</div><div className="text-label-sm text-on-surface-variant">{t("teachers")}: {item.teacherName || t("notAssigned")}</div></li>)}</ul> : <p className="text-body-sm text-on-surface-variant">{t("noAssignments")}</p>}</div></details></div> : null}
+               <div><span className="block text-label-sm text-on-surface-variant">{t("status")}</span>{row.teacherProfile?.approvalStatus === "PENDING" ? <StatusBadge tone="pending">{t("pendingApproval")}</StatusBadge> : row.isActive ? t("active") : t("inactive")}</div>
+               {showAnnouncements ? <div><span className="block text-label-sm text-on-surface-variant">{t("announcements")}</span><button onClick={() => toggleAnnouncements(row)} title={t("announcementsHint")} className="btn btn-outline">{row.announcementsOptOut ? t("announcementsOff") : t("announcementsOn")}</button></div> : null}
+-              <div><span className="block text-label-sm text-on-surface-variant">{t("action")}</span>{row.teacherProfile?.approvalStatus === "PENDING" ? isAdmin ? <span className="flex flex-wrap items-center gap-2"><input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" /><button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button></span> : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span> : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}</div>
++              <div><span className="block text-label-sm text-on-surface-variant">{t("action")}</span>{editButton(row)} {row.teacherProfile?.approvalStatus === "PENDING" ? isAdmin ? <span className="flex flex-wrap items-center gap-2"><input type="number" min="0.01" step="0.01" inputMode="decimal" aria-label={t("hourlyRateFor", { name: row.displayName })} placeholder={t("hourlyRate")} value={approveRates[row.id] ?? ""} onChange={(e) => setApproveRates((current) => ({ ...current, [row.id]: e.target.value }))} className="w-28 rounded-lg border border-outline-variant px-2 py-1 text-xs" /><button onClick={() => approveTeacher(row)} className="btn btn-primary px-3 py-1 text-xs">{t("approveTeacher")}</button></span> : <span className="text-label-sm text-on-surface-variant">{t("waitingForAdmin")}</span> : <button onClick={() => toggle(row)} className="btn btn-outline">{row.isActive ? t("deactivate") : t("activate")}</button>}</div>
+             </li>;
+           })}
+         </ul>
