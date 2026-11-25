@@ -4,6 +4,14 @@ import { POST as POST_PASSWORD } from "../app/api/admin/users/[id]/password/rout
 import { POST as POST_REVOKE } from "../app/api/admin/users/[id]/sessions/revoke/route";
 import { requireApiRole, requireApiRoles } from "../lib/dal";
 import { prisma } from "../lib/prisma";
+import { accountPasswordResetSchema, privilegedUserCreateSchema } from "../lib/validation/management";
+
+test.each(["a".repeat(73), "م".repeat(37)])("manager-set passwords fit the credential verifier", (password) => {
+  expect(accountPasswordResetSchema.safeParse({ password }).success).toBe(false);
+  expect(privilegedUserCreateSchema.safeParse({
+    username: "manager", displayName: "Manager", role: "SUPERVISOR", password,
+  }).success).toBe(false);
+});
 
 jest.mock("../lib/dal", () => ({
   requireApiRole: jest.fn(),
@@ -341,7 +349,8 @@ describe("POST /api/admin/users/[id]/password", () => {
       error: null,
     } as never);
 
-    mockedUserFindFirst.mockResolvedValue(null as never);
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    mockedTransaction.mockImplementation(async (op) => op({ user: { updateMany } } as never));
 
     const response = await POST_PASSWORD(
       new Request(`http://localhost/api/admin/users/${targetId}/password`, {
@@ -353,10 +362,13 @@ describe("POST /api/admin/users/[id]/password", () => {
     );
 
     expect(response.status).toBe(404);
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: targetId, academyId: "academy-1", role: { not: "ADMIN" } },
+    }));
   });
 
   test("self-reset returns 400", async () => {
-    const adminId = "22222222-2222-4222-8222-222222222222";
+    const adminId = "abcdefab-2222-4222-8222-222222222222";
     mockedRequireApiRoles.mockResolvedValue({
       user: { id: adminId, academyId: "academy-1", role: "ADMIN" },
       error: null,
@@ -368,7 +380,7 @@ describe("POST /api/admin/users/[id]/password", () => {
         headers: { origin: "http://localhost", host: "localhost", "content-type": "application/json" },
         body: JSON.stringify({ password: "newSecurePassword123!" }),
       }),
-      { params: Promise.resolve({ id: adminId }) },
+      { params: Promise.resolve({ id: adminId.toUpperCase() }) },
     );
 
     expect(response.status).toBe(400);
@@ -387,7 +399,7 @@ describe("POST /api/admin/users/[id]/password", () => {
     } as never);
 
     const tx = {
-      user: { update: jest.fn().mockResolvedValue({ id: targetId }) },
+      user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
       notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
     };
@@ -407,9 +419,9 @@ describe("POST /api/admin/users/[id]/password", () => {
     expect(json.data.password).toBeUndefined();
     expect(json.data.passwordHash).toBeUndefined();
 
-    expect(tx.user.update).toHaveBeenCalledWith(
+    expect(tx.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: targetId },
+        where: { id: targetId, academyId: "academy-1" },
         data: expect.objectContaining({
           mustChangePassword: true,
           passwordSetById: "admin-1",
@@ -433,7 +445,7 @@ describe("POST /api/admin/users/[id]/sessions/revoke", () => {
   const targetId = "11111111-1111-4111-8111-111111111111";
 
   test("self-revoke returns 400", async () => {
-    const adminId = "22222222-2222-4222-8222-222222222222";
+    const adminId = "abcdefab-2222-4222-8222-222222222222";
     mockedRequireApiRoles.mockResolvedValue({
       user: { id: adminId, academyId: "academy-1", role: "ADMIN" },
       error: null,
@@ -444,7 +456,7 @@ describe("POST /api/admin/users/[id]/sessions/revoke", () => {
         method: "POST",
         headers: { origin: "http://localhost", host: "localhost" },
       }),
-      { params: Promise.resolve({ id: adminId }) },
+      { params: Promise.resolve({ id: adminId.toUpperCase() }) },
     );
 
     expect(response.status).toBe(400);
@@ -463,7 +475,7 @@ describe("POST /api/admin/users/[id]/sessions/revoke", () => {
     } as never);
 
     const tx = {
-      user: { update: jest.fn().mockResolvedValue({ id: targetId }) },
+      user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
       notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
     };
@@ -478,9 +490,9 @@ describe("POST /api/admin/users/[id]/sessions/revoke", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(tx.user.update).toHaveBeenCalledWith(
+    expect(tx.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: targetId },
+        where: { id: targetId, academyId: "academy-1" },
         data: expect.objectContaining({
           sessionVersion: { increment: 1 },
         }),

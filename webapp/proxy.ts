@@ -134,7 +134,8 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(localizedUrl("/login", effectiveLocale, req.nextUrl));
     }
   } else {
-    if (token?.mustChangePassword) {
+    // The login page checks the database. A revoked cookie must still reach it.
+    if (rest !== "/login" && token?.mustChangePassword) {
       return NextResponse.redirect(localizedUrl("/change-password", effectiveLocale, req.nextUrl));
     }
     const allowedRoles = rolesForRoute(rest);

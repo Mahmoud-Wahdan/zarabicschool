@@ -2,11 +2,13 @@ import { z } from "zod";
 
 import { isValidTimeZone } from "./time-zone";
 import { isValidBirthDate } from "./birth-date";
+import { usernameSchema } from "./auth";
 
-const passwordSchema = z.string().min(12, "Password must be at least 12 characters").max(128);
+const passwordSchema = z.string().min(12, "Password must be at least 12 characters")
+  .refine((value) => new TextEncoder().encode(value).length <= 72, "Password must be at most 72 UTF-8 bytes");
 
 export const privilegedUserCreateSchema = z.object({
-  username: z.string().trim().min(3).max(64).regex(/^[a-zA-Z0-9._-]+$/),
+  username: usernameSchema,
   displayName: z.string().trim().min(2).max(100),
   password: passwordSchema,
   role: z.enum(["ADMIN", "SUPERVISOR"]),
@@ -260,11 +262,11 @@ export const classRemarksUpdateSchema = z.object({
 
 
 export const accountPasswordResetSchema = z.object({
-  password: z.string().min(12, "Password must be at least 12 characters").max(128),
+  password: passwordSchema,
 }).strict();
 
 export const accountUserUpdateSchema = z.object({
-  username: z.string().trim().min(3, "Username must be at least 3 characters").max(30, "Username must be at most 30 characters").regex(/^[a-zA-Z0-9._-]+$/, "Invalid username format").optional(),
+  username: usernameSchema.optional(),
   displayName: z.string().trim().min(1, "Display name cannot be empty").max(100).optional(),
   email: z.string().trim().email().max(254).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(40).optional().or(z.literal("")).nullable(),

@@ -18,7 +18,7 @@ export async function POST(
   const { id } = await params;
   if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
 
-  if (id === user.id) {
+  if (id.toLowerCase() === user.id.toLowerCase()) {
     return NextResponse.json(
       {
         error: {
@@ -30,35 +30,28 @@ export async function POST(
     );
   }
 
-  const target = await prisma.user.findFirst({
-    where: {
-      id,
-      academyId: user.academyId,
-      ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
-    },
-    select: { id: true, role: true },
-  });
-
-  if (!target) {
-    return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found." } }, { status: 404 });
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: target.id },
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.user.updateMany({
+      where: {
+        id,
+        academyId: user.academyId,
+        ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
+      },
       data: {
         sessionVersion: { increment: 1 },
       },
-      select: { id: true },
     });
+    if (result.count === 0) return false;
 
     await recordAccountSecurityEvent(tx, {
       academyId: user.academyId,
       actorUserId: user.id,
-      targetUserId: target.id,
+      targetUserId: id,
       action: "SESSIONS_REVOKED",
     });
+    return true;
   });
 
+  if (!updated) return errorResponse(404, "NOT_FOUND", "User not found.");
   return NextResponse.json({ data: { success: true } });
 }
