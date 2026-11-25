@@ -1,3 +1,5 @@
+import { getMessagingProvider } from "../lib/messaging/provider";
+jest.mock("../lib/messaging/provider", () => ({ getMessagingProvider: jest.fn() }));
 import { GET, POST } from "../app/api/admin/users/route";
 import { PATCH } from "../app/api/admin/users/[id]/route";
 import { POST as POST_PASSWORD } from "../app/api/admin/users/[id]/password/route";
@@ -39,7 +41,7 @@ jest.mock("../lib/prisma", () => ({
       create: jest.fn(),
     },
     notificationJob: {
-      create: jest.fn(),
+      create: jest.fn(), update: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -95,8 +97,49 @@ describe("GET /api/admin/users", () => {
   });
 });
 
+test("privileged account creation still requires Admin authorization", async () => {
+  mockedRequireApiRole.mockResolvedValue({ user: null, error: Response.json({}, { status: 403 }) } as never);
+  const response = await POST(new Request("http://localhost/api/admin/users", {
+    method: "POST", headers: { origin: "http://localhost", host: "localhost" },
+  }));
+  expect(response.status).toBe(403);
+  expect(mockedRequireApiRole).toHaveBeenCalledWith("ADMIN");
+  expect(prisma.user.create).not.toHaveBeenCalled();
+});
+
 describe("PATCH /api/admin/users/[id]", () => {
   const targetId = "11111111-1111-4111-8111-111111111111";
+
+  beforeEach(() => {
+    mockedTransaction.mockImplementation(async op => op(prisma as never));
+  });
+
+  test.each([
+    {
+      target: { role: "TEACHER", isActive: false, teacherProfile: { approvalStatus: "PENDING" } },
+      edit: { isActive: true },
+      code: "TEACHER_PENDING_APPROVAL",
+    },
+    {
+      target: { role: "STUDENT", studentProfile: { isAdult: true, guardianId: null } },
+      edit: { dateOfBirth: new Date().toISOString().slice(0, 10) },
+      code: "GUARDIAN_REQUIRED",
+    },
+  ])("rejects an account edit that would violate $code", async ({ target, edit, code }) => {
+    mockedRequireApiRoles.mockResolvedValue({
+      user: { id: "manager", academyId: "academy", role: "ADMIN" }, error: null,
+    } as never);
+    mockedUserFindFirst.mockResolvedValue({ id: targetId, ...target } as never);
+    const writes = jest.mocked(prisma.user.update);
+    writes.mockClear();
+    const response = await PATCH(new Request("http://localhost/api/admin/users/" + targetId, {
+      method: "PATCH", headers: { origin: "http://localhost", host: "localhost" },
+      body: JSON.stringify(edit),
+    }), { params: Promise.resolve({ id: targetId }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe(code);
+    expect(writes).not.toHaveBeenCalled();
+  });
 
   test("Supervisor target lookup returns 404 for Admin targets", async () => {
     mockedRequireApiRoles.mockResolvedValue({
@@ -179,7 +222,7 @@ describe("PATCH /api/admin/users/[id]", () => {
     } as never);
 
     const tx = {
-      user: { update: jest.fn().mockResolvedValue({ id: targetId }) },
+      user: { findFirst: mockedUserFindFirst, count: mockedUserCount, update: jest.fn().mockResolvedValue({ id: targetId }) },
       userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
       notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
     };
@@ -303,7 +346,7 @@ describe("PATCH /api/admin/users/[id]", () => {
     } as never);
 
     const tx = {
-      user: { update: jest.fn().mockResolvedValue({ id: targetId }) },
+      user: { findFirst: mockedUserFindFirst, count: mockedUserCount, update: jest.fn().mockResolvedValue({ id: targetId }) },
       userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
       notificationJob: { create: jest.fn().mockResolvedValue({ id: "job-1" }) },
     };
@@ -508,4 +551,43 @@ describe("POST /api/admin/users/[id]/sessions/revoke", () => {
       }),
     );
   });
+});
+
+test.each([true, false])("phone save only notifies the previous number when changed=%s", async changed => {
+  const id = "33333333-3333-4333-8333-333333333333";
+  const original = "+201000000001";
+  const replacement = "+201000000002";
+  const target = { id, role: "TEACHER", preferredLanguage: "en", phone: original };
+  const tx = {
+    user: { findFirst: jest.fn().mockResolvedValue(target), findUniqueOrThrow: jest.fn().mockResolvedValue(target), update: jest.fn() },
+    userSecurityEvent: { create: jest.fn().mockResolvedValue({ id: "event" }) },
+    notificationJob: { create: jest.fn().mockResolvedValue({ id: "job" }) },
+  };
+  mockedTransaction.mockImplementation(async operation => operation(tx as never));
+  mockedRequireApiRoles.mockResolvedValue({ user: { id: "admin", role: "ADMIN", academyId: "academy" }, error: null } as never);
+  const sendText = jest.fn().mockResolvedValue({ ok: false, error: original });
+  jest.mocked(getMessagingProvider).mockReturnValue({ sendText } as never);
+  const previousUrl = process.env.APP_PUBLIC_URL;
+  process.env.APP_PUBLIC_URL = "https://school.example";
+  try {
+    const response = await PATCH(new Request("http://localhost/api/admin/users", {
+      method: "PATCH", headers: { origin: "http://localhost", host: "localhost" },
+      body: JSON.stringify({ phone: changed ? replacement : original }),
+    }), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(200);
+    expect((await response.json()).whatsappDelivery).toBe(changed ? "FAILED" : undefined);
+    expect(sendText).toHaveBeenCalledTimes(changed ? 1 : 0);
+    expect(tx.notificationJob.create).toHaveBeenCalledTimes(changed ? 1 : 0);
+    expect(tx.userSecurityEvent.create).toHaveBeenCalledTimes(changed ? 1 : 0);
+    if (changed) {
+      expect(sendText.mock.calls[0][0]).toEqual({ userId: id, phone: original });
+      const job = tx.notificationJob.create.mock.calls[0][0].data;
+      expect(job.status).toBe("PROCESSING");
+      expect(job.payload).toEqual({ action: "ACCOUNT_UPDATED", inAppOnly: true });
+      expect(JSON.stringify(job)).not.toContain(original);
+    }
+  } finally {
+    if (previousUrl === undefined) delete process.env.APP_PUBLIC_URL;
+    else process.env.APP_PUBLIC_URL = previousUrl;
+  }
 });

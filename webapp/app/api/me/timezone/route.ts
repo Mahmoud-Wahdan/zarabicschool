@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { runSerializable } from "../../../../lib/credits/reservation";
+import { recordAccountSecurityEvent } from "../../../../lib/notifications/security-notices";
 import { requireApiRoles } from "../../../../lib/dal";
 import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 import { applyTimeZone, isValidTimeZone } from "../../../../lib/users/timezone";
@@ -21,6 +23,14 @@ export async function POST(request: Request) {
   if (!parsed.success || !isValidTimeZone(parsed.data.timezone)) {
     return errorResponse(400, "VALIDATION_ERROR", "A valid time zone is required.");
   }
-  const result = await applyTimeZone(user.id, parsed.data.timezone, parsed.data.source);
+  const result = await runSerializable(async tx => {
+    const result = await applyTimeZone(tx, user.id, parsed.data.timezone, parsed.data.source);
+    if (result.changed) {
+      await recordAccountSecurityEvent(tx, {
+        academyId: user.academyId, actorUserId: user.id, targetUserId: user.id, action: "ACCOUNT_UPDATED",
+      });
+    }
+    return result;
+  });
   return NextResponse.json({ data: result });
 }

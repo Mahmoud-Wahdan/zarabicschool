@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRoles } from "../../../../lib/dal";
 import { toInternationalDigits } from "../../../../lib/messaging/phone";
-import { prisma } from "../../../../lib/prisma";
+import { runSerializable } from "../../../../lib/credits/reservation";
+import { accountFieldsChanged, recordAccountUpdate, sendPhoneChangeNotice } from "../../../../lib/notifications/security-notices";
 import { errorResponse, requireSameOrigin } from "../../../../lib/request";
 import { normalizeUsername, usernameSchema } from "../../../../lib/validation/auth";
 
@@ -36,7 +37,12 @@ export async function PATCH(request: Request) {
   }
   if (!Object.keys(parsed.data).length) return errorResponse(400, "EMPTY", "No profile changes.");
   try {
-    await prisma.$transaction(async (tx) => {
+    const result = await runSerializable(async tx => {
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: user.id, academyId: user.academyId },
+        select: { id: true, displayName: true, username: true, dateOfBirth: true, email: true, phone: true, preferredLanguage: true },
+      });
+      if (!accountFieldsChanged(current, parsed.data)) return null;
       await tx.user.update({
         where: { id: user.id, academyId: user.academyId },
         data: parsed.data,
@@ -46,22 +52,32 @@ export async function PATCH(request: Request) {
       if (user.role === "STUDENT" && parsed.data.dateOfBirth !== undefined) {
         const student = await tx.student.findUniqueOrThrow({
           where: { userId: user.id },
-          select: { isAdult: true },
+          select: { isAdult: true, guardianId: true },
         });
+        const isAdult = resolveAdultStatus(parsed.data.dateOfBirth, student.isAdult);
+        if (!isAdult && !student.guardianId) throw new GuardianRequired();
         await tx.student.update({
           where: { userId: user.id },
           data: {
-            isAdult: resolveAdultStatus(parsed.data.dateOfBirth, student.isAdult),
+            isAdult,
           },
           select: { id: true },
         });
       }
+      return recordAccountUpdate(tx, user, current, parsed.data);
     });
+    const whatsappDelivery = result ? (await sendPhoneChangeNotice(result)).status : undefined;
+    return NextResponse.json({ ok: true, whatsappDelivery });
   } catch (cause) {
     if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2002") {
       return errorResponse(409, "USERNAME_TAKEN", "Username is already in use.");
     }
+    if (cause instanceof GuardianRequired) return errorResponse(409, "GUARDIAN_REQUIRED", "A minor student needs a guardian.");
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2034") {
+      return errorResponse(409, "CONFLICT", "The profile changed. Refresh and try again.");
+    }
     throw cause;
   }
-  return NextResponse.json({ ok: true });
 }
+
+class GuardianRequired extends Error {}

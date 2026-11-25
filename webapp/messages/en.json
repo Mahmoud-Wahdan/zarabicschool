@@ -2841,6 +2841,7 @@
       "TEACHER_LATE_START": "Your session has not started yet",
       "TEACHER_LATE_START_ADMIN": "A teacher has not started a session",
       "SESSION_REQUEST": "A new outage request",
+      "ACCOUNT_SECURITY_NOTICE": "Account information changed",
       "ANNOUNCEMENT": "A new announcement",
       "ADMIN_MESSAGE": "A message from the academy",
       "ATTENDANCE_RESOLVED": "Attendance was recorded by hand",

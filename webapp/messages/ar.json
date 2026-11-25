@@ -2841,6 +2841,7 @@
       "TEACHER_LATE_START": "لم تبدأ حصتك بعد",
       "TEACHER_LATE_START_ADMIN": "معلم لم يبدأ حصة",
       "SESSION_REQUEST": "طلب عطل جديد",
+      "ACCOUNT_SECURITY_NOTICE": "تم تغيير معلومات الحساب",
       "ANNOUNCEMENT": "إعلان جديد",
       "ADMIN_MESSAGE": "رسالة من الأكاديمية",
       "ATTENDANCE_RESOLVED": "تم تسجيل حضور يدويًا",

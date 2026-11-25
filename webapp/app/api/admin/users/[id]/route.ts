@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "../../../../../generated/prisma/client";
+import { runSerializable } from "../../../../../lib/credits/reservation";
 
 import { requireApiRoles } from "../../../../../lib/dal";
-import { prisma } from "../../../../../lib/prisma";
 import { accountUserUpdateSchema } from "../../../../../lib/validation/management";
 import { errorResponse, isUuidParam, requireSameOrigin } from "../../../../../lib/request";
 import { resolveAdultStatus } from "../../../../../lib/validation/birth-date";
-import { recordAccountSecurityEvent } from "../../../../../lib/notifications/security-notices";
+import { accountFieldsChanged, recordAccountUpdate, sendPhoneChangeNotice } from "../../../../../lib/notifications/security-notices";
 
 export async function PATCH(
   request: Request,
@@ -35,96 +34,108 @@ export async function PATCH(
     );
   }
 
-  const target = await prisma.user.findFirst({
-    where: {
-      id,
-      academyId: user.academyId,
-      ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
-    },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      email: true,
-      phone: true,
-      role: true,
-      isActive: true,
-      timezone: true,
-      dateOfBirth: true,
-      preferredLanguage: true,
-      announcementsOptOut: true,
-      teacherProfile: { select: { approvalStatus: true } },
-      studentProfile: { select: { isAdult: true, guardianId: true } },
-    },
-  });
-
-  if (!target) {
-    return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found." } }, { status: 404 });
-  }
-
-  if (parsed.data.announcementsOptOut !== undefined && user.role !== "ADMIN") {
-    return NextResponse.json(
-      { error: { code: "FORBIDDEN", message: "Only an Admin can change the announcements setting." } },
-      { status: 403 },
-    );
-  }
-
-  if (parsed.data.isActive === false && target.id === user.id) {
-    return NextResponse.json(
-      { error: { code: "SELF_DEACTIVATION_PROHIBITED", message: "You cannot deactivate your own account." } },
-      { status: 400 },
-    );
-  }
-
-  if (target.role === "ADMIN" && parsed.data.isActive === false) {
-    const activeAdmins = await prisma.user.count({
-      where: { academyId: user.academyId, role: "ADMIN", isActive: true },
-    });
-    if (activeAdmins <= 1) {
-      return NextResponse.json(
-        { error: { code: "LAST_ADMIN_PROTECTED", message: "Cannot deactivate the last active administrator." } },
-        { status: 400 },
-      );
-    }
-  }
-
-  if (parsed.data.isActive === true && target.teacherProfile?.approvalStatus === "PENDING") {
-    return NextResponse.json(
-      { error: { code: "TEACHER_PENDING_APPROVAL", message: "Approve this teacher first; approval activates the account." } },
-      { status: 409 },
-    );
-  }
-
-  if (target.role === "STUDENT" && parsed.data.dateOfBirth !== undefined) {
-    const isAdult = resolveAdultStatus(parsed.data.dateOfBirth, target.studentProfile?.isAdult);
-    if (!isAdult && !target.studentProfile?.guardianId) {
-      return NextResponse.json(
-        { error: { code: "GUARDIAN_REQUIRED", message: "A minor student needs a guardian. Choose another guardian instead of removing it." } },
-        { status: 409 },
-      );
-    }
-  }
-
-  const deactivating = parsed.data.isActive === false && target.isActive === true;
-  const activating = parsed.data.isActive === true && target.isActive === false;
-
-  const updateData: Prisma.UserUpdateInput = {
-    ...(parsed.data.username ? { username: parsed.data.username.toLowerCase() } : {}),
-    ...(parsed.data.displayName !== undefined ? { displayName: parsed.data.displayName } : {}),
-    ...(parsed.data.email !== undefined ? { email: parsed.data.email || null } : {}),
-    ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone || null } : {}),
-    ...(parsed.data.dateOfBirth !== undefined
-      ? { dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth + "T00:00:00Z") : null }
-      : {}),
-    ...(parsed.data.preferredLanguage !== undefined ? { preferredLanguage: parsed.data.preferredLanguage } : {}),
-    ...(parsed.data.timezone !== undefined ? { timezone: parsed.data.timezone, timezoneSource: "ADMIN" } : {}),
-    ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
-    ...(parsed.data.announcementsOptOut !== undefined ? { announcementsOptOut: parsed.data.announcementsOptOut } : {}),
-    ...(deactivating ? { sessionVersion: { increment: 1 } } : {}),
-  };
-
   try {
-    await prisma.$transaction(async (tx) => {
+    const result = await runSerializable(async tx => {
+      const target = await tx.user.findFirst({
+        where: {
+          id,
+          academyId: user.academyId,
+          ...(user.role === "SUPERVISOR" ? { role: { not: "ADMIN" as const } } : {}),
+        },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          timezone: true,
+          timezoneSource: true,
+          dateOfBirth: true,
+          preferredLanguage: true,
+          announcementsOptOut: true,
+          teacherProfile: { select: { approvalStatus: true } },
+          studentProfile: { select: { isAdult: true, guardianId: true } },
+        },
+      });
+
+      if (!target) {
+        return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found." } }, { status: 404 });
+      }
+
+      if (parsed.data.announcementsOptOut !== undefined && user.role !== "ADMIN") {
+        return NextResponse.json(
+          { error: { code: "FORBIDDEN", message: "Only an Admin can change the announcements setting." } },
+          { status: 403 },
+        );
+      }
+
+      if (parsed.data.isActive === false && target.id === user.id) {
+        return NextResponse.json(
+          { error: { code: "SELF_DEACTIVATION_PROHIBITED", message: "You cannot deactivate your own account." } },
+          { status: 400 },
+        );
+      }
+
+      if (target.role === "ADMIN" && target.isActive && parsed.data.isActive === false) {
+        const activeAdmins = await tx.user.count({
+          where: { academyId: user.academyId, role: "ADMIN", isActive: true },
+        });
+        if (activeAdmins <= 1) {
+          return NextResponse.json(
+            { error: { code: "LAST_ADMIN_PROTECTED", message: "Cannot deactivate the last active administrator." } },
+            { status: 400 },
+          );
+        }
+      }
+
+      if (parsed.data.isActive === true && target.teacherProfile?.approvalStatus === "PENDING") {
+        return NextResponse.json(
+          { error: { code: "TEACHER_PENDING_APPROVAL", message: "Approve this teacher first; approval activates the account." } },
+          { status: 409 },
+        );
+      }
+
+      if (target.role === "STUDENT" && parsed.data.dateOfBirth !== undefined) {
+        const isAdult = resolveAdultStatus(parsed.data.dateOfBirth, target.studentProfile?.isAdult);
+        if (!isAdult && !target.studentProfile?.guardianId) {
+          return NextResponse.json(
+            { error: { code: "GUARDIAN_REQUIRED", message: "A minor student needs a guardian. Choose another guardian instead of removing it." } },
+            { status: 409 },
+          );
+        }
+      }
+
+      const deactivating = parsed.data.isActive === false && target.isActive === true;
+      const activating = parsed.data.isActive === true && target.isActive === false;
+
+      const accountFields = {
+        ...(parsed.data.username ? { username: parsed.data.username.toLowerCase() } : {}),
+        ...(parsed.data.displayName !== undefined ? { displayName: parsed.data.displayName } : {}),
+        ...(parsed.data.email !== undefined ? { email: parsed.data.email || null } : {}),
+        ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone || null } : {}),
+        ...(parsed.data.dateOfBirth !== undefined
+          ? { dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth + "T00:00:00Z") : null }
+          : {}),
+        ...(parsed.data.preferredLanguage !== undefined ? { preferredLanguage: parsed.data.preferredLanguage } : {}),
+        ...(parsed.data.timezone !== undefined ? { timezone: parsed.data.timezone } : {}),
+        ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
+        ...(parsed.data.announcementsOptOut !== undefined ? { announcementsOptOut: parsed.data.announcementsOptOut } : {}),
+      };
+
+      const updateData = {
+        ...accountFields,
+        ...(accountFields.timezone !== undefined ? { timezoneSource: "ADMIN" } : {}),
+        ...(deactivating ? { sessionVersion: { increment: 1 } } : {}),
+      };
+      const data = {
+        id: target.id, role: target.role, username: target.username, displayName: target.displayName, email: target.email,
+        phone: target.phone, isActive: target.isActive, timezone: target.timezone, dateOfBirth: target.dateOfBirth,
+        preferredLanguage: target.preferredLanguage, announcementsOptOut: target.announcementsOptOut,
+        ...accountFields,
+      };
+      if (!accountFieldsChanged(target, updateData)) return { data, phoneNotice: null };
       await tx.user.update({
         where: { id: target.id },
         data: updateData,
@@ -140,53 +151,22 @@ export async function PATCH(
         });
       }
 
-      if (deactivating) {
-        await recordAccountSecurityEvent(tx, {
-          academyId: user.academyId,
-          actorUserId: user.id,
-          targetUserId: target.id,
-          action: "ACCOUNT_DEACTIVATED",
-        });
-      } else if (activating) {
-        await recordAccountSecurityEvent(tx, {
-          academyId: user.academyId,
-          actorUserId: user.id,
-          targetUserId: target.id,
-          action: "ACCOUNT_ACTIVATED",
-        });
-      } else {
-        await recordAccountSecurityEvent(tx, {
-          academyId: user.academyId,
-          actorUserId: user.id,
-          targetUserId: target.id,
-          action: "ACCOUNT_UPDATED",
-        });
-      }
+      const action = deactivating ? "ACCOUNT_DEACTIVATED" : activating ? "ACCOUNT_ACTIVATED" : "ACCOUNT_UPDATED";
+      const phoneNotice = await recordAccountUpdate(tx, user, target, updateData, action);
+      return { data, phoneNotice };
     });
-
-    return NextResponse.json({
-      data: {
-        id: target.id,
-        username: parsed.data.username ? parsed.data.username.toLowerCase() : target.username,
-        displayName: parsed.data.displayName ?? target.displayName,
-        email: parsed.data.email !== undefined ? parsed.data.email || null : target.email,
-        phone: parsed.data.phone !== undefined ? parsed.data.phone || null : target.phone,
-        role: target.role,
-        isActive: parsed.data.isActive ?? target.isActive,
-        timezone: parsed.data.timezone ?? target.timezone,
-        dateOfBirth: parsed.data.dateOfBirth !== undefined
-          ? (parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth + "T00:00:00Z") : null)
-          : target.dateOfBirth,
-        preferredLanguage: parsed.data.preferredLanguage ?? target.preferredLanguage,
-        announcementsOptOut: parsed.data.announcementsOptOut ?? target.announcementsOptOut,
-      },
-    });
+    if (result instanceof Response) return result;
+    const whatsappDelivery = result.phoneNotice ? (await sendPhoneChangeNotice(result.phoneNotice)).status : undefined;
+    return NextResponse.json({ data: result.data, whatsappDelivery });
   } catch (cause) {
     if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2002") {
       return NextResponse.json(
         { error: { code: "CONFLICT", message: "Username or email is already in use." } },
         { status: 409 },
       );
+    }
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2034") {
+      return errorResponse(409, "CONFLICT", "The account changed. Refresh and try again.");
     }
     throw cause;
   }

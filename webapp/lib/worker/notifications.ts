@@ -19,6 +19,7 @@ import { DEFAULT_JOIN_WINDOW_MINUTES, joinWindowState } from "../config/session-
 import { runSerializable } from "../credits/reservation";
 import { processMonthlyCreditExpiry } from "./credits";
 import { processRenewals } from "../billing/renewal";
+import { composeAccountSecurityNotice } from "../notifications/security-notices";
 import { getMessagingProvider } from "../messaging/provider";
 import { replaceRawZoomLinks } from "../messaging/zoom-link-guard";
 import { isWhatsAppDeliveryReady } from "../messaging/readiness";
@@ -127,6 +128,11 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
   // Templates in Arabic + English by the RECIPIENT's language; times rendered in the
   // RECIPIENT's IANA timezone when known, falling back to the session's (Batch D).
   const language: "ar" | "en" = job.recipientUser.preferredLanguage === "en" ? "en" : "ar";
+
+  if (job.kind === "ACCOUNT_SECURITY_NOTICE") {
+    const url = platformUrl(`/${language}/login`);
+    return url ? composeAccountSecurityNotice(language, url) : "";
+  }
 
   // Session 1 (owner, 2026-10-18 — CONTEXT §8/§9): the report notice is composed
   // in the REPORT's language when a template exists (all five today), else the
@@ -566,7 +572,12 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         continue;
       }
     }
-    if (!job.recipientUser.isActive) {
+    if (job.kind === "ACCOUNT_SECURITY_NOTICE" && (job.payload as { inAppOnly?: boolean } | null)?.inAppOnly !== false) {
+      // A legacy/manual retry must never deliver an old-number notice to the current number.
+      await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "FAILED", lastError: "Direct delivery unavailable." }, select: { id: true } });
+      continue;
+    }
+    if (!job.recipientUser.isActive && job.kind !== "ACCOUNT_SECURITY_NOTICE") {
       await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "CANCELLED" }, select: { id: true } });
       continue;
     }
@@ -661,6 +672,10 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
         language: job.recipientUser.preferredLanguage === "en" ? "en" : "ar",
       },
     );
+    if (!message && job.kind === "ACCOUNT_SECURITY_NOTICE") {
+      await prisma.notificationJob.update({ where: { id: job.id }, data: { status: "FAILED", lastError: "Platform link unavailable." }, select: { id: true } });
+      continue;
+    }
     // Short spacing between two sends of the same tick (ban risk, CONTEXT §8). The
     // heavier announcement spacing is the job's staggered eligible time, not a sleep.
     if (sendsThisTick > 0) {
@@ -683,7 +698,7 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
             status: "SENT",
             sentAt: new Date(),
             lastError: null,
-            ...(deliveryReady && result.providerMessageId
+            ...(job.kind !== "ACCOUNT_SECURITY_NOTICE" && deliveryReady && result.providerMessageId
               ? { providerMessageId: result.providerMessageId, deliveryStatus: "SENT", deliveryUpdatedAt: new Date() }
               : {}),
           }
@@ -691,9 +706,9 @@ export async function processDueNotificationJobs(now = new Date(), academyId?: s
           ? {
               status: "PENDING",
               scheduledFor: new Date(Date.now() + retryDelay),
-              lastError: result.error ?? "Messaging provider failed.",
+              lastError: job.kind === "ACCOUNT_SECURITY_NOTICE" ? "Account notice delivery failed." : result.error ?? "Messaging provider failed.",
             }
-          : { status: "FAILED", lastError: result.error ?? "Messaging provider failed." },
+          : { status: "FAILED", lastError: job.kind === "ACCOUNT_SECURITY_NOTICE" ? "Account notice delivery failed." : result.error ?? "Messaging provider failed." },
       select: { id: true },
     } satisfies Prisma.NotificationJobUpdateArgs;
     const link = job.payload as { invoiceId?: string; requestedBy?: string } | null;

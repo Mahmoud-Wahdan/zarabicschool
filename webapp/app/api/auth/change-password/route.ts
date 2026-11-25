@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { ZodError } from "zod";
 
+import { recordAccountSecurityEvent } from "../../../../lib/notifications/security-notices";
 import { prisma } from "../../../../lib/prisma";
 import { getAuthSession } from "../../../../lib/dal";
 import { allowRequest } from "../../../../lib/rate-limit";
@@ -64,14 +65,18 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await bcrypt.hash(input.newPassword, 12);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      passwordHash,
-      mustChangePassword: false,
-      passwordChangedAt: new Date(),
-    },
+  const changed = await prisma.$transaction(async tx => {
+    const result = await tx.user.updateMany({
+      where: { id: user.id, academyId: user.academyId, isActive: true, sessionVersion: user.sessionVersion, passwordHash: record.passwordHash },
+      data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date(), sessionVersion: { increment: 1 } },
+    });
+    if (result.count !== 1) return false;
+    await recordAccountSecurityEvent(tx, {
+      academyId: user.academyId, actorUserId: user.id, targetUserId: user.id, action: "PASSWORD_CHANGED",
+    });
+    return true;
   });
+  if (!changed) return errorResponse(409, "ACCOUNT_CHANGED", "Sign in again to change your password.");
 
   return NextResponse.json({ ok: true });
 }

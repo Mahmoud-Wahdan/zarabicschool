@@ -34,6 +34,7 @@ export function isInboxKey(value: unknown): value is string {
 /** Where a job of this kind is handled, for this viewer's role (paths without the locale). */
 export function jobHref(kind: string, role: InboxRole, sessionId: string | null): string {
   const staff = role === "ADMIN" || role === "SUPERVISOR";
+  if (kind === "ACCOUNT_SECURITY_NOTICE") return "/login";
   if (kind === "ANNOUNCEMENT") return "/announcements";
   if (kind === "PAYMENT_ANOMALY") return "/admin/payment-audit";
   if (kind.startsWith("RENEWAL_") && kind.endsWith("_ADMIN")) return "/admin/renewals";
@@ -58,7 +59,10 @@ async function ownJobs(viewer: InboxViewer, since: Date): Promise<InboxItem[]> {
     where: {
       recipientUserId: viewer.id,
       academyId: viewer.academyId,
-      status: { in: ["PENDING", "SENT"] },
+      OR: [
+        { status: { in: ["PENDING", "SENT"] } },
+        { kind: "ACCOUNT_SECURITY_NOTICE" },
+      ],
       kind: { notIn: HIDDEN_KINDS },
       NOT: { kind: { startsWith: "EVALUATION" } },
       createdAt: { gte: since },
