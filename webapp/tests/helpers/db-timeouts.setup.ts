@@ -1,5 +1,4 @@
-import { prisma } from "../../lib/prisma";
-
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * TEST CONFIGURATION ONLY (owner decision 2026-10-26). The app keeps Prisma's
  * default transaction limits (maxWait 2 s, timeout 5 s). Tests run from a dev
@@ -11,9 +10,12 @@ import { prisma } from "../../lib/prisma";
  */
 const TEST_TRANSACTION_OPTIONS = { maxWait: 15_000, timeout: 30_000 };
 
-const original = prisma.$transaction.bind(prisma) as (arg: unknown, options?: Record<string, unknown>) => Promise<unknown>;
+if (typeof window === "undefined") {
+  const { prisma } = require("../../lib/prisma") as typeof import("../../lib/prisma");
+  const original = prisma.$transaction.bind(prisma) as (arg: unknown, options?: Record<string, unknown>) => Promise<unknown>;
 
-(prisma as unknown as { $transaction: (arg: unknown, options?: Record<string, unknown>) => Promise<unknown> }).$transaction = (
-  arg,
-  options,
-) => original(arg, { ...TEST_TRANSACTION_OPTIONS, ...options });
+  (prisma as unknown as { $transaction: (arg: unknown, options?: Record<string, unknown>) => Promise<unknown> }).$transaction = (
+    arg,
+    options,
+  ) => original(arg, { ...TEST_TRANSACTION_OPTIONS, ...options });
+}
