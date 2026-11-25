@@ -511,6 +511,7 @@ model Application {
   recitationAudioResourceType String? @map("recitation_audio_resource_type") @db.VarChar(20)
   recitationAudioFormat String?       @map("recitation_audio_format") @db.VarChar(20)
   recitationAudioSizeBytes BigInt?    @map("recitation_audio_size_bytes")
+  dataConsentAt   DateTime?           @map("data_consent_at") @db.Timestamptz(6)
   academy         Academy             @relation(fields: [academyId], references: [id], onDelete: Restrict)
   reviewedBy      User?               @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
   approvedBy      User?               @relation("ApplicationApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
@@ -721,6 +722,7 @@ model Invoice {
   // Paymob renewal transaction).
   billingSubscriptionId String?                 @map("billing_subscription_id") @db.Uuid
   billingPeriodStart    DateTime?               @map("billing_period_start") @db.Date
+  termsConsentAt        DateTime?               @map("terms_consent_at") @db.Timestamptz(6)
   createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   academy               Academy                 @relation(fields: [academyId], references: [id], onDelete: Restrict)

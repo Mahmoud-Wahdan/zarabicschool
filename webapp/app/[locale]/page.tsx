@@ -39,6 +39,6 @@ export default async function Home() {
     <h3>{c.title}</h3><p>{c.body}</p>{s.title==="plans" && <><p className="ml-price"><strong>—</strong> {t("price")}</p><Link className="ml-outline" href="/apply">{t("details")}</Link></>}</article>)}</div></div></section>)}
     <FaqAccordion />
     <section id="admissions-form" className="ml-banner"><h2>{t("banner")}</h2><p>{t("bannerSub")}</p>{apply}</section></main>
-    <footer id="contact"><div className="ml-wrap"><div className="ml-footer"><div><Brand footer/><p>{t("headline")}… {t("accent")}</p></div><div><h3>{t("quick")}</h3>{nav.slice(0,4)}</div><div><h3>{t("contact")}</h3>{whatsapp && <a href={whatsapp}>{t("whatsapp")}</a>}<Link href="/login">{t("login")}</Link></div></div><p className="ml-rights">© {new Date().getFullYear()} Zarabicschool · {t("rights")}</p></div></footer>
+    <footer id="contact"><div className="ml-wrap"><div className="ml-footer"><div><Brand footer/><p>{t("headline")}… {t("accent")}</p></div><div><h3>{t("quick")}</h3>{nav.slice(0,4)}<Link href="/terms">{t("termsLink")}</Link><Link href="/privacy">{t("privacyLink")}</Link><Link href="/refund-policy">{t("refundLink")}</Link></div><div><h3>{t("contact")}</h3>{whatsapp && <a href={whatsapp}>{t("whatsapp")}</a>}<Link href="/login">{t("login")}</Link></div></div><p className="ml-rights">© {new Date().getFullYear()} Zarabicschool · {t("rights")}</p></div></footer>
   </div>;
 }

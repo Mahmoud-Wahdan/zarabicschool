@@ -62,6 +62,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
   const [introVideoUrl, setIntroVideoUrl] = useState("");
   const [recitationAudioFile, setRecitationAudioFile] = useState<File | null>(null);
   const [audioInputKey, setAudioInputKey] = useState(0);
+  const [dataConsent, setDataConsent] = useState(false);
 
   // State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,6 +128,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
       preferred_language: preferredLanguage,
       preferred_times: preferredTimes.trim() || undefined,
       notes: notes.trim() || undefined,
+      data_consent: dataConsent,
       honeypot: honeypot || undefined,
     };
 
@@ -902,12 +904,39 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
           />
         </div>
 
+        {/* Data processing & guardian consent */}
+        <div className="rounded-xl border border-outline-variant bg-surface-container-low/60 p-3.5">
+          <label className="flex items-start gap-2.5 text-sm text-on-surface cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dataConsent}
+              disabled={isSubmitting}
+              onChange={(e) => setDataConsent(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+            <span className="leading-relaxed">
+              {type === "guardian" || isMinor ? t("dataConsentGuardian") : t("dataConsentGeneral")}{" "}
+              <Link href="/privacy" target="_blank" className="font-semibold text-primary underline">
+                {t("privacyPolicyLink")}
+              </Link>{" "}
+              &amp;{" "}
+              <Link href="/terms" target="_blank" className="font-semibold text-primary underline">
+                {t("termsLink")}
+              </Link>
+              . <span className="text-error">*</span>
+            </span>
+          </label>
+          {fieldErrors.data_consent ? (
+            <p className="mt-1.5 text-xs text-error">{fieldErrors.data_consent[0]}</p>
+          ) : null}
+        </div>
+
         {/* Submit button */}
         <div className="pt-2">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="btn btn-primary w-full justify-center text-center shadow-md disabled:text-on-surface-variant"
+            disabled={isSubmitting || !dataConsent}
+            className="btn btn-primary w-full justify-center text-center shadow-md disabled:opacity-50 disabled:text-on-surface-variant"
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>

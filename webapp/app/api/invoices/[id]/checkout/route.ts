@@ -31,6 +31,10 @@ export async function POST(
   if (error) return error;
   const { id } = await params;
   if (!isUuidParam(id)) return errorResponse(400, "VALIDATION_ERROR", "Invalid identifier.");
+  const body = (await request.json().catch(() => null)) as { consent?: unknown } | null;
+  if (body?.consent !== true) {
+    return errorResponse(400, "CONSENT_REQUIRED", "You must agree to the terms and refund policy before paying.");
+  }
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     select: {
@@ -80,10 +84,17 @@ export async function POST(
     await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${invoice.id}::uuid FOR UPDATE`;
     const fresh = await tx.invoice.findUnique({
       where: { id: invoice.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, termsConsentAt: true },
     });
     if (!fresh || fresh.status !== "PENDING") {
       return { kind: "not_payable" as const };
+    }
+    if (!fresh.termsConsentAt) {
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { termsConsentAt: new Date() },
+        select: { id: true },
+      });
     }
     const activeAttempts = await tx.paymentAttempt.findMany({
       where: { invoiceId: invoice.id, status: { in: ["CREATED", "REDIRECTED"] } },

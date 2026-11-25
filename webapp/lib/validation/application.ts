@@ -40,6 +40,9 @@ const commonFields = {
   timezone: z.string().trim().min(1).max(100).default("Africa/Cairo"),
   preferred_language: z.enum(["ar", "en"]).default("ar"),
   notes: z.string().trim().max(1000, "Notes cannot exceed 1000 characters").optional(),
+  data_consent: z.literal(true, {
+    message: "You must consent to data processing and the privacy policy.",
+  }),
   // Filled honeypots are handled as silent fake successes after parsing.
   // Keep a bounded string here so bots do not bypass the request size guard
   // with an arbitrarily large field.

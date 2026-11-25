@@ -123,7 +123,10 @@
         "body": "Choose the number of lessons and pay per class. Your credits do not expire.",
         "badge": "No commitment"
       }
-    ]
+    ],
+    "termsLink": "Terms & Conditions",
+    "privacyLink": "Privacy Policy",
+    "refundLink": "Refund & Cancellation Policy"
   },
   "brand": {
     "name": "Zarabicschool",
@@ -251,6 +254,53 @@
       "REFUND_FAILED": "Refund failed",
       "VOIDED": "Voided by Paymob",
       "PROVIDER_REFUND_SEEN": "Refund reported by Paymob"
+    },
+    "tabsLabel": "Compliance and audit sections",
+    "tabs": {
+      "payments": "Payment Audit",
+      "reconciliation": "Financial Reconciliation",
+      "chargeback": "Chargeback Evidence",
+      "system": "System Audit Log"
+    },
+    "reconciliation": {
+      "subtitle": "Compare paid invoices, Paymob transaction references, and issued refunds.",
+      "exportCsv": "Export CSV",
+      "net": "Net",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "webhooksTitle": "Unmatched Webhooks",
+      "unmatchedHint": "Signed webhook events that did not match an invoice.",
+      "student": "Student",
+      "reference": "Provider Ref",
+      "status": "Status",
+      "amount": "Amount",
+      "consent": "Terms Consent",
+      "evidence": "Evidence",
+      "viewEvidence": "View Evidence"
+    },
+    "chargeback": {
+      "load": "Load Evidence",
+      "prompt": "Enter an invoice ID or select one from Payment Audit / Reconciliation.",
+      "notFound": "No invoice found with that ID.",
+      "packageTitle": "Chargeback Evidence Package",
+      "generatedAt": "Generated at",
+      "printPdf": "Print / Save PDF",
+      "downloadJson": "Download JSON",
+      "invoiceSection": "Invoice, Reference & Consent Proof",
+      "paidAt": "Paid at",
+      "sessionsSection": "Service Delivery Proof (Sessions & Attendance)",
+      "noSessions": "No sessions recorded after the invoice date yet.",
+      "subject": "Subject",
+      "teacher": "Teacher",
+      "attendance": "Attendance",
+      "joinClicks": "Platform Join Clicks",
+      "reports": "Reports"
+    },
+    "system": {
+      "webhooksTitle": "Payment Gateway Webhook Events",
+      "provider": "Provider",
+      "linkAuditsTitle": "Session Link Audit Log",
+      "source": "Source"
     }
   },
   "reportsQueue": {
@@ -1206,7 +1256,11 @@
     "generalError": "Unable to submit application right now. Please try again.",
     "duplicateError": "An application with this phone number was recently submitted within the last 24 hours. We will contact you soon.",
     "rateLimitError": "Too many applications submitted recently. Please wait a moment and try again.",
-    "validationError": "Please review and correct the highlighted fields below."
+    "validationError": "Please review and correct the highlighted fields below.",
+    "dataConsentGuardian": "As a parent/guardian, I consent to the processing of my and my child's personal data in accordance with the",
+    "dataConsentGeneral": "I consent to the processing of my personal data in accordance with the",
+    "privacyPolicyLink": "Privacy Policy",
+    "termsLink": "Terms & Conditions"
   },
   "joinStatus": {
     "title": "Joining the session",
@@ -2420,7 +2474,11 @@
     "colCreated": "Created",
     "chooseStudent": "Choose student",
     "amountLabel": "Amount",
-    "currencyLabel": "Currency"
+    "currencyLabel": "Currency",
+    "termsConsentPrefix": "I agree to the",
+    "termsLink": "Terms & Conditions",
+    "termsConsentAnd": "and",
+    "refundLink": "Refund & Cancellation Policy"
   },
   "payroll": {
     "teacherTitle": "My payroll",
@@ -3055,5 +3113,104 @@
     "dark": "Dark",
     "system": "Device setting",
     "switch": "Theme: {current}. Switch to {next}"
+  },
+  "legal": {
+    "eyebrow": "Legal & Compliance",
+    "navLabel": "Legal documents",
+    "lastUpdated": "Last updated: November 2026",
+    "contactPrompt": "Questions about these policies? Reach us on WhatsApp:",
+    "backHome": "Back to home",
+    "terms": {
+      "title": "Terms & Conditions",
+      "subtitle": "Subscription, live class access, and acceptable use terms for Zarabicschool.",
+      "sections": [
+        {
+          "heading": "1. Service Description",
+          "body": [
+            "Zarabicschool provides live online Arabic and Quran instruction through scheduled one-on-one and group sessions delivered via our platform.",
+            "Access to live classes, session reports, and monthly progress tracking is granted upon application approval and active package or subscription payment."
+          ]
+        },
+        {
+          "heading": "2. Accounts, Guardians & Minors",
+          "body": [
+            "For students under 18 years of age, registration, billing, and data-processing consent must be completed by a parent or legal guardian.",
+            "Login credentials are personal and must not be shared outside the household."
+          ]
+        },
+        {
+          "heading": "3. Packages, Billing & Auto-Renewal",
+          "body": [
+            "Session packages are billed in Egyptian Pounds (EGP) via Paymob or in supported currencies as displayed on your invoice.",
+            "Where automatic monthly renewal is enabled with your explicit consent, the agreed amount is charged monthly on the billing date until cancelled from your Invoices page."
+          ]
+        },
+        {
+          "heading": "4. Scheduling, Attendance & Conduct",
+          "body": [
+            "Students and teachers join sessions through the platform's authenticated join links. Platform join timestamps and teacher session reports constitute the official record of service delivery.",
+            "Respectful conduct is required in all live sessions and communications."
+          ]
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "subtitle": "How Zarabicschool collects, uses, and protects student, guardian, and teacher data.",
+      "sections": [
+        {
+          "heading": "1. Data We Collect",
+          "body": [
+            "We collect only the information needed to deliver classes and manage accounts: names, WhatsApp phone numbers, optional email addresses, timezone, preferred language, educational subjects, and teacher application media.",
+            "Online card payments are processed directly by Paymob; Zarabicschool never stores full card numbers or CVV codes."
+          ]
+        },
+        {
+          "heading": "2. Children's & Guardian Data",
+          "body": [
+            "Minor student profiles are linked to an adult parent or guardian account. Guardians control billing, receive session reports, and provide explicit consent for processing their child's educational data."
+          ]
+        },
+        {
+          "heading": "3. How We Use Your Data",
+          "body": [
+            "Data is used strictly for scheduling classes, sending WhatsApp session reminders and reports, processing invoices and refunds, and maintaining platform security and audit logs.",
+            "We do not sell or rent personal data to third parties."
+          ]
+        },
+        {
+          "heading": "4. Retention & Your Rights",
+          "body": [
+            "You may request correction or deletion of your personal data by contacting school administration via our official WhatsApp support channel, subject to legal financial record-keeping requirements."
+          ]
+        }
+      ]
+    },
+    "refund": {
+      "title": "Refund & Cancellation Policy",
+      "subtitle": "Clear rules for package refunds, unused sessions, and subscription cancellation.",
+      "sections": [
+        {
+          "heading": "1. 14-Day Refund for Unused Sessions",
+          "body": [
+            "Payers may request a full refund for unused sessions within 14 calendar days of payment directly from the Invoices page.",
+            "Once approved by administration, the refund is returned to the same payment card/method via Paymob and typically appears within a few business days depending on your bank."
+          ]
+        },
+        {
+          "heading": "2. Attended Sessions & Completed Periods",
+          "body": [
+            "Sessions that have already been attended or delivered are non-refundable.",
+            "For automatic monthly renewals, cancelling stops all future charges immediately, while no refund is issued for a billing month that has already been paid."
+          ]
+        },
+        {
+          "heading": "3. Disputes & Support",
+          "body": [
+            "If you experience a billing issue or unauthorized charge, please contact us first on WhatsApp or submit a refund request from your Invoices page so we can resolve it promptly."
+          ]
+        }
+      ]
+    }
   }
 }

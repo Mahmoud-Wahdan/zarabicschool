@@ -300,8 +300,17 @@ export function composeJobMessage(job: JobWithRelations, joinWindowMinutes = DEF
       : "تقرير معلم معتمد يخالف تسجيل حضور يدوي. لم يتغير شيء تلقائيًا؛ راجِع الحصة وصحّحها بقيد تعديل عند الحاجة.";
   }
   if (job.kind === "PAYMENT_ANOMALY") {
-    // Admin-only flag (Phase 6 A1): a signed payment event that did not move money
-    // and needs a human look. Reason code only — no amounts, no payer data.
+    // Admin-only flag (Phase 6 A1): a signed payment event (dispute, refund, void, or
+    // mismatch) that did not move money and needs a human look. Reason code only — no
+    // amounts, no payer data.
+    const reason = (job.payload as { reason?: unknown } | null)?.reason;
+    const isDisputeOrRefund =
+      reason === "PAID_INVOICE_REFUNDED" || reason === "PAID_INVOICE_VOIDED";
+    if (isDisputeOrRefund) {
+      return language === "en"
+        ? "Payment alert: a provider refund or void/dispute event was received for a paid invoice. Review the Payment Audit & Chargeback Evidence page."
+        : "تنبيه مالي: ورد إشعار استرداد أو إلغاء/اعتراض من بوابة الدفع لفاتورة مدفوعة. راجع صفحة التدقيق المالي ومستندات الإثبات.";
+    }
     return language === "en"
       ? "A payment event needs your review (no money was moved automatically). Check the payments audit page."
       : "حدث دفع يحتاج إلى مراجعتك (لم تُنفَّذ أي حركة مالية تلقائيًا). راجع صفحة سجل المدفوعات.";

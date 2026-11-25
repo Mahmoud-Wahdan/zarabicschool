@@ -262,6 +262,7 @@ export async function POST(request: Request) {
         recitationAudioResourceType: storedAudio?.resourceType ?? null,
         recitationAudioFormat: storedAudio?.format ?? null,
         recitationAudioSizeBytes: storedAudio ? BigInt(storedAudio.bytes) : null,
+        dataConsentAt: new Date(),
       },
       select: { id: true },
     });
