@@ -46,11 +46,21 @@ const AUDIO_TYPES: AllowedType[] = [
       startsWith(bytes, [0xff, 0xf3]) ||
       startsWith(bytes, [0xff, 0xf2]),
   },
-  // M4A: ISO-BMFF "ftyp" box with the audio-only "M4A " brand (an MP4 video is rejected).
+  // M4A / MP4 audio: ISO-BMFF "ftyp" box. Mobile voice recorders use varying
+  // brands (isom, mp42, mp41, 3gp4/5/6 on Android; M4A on iOS); restricting to
+  // "M4A " rejected most Android recordings. Accepting any ftyp is safe because
+  // this entry is only in AUDIO_TYPES (used for the "audio" and "report"
+  // profiles — both audio-upload contexts where the user chose an audio file).
   {
     mime: "audio/mp4",
     ext: "m4a",
-    matches: (bytes) => startsWith(bytes, [0x66, 0x74, 0x79, 0x70], 4) && startsWith(bytes, [0x4d, 0x34, 0x41, 0x20], 8),
+    matches: (bytes) =>
+      startsWith(bytes, [0x66, 0x74, 0x79, 0x70], 4) &&
+      (startsWith(bytes, [0x4d, 0x34, 0x41, 0x20], 8) ||  // M4A  (Apple)
+       startsWith(bytes, [0x69, 0x73, 0x6f, 0x6d], 8) ||  // isom (Android/Samsung)
+       startsWith(bytes, [0x6d, 0x70, 0x34, 0x32], 8) ||  // mp42 (Google Recorder)
+       startsWith(bytes, [0x6d, 0x70, 0x34, 0x31], 8) ||  // mp41
+       startsWith(bytes, [0x33, 0x67, 0x70], 8)),          // 3gp* (Android 3GP audio)
   },
   { mime: "audio/ogg", ext: "ogg", matches: (bytes) => startsWith(bytes, [0x4f, 0x67, 0x67, 0x53]) },
   {
