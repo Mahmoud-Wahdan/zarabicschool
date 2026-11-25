@@ -2,7 +2,8 @@
 // `server-only` throws outside a React server environment and is not installed
 // as a dependency, so plain Node cannot load it. Resolve it to this (empty)
 // module instead. Only the exact request "server-only" is affected.
-const Module = require("module");
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS preload hook.
+const Module = require("node:module");
 
 const originalResolve = Module._resolveFilename;
 
