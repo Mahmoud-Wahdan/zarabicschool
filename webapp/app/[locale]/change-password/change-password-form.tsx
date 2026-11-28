@@ -57,6 +57,7 @@ function PasswordField({
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
           dir="ltr"
+          style={{ paddingInline: "3rem" }}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className="z-input h-11 rounded-lg bg-surface-container-lowest pe-10 ps-10 shadow-sm transition-all placeholder:text-outline focus:ring-2 focus:ring-secondary"

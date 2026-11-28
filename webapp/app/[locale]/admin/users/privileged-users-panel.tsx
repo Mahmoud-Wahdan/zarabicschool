@@ -438,9 +438,12 @@ export default function PrivilegedUsersPanel({
               <label className="flex flex-col gap-1 text-label-md">
                 <span>{t("phone")}</span>
                 <input
+                  type="tel"
+                  inputMode="tel"
+                  dir="ltr"
                   value={draft.phone}
                   onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
-                  className="z-input"
+                  className="z-input text-left"
                 />
               </label>
               <label className="flex flex-col gap-1 text-label-md">

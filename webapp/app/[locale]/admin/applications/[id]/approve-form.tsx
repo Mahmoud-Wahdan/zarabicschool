@@ -114,7 +114,15 @@ export default function ApproveForm({
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
                   <input value={guardianName} onChange={(event) => setGuardianName(event.target.value)} placeholder={t("approveForm.guardianName")} className="rounded-lg border p-2 text-sm" />
-                  <input value={guardianPhone} onChange={(event) => setGuardianPhone(event.target.value)} placeholder={t("approveForm.guardianPhone")} className="rounded-lg border p-2 text-sm" />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    dir="ltr"
+                    value={guardianPhone}
+                    onChange={(event) => setGuardianPhone(event.target.value)}
+                    placeholder={t("approveForm.guardianPhone")}
+                    className="rounded-lg border p-2 text-left text-sm"
+                  />
                 </div>
               )}
               <RelationshipSelect value={relationship} onChange={setRelationship} t={t} />

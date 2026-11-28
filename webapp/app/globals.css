@@ -626,22 +626,24 @@ html[lang="en"] {
 }
 
 /* Form inputs (DESIGN.md: h-40px, #CBD5E1 border, emerald focus ring) */
-.z-input,
-.z-select,
-.z-textarea {
-  width: 100%;
-  min-height: 40px;
-  background: var(--surface-container-lowest);
-  border: 1px solid var(--input-border);
-  border-radius: 0.25rem;
-  padding: 0 0.75rem;
-  color: var(--content);
-  font-size: 0.875rem;
+@layer components {
+  .z-input,
+  .z-select,
+  .z-textarea {
+    width: 100%;
+    min-height: 40px;
+    background: var(--surface-container-lowest);
+    border: 1px solid var(--input-border);
+    border-radius: 0.25rem;
+    padding: 0 0.75rem;
+    color: var(--content);
+    font-size: 0.875rem;
+  }
+
+  .z-select { padding-inline-end: 2rem; }
+
+  .z-textarea { padding-block: 0.5rem; min-height: 88px; resize: vertical; }
 }
-
-.z-select { padding-inline-end: 2rem; }
-
-.z-textarea { padding-block: 0.5rem; min-height: 88px; resize: vertical; }
 
 .z-input::placeholder,
 .z-textarea::placeholder {

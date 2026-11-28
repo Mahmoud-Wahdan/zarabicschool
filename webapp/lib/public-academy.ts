@@ -2,12 +2,19 @@ import "server-only";
 
 import { toInternationalDigits } from "./messaging/phone";
 
-function formatEgp(raw: string | undefined, locale: string) {
-  const value = raw?.trim();
-  if (!value || !/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+const DEFAULT_MONTHLY_8_LESSONS_EGP = "2200";
+const DEFAULT_PER_LESSON_EGP = "275";
 
+function parsePositiveAmount(raw: string | undefined, fallback: string) {
+  const value = raw?.trim() || fallback;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function formatEgp(raw: string | undefined, locale: string) {
+  const amount = parsePositiveAmount(raw, "");
+  if (amount === null) return null;
 
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -20,9 +27,18 @@ function formatEgp(raw: string | undefined, locale: string) {
 
 export function getPublicPlanPrices(locale: string) {
   return [
-    formatEgp(process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || "2200", locale),
-    formatEgp(process.env.SITE_PER_LESSON_PRICE_EGP?.trim() || "275", locale),
+    formatEgp(process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || DEFAULT_MONTHLY_8_LESSONS_EGP, locale),
+    formatEgp(process.env.SITE_PER_LESSON_PRICE_EGP?.trim() || DEFAULT_PER_LESSON_EGP, locale),
   ];
+}
+
+export function getPublicMonthlyPlanDefaults(locale: string) {
+  const amount = parsePositiveAmount(process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP, DEFAULT_MONTHLY_8_LESSONS_EGP) ?? 2200;
+  return {
+    name: locale === "ar" ? "باقة شهرية من ٨ حصص" : "Monthly 8-lesson package",
+    amountMinor: String(Math.round(amount * 100)),
+    sessions: 8,
+  };
 }
 
 export function getPublicBusinessContact(locale: string, whatsapp: string | null) {

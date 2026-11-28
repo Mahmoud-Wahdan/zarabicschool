@@ -7,6 +7,7 @@ import RefundRequestsAdmin from "../../../_components/invoices/refund-requests-a
 import { listRefundRequests } from "../../../../lib/billing/refund-requests";
 import { requireRole } from "../../../../lib/dal";
 import { prisma } from "../../../../lib/prisma";
+import { getPublicMonthlyPlanDefaults } from "../../../../lib/public-academy";
 
 export async function generateMetadata() {
   const t = await getTranslations("invoices");
@@ -93,7 +94,7 @@ export default async function AdminInvoicesPage() {
             name: locale === "ar" ? monthlyPlan.nameAr : monthlyPlan.nameEn,
             amountMinor: monthlyPlan.basePriceMinor.toString(),
             sessions: monthlyPlan.sessionsPerMonth,
-          } : null}
+          } : getPublicMonthlyPlanDefaults(locale)}
           students={students.map((student) => ({ id: student.id, displayName: student.user.displayName }))}
         />
       </div>

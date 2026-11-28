@@ -56,6 +56,28 @@ async function main() {
         },
       });
     }
+
+    const monthlyRaw = process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || "2200";
+    const monthlyEgp = /^\d+(?:\.\d{1,2})?$/.test(monthlyRaw) && Number(monthlyRaw) > 0 ? Number(monthlyRaw) : 2200;
+    const existingMonthlyPlan = await prisma.billingPlan.findFirst({
+      where: { academyId: academy.id, tier: "public-monthly-8" },
+      select: { id: true },
+    });
+    if (!existingMonthlyPlan) {
+      await prisma.billingPlan.create({
+        data: {
+          academyId: academy.id,
+          nameAr: "باقة شهرية من ٨ حصص",
+          nameEn: "Monthly 8-lesson package",
+          packageType: "MONTHLY_PLAN",
+          sessionsPerMonth: 8,
+          basePriceMinor: BigInt(Math.round(monthlyEgp * 100)),
+          currency: "EGP",
+          tier: "public-monthly-8",
+          isActive: true,
+        },
+      });
+    }
   } finally {
     await prisma.$disconnect();
     await pool.end();

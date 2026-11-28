@@ -326,14 +326,16 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
           </label>
           <input
             id={`${formId}-phone`}
-            type="tel" autoComplete="tel"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             required
             dir="ltr"
             disabled={isSubmitting}
             placeholder={t("phoneWhatsappPlaceholder")}
             value={phoneWhatsapp}
             onChange={(e) => setPhoneWhatsapp(e.target.value)}
-            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+            className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-left text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
               fieldErrors.phone_whatsapp ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
             }`}
           />
@@ -637,14 +639,16 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                   </label>
                   <input
                     id={`${formId}-gphone`}
-                    type="tel" autoComplete="tel"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
                     required
                     dir="ltr"
                     disabled={isSubmitting}
                     placeholder={t("guardianPhonePlaceholder")}
                     value={guardianPhone}
                     onChange={(e) => setGuardianPhone(e.target.value)}
-                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-left text-sm transition outline-none focus:ring-2 focus:ring-secondary ${
                       fieldErrors.guardian_phone ? "border-error bg-error-container/50" : "border-outline-variant bg-surface-container-lowest"
                     }`}
                   />
