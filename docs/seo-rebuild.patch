@@ -1,0 +1,208 @@
+diff --git a/webapp/.env.example b/webapp/.env.example
+index 4d0d939..4cd5b66 100644
+--- a/webapp/.env.example
++++ b/webapp/.env.example
+@@ -97,6 +97,6 @@ SITE_CONTACT_PHONE=
+ SITE_BUSINESS_LOCATION_AR=
+ SITE_BUSINESS_LOCATION_EN=
+ SITE_MONTHLY_8_LESSONS_PRICE_EGP=2200
+-SITE_MONTHLY_8_LESSONS_PRICE_USD=45
++SITE_MONTHLY_8_LESSONS_PRICE_USD=40
+ SITE_PER_LESSON_PRICE_EGP=275
+-SITE_PER_LESSON_PRICE_USD=6
++SITE_PER_LESSON_PRICE_USD=5
+diff --git a/webapp/app/[locale]/about/page.tsx b/webapp/app/[locale]/about/page.tsx
+index 2bb61cd..5e98d71 100644
+--- a/webapp/app/[locale]/about/page.tsx
++++ b/webapp/app/[locale]/about/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/about",
+     title: t("about.title"),
+-    description: t("about.summary"),
++    description: t("about.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/[locale]/contact/page.tsx b/webapp/app/[locale]/contact/page.tsx
+index bf7c2ff..15bcce2 100644
+--- a/webapp/app/[locale]/contact/page.tsx
++++ b/webapp/app/[locale]/contact/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/contact",
+     title: t("contact.title"),
+-    description: t("contact.summary"),
++    description: t("contact.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/[locale]/page.tsx b/webapp/app/[locale]/page.tsx
+index 9668d1a..9d28036 100644
+--- a/webapp/app/[locale]/page.tsx
++++ b/webapp/app/[locale]/page.tsx
+@@ -52,20 +52,32 @@ export default async function Home() {
+   const structuredData = {
+     "@context": "https://schema.org",
+     "@graph": [
++      {
++        "@type": "WebSite",
++        "@id": `${origin}/#website`,
++        url: origin,
++        name: "Zarabicschool",
++        inLanguage: ["ar", "en"],
++        publisher: { "@id": `${origin}/#academy` },
++      },
+       {
+         "@type": "EducationalOrganization",
++        "@id": `${origin}/#academy`,
+         name: "Zarabicschool",
+-        url: `${origin}/${locale}`,
++        alternateName: "المدرسة العربية",
++        url: origin,
+         logo: `${origin}/Brand/minimal-light-hero.png`,
+         description: t("intro"),
+         email: contact.email,
+         ...(contact.phone ? { telephone: contact.phone } : {}),
+         address: {
+           "@type": "PostalAddress",
+-          addressLocality: contact.location,
++          addressLocality: "Quesna",
++          addressRegion: "Menoufia",
++          addressCountry: "EG",
+         },
+         ...(whatsapp ? { sameAs: [whatsapp] } : {}),
+-        offers: planCards.flatMap((plan, index) => {
++        makesOffer: planCards.flatMap((plan, index) => {
+           const price = prices[index];
+           const entries = [];
+           if (price?.egpAmount) {
+@@ -117,7 +129,7 @@ export default async function Home() {
+     {id:"pricing-plans", title:"plans", sub:"planSub", start:11,end:13},
+   ] as const;
+   return <div className="minimal-landing" id="top">
+-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
++    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
+     <a href="#main" className="skip-link">{common("skipToContent")}</a>
+     <header><div className="ml-wrap ml-bar"><a href="#top"><Brand /></a><nav>{nav}</nav><div className="ml-controls"><ThemeSwitch /><Link href="/" locale={locale === "ar" ? "en" : "ar"}>{locale === "ar" ? "EN" : "ع"}</Link><Link className="ml-login" href="/login">{t("login")}</Link>{apply}</div>
+     <MobileNavigation>{nav}<Link href="/login">{t("login")}</Link>{apply}</MobileNavigation></div></header>
+diff --git a/webapp/app/[locale]/privacy/page.tsx b/webapp/app/[locale]/privacy/page.tsx
+index a1387ed..64be25a 100644
+--- a/webapp/app/[locale]/privacy/page.tsx
++++ b/webapp/app/[locale]/privacy/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/privacy",
+     title: t("privacy.title"),
+-    description: t("privacy.summary"),
++    description: t("privacy.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/[locale]/refund-policy/page.tsx b/webapp/app/[locale]/refund-policy/page.tsx
+index c6002e0..654ae29 100644
+--- a/webapp/app/[locale]/refund-policy/page.tsx
++++ b/webapp/app/[locale]/refund-policy/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/refund-policy",
+     title: t("refund.title"),
+-    description: t("refund.summary"),
++    description: t("refund.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/[locale]/service-delivery/page.tsx b/webapp/app/[locale]/service-delivery/page.tsx
+index 54f2721..418c1de 100644
+--- a/webapp/app/[locale]/service-delivery/page.tsx
++++ b/webapp/app/[locale]/service-delivery/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/service-delivery",
+     title: t("delivery.title"),
+-    description: t("delivery.summary"),
++    description: t("delivery.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/[locale]/terms/page.tsx b/webapp/app/[locale]/terms/page.tsx
+index 3ee67a4..7fdac91 100644
+--- a/webapp/app/[locale]/terms/page.tsx
++++ b/webapp/app/[locale]/terms/page.tsx
+@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
+     locale,
+     path: "/terms",
+     title: t("terms.title"),
+-    description: t("terms.summary"),
++    description: t("terms.subtitle"),
+   });
+ }
+ 
+diff --git a/webapp/app/sitemap.ts b/webapp/app/sitemap.ts
+index 4e3af9e..917891f 100644
+--- a/webapp/app/sitemap.ts
++++ b/webapp/app/sitemap.ts
+@@ -15,16 +15,15 @@ const PUBLIC_PAGES = [
+ 
+ export default function sitemap(): MetadataRoute.Sitemap {
+   const origin = getSiteOrigin();
+-  const lastModified = new Date();
+ 
+   return PUBLIC_PAGES.flatMap(({ path, priority, changeFrequency }) =>
+     (["ar", "en"] as const).map((locale) => ({
+       url: `${origin}/${locale}${path}`,
+-      lastModified,
+       changeFrequency,
+       priority,
+       alternates: {
+         languages: {
++          "x-default": `${origin}/ar${path}`,
+           ar: `${origin}/ar${path}`,
+           en: `${origin}/en${path}`,
+         },
+diff --git a/webapp/lib/public-academy.ts b/webapp/lib/public-academy.ts
+index c99a8c8..ddce1aa 100644
+--- a/webapp/lib/public-academy.ts
++++ b/webapp/lib/public-academy.ts
+@@ -3,9 +3,9 @@ import "server-only";
+ import { toInternationalDigits } from "./messaging/phone";
+ 
+ const DEFAULT_MONTHLY_8_LESSONS_EGP = "2200";
+-const DEFAULT_MONTHLY_8_LESSONS_USD = "45";
++const DEFAULT_MONTHLY_8_LESSONS_USD = "40";
+ const DEFAULT_PER_LESSON_EGP = "275";
+-const DEFAULT_PER_LESSON_USD = "6";
++const DEFAULT_PER_LESSON_USD = "5";
+ 
+ function parsePositiveAmount(raw: string | undefined, fallback: string) {
+   const value = raw?.trim() || fallback;
+diff --git a/webapp/lib/seo.ts b/webapp/lib/seo.ts
+index 111b487..b2bacb1 100644
+--- a/webapp/lib/seo.ts
++++ b/webapp/lib/seo.ts
+@@ -1,9 +1,9 @@
+ import type { Metadata } from "next";
+ 
+-const DEFAULT_SITE_URL = "https://zarabicschool.com";
++const DEFAULT_SITE_URL = "https://www.zarabicschool.com";
+ 
+ export function getSiteUrl(): URL {
+-  const raw = process.env.APP_PUBLIC_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || DEFAULT_SITE_URL;
++  const raw = process.env.SEO_SITE_URL?.trim() || DEFAULT_SITE_URL;
+   try {
+     return new URL(raw);
+   } catch {
+diff --git a/webapp/proxy.ts b/webapp/proxy.ts
+index ad6b1c0..7c8c31c 100644
+--- a/webapp/proxy.ts
++++ b/webapp/proxy.ts
+@@ -113,6 +113,9 @@ function rolesForRoute(rest: string): string[] | undefined {
+ }
+ 
+ export async function proxy(req: NextRequest) {
++  if (req.nextUrl.pathname === "/robots.txt" || req.nextUrl.pathname === "/sitemap.xml") {
++    return NextResponse.next();
++  }
+   const clientIp = getClientIp(req.headers);
+   if (!allowRequest(`request:${clientIp}`, 120, 60 * 1000)) {
+     return NextResponse.json(
