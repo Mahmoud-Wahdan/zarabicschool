@@ -10,6 +10,7 @@ import "../globals.css";
 import { routing } from "../../i18n/routing";
 import { getAuthSession, getSessionUserId } from "../../lib/dal";
 import { countUnread } from "../../lib/notifications/inbox";
+import { buildPublicMetadata, getSiteUrl } from "../../lib/seo";
 import { BadgeProvider } from "../_components/notifications/badge-provider";
 
 const cairo = Cairo({
@@ -43,11 +44,30 @@ type Props = {
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const { locale } = await params;
   const tBrand = await getTranslations({ locale, namespace: "brand" });
-  const tHero = await getTranslations({ locale, namespace: "hero" });
+  const tLanding = await getTranslations({ locale, namespace: "minimalLanding" });
+  const isAr = locale === "ar";
+
+  const title = isAr
+    ? `${tBrand("name")} | أكاديمية تعليم العربية والقرآن الكريم مباشرة عبر Zoom`
+    : `${tBrand("name")} | Live Online Arabic & Quran Academy on Zoom`;
+  const description = tLanding("intro");
+  const base = buildPublicMetadata({
+    locale,
+    path: "/",
+    title,
+    description,
+    keywords: isAr
+      ? ["المدرسة العربية", "Zarabicschool", "تعليم اللغة العربية أونلاين", "تحفيظ القرآن الكريم أونلاين", "حصص عربية مباشرة", "دروس قرآن للأطفال والكبار"]
+      : ["Zarabicschool", "learn Arabic online", "online Quran classes", "live Arabic lessons Zoom", "Tajweed classes", "Arabic for kids and adults"],
+  });
 
   return {
-    title: tBrand("name"),
-    description: tHero("subtitle"),
+    ...base,
+    metadataBase: getSiteUrl(),
+    title: {
+      default: title,
+      template: `%s | ${tBrand("name")}`,
+    },
   };
 }
 

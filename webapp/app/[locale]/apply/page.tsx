@@ -1,12 +1,24 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { prisma } from "../../../lib/prisma";
+import { buildPublicMetadata } from "../../../lib/seo";
 import ApplyRoleCards from "../../_components/landing/apply-role-cards";
 import SiteHeader from "../../_components/landing/site-header";
 import Icon from "../../_components/ui/icon";
 import LogoPlaceholder from "../../_components/logo-placeholder";
 import { Link } from "../../../i18n/navigation";
 import ApplyForm from "./apply-form";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "landing.applyPortal" });
+  return buildPublicMetadata({
+    locale,
+    path: "/apply",
+    title: t("title"),
+    description: t("subtitle"),
+  });
+}
 
 const validRoles = ["guardian", "student", "teacher"] as const;
 type ValidRole = (typeof validRoles)[number];

@@ -3,7 +3,9 @@ import "server-only";
 import { toInternationalDigits } from "./messaging/phone";
 
 const DEFAULT_MONTHLY_8_LESSONS_EGP = "2200";
+const DEFAULT_MONTHLY_8_LESSONS_USD = "45";
 const DEFAULT_PER_LESSON_EGP = "275";
+const DEFAULT_PER_LESSON_USD = "6";
 
 function parsePositiveAmount(raw: string | undefined, fallback: string) {
   const value = raw?.trim() || fallback;
@@ -12,23 +14,45 @@ function parsePositiveAmount(raw: string | undefined, fallback: string) {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-function formatEgp(raw: string | undefined, locale: string) {
+function formatCurrency(raw: string | undefined, currency: "EGP" | "USD", locale: string) {
   const amount = parsePositiveAmount(raw, "");
   if (amount === null) return null;
 
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
     style: "currency",
-    currency: "EGP",
+    currency,
     currencyDisplay: "code",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount);
 }
 
-export function getPublicPlanPrices(locale: string) {
+export type PublicPlanPrice = {
+  egp: string | null;
+  usd: string | null;
+  egpAmount: number | null;
+  usdAmount: number | null;
+};
+
+export function getPublicPlanPrices(locale: string): PublicPlanPrice[] {
+  const monthlyEgpRaw = process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || DEFAULT_MONTHLY_8_LESSONS_EGP;
+  const monthlyUsdRaw = process.env.SITE_MONTHLY_8_LESSONS_PRICE_USD?.trim() || DEFAULT_MONTHLY_8_LESSONS_USD;
+  const perLessonEgpRaw = process.env.SITE_PER_LESSON_PRICE_EGP?.trim() || DEFAULT_PER_LESSON_EGP;
+  const perLessonUsdRaw = process.env.SITE_PER_LESSON_PRICE_USD?.trim() || DEFAULT_PER_LESSON_USD;
+
   return [
-    formatEgp(process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || DEFAULT_MONTHLY_8_LESSONS_EGP, locale),
-    formatEgp(process.env.SITE_PER_LESSON_PRICE_EGP?.trim() || DEFAULT_PER_LESSON_EGP, locale),
+    {
+      egp: formatCurrency(monthlyEgpRaw, "EGP", locale),
+      usd: formatCurrency(monthlyUsdRaw, "USD", locale),
+      egpAmount: parsePositiveAmount(monthlyEgpRaw, DEFAULT_MONTHLY_8_LESSONS_EGP),
+      usdAmount: parsePositiveAmount(monthlyUsdRaw, DEFAULT_MONTHLY_8_LESSONS_USD),
+    },
+    {
+      egp: formatCurrency(perLessonEgpRaw, "EGP", locale),
+      usd: formatCurrency(perLessonUsdRaw, "USD", locale),
+      egpAmount: parsePositiveAmount(perLessonEgpRaw, DEFAULT_PER_LESSON_EGP),
+      usdAmount: parsePositiveAmount(perLessonUsdRaw, DEFAULT_PER_LESSON_USD),
+    },
   ];
 }
 

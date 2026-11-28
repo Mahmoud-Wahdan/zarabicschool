@@ -11,7 +11,10 @@ import Icon from "../../_components/ui/icon";
 
 export async function generateMetadata() {
   const t = await getTranslations("login");
-  return { title: `${t("title")} | Zarabicschool` };
+  return {
+    title: t("title"),
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string | string[] }> }) {

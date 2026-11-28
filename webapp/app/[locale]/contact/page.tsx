@@ -1,10 +1,17 @@
 import { getTranslations } from "next-intl/server";
 
+import { buildPublicMetadata } from "../../../lib/seo";
 import LegalPage from "../../_components/legal/legal-page";
 
-export async function generateMetadata() {
-  const t = await getTranslations("legal");
-  return { title: `${t("contact.title")} | Zarabicschool` };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "legal" });
+  return buildPublicMetadata({
+    locale,
+    path: "/contact",
+    title: t("contact.title"),
+    description: t("contact.summary"),
+  });
 }
 
 export default function ContactPage() {
