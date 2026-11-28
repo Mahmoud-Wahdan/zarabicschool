@@ -113,6 +113,9 @@ function rolesForRoute(rest: string): string[] | undefined {
 }
 
 export async function proxy(req: NextRequest) {
+  if (req.nextUrl.pathname === "/robots.txt" || req.nextUrl.pathname === "/sitemap.xml") {
+    return NextResponse.next();
+  }
   const clientIp = getClientIp(req.headers);
   if (!allowRequest(`request:${clientIp}`, 120, 60 * 1000)) {
     return NextResponse.json(

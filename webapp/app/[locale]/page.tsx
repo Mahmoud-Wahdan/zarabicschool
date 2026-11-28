@@ -53,19 +53,31 @@ export default async function Home() {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "EducationalOrganization",
+        "@type": "WebSite",
+        "@id": `${origin}/#website`,
+        url: origin,
         name: "Zarabicschool",
-        url: `${origin}/${locale}`,
+        inLanguage: ["ar", "en"],
+        publisher: { "@id": `${origin}/#academy` },
+      },
+      {
+        "@type": "EducationalOrganization",
+        "@id": `${origin}/#academy`,
+        name: "Zarabicschool",
+        alternateName: "المدرسة العربية",
+        url: origin,
         logo: `${origin}/Brand/minimal-light-hero.png`,
         description: t("intro"),
         email: contact.email,
         ...(contact.phone ? { telephone: contact.phone } : {}),
         address: {
           "@type": "PostalAddress",
-          addressLocality: contact.location,
+          addressLocality: "Quesna",
+          addressRegion: "Menoufia",
+          addressCountry: "EG",
         },
         ...(whatsapp ? { sameAs: [whatsapp] } : {}),
-        offers: planCards.flatMap((plan, index) => {
+        makesOffer: planCards.flatMap((plan, index) => {
           const price = prices[index];
           const entries = [];
           if (price?.egpAmount) {
@@ -117,7 +129,7 @@ export default async function Home() {
     {id:"pricing-plans", title:"plans", sub:"planSub", start:11,end:13},
   ] as const;
   return <div className="minimal-landing" id="top">
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
     <a href="#main" className="skip-link">{common("skipToContent")}</a>
     <header><div className="ml-wrap ml-bar"><a href="#top"><Brand /></a><nav>{nav}</nav><div className="ml-controls"><ThemeSwitch /><Link href="/" locale={locale === "ar" ? "en" : "ar"}>{locale === "ar" ? "EN" : "ع"}</Link><Link className="ml-login" href="/login">{t("login")}</Link>{apply}</div>
     <MobileNavigation>{nav}<Link href="/login">{t("login")}</Link>{apply}</MobileNavigation></div></header>

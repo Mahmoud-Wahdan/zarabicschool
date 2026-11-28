@@ -15,16 +15,15 @@ const PUBLIC_PAGES = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const origin = getSiteOrigin();
-  const lastModified = new Date();
 
   return PUBLIC_PAGES.flatMap(({ path, priority, changeFrequency }) =>
     (["ar", "en"] as const).map((locale) => ({
       url: `${origin}/${locale}${path}`,
-      lastModified,
       changeFrequency,
       priority,
       alternates: {
         languages: {
+          "x-default": `${origin}/ar${path}`,
           ar: `${origin}/ar${path}`,
           en: `${origin}/en${path}`,
         },

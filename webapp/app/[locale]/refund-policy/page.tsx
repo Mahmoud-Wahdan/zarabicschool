@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     locale,
     path: "/refund-policy",
     title: t("refund.title"),
-    description: t("refund.summary"),
+    description: t("refund.subtitle"),
   });
 }
 

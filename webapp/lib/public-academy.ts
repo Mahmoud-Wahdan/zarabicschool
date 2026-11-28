@@ -3,9 +3,9 @@ import "server-only";
 import { toInternationalDigits } from "./messaging/phone";
 
 const DEFAULT_MONTHLY_8_LESSONS_EGP = "2200";
-const DEFAULT_MONTHLY_8_LESSONS_USD = "45";
+const DEFAULT_MONTHLY_8_LESSONS_USD = "40";
 const DEFAULT_PER_LESSON_EGP = "275";
-const DEFAULT_PER_LESSON_USD = "6";
+const DEFAULT_PER_LESSON_USD = "5";
 
 function parsePositiveAmount(raw: string | undefined, fallback: string) {
   const value = raw?.trim() || fallback;

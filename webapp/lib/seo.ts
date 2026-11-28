@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-const DEFAULT_SITE_URL = "https://zarabicschool.com";
+const DEFAULT_SITE_URL = "https://www.zarabicschool.com";
 
 export function getSiteUrl(): URL {
-  const raw = process.env.APP_PUBLIC_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || DEFAULT_SITE_URL;
+  const raw = process.env.SEO_SITE_URL?.trim() || DEFAULT_SITE_URL;
   try {
     return new URL(raw);
   } catch {

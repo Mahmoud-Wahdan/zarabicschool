@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     locale,
     path: "/contact",
     title: t("contact.title"),
-    description: t("contact.summary"),
+    description: t("contact.subtitle"),
   });
 }
 
