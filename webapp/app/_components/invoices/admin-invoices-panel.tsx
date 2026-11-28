@@ -22,10 +22,11 @@ type InvoiceRow = {
 };
 
 type StudentOption = { id: string; displayName: string };
+type MonthlyPlan = { name: string; amountMinor: string; sessions: number };
 
 const STATUS_TONE: Record<InvoiceRow["status"], BadgeTone> = { PENDING: "pending", PAID: "success", FAILED: "danger", CANCELLED: "neutral" };
 
-export default function AdminInvoicesPanel({ initialInvoices, students, timeZone }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string }) {
+export default function AdminInvoicesPanel({ initialInvoices, students, timeZone, monthlyPlan }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string; monthlyPlan?: MonthlyPlan | null }) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const [invoices, setInvoices] = useState(initialInvoices);
@@ -119,6 +120,22 @@ export default function AdminInvoicesPanel({ initialInvoices, students, timeZone
       <section className="z-card rounded-xl p-5">
         <h2 className="font-semibold text-primary">{t("createTitle")}</h2>
         <p className="mt-1 text-label-sm text-on-surface-variant">{t("createHint")}</p>
+        {monthlyPlan && (
+          <button
+            type="button"
+            className="btn btn-outline mt-3"
+            onClick={() => setCreate((current) => ({
+              ...current,
+              packageType: "MONTHLY_PLAN",
+              sessionsPurchased: monthlyPlan.sessions,
+              amount: (Number(monthlyPlan.amountMinor) / 100).toFixed(2),
+              currency: "EGP",
+              provider: "PAYMOB",
+            }))}
+          >
+            {monthlyPlan.name} · {money(monthlyPlan.amountMinor, "EGP")}
+          </button>
+        )}
         <form onSubmit={createInvoice} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_8rem_10rem_7rem_auto] lg:items-end">
           <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("colStudent")}
             <select required value={create.studentId} onChange={(e) => setCreate({ ...create, studentId: e.target.value })} className="z-input">

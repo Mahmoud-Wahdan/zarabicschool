@@ -15,7 +15,7 @@ export const passwordSchema = z
   .regex(/[0-9]/, "Password must contain at least one number");
 
 export const loginSchema = z.object({
-  username: usernameSchema,
+  username: z.string().trim().min(1).max(254),
   password: z.string().min(1, "Password is required").max(72),
 });
 

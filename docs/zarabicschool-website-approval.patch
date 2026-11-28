@@ -1,0 +1,468 @@
+diff --git a/webapp/.env.example b/webapp/.env.example
+--- a/webapp/.env.example
++++ b/webapp/.env.example
+@@ -96,3 +96,12 @@ HSTS_MAX_AGE=
+ # Worker placement (staging D95): empty = the web process runs the worker (local dev);
+ # "separate" = the web process never starts it and `npm run worker` runs it on its own.
+ WORKER_MODE=
++
++# Public academy contact details and advertised prices. Prices are in pounds (e.g. 450.50).
++# When SITE_CONTACT_PHONE is empty, the academy's published WhatsApp number is used.
++SITE_CONTACT_EMAIL=
++SITE_CONTACT_PHONE=
++SITE_BUSINESS_LOCATION_AR=
++SITE_BUSINESS_LOCATION_EN=
++SITE_MONTHLY_8_LESSONS_PRICE_EGP=2200
++SITE_PER_LESSON_PRICE_EGP=275
+diff --git a/webapp/app/[locale]/about/page.tsx b/webapp/app/[locale]/about/page.tsx
+new file mode 100644
+index 0000000..cd1bed3
+--- /dev/null
++++ b/webapp/app/[locale]/about/page.tsx
+@@ -0,0 +1,12 @@
++import { getTranslations } from "next-intl/server";
++
++import LegalPage from "../../_components/legal/legal-page";
++
++export async function generateMetadata() {
++  const t = await getTranslations("legal");
++  return { title: `${t("about.title")} | Zarabicschool` };
++}
++
++export default function AboutPage() {
++  return <LegalPage kind="about" />;
++}
+diff --git a/webapp/app/[locale]/contact/page.tsx b/webapp/app/[locale]/contact/page.tsx
+new file mode 100644
+index 0000000..ee6a6f6
+--- /dev/null
++++ b/webapp/app/[locale]/contact/page.tsx
+@@ -0,0 +1,12 @@
++import { getTranslations } from "next-intl/server";
++
++import LegalPage from "../../_components/legal/legal-page";
++
++export async function generateMetadata() {
++  const t = await getTranslations("legal");
++  return { title: `${t("contact.title")} | Zarabicschool` };
++}
++
++export default function ContactPage() {
++  return <LegalPage kind="contact" />;
++}
+diff --git a/webapp/app/[locale]/page.tsx b/webapp/app/[locale]/page.tsx
+index 42142da..5abba27 100644
+--- a/webapp/app/[locale]/page.tsx
++++ b/webapp/app/[locale]/page.tsx
+@@ -4,6 +4,7 @@ import Image from "next/image";
+ import { getLocale, getTranslations } from "next-intl/server";
+ import { Link } from "../../i18n/navigation";
+ import { getPublicWhatsAppLink } from "../../lib/messaging/contact-number";
++import { getPublicPlanPrices } from "../../lib/public-academy";
+ import Icon, { type IconName } from "../_components/ui/icon";
+ import ThemeSwitch from "../_components/theme-switch";
+ import "./minimal-landing.css";
+@@ -19,9 +20,14 @@ function Brand({ hero = false, footer = false }: { hero?: boolean; footer?: bool
+ 
+ export default async function Home() {
+   const [t, common, locale, whatsapp] = await Promise.all([getTranslations("minimalLanding"), getTranslations("common"), getLocale(), getPublicWhatsAppLink()]);
++  const publicPages = await getTranslations("legal");
++  const prices = getPublicPlanPrices(locale);
+   const cards = t.raw("cards") as Card[];
+-  const links = [["home", "#top"], ["navPrograms", "#curriculum-section"], ["navPlans", "#pricing-plans"], ["faq", "#faq"], ["contact", "#contact"]] as const;
+-  const nav = links.map(([key, href]) => <a key={key} href={href}>{t(key)}</a>);
++  const links = [["home", "#top"], ["navPrograms", "#curriculum-section"], ["navPlans", "#pricing-plans"], ["faq", "#faq"]] as const;
++  const nav = [
++    ...links.map(([key, href]) => <a key={key} href={href}>{t(key)}</a>),
++    <Link key="contact" href="/contact">{publicPages("contact.title")}</Link>,
++  ];
+   const apply = <Link className="ml-button" href="/apply">{t("apply")}</Link>;
+   const sections = [
+     {id:"curriculum-section", title:"programs", sub:"programSub", start:0,end:3},
+@@ -36,9 +42,9 @@ export default async function Home() {
+     <main id="main"><section className="ml-hero"><div className="ml-wrap"><div><small>{t("badge")}</small><h1>{t("headline")}<em>{t("accent")}</em></h1><p>{t("intro")}</p><div className="ml-actions">{apply}{whatsapp && <a className="ml-outline" href={whatsapp}>{t("whatsapp")}</a>}</div><ul>{t("facts").split(" · ").map(f=><li key={f}>{f}</li>)}</ul></div><Brand hero /></div></section>
+     {sections.map(s=><section className={`ml-section ml-${s.title}`} id={s.id} key={s.id}><div className="ml-wrap"><h2>{t(s.title)}</h2><p className="ml-sub">{t(s.sub)}</p><div className="ml-grid">{cards.slice(s.start,s.end).map((c,i)=><article key={c.title}>
+     {s.title==="steps" ? <b className="ml-icon">{i+1}</b> : s.title==="plans" ? <small>{c.badge}</small> : <b className="ml-icon"><Icon name={icons[s.title==="programs"?i:i+3]} size={24}/></b>}
+-    <h3>{c.title}</h3><p>{c.body}</p>{s.title==="plans" && <><p className="ml-price"><strong>—</strong> {t("price")}</p><Link className="ml-outline" href="/apply">{t("details")}</Link></>}</article>)}</div></div></section>)}
++    <h3>{c.title}</h3><p>{c.body}</p>{s.title==="plans" && <><p className="ml-price"><strong>{prices[i] ?? t("price")}</strong>{prices[i] && <> {t(i === 0 ? "perMonth" : "perLesson")}</>}</p><Link className="ml-outline" href="/apply">{t("details")}</Link></>}</article>)}</div></div></section>)}
+     <FaqAccordion />
+     <section id="admissions-form" className="ml-banner"><h2>{t("banner")}</h2><p>{t("bannerSub")}</p>{apply}</section></main>
+-    <footer id="contact"><div className="ml-wrap"><div className="ml-footer"><div><Brand footer/><p>{t("headline")}… {t("accent")}</p></div><div><h3>{t("quick")}</h3>{nav.slice(0,4)}<Link href="/terms">{t("termsLink")}</Link><Link href="/privacy">{t("privacyLink")}</Link><Link href="/refund-policy">{t("refundLink")}</Link></div><div><h3>{t("contact")}</h3>{whatsapp && <a href={whatsapp}>{t("whatsapp")}</a>}<Link href="/login">{t("login")}</Link></div></div><p className="ml-rights">© {new Date().getFullYear()} Zarabicschool · {t("rights")}</p></div></footer>
++    <footer id="contact"><div className="ml-wrap"><div className="ml-footer"><div><Brand footer/><p>{t("headline")}… {t("accent")}</p></div><div><h3>{t("quick")}</h3>{nav.slice(0,4)}<Link href="/about">{publicPages("about.title")}</Link><Link href="/terms">{t("termsLink")}</Link><Link href="/privacy">{t("privacyLink")}</Link><Link href="/refund-policy">{t("refundLink")}</Link></div><div><h3>{t("contact")}</h3><Link href="/contact">{publicPages("contact.title")}</Link><Link href="/service-delivery">{publicPages("delivery.title")}</Link>{whatsapp && <a href={whatsapp}>{t("whatsapp")}</a>}<Link href="/login">{t("login")}</Link></div></div><p className="ml-rights">© {new Date().getFullYear()} Zarabicschool · {t("rights")}</p></div></footer>
+   </div>;
+ }
+\ No newline at end of file
+diff --git a/webapp/app/[locale]/service-delivery/page.tsx b/webapp/app/[locale]/service-delivery/page.tsx
+new file mode 100644
+index 0000000..9782f67
+--- /dev/null
++++ b/webapp/app/[locale]/service-delivery/page.tsx
+@@ -0,0 +1,12 @@
++import { getTranslations } from "next-intl/server";
++
++import LegalPage from "../../_components/legal/legal-page";
++
++export async function generateMetadata() {
++  const t = await getTranslations("legal");
++  return { title: `${t("delivery.title")} | Zarabicschool` };
++}
++
++export default function DeliveryPage() {
++  return <LegalPage kind="delivery" />;
++}
+diff --git a/webapp/app/_components/legal/legal-page.tsx b/webapp/app/_components/legal/legal-page.tsx
+index a876b18..a1a10a2 100644
+--- a/webapp/app/_components/legal/legal-page.tsx
++++ b/webapp/app/_components/legal/legal-page.tsx
+@@ -3,18 +3,26 @@ import { getLocale, getTranslations } from "next-intl/server";
+ 
+ import { Link } from "@/i18n/navigation";
+ import { getPublicWhatsAppLink } from "@/lib/messaging/contact-number";
++import { getPublicBusinessContact } from "@/lib/public-academy";
+ import ThemeSwitch from "../theme-switch";
+ 
+-type LegalPageProps = {
+-  kind: "terms" | "privacy" | "refund";
+-};
++const publicRoutes = {
++  about: "/about",
++  contact: "/contact",
++  terms: "/terms",
++  privacy: "/privacy",
++  refund: "/refund-policy",
++  delivery: "/service-delivery",
++} as const;
++
++type PublicPageKind = keyof typeof publicRoutes;
+ 
+ type LegalSection = {
+   heading: string;
+   body: string[];
+ };
+ 
+-export default async function LegalPage({ kind }: LegalPageProps) {
++export default async function LegalPage({ kind }: { kind: PublicPageKind }) {
+   const [t, landing, common, locale, whatsapp] = await Promise.all([
+     getTranslations("legal"),
+     getTranslations("minimalLanding"),
+@@ -24,7 +32,9 @@ export default async function LegalPage({ kind }: LegalPageProps) {
+   ]);
+ 
+   const sections = t.raw(`${kind}.sections`) as LegalSection[];
+-  const path = kind === "terms" ? "/terms" : kind === "privacy" ? "/privacy" : "/refund-policy";
++  const path = publicRoutes[kind];
++  const isPolicy = kind === "terms" || kind === "privacy" || kind === "refund";
++  const contact = kind === "contact" ? getPublicBusinessContact(locale, whatsapp) : null;
+ 
+   return (
+     <div className="min-h-screen bg-surface text-on-surface flex flex-col">
+@@ -72,46 +82,53 @@ export default async function LegalPage({ kind }: LegalPageProps) {
+ 
+       <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:py-14">
+         <nav aria-label={t("navLabel")} className="mb-6 flex flex-wrap gap-2 text-xs font-semibold">
+-          <Link
+-            href="/terms"
+-            className={`rounded-full border px-3 py-1 transition ${
+-              kind === "terms"
+-                ? "border-primary bg-primary text-on-primary"
+-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
+-            }`}
+-          >
+-            {t("terms.title")}
+-          </Link>
+-          <Link
+-            href="/privacy"
+-            className={`rounded-full border px-3 py-1 transition ${
+-              kind === "privacy"
+-                ? "border-primary bg-primary text-on-primary"
+-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
+-            }`}
+-          >
+-            {t("privacy.title")}
+-          </Link>
+-          <Link
+-            href="/refund-policy"
+-            className={`rounded-full border px-3 py-1 transition ${
+-              kind === "refund"
+-                ? "border-primary bg-primary text-on-primary"
+-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
+-            }`}
+-          >
+-            {t("refund.title")}
+-          </Link>
++          {(Object.keys(publicRoutes) as PublicPageKind[]).map((item) => (
++            <Link
++              key={item}
++              href={publicRoutes[item]}
++              aria-current={kind === item ? "page" : undefined}
++              className={`rounded-full border px-3 py-1 transition ${
++                kind === item
++                  ? "border-primary bg-primary text-on-primary"
++                  : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
++              }`}
++            >
++              {t(`${item}.title`)}
++            </Link>
++          ))}
+         </nav>
+ 
+         <article className="z-card rounded-2xl p-6 sm:p-10 space-y-8">
+           <header className="border-b border-outline-variant pb-6 space-y-2">
+-            <p className="text-xs font-bold uppercase tracking-wider text-secondary">{t("eyebrow")}</p>
++            {isPolicy && <p className="text-xs font-bold uppercase tracking-wider text-secondary">{t("eyebrow")}</p>}
+             <h1 className="text-2xl sm:text-3xl font-bold text-primary">{t(`${kind}.title`)}</h1>
+             <p className="text-sm text-on-surface-variant">{t(`${kind}.subtitle`)}</p>
+-            <p className="text-xs text-on-surface-variant/80">{t("lastUpdated")}</p>
++            {isPolicy && <p className="text-xs text-on-surface-variant/80">{t("lastUpdated")}</p>}
+           </header>
+ 
++          {contact && (contact.email || contact.phone || contact.location) && (
++            <dl className="space-y-4 text-sm sm:text-base">
++              {contact.email && (
++                <div>
++                  <dt className="font-bold">{t("contact.email")}</dt>
++                  <dd><a className="text-primary underline" href={`mailto:${contact.email}`}><bdi>{contact.email}</bdi></a></dd>
++                </div>
++              )}
++              {contact.phone && (
++                <div>
++                  <dt className="font-bold">{t("contact.phone")}</dt>
++                  <dd><a className="text-primary underline" href={`tel:${contact.phone}`}><bdi>{contact.phone}</bdi></a></dd>
++                </div>
++              )}
++              {contact.location && (
++                <div>
++                  <dt className="font-bold">{t("contact.location")}</dt>
++                  <dd>{contact.location}</dd>
++                </div>
++              )}
++            </dl>
++          )}
++
+           <div className="space-y-6">
+             {sections.map((section) => (
+               <section key={section.heading} className="space-y-2.5">
+@@ -126,7 +143,9 @@ export default async function LegalPage({ kind }: LegalPageProps) {
+           </div>
+ 
+           <footer className="border-t border-outline-variant pt-6 flex flex-wrap items-center justify-between gap-4 text-sm">
+-            <p className="text-on-surface-variant">{t("contactPrompt")}</p>
++            {kind !== "contact" && (
++              <Link href="/contact" className="text-primary font-semibold hover:underline">{t("contact.title")}</Link>
++            )}
+             <div className="flex items-center gap-3">
+               {whatsapp ? (
+                 <a
+diff --git a/webapp/lib/public-academy.ts b/webapp/lib/public-academy.ts
+new file mode 100644
+--- /dev/null
++++ b/webapp/lib/public-academy.ts
+@@ -0,0 +1,40 @@
++import "server-only";
++
++import { toInternationalDigits } from "./messaging/phone";
++
++function formatEgp(raw: string | undefined, locale: string) {
++  const value = raw?.trim();
++  if (!value || !/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
++
++  const amount = Number(value);
++  if (!Number.isFinite(amount) || amount <= 0) return null;
++
++  return new Intl.NumberFormat(locale, {
++    style: "currency",
++    currency: "EGP",
++    currencyDisplay: "code",
++    minimumFractionDigits: 0,
++    maximumFractionDigits: 2,
++  }).format(amount);
++}
++
++export function getPublicPlanPrices(locale: string) {
++  return [
++    formatEgp(process.env.SITE_MONTHLY_8_LESSONS_PRICE_EGP?.trim() || "2200", locale),
++    formatEgp(process.env.SITE_PER_LESSON_PRICE_EGP?.trim() || "275", locale),
++  ];
++}
++
++export function getPublicBusinessContact(locale: string, whatsapp: string | null) {
++  const phone = toInternationalDigits(process.env.SITE_CONTACT_PHONE)
++    ?? (whatsapp ? new URL(whatsapp).pathname.slice(1) : null);
++  const location = locale === "ar"
++    ? process.env.SITE_BUSINESS_LOCATION_AR
++    : process.env.SITE_BUSINESS_LOCATION_EN;
++
++  return {
++    email: process.env.SITE_CONTACT_EMAIL?.trim() || null,
++    phone: phone ? `+${phone}` : null,
++    location: location?.trim() || null,
++  };
++}
+diff --git a/webapp/messages/ar.json b/webapp/messages/ar.json
+index 76084bd..43fcd43 100644
+--- a/webapp/messages/ar.json
++++ b/webapp/messages/ar.json
+@@ -49,7 +49,7 @@
+     "benefits": "لماذا تختارنا؟",
+     "benefitSub": "أربعة أسباب تجعل تجربتك التعليمية أكثر وضوحًا وراحة.",
+     "plans": "خطط الاشتراك",
+-    "planSub": "اختر الأنسب لك. التفاصيل والأسعار تُحدّد عند التسجيل.",
++    "planSub": "قارن بين الباقة الشهرية والدفع لكل حصة. الأسعار بالجنيه المصري (EGP).",
+     "reviews": "آراء الطلاب وأولياء الأمور",
+     "placeholder": "هنا يوضع رأي الطالب أو وليّ الأمر بعد الحصول على موافقته.",
+     "parent": "اسم ولي الأمر",
+@@ -59,7 +59,9 @@
+     "banner": "ابدأ رحلتك مع القرآن والعربية اليوم",
+     "bannerSub": "قدّم طلبك الآن وسنتواصل معك لتأكيد أنسب موعد.",
+     "details": "التفاصيل",
+-    "price": "السعر يُحدّد لاحقًا",
++    "price": "تواصل معنا لمعرفة السعر الحالي",
++    "perMonth": "شهريًا",
++    "perLesson": "للحصة",
+     "quick": "روابط سريعة",
+     "contact": "تواصل معنا",
+     "home": "الرئيسية",
+@@ -3115,8 +3117,58 @@
+     "switch": "المظهر: {current}. التبديل إلى {next}"
+   },
+   "legal": {
++    "about": {
++      "title": "من نحن",
++      "subtitle": "المدرسة العربية أكاديمية إلكترونية لتعليم اللغة العربية والقرآن الكريم.",
++      "sections": [
++        {
++          "heading": "ماذا نُدرّس؟",
++          "body": [
++            "نقدّم حصصًا مباشرة في القراءة والكتابة والمحادثة باللغة العربية، وفي تلاوة القرآن والتجويد والحفظ. يمكن للطلاب التعلّم في حصص فردية أو جماعية."
++          ]
++        },
++        {
++          "heading": "كيف تُعقد الحصص؟",
++          "body": [
++            "تُعقد الحصص عبر زوم. يطّلع الطلاب على الحصص القادمة من لوحة الطالب، وتتابع الأسر التقدّم من خلال تقارير الحصص."
++          ]
++        }
++      ]
++    },
++    "contact": {
++      "title": "تواصل معنا",
++      "subtitle": "تواصل مع المدرسة العربية للاستفسار عن التسجيل أو المواعيد أو الفواتير أو دعم الحساب.",
++      "email": "البريد الإلكتروني",
++      "phone": "رقم الهاتف",
++      "location": "موقع النشاط",
++      "sections": []
++    },
++    "delivery": {
++      "title": "تقديم الحصص عبر الإنترنت",
++      "subtitle": "طريقة الوصول إلى حصصك المجدولة في المدرسة العربية.",
++      "sections": [
++        {
++          "heading": "الوصول إلى الحصص",
++          "body": [
++            "بعد قبول التسجيل وسداد الفاتورة الخاصة بالحصص، تقدر تتابع مواعيدها من لوحة الطالب. افتح الحصة من اللوحة واضغط على رابط الانضمام في الموعد المحدد لحضورها عبر زوم."
++          ]
++        },
++        {
++          "heading": "الشحن",
++          "body": [
++            "الحصص تُقدّم عبر الإنترنت. لا تتطلب هذه الحصص شحنًا فعليًا ولا تُضاف إليها رسوم شحن."
++          ]
++        },
++        {
++          "heading": "لو رابط الحصة غير ظاهر",
++          "body": [
++            "تواصل مع الأكاديمية واذكر اسم الطالب وتاريخ الحصة المجدولة حتى نتمكن من مراجعة الحجز."
++          ]
++        }
++      ]
++    },
+     "eyebrow": "السياسات والشروط القانونية",
+-    "navLabel": "المستندات القانونية",
++    "navLabel": "معلومات الأكاديمية وسياساتها",
+     "lastUpdated": "آخر تحديث: نوفمبر 2026",
+     "contactPrompt": "هل لديك استفسار حول هذه السياسات؟ تواصل معنا عبر واتساب:",
+     "backHome": "العودة للرئيسية",
+diff --git a/webapp/messages/en.json b/webapp/messages/en.json
+index 13a1eb3..58bb91b 100644
+--- a/webapp/messages/en.json
++++ b/webapp/messages/en.json
+@@ -49,7 +49,7 @@
+     "benefits": "Why choose us?",
+     "benefitSub": "Support at every step of your learning journey.",
+     "plans": "Subscription plans",
+-    "planSub": "Choose the plan that suits you. Pricing is confirmed at registration.",
++    "planSub": "Compare the monthly package and pay-as-you-go lessons. Prices are in Egyptian pounds (EGP).",
+     "reviews": "Student and parent voices",
+     "placeholder": "A student or parent review will appear here with their permission.",
+     "parent": "Parent name",
+@@ -59,7 +59,9 @@
+     "banner": "Start your Quran and Arabic journey today",
+     "bannerSub": "Apply today and we’ll contact you to arrange a suitable time.",
+     "details": "Details",
+-    "price": "Price to be confirmed",
++    "price": "Contact us for the current price",
++    "perMonth": "per month",
++    "perLesson": "per lesson",
+     "quick": "Quick links",
+     "contact": "Contact us",
+     "home": "Home",
+@@ -3115,8 +3117,58 @@
+     "switch": "Theme: {current}. Switch to {next}"
+   },
+   "legal": {
++    "about": {
++      "title": "About Us",
++      "subtitle": "Zarabicschool is an online academy for Arabic and Quran learning.",
++      "sections": [
++        {
++          "heading": "What we teach",
++          "body": [
++            "We offer live Arabic lessons in reading, writing and conversation, as well as Quran recitation, tajweed and memorization. Students can learn in one-on-one or group classes."
++          ]
++        },
++        {
++          "heading": "How lessons work",
++          "body": [
++            "Lessons take place on Zoom. Students can find upcoming classes in their dashboards, and families can follow progress through lesson reports."
++          ]
++        }
++      ]
++    },
++    "contact": {
++      "title": "Contact Us",
++      "subtitle": "Contact Zarabicschool for enrollment, scheduling, invoices, or account support.",
++      "email": "Email address",
++      "phone": "Phone number",
++      "location": "Business location",
++      "sections": []
++    },
++    "delivery": {
++      "title": "Online Lesson Delivery",
++      "subtitle": "How to access your scheduled Zarabicschool lessons.",
++      "sections": [
++        {
++          "heading": "Accessing your lessons",
++          "body": [
++            "After enrollment is approved and the applicable invoice is paid, you can view scheduled lessons in your student dashboard. Open the lesson there and use the join link at the scheduled time to attend on Zoom."
++          ]
++        },
++        {
++          "heading": "Shipping",
++          "body": [
++            "The website provides online lessons. No physical shipment or shipping fee applies to these lessons."
++          ]
++        },
++        {
++          "heading": "If a lesson link is missing",
++          "body": [
++            "Contact the academy with the student name and the scheduled lesson date so we can locate the booking."
++          ]
++        }
++      ]
++    },
+     "eyebrow": "Legal & Compliance",
+-    "navLabel": "Legal documents",
++    "navLabel": "Academy information and policies",
+     "lastUpdated": "Last updated: November 2026",
+     "contactPrompt": "Questions about these policies? Reach us on WhatsApp:",
+     "backHome": "Back to home",

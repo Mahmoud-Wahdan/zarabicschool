@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-import { egyptPhoneRegex } from "./application";
+import { toInternationalDigits } from "../messaging/phone";
 import { usernamePattern } from "./shared";
 
 const phoneField = z
   .string()
   .trim()
-  .refine((val) => egyptPhoneRegex.test(val.replace(/[\s()-]/g, "")), {
-    message: "Invalid Egyptian WhatsApp number (e.g. 01012345678 or +201012345678)",
+  .refine((val) => toInternationalDigits(val), {
+    message: "Enter a phone number with its country code, e.g. +44 7700 900123",
   });
 
 export const approveApplicationSchema = z

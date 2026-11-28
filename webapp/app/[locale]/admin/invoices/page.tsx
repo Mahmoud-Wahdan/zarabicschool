@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import DashboardShell from "../../../_components/dashboard-shell";
 import PageHeader from "../../../_components/ui/page-header";
@@ -18,7 +18,8 @@ export default async function AdminInvoicesPage() {
   const user = await requireRole("ADMIN");
   const t = await getTranslations("invoices");
 
-  const [invoices, students, refundRequests] = await Promise.all([
+  const locale = await getLocale();
+  const [invoices, students, refundRequests, monthlyPlan] = await Promise.all([
     prisma.invoice.findMany({
       where: { academyId: user.academyId },
       orderBy: { createdAt: "desc" },
@@ -47,6 +48,17 @@ export default async function AdminInvoicesPage() {
     }),
     // S-15: payers' waiting refund requests.
     listRefundRequests(user.academyId, "PENDING"),
+    prisma.billingPlan.findFirst({
+      where: {
+        academyId: user.academyId,
+        tier: "public-monthly-8",
+        packageType: "MONTHLY_PLAN",
+        currency: "EGP",
+        isActive: true,
+      },
+      orderBy: { createdAt: "asc" },
+      select: { nameAr: true, nameEn: true, basePriceMinor: true, sessionsPerMonth: true },
+    }),
   ]);
 
   return (
@@ -77,6 +89,11 @@ export default async function AdminInvoicesPage() {
               uploadedBy: proof.uploadedBy.displayName,
             })),
           }))}
+          monthlyPlan={monthlyPlan ? {
+            name: locale === "ar" ? monthlyPlan.nameAr : monthlyPlan.nameEn,
+            amountMinor: monthlyPlan.basePriceMinor.toString(),
+            sessions: monthlyPlan.sessionsPerMonth,
+          } : null}
           students={students.map((student) => ({ id: student.id, displayName: student.user.displayName }))}
         />
       </div>

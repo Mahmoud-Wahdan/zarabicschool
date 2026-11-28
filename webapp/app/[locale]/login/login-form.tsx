@@ -100,6 +100,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
             type="text"
             autoComplete="username"
             dir="ltr"
+            style={{ paddingInline: "3rem" }}
             className="z-input rounded-lg bg-surface-container-low py-2.5 px-10 transition-all duration-200 placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-md"
           />
         </div>
@@ -121,6 +122,7 @@ export default function LoginForm({ callbackPath = null }: { callbackPath?: stri
             type={passwordVisible ? "text" : "password"}
             autoComplete="current-password"
             dir="ltr"
+            style={{ paddingInline: "3rem" }}
             className="z-input rounded-lg bg-surface-container-low py-2.5 pe-10 ps-10 transition-all duration-200 placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-md"
           />
           <button

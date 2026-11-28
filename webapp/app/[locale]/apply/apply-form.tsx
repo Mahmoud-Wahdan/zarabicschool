@@ -326,7 +326,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
           </label>
           <input
             id={`${formId}-phone`}
-            type="tel"
+            type="tel" autoComplete="tel"
             required
             dir="ltr"
             disabled={isSubmitting}
@@ -637,7 +637,7 @@ export default function ApplyForm({ type, subjects, locale }: ApplyFormProps) {
                   </label>
                   <input
                     id={`${formId}-gphone`}
-                    type="tel"
+                    type="tel" autoComplete="tel"
                     required
                     dir="ltr"
                     disabled={isSubmitting}

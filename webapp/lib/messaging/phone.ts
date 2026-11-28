@@ -17,7 +17,9 @@ const E164_DIGITS = /^[1-9]\d{6,14}$/;
 /** International digits without "+" (e.g. "201012345678"), or null when not addressable. */
 export function toInternationalDigits(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const compact = raw.replace(/[\s().-]/g, "");
+  const compact = raw.replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, digit => String(digit.charCodeAt(0) - 0x6f0))
+    .replace(/[\s().-]/g, "");
   if (compact.startsWith("+")) {
     const digits = compact.slice(1);
     return E164_DIGITS.test(digits) ? digits : null;

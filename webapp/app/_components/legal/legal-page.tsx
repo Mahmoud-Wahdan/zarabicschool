@@ -3,18 +3,26 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { getPublicWhatsAppLink } from "@/lib/messaging/contact-number";
+import { getPublicBusinessContact } from "@/lib/public-academy";
 import ThemeSwitch from "../theme-switch";
 
-type LegalPageProps = {
-  kind: "terms" | "privacy" | "refund";
-};
+const publicRoutes = {
+  about: "/about",
+  contact: "/contact",
+  terms: "/terms",
+  privacy: "/privacy",
+  refund: "/refund-policy",
+  delivery: "/service-delivery",
+} as const;
+
+type PublicPageKind = keyof typeof publicRoutes;
 
 type LegalSection = {
   heading: string;
   body: string[];
 };
 
-export default async function LegalPage({ kind }: LegalPageProps) {
+export default async function LegalPage({ kind }: { kind: PublicPageKind }) {
   const [t, landing, common, locale, whatsapp] = await Promise.all([
     getTranslations("legal"),
     getTranslations("minimalLanding"),
@@ -24,7 +32,9 @@ export default async function LegalPage({ kind }: LegalPageProps) {
   ]);
 
   const sections = t.raw(`${kind}.sections`) as LegalSection[];
-  const path = kind === "terms" ? "/terms" : kind === "privacy" ? "/privacy" : "/refund-policy";
+  const path = publicRoutes[kind];
+  const isPolicy = kind === "terms" || kind === "privacy" || kind === "refund";
+  const contact = kind === "contact" ? getPublicBusinessContact(locale, whatsapp) : null;
 
   return (
     <div className="min-h-screen bg-surface text-on-surface flex flex-col">
@@ -72,45 +82,52 @@ export default async function LegalPage({ kind }: LegalPageProps) {
 
       <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:py-14">
         <nav aria-label={t("navLabel")} className="mb-6 flex flex-wrap gap-2 text-xs font-semibold">
-          <Link
-            href="/terms"
-            className={`rounded-full border px-3 py-1 transition ${
-              kind === "terms"
-                ? "border-primary bg-primary text-on-primary"
-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
-            }`}
-          >
-            {t("terms.title")}
-          </Link>
-          <Link
-            href="/privacy"
-            className={`rounded-full border px-3 py-1 transition ${
-              kind === "privacy"
-                ? "border-primary bg-primary text-on-primary"
-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
-            }`}
-          >
-            {t("privacy.title")}
-          </Link>
-          <Link
-            href="/refund-policy"
-            className={`rounded-full border px-3 py-1 transition ${
-              kind === "refund"
-                ? "border-primary bg-primary text-on-primary"
-                : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
-            }`}
-          >
-            {t("refund.title")}
-          </Link>
+          {(Object.keys(publicRoutes) as PublicPageKind[]).map((item) => (
+            <Link
+              key={item}
+              href={publicRoutes[item]}
+              aria-current={kind === item ? "page" : undefined}
+              className={`rounded-full border px-3 py-1 transition ${
+                kind === item
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary/50"
+              }`}
+            >
+              {t(`${item}.title`)}
+            </Link>
+          ))}
         </nav>
 
         <article className="z-card rounded-2xl p-6 sm:p-10 space-y-8">
           <header className="border-b border-outline-variant pb-6 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-secondary">{t("eyebrow")}</p>
+            {isPolicy && <p className="text-xs font-bold uppercase tracking-wider text-secondary">{t("eyebrow")}</p>}
             <h1 className="text-2xl sm:text-3xl font-bold text-primary">{t(`${kind}.title`)}</h1>
             <p className="text-sm text-on-surface-variant">{t(`${kind}.subtitle`)}</p>
-            <p className="text-xs text-on-surface-variant/80">{t("lastUpdated")}</p>
+            {isPolicy && <p className="text-xs text-on-surface-variant/80">{t("lastUpdated")}</p>}
           </header>
+
+          {contact && (contact.email || contact.phone || contact.location) && (
+            <dl className="space-y-4 text-sm sm:text-base">
+              {contact.email && (
+                <div>
+                  <dt className="font-bold">{t("contact.email")}</dt>
+                  <dd><a className="text-primary underline" href={`mailto:${contact.email}`}><bdi>{contact.email}</bdi></a></dd>
+                </div>
+              )}
+              {contact.phone && (
+                <div>
+                  <dt className="font-bold">{t("contact.phone")}</dt>
+                  <dd><a className="text-primary underline" href={`tel:${contact.phone}`}><bdi>{contact.phone}</bdi></a></dd>
+                </div>
+              )}
+              {contact.location && (
+                <div>
+                  <dt className="font-bold">{t("contact.location")}</dt>
+                  <dd>{contact.location}</dd>
+                </div>
+              )}
+            </dl>
+          )}
 
           <div className="space-y-6">
             {sections.map((section) => (
@@ -126,7 +143,9 @@ export default async function LegalPage({ kind }: LegalPageProps) {
           </div>
 
           <footer className="border-t border-outline-variant pt-6 flex flex-wrap items-center justify-between gap-4 text-sm">
-            <p className="text-on-surface-variant">{t("contactPrompt")}</p>
+            {kind !== "contact" && (
+              <Link href="/contact" className="text-primary font-semibold hover:underline">{t("contact.title")}</Link>
+            )}
             <div className="flex items-center gap-3">
               {whatsapp ? (
                 <a

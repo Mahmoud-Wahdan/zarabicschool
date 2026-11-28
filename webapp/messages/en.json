@@ -49,7 +49,7 @@
     "benefits": "Why choose us?",
     "benefitSub": "Support at every step of your learning journey.",
     "plans": "Subscription plans",
-    "planSub": "Choose the plan that suits you. Pricing is confirmed at registration.",
+    "planSub": "Compare the monthly package and pay-as-you-go lessons. Prices are in Egyptian pounds (EGP).",
     "reviews": "Student and parent voices",
     "placeholder": "A student or parent review will appear here with their permission.",
     "parent": "Parent name",
@@ -59,7 +59,9 @@
     "banner": "Start your Quran and Arabic journey today",
     "bannerSub": "Apply today and we’ll contact you to arrange a suitable time.",
     "details": "Details",
-    "price": "Price to be confirmed",
+    "price": "Contact us for the current price",
+    "perMonth": "per month",
+    "perLesson": "per lesson",
     "quick": "Quick links",
     "contact": "Contact us",
     "home": "Home",
@@ -114,9 +116,9 @@
         "body": "Pay through trusted payment providers and cancel when you wish."
       },
       {
-        "title": "Monthly subscription",
-        "body": "Eight lessons each month with automatic renewal. Cancel at any time.",
-        "badge": "Auto renewal"
+        "title": "Monthly package of 8 lessons",
+        "body": "Book 8 live lessons per month. Contact the academy to confirm enrollment.",
+        "badge": "8 lessons per month"
       },
       {
         "title": "Pay as you go",
@@ -1198,7 +1200,7 @@
     "fullName": "Full Name",
     "fullNamePlaceholder": "e.g. Fatima Ahmed",
     "phoneWhatsapp": "WhatsApp Phone Number",
-    "phoneWhatsappPlaceholder": "e.g. 01012345678",
+    "phoneWhatsappPlaceholder": "Country code and number, e.g. +44 7700 900123",
     "email": "Email Address (optional)",
     "emailPlaceholder": "name@example.com",
     "timezone": "Timezone",
@@ -1218,7 +1220,7 @@
     "guardianName": "Guardian Name",
     "guardianNamePlaceholder": "e.g. Ahmed Mohamed",
     "guardianPhone": "Guardian WhatsApp Phone",
-    "guardianPhonePlaceholder": "e.g. 01012345678",
+    "guardianPhonePlaceholder": "Country code and number, e.g. +44 7700 900123",
     "guardianRelationship": "Guardian Relationship",
     "relationshipFather": "Father",
     "relationshipMother": "Mother",
@@ -1278,11 +1280,11 @@
   },
   "login": {
     "connectionError": "Could not finish signing in. Check your connection and try again.",
-    "usernameError": "Use 3–30 letters, numbers, dots, underscores or dashes.",
+    "usernameError": "Enter your username, phone number or email.",
     "passwordError": "Enter your password (up to 72 characters).",
     "title": "Log in to your academic account",
     "subtitle": "Enter your username and password to access your dashboard (administration, supervisors, teachers, guardians, students).",
-    "username": "Username or academic ID",
+    "username": "Username, phone number or email",
     "password": "Password",
     "submit": "Enter the platform",
     "submitting": "Signing in...",
@@ -3115,8 +3117,58 @@
     "switch": "Theme: {current}. Switch to {next}"
   },
   "legal": {
+    "about": {
+      "title": "About Us",
+      "subtitle": "Zarabicschool is an online academy for Arabic and Quran learning.",
+      "sections": [
+        {
+          "heading": "What we teach",
+          "body": [
+            "We offer live Arabic lessons in reading, writing and conversation, as well as Quran recitation, tajweed and memorization. Students can learn in one-on-one or group classes."
+          ]
+        },
+        {
+          "heading": "How lessons work",
+          "body": [
+            "Lessons take place on Zoom. Students can find upcoming classes in their dashboards, and families can follow progress through lesson reports."
+          ]
+        }
+      ]
+    },
+    "contact": {
+      "title": "Contact Us",
+      "subtitle": "Contact Zarabicschool for enrollment, scheduling, invoices, or account support.",
+      "email": "Email address",
+      "phone": "Phone number",
+      "location": "Business location",
+      "sections": []
+    },
+    "delivery": {
+      "title": "Online Lesson Delivery",
+      "subtitle": "How to access your scheduled Zarabicschool lessons.",
+      "sections": [
+        {
+          "heading": "Accessing your lessons",
+          "body": [
+            "After enrollment is approved and the applicable invoice is paid, you can view scheduled lessons in your student dashboard. Open the lesson there and use the join link at the scheduled time to attend on Zoom."
+          ]
+        },
+        {
+          "heading": "Shipping",
+          "body": [
+            "The website provides online lessons. No physical shipment or shipping fee applies to these lessons."
+          ]
+        },
+        {
+          "heading": "If a lesson link is missing",
+          "body": [
+            "Contact the academy with the student name and the scheduled lesson date so we can locate the booking."
+          ]
+        }
+      ]
+    },
     "eyebrow": "Legal & Compliance",
-    "navLabel": "Legal documents",
+    "navLabel": "Academy information and policies",
     "lastUpdated": "Last updated: November 2026",
     "contactPrompt": "Questions about these policies? Reach us on WhatsApp:",
     "backHome": "Back to home",

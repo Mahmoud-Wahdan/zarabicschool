@@ -6,7 +6,7 @@ import type { Prisma } from "../generated/prisma/client";
 import { generateTemporaryPassword, generateUsername } from "./credentials";
 import { prisma } from "./prisma";
 import { normalizeUsername, usernameSchema } from "./validation/auth";
-import { normalizeEgyptPhone } from "./validation/application";
+import { normalizePhone } from "./validation/application";
 import { calculateAdultStatus, isAdultAge } from "./validation/birth-date";
 
 const bcryptRounds = 12;
@@ -470,7 +470,7 @@ export async function approveApplication(input: ApproveInput): Promise<Provision
           overrides,
           input.randomDigits
         );
-        const guardianPhone = normalizeEgyptPhone(input.createGuardian.phone_whatsapp);
+        const guardianPhone = normalizePhone(input.createGuardian.phone_whatsapp);
 
         const guardianUser = await tx.user.create({
           data: {

@@ -6,14 +6,12 @@ import {
   validateDriveLink,
 } from "./drive-video";
 
-export const egyptPhoneRegex = /^(?:\+20|0020|0)?1[0125]\d{8}$/;
+import { toInternationalDigits } from "../messaging/phone";
 
-export function normalizeEgyptPhone(value: string): string {
-  const compact = value.replace(/[\s()-]/g, "");
-  if (compact.startsWith("+20")) return compact;
-  if (compact.startsWith("0020")) return `+${compact.slice(2)}`;
-  if (compact.startsWith("0")) return `+20${compact.slice(1)}`;
-  return `+20${compact}`;
+export function normalizePhone(value: string): string {
+  const digits = toInternationalDigits(value);
+  if (!digits) throw new Error("Invalid phone number");
+  return `+${digits}`;
 }
 
 export function calculateAge(dateOfBirthStr: string, relativeTo = new Date()): number {
@@ -33,8 +31,8 @@ const commonFields = {
   phone_whatsapp: z
     .string()
     .trim()
-    .refine((val) => egyptPhoneRegex.test(val.replace(/[\s()-]/g, "")), {
-      message: "Invalid Egyptian WhatsApp number (e.g. 01012345678 or +201012345678)",
+    .refine((val) => toInternationalDigits(val), {
+      message: "Enter a phone number with its country code, e.g. +44 7700 900123",
     }),
   email: z.string().trim().email("Invalid email address").optional().or(z.literal("")),
   timezone: z.string().trim().min(1).max(100).default("Africa/Cairo"),
@@ -155,7 +153,7 @@ export function createApplicationSchema(allowedSubjects?: string[]) {
             message: "Guardian name is required for applicants under 18",
           });
         }
-        if (!val.guardian_phone || !egyptPhoneRegex.test(val.guardian_phone.replace(/[\s()-]/g, ""))) {
+        if (!val.guardian_phone || !toInternationalDigits(val.guardian_phone)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["guardian_phone"],
@@ -219,7 +217,7 @@ export function validateApplicationSubjects(
 }
 
 export function normalizeApplication(input: ApplicationInput) {
-  const phone_whatsapp = normalizeEgyptPhone(input.phone_whatsapp);
+  const phone_whatsapp = normalizePhone(input.phone_whatsapp);
   const email = input.email ? input.email.trim() : undefined;
 
   if (input.type === "GUARDIAN" || input.type === "guardian") {
@@ -237,7 +235,7 @@ export function normalizeApplication(input: ApplicationInput) {
       type: "STUDENT" as const,
       phone_whatsapp,
       email,
-      guardian_phone: input.guardian_phone ? normalizeEgyptPhone(input.guardian_phone) : undefined,
+      guardian_phone: input.guardian_phone && toInternationalDigits(input.guardian_phone) ? normalizePhone(input.guardian_phone) : undefined,
     };
   }
 

@@ -1,0 +1,141 @@
+diff --git a/webapp/lib/public-academy.ts b/webapp/lib/public-academy.ts
+--- a/webapp/lib/public-academy.ts
++++ b/webapp/lib/public-academy.ts
+@@ -28,13 +28,13 @@
+ export function getPublicBusinessContact(locale: string, whatsapp: string | null) {
+   const phone = toInternationalDigits(process.env.SITE_CONTACT_PHONE)
+     ?? (whatsapp ? new URL(whatsapp).pathname.slice(1) : null);
+   const location = locale === "ar"
+-    ? process.env.SITE_BUSINESS_LOCATION_AR
+-    : process.env.SITE_BUSINESS_LOCATION_EN;
++    ? process.env.SITE_BUSINESS_LOCATION_AR?.trim() || "قويسنا، المنوفية، مصر"
++    : process.env.SITE_BUSINESS_LOCATION_EN?.trim() || "Quesna, Menoufia, Egypt";
+ 
+   return {
+-    email: process.env.SITE_CONTACT_EMAIL?.trim() || null,
++    email: process.env.SITE_CONTACT_EMAIL?.trim() || "zarabics@gmail.com",
+     phone: phone ? `+${phone}` : null,
+-    location: location?.trim() || null,
++    location,
+   };
+ }
+diff --git a/webapp/app/[locale]/admin/invoices/page.tsx b/webapp/app/[locale]/admin/invoices/page.tsx
+--- a/webapp/app/[locale]/admin/invoices/page.tsx
++++ b/webapp/app/[locale]/admin/invoices/page.tsx
+@@ -1,4 +1,4 @@
+-import { getTranslations } from "next-intl/server";
++import { getLocale, getTranslations } from "next-intl/server";
+ 
+ import DashboardShell from "../../../_components/dashboard-shell";
+ import PageHeader from "../../../_components/ui/page-header";
+@@ -18,7 +18,8 @@
+   const user = await requireRole("ADMIN");
+   const t = await getTranslations("invoices");
+ 
+-  const [invoices, students, refundRequests] = await Promise.all([
++  const locale = await getLocale();
++  const [invoices, students, refundRequests, monthlyPlan] = await Promise.all([
+     prisma.invoice.findMany({
+       where: { academyId: user.academyId },
+       orderBy: { createdAt: "desc" },
+@@ -47,6 +48,17 @@
+     }),
+     // S-15: payers' waiting refund requests.
+     listRefundRequests(user.academyId, "PENDING"),
++    prisma.billingPlan.findFirst({
++      where: {
++        academyId: user.academyId,
++        tier: "public-monthly-8",
++        packageType: "MONTHLY_PLAN",
++        currency: "EGP",
++        isActive: true,
++      },
++      orderBy: { createdAt: "asc" },
++      select: { nameAr: true, nameEn: true, basePriceMinor: true, sessionsPerMonth: true },
++    }),
+   ]);
+ 
+   return (
+@@ -77,6 +89,11 @@
+               uploadedBy: proof.uploadedBy.displayName,
+             })),
+           }))}
++          monthlyPlan={monthlyPlan ? {
++            name: locale === "ar" ? monthlyPlan.nameAr : monthlyPlan.nameEn,
++            amountMinor: monthlyPlan.basePriceMinor.toString(),
++            sessions: monthlyPlan.sessionsPerMonth,
++          } : null}
+           students={students.map((student) => ({ id: student.id, displayName: student.user.displayName }))}
+         />
+       </div>
+diff --git a/webapp/app/_components/invoices/admin-invoices-panel.tsx b/webapp/app/_components/invoices/admin-invoices-panel.tsx
+--- a/webapp/app/_components/invoices/admin-invoices-panel.tsx
++++ b/webapp/app/_components/invoices/admin-invoices-panel.tsx
+@@ -22,10 +22,11 @@
+ };
+ 
+ type StudentOption = { id: string; displayName: string };
++type MonthlyPlan = { name: string; amountMinor: string; sessions: number };
+ 
+ const STATUS_TONE: Record<InvoiceRow["status"], BadgeTone> = { PENDING: "pending", PAID: "success", FAILED: "danger", CANCELLED: "neutral" };
+ 
+-export default function AdminInvoicesPanel({ initialInvoices, students, timeZone }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string }) {
++export default function AdminInvoicesPanel({ initialInvoices, students, timeZone, monthlyPlan }: { initialInvoices: InvoiceRow[]; students: StudentOption[]; timeZone: string; monthlyPlan?: MonthlyPlan | null }) {
+   const t = useTranslations("invoices");
+   const locale = useLocale();
+   const [invoices, setInvoices] = useState(initialInvoices);
+@@ -119,6 +120,22 @@
+       <section className="z-card rounded-xl p-5">
+         <h2 className="font-semibold text-primary">{t("createTitle")}</h2>
+         <p className="mt-1 text-label-sm text-on-surface-variant">{t("createHint")}</p>
++        {monthlyPlan && (
++          <button
++            type="button"
++            className="btn btn-outline mt-3"
++            onClick={() => setCreate((current) => ({
++              ...current,
++              packageType: "MONTHLY_PLAN",
++              sessionsPurchased: monthlyPlan.sessions,
++              amount: (Number(monthlyPlan.amountMinor) / 100).toFixed(2),
++              currency: "EGP",
++              provider: "PAYMOB",
++            }))}
++          >
++            {monthlyPlan.name} · {money(monthlyPlan.amountMinor, "EGP")}
++          </button>
++        )}
+         <form onSubmit={createInvoice} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_8rem_10rem_7rem_auto] lg:items-end">
+           <label className="flex flex-col gap-1 text-label-md text-on-surface">{t("colStudent")}
+             <select required value={create.studentId} onChange={(e) => setCreate({ ...create, studentId: e.target.value })} className="z-input">
+diff --git a/webapp/messages/ar.json b/webapp/messages/ar.json
+--- a/webapp/messages/ar.json
++++ b/webapp/messages/ar.json
+@@ -116,9 +116,9 @@
+         "body": "دفع إلكتروني عبر بوابات دفع موثوقة، ويمكنك الإلغاء متى شئت."
+       },
+       {
+-        "title": "اشتراك شهري",
+-        "body": "8 حصص كل شهر مع تجديد تلقائي، ويمكنك الإلغاء في أي وقت.",
+-        "badge": "تجديد تلقائي"
++        "title": "باقة شهرية من ٨ حصص",
++        "body": "احجز ٨ حصص مباشرة في الشهر. تواصل مع الأكاديمية لتأكيد التسجيل.",
++        "badge": "٨ حصص شهريًا"
+       },
+       {
+         "title": "على كيفك",
+diff --git a/webapp/messages/en.json b/webapp/messages/en.json
+--- a/webapp/messages/en.json
++++ b/webapp/messages/en.json
+@@ -116,9 +116,9 @@
+         "body": "Pay through trusted payment providers and cancel when you wish."
+       },
+       {
+-        "title": "Monthly subscription",
+-        "body": "Eight lessons each month with automatic renewal. Cancel at any time.",
+-        "badge": "Auto renewal"
++        "title": "Monthly package of 8 lessons",
++        "body": "Book 8 live lessons per month. Contact the academy to confirm enrollment.",
++        "badge": "8 lessons per month"
+       },
+       {
+         "title": "Pay as you go",

@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
+import { toInternationalDigits } from "./messaging/phone";
 import { prisma } from "./prisma";
 import { loginBlocked, recordLoginFailure, recordLoginSuccess } from "./auth/login-throttle";
 import { getClientIp } from "./request";
@@ -61,8 +62,17 @@ export const authOptions: NextAuthOptions = {
         // D90: 3 wrong passwords block this sign-in for 15 minutes (lib/auth/login-throttle.ts).
         if (loginBlocked(username, ip)) return null;
 
-        const user = await prisma.user.findFirst({
-          where: { username: normalizeUsername(username) },
+        const identifier = normalizeUsername(username);
+        const digits = toInternationalDigits(username);
+        const phones = digits ? [username, `+${digits}`, digits, `00${digits}`] : [];
+        if (digits?.startsWith("20")) phones.push(`0${digits.slice(2)}`);
+        const matches = await prisma.user.findMany({
+          where: { OR: [
+            { username: identifier },
+            { email: { equals: identifier, mode: "insensitive" } },
+            ...(phones.length ? [{ phone: { in: phones } }] : []),
+          ] },
+          take: 2,
           select: {
             id: true,
             username: true,
@@ -76,6 +86,8 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
+        const user = matches.length === 1 ? matches[0] : null;
+        if (user && loginBlocked(user.username, ip)) return null;
         if (!user || !user.isActive) {
           recordLoginFailure(username, ip);
           return null;
@@ -83,10 +95,10 @@ export const authOptions: NextAuthOptions = {
 
         const passwordValid = await bcrypt.compare(password, user.passwordHash);
         if (!passwordValid) {
-          recordLoginFailure(username, ip);
+          recordLoginFailure(user.username, ip);
           return null;
         }
-        recordLoginSuccess(username, ip);
+        recordLoginSuccess(user.username, ip);
 
         return {
           id: user.id,
